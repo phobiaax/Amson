@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Payment | Amson Pharmaceuticals</title>
+<title>Track Your Order | Amson Pharmaceuticals</title>
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -79,93 +79,84 @@
   </nav>
 </header>
 
-<!-- ===== Payment ===== -->
+<!-- ===== Order Details ===== -->
 <main class="section-block bg-light-gray">
   <div class="container">
-    <h1 class="section-title mb-4">Payment</h1>
+    <a href="orders.html" class="d-inline-flex align-items-center gap-1 text-decoration-none text-dark mb-3">
+      <i class="bi bi-arrow-left"></i> Back to My Orders
+    </a>
 
-    <div id="noPendingOrderNotice" class="cart-card text-center d-none">
-      <p class="text-muted mb-3">We couldn't find an order to pay for. Please check out again.</p>
-      <a href="cart.html" class="btn btn-amson">Back to Cart</a>
+    <div id="orderNotFoundNotice" class="cart-card text-center d-none">
+      <p class="text-muted mb-3">We couldn't find that order.</p>
+      <a href="orders.html" class="btn btn-amson">Back to My Orders</a>
     </div>
 
-    <div class="row g-4" id="paymentContent">
-      <div class="col-lg-7">
-        <div class="qr-box">
-          <div class="qr-code-image" style="width:100%; max-width:320px; height:360px;">
-            <img src="../assets/payment-qr.png" alt="Amson Pharmaceuticals QR Ph payment code" style="max-width:100%; max-height:100%;" onerror="this.classList.add('d-none'); document.getElementById('qrPlaceholder').classList.remove('d-none');">
-            <div id="qrPlaceholder" class="text-muted text-center p-3" style="font-size:0.8rem;">
-              <i class="bi bi-qr-code" style="font-size:3rem;"></i>
-              <p class="mb-0 mt-2">Add your official QR Ph payment image<br>(account name + QR code) to<br><code>assets/payment-qr.png</code></p>
-            </div>
+    <div id="orderLoading" class="cart-card text-center d-none">
+      <div class="spinner-border text-danger" role="status"></div>
+    </div>
+
+    <div id="orderDetailContent" class="checkout-card d-none">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <h1 class="section-title mb-0">Track Your Order</h1>
+        <button type="button" class="btn btn-outline-dark-amson" id="downloadReceiptBtn">
+          <i class="bi bi-file-earmark-text me-1"></i>Download Receipt
+        </button>
+      </div>
+
+      <div class="bg-light-gray rounded-3 p-3 mb-4" style="background-color: var(--amson-gray-bg); border-radius: 10px;">
+        <div class="row">
+          <div class="col-4">
+            <p class="order-meta-label mb-0">Order Number</p>
+            <p class="order-meta-value mb-0" id="detailOrderNumber"></p>
           </div>
-
-          <div class="text-start mt-4">
-            <p class="fw-bold mb-2">Payment Instructions:</p>
-            <ol style="font-size:0.92rem;">
-              <li>Scan the QR code above to send the payment.</li>
-              <li>Take a screenshot of your completed payment confirmation.</li>
-              <li>Upload the screenshot below.</li>
-            </ol>
-
-            <p class="payment-warning mb-3">
-              <i class="bi bi-exclamation-triangle-fill"></i>
-              Please double-check the amount before sending. Payments are non-refundable.
-            </p>
-
-            <div class="upload-dropzone" id="uploadDropzone">
-              <div id="uploadEmptyState">
-                <i class="bi bi-upload"></i>
-                <span id="uploadDropzoneLabel">Click to upload proof of payment</span>
-                <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
-              </div>
-              <div id="uploadPreviewState" class="d-none">
-                <img id="uploadPreviewImage" src="" alt="Proof of payment preview" style="max-width:100%; max-height:180px; border-radius:8px;">
-                <p class="mb-0 mt-2" id="uploadPreviewFilename" style="font-size:0.85rem; color:var(--amson-dark);"></p>
-                <p class="text-muted mb-0" style="font-size:0.75rem;">Click to change</p>
-              </div>
-              <input type="file" id="proofOfPaymentInput" accept="image/png,image/jpeg" class="d-none">
-            </div>
-            <p class="text-danger d-none mb-0 mt-2" id="uploadErrorText" style="font-size:0.82rem;"></p>
+          <div class="col-4">
+            <p class="order-meta-label mb-0">Date</p>
+            <p class="order-meta-value mb-0" id="detailOrderDate"></p>
+          </div>
+          <div class="col-4">
+            <p class="order-meta-label mb-0">Status</p>
+            <p class="order-status-badge mb-0" id="detailOrderStatus"></p>
           </div>
         </div>
       </div>
 
-      <div class="col-lg-5">
-        <div class="summary-card">
-          <h2 class="mb-3">Order Summary</h2>
-          <div id="paymentItemsSummary"></div>
+      <h2 class="h6 fw-bold mb-3">Order Timeline</h2>
+      <div class="order-timeline mb-4" id="orderTimeline"></div>
 
-          <div class="summary-total-row">
-            <span>Pay via QR PH</span>
-            <strong id="paymentTotalText" class="product-price mb-0">₱0</strong>
-          </div>
-          <div class="d-flex justify-content-between mt-2">
-            <span class="text-muted">Delivery Fee</span>
-            <span class="text-muted" id="deliveryFeeText">~₱85.00</span>
-          </div>
-
-          <div class="summary-note">
-            <strong>Note:</strong> The delivery fee shown is an estimate based on your selected location. The final shipping cost will be determined by the assigned third-party courier and must be paid in cash directly to the rider upon delivery.
-          </div>
-
-          <button type="button" class="btn btn-amson w-100 py-2" id="submitOrderBtn" disabled>Submit Order</button>
-
-          <p class="text-muted text-center mt-3 mb-0" style="font-size:0.82rem;">
-            By submitting your order, you agree to our <a href="#" class="link-red">Terms and Conditions</a>. Your payment will be verified by our staff before processing.
-          </p>
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-geo-alt text-danger me-1"></i>Shipping Address</h2>
+      <div class="detail-grid mb-4">
+        <div>
+          <p class="detail-label mb-0">Address</p>
+          <p class="detail-value" id="detailAddress"></p>
+        </div>
+        <div>
+          <p class="detail-label mb-0">Contact No.</p>
+          <p class="detail-value" id="detailContactNo"></p>
+        </div>
+        <div>
+          <p class="detail-label mb-0">Customer Name</p>
+          <p class="detail-value" id="detailCustomerName"></p>
+        </div>
+        <div>
+          <p class="detail-label mb-0">Delivery Notes</p>
+          <p class="detail-value" id="detailDeliveryNotes"></p>
         </div>
       </div>
-    </div>
 
-    <div id="orderConfirmation" class="cart-card text-center d-none">
-      <div class="icon-circle" style="background-color: rgba(26,156,75,0.12); color:#1a9c4b;"><i class="bi bi-check-circle-fill"></i></div>
-      <h2 class="mb-2">Thank You for Your Order!</h2>
-      <p class="text-muted mb-1">We've received your order and proof of payment. Our team will verify it and contact you shortly to confirm delivery.</p>
-      <p class="fw-bold mb-4" id="confirmedOrderNumber"></p>
-      <div class="d-flex gap-2 justify-content-center flex-wrap">
-        <a href="index.html" class="btn btn-outline-dark-amson">Back to Home</a>
-        <a href="orders.html" class="btn btn-amson d-none" id="viewOrdersLink">View My Orders</a>
+      <h2 class="h6 fw-bold mb-3">Order Items</h2>
+      <div id="detailItemsList" class="mb-3"></div>
+
+      <div class="summary-total-row mb-4">
+        <span class="fw-bold">Total</span>
+        <strong class="product-price mb-0" id="detailTotal"></strong>
+      </div>
+
+      <div class="text-center">
+        <p class="text-muted mb-2">Need help with your order?</p>
+        <div class="d-flex gap-2 justify-content-center flex-wrap">
+          <a href="#" class="btn btn-outline-dark-amson">Chat with Us</a>
+          <button type="button" class="btn btn-outline-dark-amson" id="markReceivedBtn" disabled>Order Marked as Received</button>
+        </div>
       </div>
     </div>
   </div>
@@ -202,11 +193,13 @@
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+<!-- jsPDF (receipt download) -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
 <!-- Firebase (compat SDK) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 
 <!-- App scripts -->
 <script src="../js/firebase-config.js"></script>
@@ -214,6 +207,6 @@
 <script src="../js/products-data.js"></script>
 <script src="../js/cart.js"></script>
 <script src="../js/orders.js"></script>
-<script src="../js/payment.js"></script>
+<script src="../js/order-details.js"></script>
 </body>
 </html>

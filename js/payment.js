@@ -2,9 +2,17 @@
  * Payment page: reads the pending order saved by checkout.js, shows a
  * hardcoded QR Ph payment code (no third-party payment gateway per
  * Amson's requirements), and requires a proof-of-payment upload before
- * "Submit Order" is enabled. No backend order write yet — this just
- * clears the cart and shows a confirmation panel.
+ * "Submit Order" is enabled. On submit: uploads the proof image to
+ * Firebase Storage, writes an orders/{id} doc in Firestore with status
+ * "placed", clears the cart, and shows a confirmation panel.
  */
+
+let storage;
+try {
+  storage = firebase.storage();
+} catch (error) {
+  storage = null;
+}
 
 const ESTIMATED_DELIVERY_FEE = 85;
 const MAX_PROOF_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -81,10 +89,71 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     submitOrderBtn.disabled = false;
   });
 
-  submitOrderBtn.addEventListener("click", () => {
-    clearCart();
-    sessionStorage.removeItem("amsonPendingOrder");
-    paymentContent.classList.add("d-none");
-    orderConfirmation.classList.remove("d-none");
+  submitOrderBtn.addEventListener("click", async () => {
+    const file = proofOfPaymentInput.files[0];
+    if (!file) return;
+
+    uploadErrorText.classList.add("d-none");
+    submitOrderBtn.disabled = true;
+    submitOrderBtn.textContent = "Submitting...";
+
+    try {
+      const user = auth.currentUser;
+
+      let proofOfPaymentUrl = "";
+      if (storage) {
+        const filePath = `payment-proofs/${user ? user.uid : "guest"}/${Date.now()}-${file.name}`;
+        const fileRef = storage.ref(filePath);
+        await fileRef.put(file);
+        proofOfPaymentUrl = await fileRef.getDownloadURL();
+      }
+
+      const orderNumber = await generateOrderNumber();
+
+      const items = pendingOrder.cart.map((item) => {
+        const product = getProductById(item.id);
+        return {
+          id: item.id,
+          name: product ? product.name : "Unknown product",
+          price: product ? product.price : 0,
+          qty: item.qty,
+        };
+      });
+
+      await db.collection("orders").add({
+        orderNumber,
+        customerId: user ? user.uid : null,
+        contact: pendingOrder.contact,
+        shipping: pendingOrder.shipping,
+        deliverySchedule: pendingOrder.deliverySchedule,
+        items,
+        total,
+        deliveryFeeEstimate: ESTIMATED_DELIVERY_FEE,
+        proofOfPaymentUrl,
+        status: "placed",
+        statusTimestamps: {
+          placed: firebase.firestore.FieldValue.serverTimestamp(),
+          payment_confirmed: null,
+          dispatched: null,
+          delivered: null,
+          received: null,
+        },
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+
+      clearCart();
+      sessionStorage.removeItem("amsonPendingOrder");
+      document.getElementById("confirmedOrderNumber").textContent = `Order Number: ${orderNumber}`;
+      if (user) {
+        document.getElementById("viewOrdersLink").classList.remove("d-none");
+      }
+      paymentContent.classList.add("d-none");
+      orderConfirmation.classList.remove("d-none");
+    } catch (error) {
+      uploadErrorText.textContent = "Something went wrong submitting your order. Please try again.";
+      uploadErrorText.classList.remove("d-none");
+      submitOrderBtn.disabled = false;
+      submitOrderBtn.textContent = "Submit Order";
+    }
   });
 }

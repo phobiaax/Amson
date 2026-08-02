@@ -40,27 +40,54 @@ js/verify-email.js             OTP verification logic
    - Create a project at https://console.firebase.google.com
    - Enable **Authentication > Email/Password**
    - Enable **Firestore Database**
+   - Enable **Storage** (Build > Storage > Get started, start in test mode)
+     — this is where proof-of-payment screenshots get uploaded
    - Copy your web app config into `js/firebase-config.js`
+   - **Before any real launch:** Firestore/Storage "test mode" allows
+     anyone to read and write anything. Replace the default rules with
+     real security rules before this goes live with real customer data.
 
-3. **Firestore schema (RBAC + email verification)**
-   Create a `users` collection, one document per Auth `uid`:
+3. **Firestore schema**
    ```
    users/{uid}
      role: "admin" | "customer"
-     firstName: string
-     lastName: string
-     email: string
-     contactNumber: string
+     firstName, lastName, email, contactNumber: string
      emailVerified: boolean
-     emailVerificationCode: string   (deleted once verified)
-     emailVerificationExpiresAt: number (deleted once verified)
+     emailVerificationCode, emailVerificationExpiresAt   (deleted once verified)
+     shippingAddress: { streetAddress, city, province, zipCode, deliveryNotes }
+                                                          (saved after first checkout)
+
+   orders/{orderId}
+     orderNumber: string        e.g. "AMP-2026-0001"
+     customerId: string | null  (null for guest checkout)
+     contact: { firstName, lastName, email, contactNumber }
+     shipping: { streetAddress, city, province, zipCode, deliveryNotes }
+     deliverySchedule: { date, slot } | null
+     items: [{ id, name, price, qty }]   snapshot at order time
+     total: number
+     proofOfPaymentUrl: string  (Firebase Storage download URL)
+     status: "placed" | "payment_confirmed" | "dispatched" | "delivered" | "received"
+     statusTimestamps: { placed, payment_confirmed, dispatched, delivered, received }
+     createdAt: Firestore timestamp
+
+   counters/orders-{year}
+     count: number   (used to generate sequential order numbers, don't edit by hand)
    ```
-   - The login page reads this document after sign-in: `admin` role goes to
-     `admin/dashboard.html`; an unverified `customer` is sent to
+   - The login page reads the `users` doc after sign-in: `admin` role goes
+     to `admin/dashboard.html`; an unverified `customer` is sent to
      `verify-email.html`; a verified `customer` goes to `shop/index.html`.
    - Admin accounts aren't created through the public registration form —
      create them directly in Firebase Auth + Firestore with `role: "admin"`
      and `emailVerified: true`.
+   - Only `placed` gets set automatically right now (when a customer pays).
+     Moving an order through `payment_confirmed` → `dispatched` →
+     `delivered` is a staff action — there's no admin screen for that yet,
+     so orders will currently just sit at "Placed" until that's built.
+   - **First time you load `shop/orders.html`**, Firestore will likely
+     show an error in the browser console with a link to create a
+     composite index (it needs one for the `customerId` + `createdAt`
+     query). Just click that link and confirm — takes a minute to build,
+     then the page works.
 
 4. **EmailJS** (sends the OTP code on registration / resend)
    - Sign up at https://www.emailjs.com, create an email service and a
