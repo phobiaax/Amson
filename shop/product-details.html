@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Amson Pharmaceuticals | Your Trusted Healthcare Partner</title>
+<title>Product Details | Amson Pharmaceuticals</title>
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -25,13 +25,11 @@
 <header class="site-header">
   <div class="container py-2">
     <div class="d-flex align-items-center flex-wrap gap-3 py-2">
-      <!-- Logo / Brand -->
       <a href="index.html" class="d-flex align-items-center text-decoration-none flex-shrink-0">
         <img src="../assets/logo.png" alt="Amson Pharmaceuticals" class="brand-logo">
         <span class="brand-name">Amson Pharmaceuticals</span>
       </a>
 
-      <!-- Search -->
       <div class="flex-grow-1 order-3 order-md-2" style="min-width:220px;">
         <div class="input-group">
           <input type="text" class="form-control search-input" placeholder="Search for medicines, vitamins, supplements...">
@@ -39,20 +37,17 @@
         </div>
       </div>
 
-      <!-- Cart & Auth actions -->
       <div class="d-flex align-items-center gap-3 order-2 order-md-3 ms-auto">
         <a href="cart.html" class="cart-icon position-relative">
           <i class="bi bi-cart3"></i>
           <span id="cartBadge" class="cart-badge d-none">0</span>
         </a>
 
-        <!-- Guest state (default; shop-header.js swaps to account state once signed-in is confirmed) -->
         <div id="guestActions" class="d-flex align-items-center gap-3">
           <a href="../login.html" class="btn btn-outline-dark-amson btn-sm px-3">Login</a>
           <a href="../register.html" class="btn btn-amson btn-sm px-3">Register</a>
         </div>
 
-        <!-- Signed-in state -->
         <div id="accountActions" class="d-flex align-items-center gap-3 d-none">
           <a href="#" class="bell-icon"><i class="bi bi-bell"></i></a>
           <div class="dropdown">
@@ -71,7 +66,6 @@
     </div>
   </div>
 
-  <!-- Category nav -->
   <nav class="category-nav">
     <div class="container">
       <ul class="nav flex-nowrap flex-md-wrap justify-content-md-center">
@@ -85,107 +79,46 @@
   </nav>
 </header>
 
-<!-- ===== Hero ===== -->
-<section class="hero-section">
+<!-- ===== Product Details ===== -->
+<main class="section-block bg-light-gray">
   <div class="container">
-    <h1>Your Trusted<br>Healthcare Partner</h1>
-    <p>Quality medicines, vitamins, and health products delivered to your doorstep.</p>
-    <a href="products.html" class="btn btn-hero">Shop Now <i class="bi bi-chevron-right"></i></a>
-  </div>
-</section>
+    <nav class="breadcrumb-nav mb-3">
+      <a href="index.html">Home</a>
+      <span>&gt;</span>
+      <a href="products.html">All Products</a>
+      <span>&gt;</span>
+      <span class="current" id="breadcrumbProductName">Product</span>
+    </nav>
 
-<!-- ===== Trust bar ===== -->
-<section class="trust-bar">
+    <div id="productDetailContent"></div>
+  </div>
+</main>
+
+<!-- ===== Footer ===== -->
+<footer class="site-footer pt-5">
   <div class="container">
-    <div class="trust-bar-inner">
-      <div class="trust-item"><i class="bi bi-shield-check"></i><span>FDA Licensed</span></div>
-      <div class="trust-item"><i class="bi bi-truck"></i><span>Fast Delivery</span></div>
-      <div class="trust-item"><i class="bi bi-check-circle"></i><span>Trusted Distributor</span></div>
-    </div>
-  </div>
-</section>
-
-<!-- ===== Featured Products ===== -->
-<section class="section-block bg-light-gray">
-  <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2 class="section-title mb-0">Featured Products</h2>
-      <a href="products.html" class="link-red fw-medium">View All <i class="bi bi-chevron-right"></i></a>
-    </div>
-    <div class="row row-cols-2 row-cols-md-3 row-cols-lg-5 g-4" id="featuredProductsGrid"></div>
-  </div>
-</section>
-
-<!-- ===== Shop by Category ===== -->
-<section class="section-block">
-  <div class="container">
-    <h2 class="section-title mb-4">Shop by Category</h2>
-    <div class="row row-cols-2 row-cols-md-4 g-4">
-      <div class="col">
-        <a href="products.html?category=otc" class="category-card">
-          <span class="category-icon"><i class="bi bi-star-fill"></i></span>
-          <h3>OTC Medicines</h3>
-          <p>Everyday over-the-counter relief</p>
-        </a>
+    <div class="row gy-4">
+      <div class="col-md-3">
+        <h6>About Amson</h6>
+        <p>Amson about description sample text</p>
       </div>
-      <div class="col">
-        <a href="products.html?category=vitamins" class="category-card">
-          <span class="category-icon"><i class="bi bi-star-fill"></i></span>
-          <h3>Vitamins &amp; Supplements</h3>
-          <p>Daily nutrition & immune support</p>
-        </a>
+      <div class="col-md-3">
+        <h6>Information</h6>
+        <a href="#" class="d-block">Privacy Policy</a>
+        <a href="#" class="d-block">Terms &amp; Conditions</a>
       </div>
-      <div class="col">
-        <a href="products.html?category=personal-care" class="category-card">
-          <span class="category-icon"><i class="bi bi-star-fill"></i></span>
-          <h3>Personal Care</h3>
-          <p>Hygiene & everyday essentials</p>
-        </a>
-      </div>
-      <div class="col">
-        <a href="products.html?category=health-wellness" class="category-card">
-          <span class="category-icon"><i class="bi bi-star-fill"></i></span>
-          <h3>Health &amp; Wellness</h3>
-          <p>Monitoring & home care devices</p>
-        </a>
+      <div class="col-md-3 offset-md-3">
+        <h6>Contact Us</h6>
+        <p class="mb-1">Hotline: +63 (02) 8123-4567</p>
+        <p class="mb-1">Email: support@amson.ph</p>
+        <p class="mb-1">Mon-Sun: 8:00 AM - 8:00 PM</p>
       </div>
     </div>
   </div>
-</section>
-
-<!-- ===== Bulk CTA + Footer ===== -->
-<div class="bulk-cta">
-  <div class="container text-center">
-    <h2>Looking to Buy in Bulk?</h2>
-    <p>Contact us directly for wholesale inquiries and enjoy exclusive pricing and benefits</p>
-    <a href="#" class="btn btn-amson btn-chat"><i class="bi bi-chat-square-text-fill me-2"></i>Chat with us</a>
+  <div class="footer-bottom text-center py-3 mt-4">
+    © 2026 Amson Pharmaceuticals. All rights reserved. FDA LTO No. XXXXX-XXXX
   </div>
-
-  <footer class="site-footer pt-5">
-    <div class="container">
-      <div class="row gy-4">
-        <div class="col-md-3">
-          <h6>About Amson</h6>
-          <p>Amson about description sample text</p>
-        </div>
-        <div class="col-md-3">
-          <h6>Information</h6>
-          <a href="#" class="d-block">Privacy Policy</a>
-          <a href="#" class="d-block">Terms &amp; Conditions</a>
-        </div>
-        <div class="col-md-3 offset-md-3">
-          <h6>Contact Us</h6>
-          <p class="mb-1">Hotline: +63 (02) 8123-4567</p>
-          <p class="mb-1">Email: support@amson.ph</p>
-          <p class="mb-1">Mon-Sun: 8:00 AM - 8:00 PM</p>
-        </div>
-      </div>
-    </div>
-    <div class="footer-bottom text-center py-3 mt-4">
-      © 2026 Amson Pharmaceuticals. All rights reserved. FDA LTO No. XXXXX-XXXX
-    </div>
-  </footer>
-</div>
+</footer>
 
 <a href="#" class="floating-chat-btn"><i class="bi bi-chat-square-text-fill"></i>Chat with us</a>
 
@@ -212,9 +145,6 @@
 <script src="../js/shop-header.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/cart.js"></script>
-<script>
-  document.getElementById("featuredProductsGrid").innerHTML =
-    SAMPLE_PRODUCTS.slice(0, 5).map(renderProductCard).join("");
-</script>
+<script src="../js/product-details.js"></script>
 </body>
 </html>

@@ -1,0 +1,101 @@
+/**
+ * Product details page: reads ?id= from the URL, renders the matching
+ * SAMPLE_PRODUCTS entry, and handles the quantity stepper + Add to Cart.
+ */
+
+const productId = new URLSearchParams(window.location.search).get("id");
+const product = getProductById(productId);
+const contentEl = document.getElementById("productDetailContent");
+const breadcrumbEl = document.getElementById("breadcrumbProductName");
+
+if (!product) {
+  contentEl.innerHTML = `
+    <div class="product-detail-card text-center">
+      <p class="mb-3">This product could not be found.</p>
+      <a href="products.html" class="btn btn-amson">Back to All Products</a>
+    </div>
+  `;
+} else {
+  document.title = `${product.name} | Amson Pharmaceuticals`;
+  breadcrumbEl.textContent = product.name;
+
+  contentEl.innerHTML = `
+    <div class="product-detail-card">
+      <div class="row g-4">
+        <div class="col-lg-5">
+          <div class="product-detail-image"></div>
+        </div>
+        <div class="col-lg-7">
+          <h1 class="h3 fw-bold mb-1">${product.name}</h1>
+          <p class="text-muted mb-3">Generic Name: ${product.genericName}</p>
+          <p class="product-detail-price mb-2">${formatPeso(product.price)}</p>
+          <p class="stock-badge ${product.inStock ? "in-stock" : "out-of-stock"} mb-4">
+            <i class="bi ${product.inStock ? "bi-box-seam" : "bi-x-circle"}"></i>
+            ${product.inStock ? "In Stock" : "Out of Stock"}
+          </p>
+
+          <label class="form-label d-block">Quantity</label>
+          <div class="d-flex align-items-center gap-3 mb-4">
+            <div class="qty-stepper">
+              <button type="button" id="qtyMinus" aria-label="Decrease quantity">&minus;</button>
+              <input type="text" id="qtyInput" value="1" inputmode="numeric">
+              <button type="button" id="qtyPlus" aria-label="Increase quantity">+</button>
+            </div>
+            <span class="text-muted">Subtotal: <strong id="subtotalText">${formatPeso(product.price)}</strong></span>
+          </div>
+
+          <button type="button" class="btn btn-amson w-100 py-2" id="addToCartBtn" ${product.inStock ? "" : "disabled"}>
+            <i class="bi bi-cart3 me-2"></i>${product.inStock ? "Add to Cart" : "Out of Stock"}
+          </button>
+        </div>
+      </div>
+
+      <div class="product-about">
+        <h2>About the Product</h2>
+        <p>${product.about}</p>
+        <p class="mb-0">
+          ${product.details.join("<br>")}
+        </p>
+      </div>
+    </div>
+  `;
+
+  const qtyInput = document.getElementById("qtyInput");
+  const subtotalText = document.getElementById("subtotalText");
+
+  function currentQty() {
+    return Math.max(1, parseInt(qtyInput.value, 10) || 1);
+  }
+
+  function updateSubtotal() {
+    subtotalText.textContent = formatPeso(product.price * currentQty());
+  }
+
+  document.getElementById("qtyMinus").addEventListener("click", () => {
+    qtyInput.value = Math.max(1, currentQty() - 1);
+    updateSubtotal();
+  });
+
+  document.getElementById("qtyPlus").addEventListener("click", () => {
+    qtyInput.value = currentQty() + 1;
+    updateSubtotal();
+  });
+
+  qtyInput.addEventListener("input", () => {
+    qtyInput.value = qtyInput.value.replace(/[^0-9]/g, "");
+    updateSubtotal();
+  });
+
+  qtyInput.addEventListener("blur", () => {
+    qtyInput.value = currentQty();
+    updateSubtotal();
+  });
+
+  const addToCartBtn = document.getElementById("addToCartBtn");
+  if (addToCartBtn) {
+    addToCartBtn.addEventListener("click", () => {
+      addToCart(product.id, currentQty());
+      showCartToast(`Added ${currentQty()} × ${product.name} to cart.`);
+    });
+  }
+}

@@ -123,10 +123,16 @@
         </div>
 
         <div class="form-check mb-3">
-          <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+          <input class="form-check-input" type="checkbox" id="agreeTerms" required disabled>
           <label class="form-check-label" for="agreeTerms" style="font-size:0.88rem;">
-            I agree to the <a href="#" class="link-red">Terms and Conditions</a> and <a href="#" class="link-red">Privacy Policy</a>
+            I agree to the
+            <a href="#" class="link-red" data-bs-toggle="modal" data-bs-target="#termsModal">Terms and Conditions</a>
+            and
+            <a href="#" class="link-red" data-bs-toggle="modal" data-bs-target="#privacyModal">Privacy Policy</a>
           </label>
+          <p class="text-muted mb-0" id="agreeTermsHint" style="font-size:0.78rem;">
+            Open and scroll through both documents above to enable this checkbox.
+          </p>
         </div>
 
         <!-- Google reCAPTCHA v2 -->
@@ -146,6 +152,108 @@
     </div>
   </div>
 </main>
+
+<!-- Terms and Conditions Modal -->
+<div class="modal fade legal-modal" id="termsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Terms and Conditions</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted" style="font-size:0.8rem;">[Placeholder text — replace with Amson Pharmaceuticals' finalized Terms and Conditions before launch.]</p>
+        <div class="legal-modal-body">
+          <h6>1. Introduction</h6>
+          <p>Welcome to Amson Pharmaceuticals. These Terms and Conditions govern your access to and use of our website and mobile ordering services. By creating an account, you agree to be bound by these terms in full.</p>
+
+          <h6>2. Eligibility &amp; Accounts</h6>
+          <p>You must provide accurate, current, and complete information when creating an account. You are responsible for maintaining the confidentiality of your password and for all activity that occurs under your account.</p>
+
+          <h6>3. Products &amp; Availability</h6>
+          <p>Product descriptions, images, and pricing are provided for general reference and may change without prior notice. We do not guarantee that any product listed is in stock at the time of your order.</p>
+
+          <h6>4. Orders &amp; Payment</h6>
+          <p>All orders are subject to acceptance and availability. Payment must be completed through the methods provided at checkout. Orders are only confirmed once payment has been verified by our staff.</p>
+
+          <h6>5. Prescription &amp; Regulated Medicines</h6>
+          <p>Certain products may require a valid prescription or additional verification before dispatch, in accordance with applicable Philippine FDA regulations. We reserve the right to refuse or cancel orders that do not meet regulatory requirements.</p>
+
+          <h6>6. Delivery</h6>
+          <p>Delivery timelines are estimates and not guaranteed. Delivery fees, where applicable, are communicated at checkout or settled directly with the assigned courier upon delivery, as indicated on the relevant page.</p>
+
+          <h6>7. Returns &amp; Refunds</h6>
+          <p>Due to the nature of pharmaceutical products, returns and refunds are handled on a case-by-case basis and are subject to our separate Returns Policy, provided upon request.</p>
+
+          <h6>8. Limitation of Liability</h6>
+          <p>Amson Pharmaceuticals shall not be liable for indirect, incidental, or consequential damages arising from the use of this website, to the fullest extent permitted by law.</p>
+
+          <h6>9. Changes to These Terms</h6>
+          <p>We may update these Terms and Conditions from time to time. Continued use of the site after changes are posted constitutes acceptance of the revised terms.</p>
+
+          <h6>10. Governing Law</h6>
+          <p>These terms are governed by the laws of the Republic of the Philippines. You have now reached the end of this document.</p>
+        </div>
+        <p class="legal-scroll-hint"><i class="bi bi-arrow-down-circle me-1"></i>Scroll to the bottom to enable the Agree button.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-amson legal-accept-btn" disabled>I Have Read and Agree</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Privacy Policy Modal -->
+<div class="modal fade legal-modal" id="privacyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Privacy Policy</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted" style="font-size:0.8rem;">[Placeholder text — replace with Amson Pharmaceuticals' finalized Privacy Policy before launch.]</p>
+        <div class="legal-modal-body">
+          <h6>1. Information We Collect</h6>
+          <p>We collect information you provide directly, such as your name, email address, contact number, and shipping address, as well as order history and payment confirmation details.</p>
+
+          <h6>2. How We Use Your Information</h6>
+          <p>Your information is used to process orders, verify payments, communicate order updates, and improve our products and services. We do not sell your personal information to third parties.</p>
+
+          <h6>3. Payment Information</h6>
+          <p>Amson Pharmaceuticals does not use third-party payment processors. Proof-of-payment screenshots you upload are reviewed manually by our staff solely to verify and confirm your order.</p>
+
+          <h6>4. Data Storage &amp; Security</h6>
+          <p>Your data is stored using industry-standard cloud infrastructure with access controls in place. While we take reasonable measures to protect your data, no method of electronic storage is 100% secure.</p>
+
+          <h6>5. Cookies &amp; Local Storage</h6>
+          <p>We use local browser storage to remember items in your shopping cart between visits. This data stays on your device and is not transmitted to our servers until checkout.</p>
+
+          <h6>6. Sharing of Information</h6>
+          <p>We may share limited order and delivery information with third-party couriers solely for the purpose of fulfilling your delivery.</p>
+
+          <h6>7. Your Rights</h6>
+          <p>You may request access to, correction of, or deletion of your personal information at any time by contacting our support team.</p>
+
+          <h6>8. Children's Privacy</h6>
+          <p>Our services are not directed to individuals under 18. We do not knowingly collect personal information from minors.</p>
+
+          <h6>9. Changes to This Policy</h6>
+          <p>We may update this Privacy Policy periodically. Material changes will be communicated through the website.</p>
+
+          <h6>10. Contact Us</h6>
+          <p>For any privacy-related concerns, reach us at support@amson.ph. You have now reached the end of this document.</p>
+        </div>
+        <p class="legal-scroll-hint"><i class="bi bi-arrow-down-circle me-1"></i>Scroll to the bottom to enable the Agree button.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-amson legal-accept-btn" disabled>I Have Read and Agree</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ===== Footer ===== -->
 <footer class="site-footer pt-5">
@@ -191,6 +299,7 @@
 <script src="js/firebase-config.js"></script>
 <script src="js/emailjs-config.js"></script>
 <script src="js/otp.js"></script>
+<script src="js/terms-gate.js"></script>
 <script src="js/register.js"></script>
 </body>
 </html>
