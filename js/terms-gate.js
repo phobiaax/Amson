@@ -1,9 +1,12 @@
 /**
  * Mandatory "scroll to the bottom before you can accept" gate for the
- * Terms and Conditions / Privacy Policy modals. The "I Have Read and
- * Agree" button in each modal stays disabled until its body has been
- * scrolled to the end; the main agreeTerms checkbox on the page stays
- * disabled until every required modal has been accepted at least once.
+ * combined Terms and Conditions / Privacy Policy modal.
+ *
+ * The agreeTerms checkbox looks and behaves like a normal checkbox, but
+ * until the modal has been accepted once, clicking it opens the modal
+ * instead of toggling. The "I Have Read and Agree" button inside stays
+ * disabled until the body has been scrolled to the end. Accepting closes
+ * the modal and checks the box; after that it's just a normal checkbox.
  */
 
 document.querySelectorAll(".legal-modal").forEach((modal) => {
@@ -30,15 +33,19 @@ document.querySelectorAll(".legal-modal").forEach((modal) => {
   });
 });
 
-const acceptedLegalDocs = new Set();
-const requiredLegalDocs = ["termsModal", "privacyModal"];
 const legalAgreeCheckbox = document.getElementById("agreeTerms");
-const legalAgreeHint = document.getElementById("agreeTermsHint");
 
-document.addEventListener("legal:accepted", (e) => {
-  acceptedLegalDocs.add(e.detail.id);
-  if (requiredLegalDocs.every((id) => acceptedLegalDocs.has(id))) {
-    legalAgreeCheckbox.disabled = false;
-    if (legalAgreeHint) legalAgreeHint.classList.add("d-none");
-  }
-});
+if (legalAgreeCheckbox) {
+  let legalAccepted = false;
+
+  legalAgreeCheckbox.addEventListener("click", (e) => {
+    if (legalAccepted) return;
+    e.preventDefault();
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("legalModal")).show();
+  });
+
+  document.addEventListener("legal:accepted", () => {
+    legalAccepted = true;
+    legalAgreeCheckbox.checked = true;
+  });
+}

@@ -68,7 +68,23 @@
     <div class="icon-circle"><i class="bi bi-envelope-fill"></i></div>
     <h2>Verify Your Email</h2>
     <p class="auth-subtitle mb-1">We've sent a verification code to</p>
-    <p class="fw-semibold mb-4" id="verifyEmailDisplay">your email</p>
+    <p class="fw-semibold mb-1" id="verifyEmailDisplay">your email</p>
+    <button type="button" class="btn btn-link p-0 mb-4" id="changeEmailBtn" style="font-size:0.85rem;">Change email address</button>
+
+    <div id="changeEmailForm" class="d-none text-start mb-4">
+      <label for="newEmailInput" class="form-label">New Email Address</label>
+      <div class="input-icon-group mb-2">
+        <i class="bi bi-envelope field-icon"></i>
+        <input type="email" class="form-control" id="newEmailInput" placeholder="your@email.com">
+      </div>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-dark-amson flex-fill" id="cancelChangeEmailBtn">Cancel</button>
+        <button type="button" class="btn btn-amson flex-fill" id="confirmChangeEmailBtn">
+          <span id="confirmChangeEmailText">Update &amp; Resend Code</span>
+          <span id="confirmChangeEmailSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        </button>
+      </div>
+    </div>
 
     <div id="verifyAlert" class="alert alert-danger auth-alert d-none" role="alert"></div>
 

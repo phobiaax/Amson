@@ -57,11 +57,21 @@ saveDeliveryScheduleBtn.addEventListener("click", () => {
 });
 
 // ---- Proceed to Payment ----
-proceedToPaymentBtn.addEventListener("click", () => {
+let signedInUid = null;
+
+proceedToPaymentBtn.addEventListener("click", async () => {
   if (!checkoutForm.checkValidity()) {
     checkoutForm.classList.add("was-validated");
     return;
   }
+
+  const shipping = {
+    streetAddress: document.getElementById("streetAddress").value.trim(),
+    city: document.getElementById("city").value.trim(),
+    province: document.getElementById("province").value.trim(),
+    zipCode: document.getElementById("zipCode").value.trim(),
+    deliveryNotes: document.getElementById("deliveryNotes").value.trim(),
+  };
 
   const order = {
     contact: {
@@ -70,26 +80,36 @@ proceedToPaymentBtn.addEventListener("click", () => {
       email: document.getElementById("email").value.trim(),
       contactNumber: document.getElementById("contactNumber").value.trim(),
     },
-    shipping: {
-      streetAddress: document.getElementById("streetAddress").value.trim(),
-      city: document.getElementById("city").value.trim(),
-      province: document.getElementById("province").value.trim(),
-      zipCode: document.getElementById("zipCode").value.trim(),
-      deliveryNotes: document.getElementById("deliveryNotes").value.trim(),
-    },
+    shipping,
     deliverySchedule,
     cart: getCart(),
   };
 
   sessionStorage.setItem("amsonPendingOrder", JSON.stringify(order));
+
+  // Save the address to the customer's profile so future checkouts can
+  // skip re-typing it. Best-effort — a failure here shouldn't block checkout.
+  if (signedInUid) {
+    try {
+      await db.collection("users").doc(signedInUid).set(
+        { shippingAddress: shipping },
+        { merge: true }
+      );
+    } catch (error) {
+      // Not fatal — the order still has the address in sessionStorage.
+    }
+  }
+
   window.location.href = "payment.html";
 });
 
-// ---- Prefill contact info for signed-in customers (best-effort; checkout
-// itself must keep working even if this never resolves) ----
+// ---- Prefill contact info + saved shipping address for signed-in
+// customers (best-effort; checkout itself must keep working even if this
+// never resolves) ----
 try {
   auth.onAuthStateChanged(async (user) => {
     if (!user) return;
+    signedInUid = user.uid;
     try {
       const doc = await db.collection("users").doc(user.uid).get();
       if (!doc.exists) return;
@@ -98,6 +118,14 @@ try {
       document.getElementById("lastName").value = data.lastName || "";
       document.getElementById("email").value = data.email || "";
       document.getElementById("contactNumber").value = data.contactNumber || "";
+
+      if (data.shippingAddress) {
+        document.getElementById("streetAddress").value = data.shippingAddress.streetAddress || "";
+        document.getElementById("city").value = data.shippingAddress.city || "";
+        document.getElementById("province").value = data.shippingAddress.province || "";
+        document.getElementById("zipCode").value = data.shippingAddress.zipCode || "";
+        document.getElementById("deliveryNotes").value = data.shippingAddress.deliveryNotes || "";
+      }
     } catch (error) {
       // Guest checkout still works with manually entered info.
     }

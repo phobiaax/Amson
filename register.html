@@ -109,6 +109,7 @@
               <i class="bi bi-eye"></i>
             </button>
           </div>
+          <p class="form-text mb-0" id="passwordHint">Must be at least 6 characters.</p>
         </div>
 
         <div class="mb-3">
@@ -120,24 +121,20 @@
               <i class="bi bi-eye"></i>
             </button>
           </div>
+          <p class="form-text mb-0 d-none" id="passwordMatchHint"></p>
         </div>
 
         <div class="form-check mb-3">
-          <input class="form-check-input" type="checkbox" id="agreeTerms" required disabled>
+          <input class="form-check-input" type="checkbox" id="agreeTerms" required>
           <label class="form-check-label" for="agreeTerms" style="font-size:0.88rem;">
             I agree to the
-            <a href="#" class="link-red" data-bs-toggle="modal" data-bs-target="#termsModal">Terms and Conditions</a>
-            and
-            <a href="#" class="link-red" data-bs-toggle="modal" data-bs-target="#privacyModal">Privacy Policy</a>
+            <a href="#" class="link-red" data-bs-toggle="modal" data-bs-target="#legalModal">Terms and Conditions and Privacy Policy</a>
           </label>
-          <p class="text-muted mb-0" id="agreeTermsHint" style="font-size:0.78rem;">
-            Open and scroll through both documents above to enable this checkbox.
-          </p>
         </div>
 
         <!-- Google reCAPTCHA v2 -->
         <div class="mb-3 d-flex justify-content-center">
-          <div class="g-recaptcha" data-sitekey="YOUR_RECAPTCHA_SITE_KEY"></div>
+          <div class="g-recaptcha" data-sitekey="6Ld9pHEtAAAAAK8wyC57kooKE8KIPWWfgkOtKrHs"></div>
         </div>
 
         <button type="submit" class="btn btn-amson w-100 py-2" id="registerBtn">
@@ -153,17 +150,19 @@
   </div>
 </main>
 
-<!-- Terms and Conditions Modal -->
-<div class="modal fade legal-modal" id="termsModal" tabindex="-1" aria-hidden="true">
+<!-- Terms and Conditions + Privacy Policy Modal (combined) -->
+<div class="modal fade legal-modal" id="legalModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Terms and Conditions</h5>
+        <h5 class="modal-title">Terms and Conditions &amp; Privacy Policy</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <p class="text-muted" style="font-size:0.8rem;">[Placeholder text — replace with Amson Pharmaceuticals' finalized Terms and Conditions before launch.]</p>
+        <p class="text-muted" style="font-size:0.8rem;">[Placeholder text — replace with Amson Pharmaceuticals' finalized Terms and Conditions and Privacy Policy before launch.]</p>
         <div class="legal-modal-body">
+          <p class="fw-bold mb-2">Part 1: Terms and Conditions</p>
+
           <h6>1. Introduction</h6>
           <p>Welcome to Amson Pharmaceuticals. These Terms and Conditions govern your access to and use of our website and mobile ordering services. By creating an account, you agree to be bound by these terms in full.</p>
 
@@ -192,29 +191,11 @@
           <p>We may update these Terms and Conditions from time to time. Continued use of the site after changes are posted constitutes acceptance of the revised terms.</p>
 
           <h6>10. Governing Law</h6>
-          <p>These terms are governed by the laws of the Republic of the Philippines. You have now reached the end of this document.</p>
-        </div>
-        <p class="legal-scroll-hint"><i class="bi bi-arrow-down-circle me-1"></i>Scroll to the bottom to enable the Agree button.</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-amson legal-accept-btn" disabled>I Have Read and Agree</button>
-      </div>
-    </div>
-  </div>
-</div>
+          <p>These terms are governed by the laws of the Republic of the Philippines.</p>
 
-<!-- Privacy Policy Modal -->
-<div class="modal fade legal-modal" id="privacyModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Privacy Policy</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p class="text-muted" style="font-size:0.8rem;">[Placeholder text — replace with Amson Pharmaceuticals' finalized Privacy Policy before launch.]</p>
-        <div class="legal-modal-body">
+          <hr class="my-4">
+          <p class="fw-bold mb-2">Part 2: Privacy Policy</p>
+
           <h6>1. Information We Collect</h6>
           <p>We collect information you provide directly, such as your name, email address, contact number, and shipping address, as well as order history and payment confirmation details.</p>
 

@@ -17,6 +17,8 @@ const contactNumberInput = document.getElementById("contactNumber");
 const passwordInput = document.getElementById("password");
 const confirmPasswordInput = document.getElementById("confirmPassword");
 const agreeTermsInput = document.getElementById("agreeTerms");
+const passwordHint = document.getElementById("passwordHint");
+const passwordMatchHint = document.getElementById("passwordMatchHint");
 
 // ---- Password visibility toggles (works for both password fields) ----
 document.querySelectorAll(".toggle-password").forEach((btn) => {
@@ -29,6 +31,32 @@ document.querySelectorAll(".toggle-password").forEach((btn) => {
     icon.classList.toggle("bi-eye-slash");
   });
 });
+
+// ---- Live password length / match feedback ----
+function updatePasswordMatchHint() {
+  if (!confirmPasswordInput.value) {
+    passwordMatchHint.classList.add("d-none");
+    return;
+  }
+  passwordMatchHint.classList.remove("d-none");
+  if (passwordInput.value === confirmPasswordInput.value) {
+    passwordMatchHint.textContent = "✓ Passwords match";
+    passwordMatchHint.classList.remove("text-danger");
+    passwordMatchHint.classList.add("text-success");
+  } else {
+    passwordMatchHint.textContent = "✕ Passwords do not match";
+    passwordMatchHint.classList.remove("text-success");
+    passwordMatchHint.classList.add("text-danger");
+  }
+}
+
+passwordInput.addEventListener("input", () => {
+  const tooShort = passwordInput.value.length > 0 && passwordInput.value.length < 6;
+  passwordHint.classList.toggle("text-danger", tooShort);
+  updatePasswordMatchHint();
+});
+
+confirmPasswordInput.addEventListener("input", updatePasswordMatchHint);
 
 // ---- Helpers ----
 function showAlert(message) {

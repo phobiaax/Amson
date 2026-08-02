@@ -92,17 +92,11 @@
     <div class="row g-4" id="paymentContent">
       <div class="col-lg-7">
         <div class="qr-box">
-          <div style="font-size:1.5rem; font-weight:700;">
-            <span style="color:#e5252a;">QR</span> <span style="color:#12121B;">Ph</span>
-          </div>
-          <p class="mt-2 mb-0">Account Name:</p>
-          <p class="fw-bold mb-2">Amson Pharmaceuticals</p>
-
-          <div class="qr-code-image">
+          <div class="qr-code-image" style="width:100%; max-width:320px; height:360px;">
             <img src="../assets/payment-qr.png" alt="Amson Pharmaceuticals QR Ph payment code" style="max-width:100%; max-height:100%;" onerror="this.classList.add('d-none'); document.getElementById('qrPlaceholder').classList.remove('d-none');">
             <div id="qrPlaceholder" class="text-muted text-center p-3" style="font-size:0.8rem;">
-              <i class="bi bi-qr-code" style="font-size:2.5rem;"></i>
-              <p class="mb-0 mt-2">Add your official QR Ph code image to<br><code>assets/payment-qr.png</code></p>
+              <i class="bi bi-qr-code" style="font-size:3rem;"></i>
+              <p class="mb-0 mt-2">Add your official QR Ph payment image<br>(account name + QR code) to<br><code>assets/payment-qr.png</code></p>
             </div>
           </div>
 
@@ -120,11 +114,19 @@
             </p>
 
             <div class="upload-dropzone" id="uploadDropzone">
-              <i class="bi bi-upload"></i>
-              <span id="uploadDropzoneLabel">Click to upload proof of payment</span>
-              <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
+              <div id="uploadEmptyState">
+                <i class="bi bi-upload"></i>
+                <span id="uploadDropzoneLabel">Click to upload proof of payment</span>
+                <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
+              </div>
+              <div id="uploadPreviewState" class="d-none">
+                <img id="uploadPreviewImage" src="" alt="Proof of payment preview" style="max-width:100%; max-height:180px; border-radius:8px;">
+                <p class="mb-0 mt-2" id="uploadPreviewFilename" style="font-size:0.85rem; color:var(--amson-dark);"></p>
+                <p class="text-muted mb-0" style="font-size:0.75rem;">Click to change</p>
+              </div>
               <input type="file" id="proofOfPaymentInput" accept="image/png,image/jpeg" class="d-none">
             </div>
+            <p class="text-danger d-none mb-0 mt-2" id="uploadErrorText" style="font-size:0.82rem;"></p>
           </div>
         </div>
       </div>

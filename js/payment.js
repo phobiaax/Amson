@@ -7,6 +7,7 @@
  */
 
 const ESTIMATED_DELIVERY_FEE = 85;
+const MAX_PROOF_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 const noPendingOrderNotice = document.getElementById("noPendingOrderNotice");
 const paymentContent = document.getElementById("paymentContent");
@@ -15,7 +16,11 @@ const paymentItemsSummary = document.getElementById("paymentItemsSummary");
 const paymentTotalText = document.getElementById("paymentTotalText");
 const deliveryFeeText = document.getElementById("deliveryFeeText");
 const uploadDropzone = document.getElementById("uploadDropzone");
-const uploadDropzoneLabel = document.getElementById("uploadDropzoneLabel");
+const uploadEmptyState = document.getElementById("uploadEmptyState");
+const uploadPreviewState = document.getElementById("uploadPreviewState");
+const uploadPreviewImage = document.getElementById("uploadPreviewImage");
+const uploadPreviewFilename = document.getElementById("uploadPreviewFilename");
+const uploadErrorText = document.getElementById("uploadErrorText");
 const proofOfPaymentInput = document.getElementById("proofOfPaymentInput");
 const submitOrderBtn = document.getElementById("submitOrderBtn");
 
@@ -56,7 +61,23 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
   proofOfPaymentInput.addEventListener("change", () => {
     const file = proofOfPaymentInput.files[0];
     if (!file) return;
-    uploadDropzoneLabel.textContent = file.name;
+
+    uploadErrorText.classList.add("d-none");
+
+    if (file.size > MAX_PROOF_FILE_SIZE_BYTES) {
+      uploadErrorText.textContent = "That file is too large. Please upload an image under 10MB.";
+      uploadErrorText.classList.remove("d-none");
+      proofOfPaymentInput.value = "";
+      uploadEmptyState.classList.remove("d-none");
+      uploadPreviewState.classList.add("d-none");
+      submitOrderBtn.disabled = true;
+      return;
+    }
+
+    uploadPreviewImage.src = URL.createObjectURL(file);
+    uploadPreviewFilename.textContent = file.name;
+    uploadEmptyState.classList.add("d-none");
+    uploadPreviewState.classList.remove("d-none");
     submitOrderBtn.disabled = false;
   });
 

@@ -806,6 +806,7 @@ a {
 
 /* ---------- Payment page ---------- */
 .qr-box {
+  background-color: #fff;
   border: 1px solid var(--amson-border);
   border-radius: 10px;
   padding: 2rem;
