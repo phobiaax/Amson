@@ -1,0 +1,248 @@
+/* ==========================================================================
+   Amson Pharmaceuticals — Global Styles
+   ========================================================================== */
+
+:root {
+  --amson-red: #EE3137;
+  --amson-red-dark: #d42630;
+  --amson-dark: #12121B;
+  --amson-gray-bg: #f4f4f6;
+  --amson-border: #e5e5ea;
+  --amson-text-muted: #7a7a85;
+}
+
+body {
+  font-family: 'Roboto', sans-serif;
+  color: var(--amson-dark);
+  background-color: #ffffff;
+}
+
+a {
+  text-decoration: none;
+}
+
+/* ---------- Top accent bar ---------- */
+.top-bar {
+  height: 6px;
+  background-color: var(--amson-red);
+  width: 100%;
+}
+
+/* ---------- Header ---------- */
+.site-header {
+  border-bottom: 1px solid var(--amson-border);
+  background-color: #fff;
+}
+
+.brand-logo {
+  height: 34px;
+  width: 34px;
+}
+
+.brand-name {
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--amson-dark);
+  margin-left: 0.5rem;
+}
+
+.search-input {
+  border: 1px solid var(--amson-border);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  background-color: #f7f7f9;
+}
+.search-input:focus {
+  box-shadow: none;
+  border-color: var(--amson-red);
+  background-color: #fff;
+}
+
+.search-btn {
+  background-color: var(--amson-red);
+  border: 1px solid var(--amson-red);
+  color: #fff;
+  border-radius: 0 6px 6px 0;
+}
+.search-btn:hover {
+  background-color: var(--amson-red-dark);
+  color: #fff;
+}
+
+.btn-outline-dark-amson {
+  border: 1px solid var(--amson-dark);
+  color: var(--amson-dark);
+  background-color: #fff;
+  font-weight: 500;
+}
+.btn-outline-dark-amson:hover {
+  background-color: var(--amson-dark);
+  color: #fff;
+}
+
+.btn-amson {
+  background-color: var(--amson-red);
+  border: 1px solid var(--amson-red);
+  color: #fff;
+  font-weight: 500;
+}
+.btn-amson:hover {
+  background-color: var(--amson-red-dark);
+  border-color: var(--amson-red-dark);
+  color: #fff;
+}
+
+.cart-icon {
+  font-size: 1.3rem;
+  color: var(--amson-dark);
+}
+
+/* ---------- Category nav ---------- */
+.category-nav {
+  background-color: #fff;
+  border-bottom: 1px solid var(--amson-border);
+}
+.category-nav .nav-link {
+  color: var(--amson-dark);
+  font-size: 0.92rem;
+  padding: 0.85rem 1rem;
+}
+.category-nav .nav-link:hover {
+  color: var(--amson-red);
+}
+
+/* ---------- Login page ---------- */
+.auth-page {
+  background-color: var(--amson-gray-bg);
+  min-height: calc(100vh - 200px);
+  padding: 3.5rem 1rem;
+}
+
+.auth-card {
+  max-width: 400px;
+  width: 100%;
+  margin: 0 auto;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(18, 18, 27, 0.08);
+  padding: 2.25rem 2rem;
+}
+
+.auth-card h2 {
+  font-weight: 700;
+  font-size: 1.5rem;
+}
+
+.auth-subtitle {
+  color: var(--amson-text-muted);
+  font-size: 0.9rem;
+}
+
+.form-label {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.input-icon-group {
+  position: relative;
+}
+
+.input-icon-group .form-control {
+  padding-left: 2.5rem;
+  border: 1px solid var(--amson-border);
+}
+
+.input-icon-group .form-control:focus {
+  border-color: var(--amson-red);
+  box-shadow: 0 0 0 3px rgba(238, 49, 55, 0.1);
+}
+
+.input-icon-group .field-icon {
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9a9aa5;
+  pointer-events: none;
+}
+
+.input-icon-group .toggle-password {
+  position: absolute;
+  right: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9a9aa5;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.link-red {
+  color: var(--amson-red);
+  font-weight: 500;
+}
+.link-red:hover {
+  color: var(--amson-red-dark);
+  text-decoration: underline;
+}
+
+.form-check-input:checked {
+  background-color: var(--amson-red);
+  border-color: var(--amson-red);
+}
+
+.demo-admin-link {
+  display: block;
+  text-align: center;
+  margin-top: 1rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--amson-dark);
+  font-weight: 600;
+  text-transform: uppercase;
+  background: none;
+  border: none;
+}
+.demo-admin-link:hover {
+  color: var(--amson-red);
+}
+
+/* ---------- Footer ---------- */
+.site-footer {
+  background-color: var(--amson-dark);
+  color: #c7c7cf;
+}
+
+.site-footer h6 {
+  color: #fff;
+  font-weight: 700;
+  margin-bottom: 0.9rem;
+}
+
+.site-footer a {
+  color: #c7c7cf;
+  font-size: 0.9rem;
+  line-height: 1.9;
+}
+
+.site-footer a:hover {
+  color: var(--amson-red);
+}
+
+.site-footer p {
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+}
+
+.footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.8rem;
+  color: #8a8a92;
+}
+
+/* ---------- Alerts ---------- */
+.auth-alert {
+  font-size: 0.85rem;
+  padding: 0.6rem 0.85rem;
+}
