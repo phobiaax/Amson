@@ -1,14 +1,8 @@
 /**
  * Login page logic: Firebase Authentication + Firestore role lookup (RBAC).
  * Expects a Firestore collection "users" with one doc per uid:
- *   { role: "admin" | "customer", firstName, lastName, email, ... }
+ *   { role: "admin" | "customer", firstName, lastName, email, emailVerified, ... }
  */
-
-// Demo admin account used by the "Log in as Admin (Demo Purposes)" button.
-// Create this user in Firebase Authentication and give it a matching
-// Firestore users/{uid} doc with role: "admin".
-const DEMO_ADMIN_EMAIL = "admin@amson.ph";
-const DEMO_ADMIN_PASSWORD = "AmsonAdmin123!";
 
 const loginForm = document.getElementById("loginForm");
 const loginAlert = document.getElementById("loginAlert");
@@ -20,7 +14,6 @@ const passwordInput = document.getElementById("password");
 const rememberMeInput = document.getElementById("rememberMe");
 const togglePasswordBtn = document.querySelector(".toggle-password");
 const togglePasswordIcon = document.getElementById("togglePasswordIcon");
-const demoAdminBtn = document.getElementById("demoAdminBtn");
 
 // ---- Password visibility toggle ----
 togglePasswordBtn.addEventListener("click", () => {
@@ -63,12 +56,17 @@ function mapAuthError(error) {
   }
 }
 
-function redirectByRole(role) {
-  if (role === "admin") {
+function redirectByRole(userData) {
+  if (userData.role === "admin") {
     window.location.href = "admin/dashboard.html";
-  } else {
-    window.location.href = "shop/index.html";
+    return;
   }
+  if (!userData.emailVerified) {
+    sessionStorage.setItem("amsonPendingVerificationEmail", userData.email || "");
+    window.location.href = "verify-email.html";
+    return;
+  }
+  window.location.href = "shop/index.html";
 }
 
 async function performLogin(email, password) {
@@ -98,7 +96,7 @@ async function performLogin(email, password) {
       return;
     }
 
-    redirectByRole(userDoc.data().role);
+    redirectByRole(userDoc.data());
   } catch (error) {
     showAlert(mapAuthError(error));
     if (typeof grecaptcha !== "undefined") grecaptcha.reset();
@@ -117,42 +115,3 @@ loginForm.addEventListener("submit", (e) => {
   performLogin(emailInput.value.trim(), passwordInput.value);
 });
 
-// ---- Demo admin quick login ----
-demoAdminBtn.addEventListener("click", () => {
-  emailInput.value = DEMO_ADMIN_EMAIL;
-  passwordInput.value = DEMO_ADMIN_PASSWORD;
-  showAlert(
-    "Demo admin credentials filled in. Complete the reCAPTCHA and click Login."
-  );
-});
-
-// ---- Forgot password ----
-const resetEmailInput = document.getElementById("resetEmail");
-const resetAlert = document.getElementById("resetAlert");
-const sendResetBtn = document.getElementById("sendResetBtn");
-
-sendResetBtn.addEventListener("click", async () => {
-  const email = resetEmailInput.value.trim();
-  resetAlert.classList.add("d-none");
-
-  if (!email) {
-    resetAlert.textContent = "Please enter your email address.";
-    resetAlert.classList.remove("d-none", "alert-success");
-    resetAlert.classList.add("alert-danger");
-    return;
-  }
-
-  sendResetBtn.disabled = true;
-  try {
-    await auth.sendPasswordResetEmail(email);
-    resetAlert.textContent = "Password reset link sent. Please check your inbox.";
-    resetAlert.classList.remove("d-none", "alert-danger");
-    resetAlert.classList.add("alert-success");
-  } catch (error) {
-    resetAlert.textContent = mapAuthError(error);
-    resetAlert.classList.remove("d-none", "alert-success");
-    resetAlert.classList.add("alert-danger");
-  } finally {
-    sendResetBtn.disabled = false;
-  }
-});
