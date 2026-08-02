@@ -3,16 +3,11 @@
  * hardcoded QR Ph payment code (no third-party payment gateway per
  * Amson's requirements), and requires a proof-of-payment upload before
  * "Submit Order" is enabled. On submit: uploads the proof image to
- * Firebase Storage, writes an orders/{id} doc in Firestore with status
- * "placed", clears the cart, and shows a confirmation panel.
+ * Cloudinary (see js/cloudinary.js — chosen over Firebase Storage to
+ * avoid the Blaze plan's billing requirement), writes an orders/{id} doc
+ * in Firestore with status "placed", clears the cart, and shows a
+ * confirmation panel.
  */
-
-let storage;
-try {
-  storage = firebase.storage();
-} catch (error) {
-  storage = null;
-}
 
 const ESTIMATED_DELIVERY_FEE = 85;
 const MAX_PROOF_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -99,15 +94,7 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
 
     try {
       const user = auth.currentUser;
-
-      let proofOfPaymentUrl = "";
-      if (storage) {
-        const filePath = `payment-proofs/${user ? user.uid : "guest"}/${Date.now()}-${file.name}`;
-        const fileRef = storage.ref(filePath);
-        await fileRef.put(file);
-        proofOfPaymentUrl = await fileRef.getDownloadURL();
-      }
-
+      const proofOfPaymentUrl = await uploadToCloudinary(file);
       const orderNumber = await generateOrderNumber();
 
       const items = pendingOrder.cart.map((item) => {
@@ -150,7 +137,8 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
       paymentContent.classList.add("d-none");
       orderConfirmation.classList.remove("d-none");
     } catch (error) {
-      uploadErrorText.textContent = "Something went wrong submitting your order. Please try again.";
+      uploadErrorText.textContent =
+        error.message || "Something went wrong submitting your order. Please try again.";
       uploadErrorText.classList.remove("d-none");
       submitOrderBtn.disabled = false;
       submitOrderBtn.textContent = "Submit Order";

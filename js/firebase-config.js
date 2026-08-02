@@ -6,12 +6,12 @@
  * via Firebase Authentication and Firestore Security Rules.
  */
 const firebaseConfig = {
-  apiKey: "AIzaSyDnjXJg4BGMi8pkjJGzr5I3ULTbd608zKU",
-  authDomain: "amson-pharmaceuticals.firebaseapp.com",
-  projectId: "amson-pharmaceuticals",
-  storageBucket: "amson-pharmaceuticals.firebasestorage.app",
-  messagingSenderId: "690706027016",
-  appId: "1:690706027016:web:cb8c9d405c3a478888f7bd"
+  apiKey: "AIzaSyDeVSO2EbDPqKDOyDiQ8t2HnLKIMpAXH4w",
+  authDomain: "amson-web-app.firebaseapp.com",
+  projectId: "amson-web-app",
+  storageBucket: "amson-web-app.firebasestorage.app",
+  messagingSenderId: "178980338990",
+  appId: "1:178980338990:web:5202aea1dbf3fac6afcebf"
 };
 
 firebase.initializeApp(firebaseConfig);

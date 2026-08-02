@@ -4,8 +4,9 @@ Capstone project: Web-Based Sales and Inventory Management System with
 Integrated Real-Time Expiry Monitoring for Amson Pharmaceuticals.
 
 Plain HTML/CSS/JS + Bootstrap 5, built for static hosting on Netlify with
-Firebase as the backend (Auth, Firestore, Storage) and EmailJS for
-transactional emails (OTP codes, password reset notices).
+Firebase as the backend (Auth, Firestore), Cloudinary for image uploads
+(payment proofs, and later prescriptions / product photos), and EmailJS
+for transactional emails (OTP codes, password reset notices).
 
 ## Project structure
 
@@ -21,6 +22,9 @@ assets/logo.png                brand logo (add this file yourself, see below)
 css/style.css                  global styles (brand colors, Roboto font)
 js/firebase-config.js          Firebase project config (fill in your own keys)
 js/emailjs-config.js           EmailJS config (fill in your own keys)
+js/cloudinary-config.js        Cloudinary config (fill in your own cloud name + preset)
+js/cloudinary.js               shared Cloudinary upload helper
+js/orders.js                   shared order status/date/receipt-PDF helpers
 js/otp.js                      shared OTP generation/sending helpers
 js/auth.js                     login logic
 js/register.js                 registration logic
@@ -39,15 +43,31 @@ js/verify-email.js             OTP verification logic
 2. **Firebase project**
    - Create a project at https://console.firebase.google.com
    - Enable **Authentication > Email/Password**
-   - Enable **Firestore Database**
-   - Enable **Storage** (Build > Storage > Get started, start in test mode)
-     — this is where proof-of-payment screenshots get uploaded
+   - Enable **Firestore Database** (test mode)
    - Copy your web app config into `js/firebase-config.js`
-   - **Before any real launch:** Firestore/Storage "test mode" allows
-     anyone to read and write anything. Replace the default rules with
-     real security rules before this goes live with real customer data.
+   - **Before any real launch:** Firestore "test mode" allows anyone to
+     read and write anything. Replace the default rules with real
+     security rules before this goes live with real customer data.
+   - Firebase Storage is intentionally not used — as of late 2024, Cloud
+     Storage requires the Blaze (pay-as-you-go) plan, which needs a
+     billing card on file even to stay within the free quota. Image
+     uploads use Cloudinary instead (next step).
 
-3. **Firestore schema**
+3. **Cloudinary** (image uploads — payment proofs now, product photos /
+   prescription uploads later)
+   - Sign up free at https://cloudinary.com (no card required)
+   - Go to **Settings > Upload > Upload presets > Add upload preset**,
+     set **Signing Mode** to **Unsigned**, and save
+   - Fill in `CLOUDINARY_CLOUD_NAME` (shown on your dashboard) and
+     `CLOUDINARY_UPLOAD_PRESET` (the preset name you just created) in
+     `js/cloudinary-config.js`
+   - Note: files uploaded this way get a public URL — anyone with the
+     link can view them. Fine for now, but worth revisiting (e.g.
+     migrating to Firebase Storage with real security rules) once the
+     business has revenue, since payment proofs and prescriptions are
+     sensitive.
+
+4. **Firestore schema**
    ```
    users/{uid}
      role: "admin" | "customer"
@@ -65,7 +85,7 @@ js/verify-email.js             OTP verification logic
      deliverySchedule: { date, slot } | null
      items: [{ id, name, price, qty }]   snapshot at order time
      total: number
-     proofOfPaymentUrl: string  (Firebase Storage download URL)
+     proofOfPaymentUrl: string  (Cloudinary secure_url)
      status: "placed" | "payment_confirmed" | "dispatched" | "delivered" | "received"
      statusTimestamps: { placed, payment_confirmed, dispatched, delivered, received }
      createdAt: Firestore timestamp
@@ -89,7 +109,7 @@ js/verify-email.js             OTP verification logic
      query). Just click that link and confirm — takes a minute to build,
      then the page works.
 
-4. **EmailJS** (sends the OTP code on registration / resend)
+5. **EmailJS** (sends the OTP code on registration / resend)
    - Sign up at https://www.emailjs.com, create an email service and a
      template with a `{{otp_code}}` variable
    - Fill in `EMAILJS_PUBLIC_KEY`, `EMAILJS_SERVICE_ID`, and
@@ -99,20 +119,20 @@ js/verify-email.js             OTP verification logic
      instead of erroring) — useful for testing the verify-email page
      before EmailJS is wired up.
 
-5. **Google reCAPTCHA**
+6. **Google reCAPTCHA**
    - Register a reCAPTCHA v2 ("I'm not a robot") site at
      https://www.google.com/recaptcha/admin
    - Replace `YOUR_RECAPTCHA_SITE_KEY` in `login.html` and `register.html`
      with your site key
 
-6. **Run locally**
+7. **Run locally**
    Any static file server works, e.g.:
    ```
    npx serve .
    ```
    Then open `http://localhost:3000/login.html`
 
-7. **Deploy to Netlify**
+8. **Deploy to Netlify**
    - Connect this repository to Netlify
    - Build command: none (static site)
    - Publish directory: `.`
