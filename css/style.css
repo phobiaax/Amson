@@ -15,6 +15,15 @@ body {
   font-family: 'Roboto', sans-serif;
   color: var(--amson-dark);
   background-color: #ffffff;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Sticky footer: main grows to fill leftover space so the footer stays
+   pinned to the bottom of the viewport even on pages with little content. */
+main {
+  flex: 1 0 auto;
 }
 
 a {
@@ -460,10 +469,19 @@ a {
   border-radius: 8px;
   margin-bottom: 0.85rem;
 }
+.product-image-link,
+.product-name-link {
+  color: inherit;
+  display: block;
+}
+.product-name-link:hover .product-name {
+  color: var(--amson-red);
+}
 .product-name {
   font-size: 0.95rem;
   font-weight: 600;
   margin-bottom: 0.15rem;
+  color: var(--amson-dark);
 }
 .product-desc {
   font-size: 0.8rem;
@@ -1034,5 +1052,267 @@ a {
 @media (max-width: 480px) {
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Admin layout ---------- */
+.admin-body {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.admin-sidebar {
+  width: 260px;
+  background-color: var(--amson-dark);
+  color: #fff;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1.75rem 0;
+}
+
+.admin-sidebar-brand {
+  padding: 0 1.5rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 1rem;
+}
+
+.admin-sidebar-brand h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.25;
+  margin-bottom: 0.25rem;
+}
+
+.admin-sidebar-brand p {
+  color: #9a9aa8;
+  font-size: 0.85rem;
+  margin-bottom: 0;
+}
+
+.admin-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex-grow: 1;
+}
+
+.admin-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  color: #cfcfd6;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.admin-nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+.admin-nav-link.active {
+  background-color: var(--amson-red);
+  color: #fff;
+}
+
+.admin-nav-link .badge-count {
+  margin-left: auto;
+  background-color: var(--amson-red);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+}
+
+.admin-main {
+  flex-grow: 1;
+  min-width: 0;
+  background-color: var(--amson-gray-bg);
+}
+
+.admin-topbar {
+  background-color: #fff;
+  border-bottom: 1px solid var(--amson-border);
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.admin-topbar .date-label {
+  color: var(--amson-text-muted);
+  font-weight: 500;
+}
+
+.admin-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.admin-profile .name {
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 0;
+}
+
+.admin-profile .role {
+  color: var(--amson-text-muted);
+  font-size: 0.82rem;
+  margin-bottom: 0;
+}
+
+.admin-logout-btn {
+  background: none;
+  border: none;
+  color: var(--amson-text-muted);
+  font-size: 1.3rem;
+  padding: 0;
+}
+
+.admin-logout-btn:hover {
+  color: var(--amson-red);
+}
+
+.admin-content {
+  padding: 2rem;
+}
+
+/* Stat cards */
+.stat-card {
+  background-color: #fff;
+  border: 1px solid var(--amson-border);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  height: 100%;
+}
+
+.stat-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.stat-card-label {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--amson-dark);
+  margin-bottom: 0;
+}
+
+.stat-card-icon {
+  font-size: 1.3rem;
+}
+
+.stat-card-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.stat-card-value.placeholder {
+  color: var(--amson-text-muted);
+  font-size: 1.3rem;
+}
+
+.stat-card-link {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--amson-red);
+}
+
+.stat-card-note {
+  font-size: 0.78rem;
+  color: var(--amson-text-muted);
+  margin-bottom: 0;
+}
+
+/* Chart cards */
+.chart-card {
+  background-color: #fff;
+  border: 1px solid var(--amson-border);
+  border-radius: 10px;
+  padding: 1.5rem;
+  height: 100%;
+}
+
+.chart-card h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.chart-canvas-wrap {
+  position: relative;
+  height: 260px;
+}
+
+.chart-empty-note {
+  text-align: center;
+  color: var(--amson-text-muted);
+  font-size: 0.85rem;
+  padding: 3rem 0;
+}
+
+/* Inventory alert boxes */
+.inventory-alert-box {
+  background-color: #fff;
+  border: 1px solid var(--amson-border);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  height: 100%;
+}
+
+.inventory-alert-box.warning {
+  border-color: #f3c66b;
+}
+
+.inventory-alert-box.danger {
+  border-color: var(--amson-red);
+}
+
+.inventory-alert-box h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.inventory-alert-box .count {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 0;
+}
+
+@media (max-width: 991.98px) {
+  .admin-body {
+    flex-direction: column;
+  }
+  .admin-sidebar {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 1rem 0;
+  }
+  .admin-sidebar-brand {
+    display: none;
+  }
+  .admin-nav {
+    display: flex;
+    flex-grow: 0;
+  }
+  .admin-nav-link {
+    padding: 0.6rem 1rem;
+    white-space: nowrap;
   }
 }

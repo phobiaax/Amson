@@ -12,14 +12,7 @@ const verifyBtnText = document.getElementById("verifyBtnText");
 const verifyBtnSpinner = document.getElementById("verifyBtnSpinner");
 const resendCodeLink = document.getElementById("resendCodeLink");
 const otpInputs = Array.from(document.querySelectorAll(".otp-input"));
-
-const changeEmailBtn = document.getElementById("changeEmailBtn");
-const changeEmailForm = document.getElementById("changeEmailForm");
-const newEmailInput = document.getElementById("newEmailInput");
-const cancelChangeEmailBtn = document.getElementById("cancelChangeEmailBtn");
-const confirmChangeEmailBtn = document.getElementById("confirmChangeEmailBtn");
-const confirmChangeEmailText = document.getElementById("confirmChangeEmailText");
-const confirmChangeEmailSpinner = document.getElementById("confirmChangeEmailSpinner");
+const backToRegisterBtn = document.getElementById("backToRegisterBtn");
 
 let pendingEmail =
   sessionStorage.getItem("amsonPendingVerificationEmail") ||
@@ -138,86 +131,29 @@ resendCodeLink.addEventListener("click", async (e) => {
   const expiresAt = Date.now() + 10 * 60 * 1000;
 
   try {
-    await db.collection("users").doc(user.uid).update({
+    const userDocRef = db.collection("users").doc(user.uid);
+    await userDocRef.update({
       emailVerificationCode: code,
       emailVerificationExpiresAt: expiresAt,
     });
-    await sendOtpEmail(pendingEmail || user.email, code);
+    const userDoc = await userDocRef.get();
+    const firstName = userDoc.exists ? userDoc.data().firstName : "";
+    await sendOtpEmail(pendingEmail || user.email, code, firstName);
     showAlert("A new code has been sent.", "success");
   } catch (error) {
     showAlert(error.message || "Could not resend the code.");
   }
 });
 
-// ---- Change email address ----
-function mapChangeEmailError(error) {
-  switch (error.code) {
-    case "auth/email-already-in-use":
-      return "That email is already in use by another account.";
-    case "auth/invalid-email":
-      return "Please enter a valid email address.";
-    case "auth/requires-recent-login":
-      return "For security, please log in again before changing your email.";
-    default:
-      return error.message || "Could not update email. Please try again.";
-  }
-}
-
-changeEmailBtn.addEventListener("click", () => {
-  newEmailInput.value = pendingEmail;
-  changeEmailForm.classList.remove("d-none");
-  changeEmailBtn.classList.add("d-none");
-});
-
-cancelChangeEmailBtn.addEventListener("click", () => {
-  changeEmailForm.classList.add("d-none");
-  changeEmailBtn.classList.remove("d-none");
-});
-
-confirmChangeEmailBtn.addEventListener("click", async () => {
-  hideAlert();
-  const newEmail = newEmailInput.value.trim();
-
-  if (!newEmail) {
-    showAlert("Please enter a new email address.");
-    return;
-  }
-
-  const user = auth.currentUser;
-  if (!user) {
-    showAlert("Your session expired. Please register again.");
-    return;
-  }
-
-  confirmChangeEmailBtn.disabled = true;
-  confirmChangeEmailText.classList.add("d-none");
-  confirmChangeEmailSpinner.classList.remove("d-none");
-
+// ---- Wrong email: back to registration ----
+// Leaves behind an unverified account under the mistyped email — harmless
+// clutter for now, cleanup can happen once there's an admin panel.
+backToRegisterBtn.addEventListener("click", async () => {
+  sessionStorage.removeItem("amsonPendingVerificationEmail");
   try {
-    await user.updateEmail(newEmail);
-
-    const code = generateOtpCode();
-    const expiresAt = Date.now() + 10 * 60 * 1000;
-    await db.collection("users").doc(user.uid).update({
-      email: newEmail,
-      emailVerificationCode: code,
-      emailVerificationExpiresAt: expiresAt,
-    });
-    await sendOtpEmail(newEmail, code);
-
-    pendingEmail = newEmail;
-    sessionStorage.setItem("amsonPendingVerificationEmail", newEmail);
-    verifyEmailDisplay.textContent = newEmail;
-    changeEmailForm.classList.add("d-none");
-    changeEmailBtn.classList.remove("d-none");
-    otpInputs.forEach((input) => (input.value = ""));
-    otpInputs[0].focus();
-    showAlert("Email updated. A new code has been sent.", "success");
+    await auth.signOut();
   } catch (error) {
-    showAlert(mapChangeEmailError(error));
-  } finally {
-    confirmChangeEmailBtn.disabled = false;
-    confirmChangeEmailText.classList.remove("d-none");
-    confirmChangeEmailSpinner.classList.add("d-none");
+    // Not fatal — registering again will just sign in as the new account.
   }
+  window.location.href = "register.html";
 });

@@ -92,6 +92,7 @@ async function loadOrders(uid) {
       if (order) downloadOrderReceipt(order);
     });
   } catch (error) {
+    console.error("Failed to load orders:", error);
     ordersList.innerHTML = `<p class="text-danger">Could not load your orders. Please try again later.</p>`;
   } finally {
     ordersLoading.classList.add("d-none");

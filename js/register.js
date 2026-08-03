@@ -52,7 +52,7 @@ function updatePasswordMatchHint() {
 
 passwordInput.addEventListener("input", () => {
   const tooShort = passwordInput.value.length > 0 && passwordInput.value.length < 6;
-  passwordHint.classList.toggle("text-danger", tooShort);
+  passwordHint.classList.toggle("d-none", !tooShort);
   updatePasswordMatchHint();
 });
 
@@ -137,7 +137,7 @@ registerForm.addEventListener("submit", async (e) => {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
-    await sendOtpEmail(email, otpCode);
+    await sendOtpEmail(email, otpCode, firstNameInput.value.trim());
     sessionStorage.setItem("amsonPendingVerificationEmail", email);
     window.location.href = "verify-email.html";
   } catch (error) {

@@ -4,19 +4,178 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin Dashboard | Amson Pharmaceuticals</title>
+
+<!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+<!-- Bootstrap 5 -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+<!-- Custom styles -->
 <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
-<div class="top-bar"></div>
-<main class="d-flex align-items-center justify-content-center" style="min-height: calc(100vh - 6px);">
-  <div class="text-center">
-    <h2 class="mb-2">Admin Dashboard</h2>
-    <p class="auth-subtitle">Login successful. The dashboard module is built next.</p>
-    <a href="../login.html" class="btn btn-outline-dark-amson mt-2">Log out</a>
-  </div>
-</main>
+
+<div class="admin-body">
+  <!-- ===== Sidebar ===== -->
+  <aside class="admin-sidebar">
+    <div class="admin-sidebar-brand">
+      <h1>Amson Pharmaceuticals</h1>
+      <p>Administrator</p>
+    </div>
+    <ul class="admin-nav">
+      <li><a href="dashboard.html" class="admin-nav-link active"><i class="bi bi-house-door"></i>Dashboard</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-credit-card"></i>POS</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-globe"></i>Online Orders</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-box-seam"></i>Inventory</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-capsule"></i>Products</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-truck"></i>Suppliers</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
+    </ul>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <span class="date-label" id="adminDateLabel"></span>
+      <div class="admin-profile">
+        <i class="bi bi-person-circle" style="font-size:1.8rem; color: var(--amson-text-muted);"></i>
+        <div>
+          <p class="name" id="adminProfileName">Admin</p>
+          <p class="role">Administrator</p>
+        </div>
+        <button type="button" class="admin-logout-btn" id="adminLogoutBtn" aria-label="Log out">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <h1 class="mb-0" style="font-weight:800;">Welcome back, <span id="welcomeName">Admin</span>!</h1>
+        <button type="button" class="btn btn-outline-dark-amson" id="exportReportBtn">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Export Report
+        </button>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3">
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <p class="stat-card-label">Today's Total Sales</p>
+              <i class="bi bi-currency-dollar stat-card-icon" style="color:#1a9c4b;"></i>
+            </div>
+            <p class="stat-card-value placeholder mb-0">—</p>
+            <p class="stat-card-note">Needs the POS module (coming later)</p>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <p class="stat-card-label">Transactions Today</p>
+              <i class="bi bi-cart3 stat-card-icon" style="color:#4A90D9;"></i>
+            </div>
+            <p class="stat-card-value placeholder mb-0">—</p>
+            <p class="stat-card-note">Needs the POS module (coming later)</p>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <p class="stat-card-label">Pending Payment Verification</p>
+            </div>
+            <p class="stat-card-value mb-0" id="pendingVerificationCount">—</p>
+            <a href="#" class="stat-card-link">View Pending →</a>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="stat-card">
+            <div class="stat-card-header">
+              <p class="stat-card-label">Active Online Orders</p>
+            </div>
+            <p class="stat-card-value mb-0" id="activeOrdersCount">—</p>
+            <a href="#" class="stat-card-link">View Orders →</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="row g-3 mb-4">
+        <div class="col-lg-7">
+          <div class="chart-card">
+            <h2>Monthly Sales Performance</h2>
+            <p class="text-muted" style="font-size:0.78rem; margin-top:-0.75rem;">Based on online orders only — will include POS sales once that module exists.</p>
+            <div class="chart-canvas-wrap">
+              <canvas id="salesChart"></canvas>
+              <p class="chart-empty-note d-none" id="salesChartEmpty">No online sales yet.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-5">
+          <div class="chart-card">
+            <h2>Revenue by Category</h2>
+            <div class="chart-canvas-wrap">
+              <canvas id="categoryChart"></canvas>
+              <p class="chart-empty-note d-none" id="categoryChartEmpty">No sales data yet.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inventory alerts -->
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="inventory-alert-box warning">
+            <div>
+              <h3>Low Stock</h3>
+              <p class="count mb-0">—</p>
+            </div>
+            <a href="#" class="stat-card-link">View Inventory →</a>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="inventory-alert-box danger">
+            <div>
+              <h3>Near-Expiry</h3>
+              <p class="count mb-0">—</p>
+            </div>
+            <a href="#" class="stat-card-link">View Inventory →</a>
+          </div>
+        </div>
+      </div>
+      <p class="text-muted mt-2" style="font-size:0.8rem;">Low Stock and Near-Expiry need the Inventory module, not built yet.</p>
+    </div>
+  </main>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+<!-- jsPDF (Export Report) -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<!-- Firebase (compat SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- App scripts -->
+<script src="../js/firebase-config.js"></script>
+<script src="../js/products-data.js"></script>
+<!-- admin-dashboard.js registers its "admin:ready" listener before
+     admin-header.js can dispatch it — order matters here. -->
+<script src="../js/admin-dashboard.js"></script>
+<script src="../js/admin-header.js"></script>
 </body>
 </html>
