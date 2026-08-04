@@ -7,9 +7,44 @@
 const ORDERS_PAGE_SIZE = 8;
 const HOLD_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
+const PAYMENT_ISSUE_TYPES = {
+  invalid_payment: {
+    label: "Invalid payment",
+    banner: "Customer will be notified to re-upload a valid GCash payment screenshot.",
+    confirmLabel: "Confirm & place on hold",
+    mode: "hold",
+  },
+  underpayment: {
+    label: "Underpayment",
+    banner: "Customer will be notified to top up the remaining balance via GCash before this order can proceed.",
+    confirmLabel: "Confirm & place on hold",
+    mode: "hold",
+  },
+  overpayment: {
+    label: "Overpayment",
+    banner: "Customer will be notified that the excess payment will be applied to their next transaction.",
+    confirmLabel: "Confirm & approve payment",
+    mode: "approve",
+  },
+};
+
+const REJECTION_REASON_NOTES = {
+  unclear_screenshot: "Please re-upload a clear screenshot showing completed GCash transaction.",
+  incomplete_screenshot:
+    "Please re-upload a screenshot showing the complete GCash transaction, including the reference number and amount.",
+  payment_not_received:
+    "We have not received your payment. Please double-check and re-upload proof of a completed GCash transaction.",
+  other: "",
+};
+
+const UNDERPAYMENT_NOTE = "Please send the remaining balance to our GCash and re-upload your screenshot.";
+const OVERPAYMENT_NOTE = "We've noted an excess payment. This will be applied to your next transaction.";
+
 let allOrders = [];
 let selectedVerificationId = null;
 let approvedModalOrderId = null;
+let issueType = null;
+let issueNoteManuallyEdited = false;
 let ordersFilter = "all";
 let ordersSearchTerm = "";
 let ordersSortDesc = true;
@@ -42,6 +77,20 @@ const holdModalEl = document.getElementById("holdModal");
 const approvedModalEl = document.getElementById("approvedModal");
 const trackingLinkInput = document.getElementById("trackingLinkInput");
 const markDispatchedBtn = document.getElementById("markDispatchedBtn");
+
+const paymentIssueModalEl = document.getElementById("paymentIssueModal");
+const issueModalTitle = document.getElementById("issueModalTitle");
+const issueModalBanner = document.getElementById("issueModalBanner");
+const issueModalOrderNumber = document.getElementById("issueModalOrderNumber");
+const issueModalOrderTotal = document.getElementById("issueModalOrderTotal");
+const issueReasonGroup = document.getElementById("issueReasonGroup");
+const issueReasonSelect = document.getElementById("issueReasonSelect");
+const issueAmountGroup = document.getElementById("issueAmountGroup");
+const issueAmountReceivedInput = document.getElementById("issueAmountReceivedInput");
+const issueAmountResultLabel = document.getElementById("issueAmountResultLabel");
+const issueAmountResultValue = document.getElementById("issueAmountResultValue");
+const issueNoteInput = document.getElementById("issueNoteInput");
+const issueConfirmBtn = document.getElementById("issueConfirmBtn");
 
 document.addEventListener("admin:ready", loadOrders);
 
@@ -174,35 +223,139 @@ approvePaymentBtn.addEventListener("click", async () => {
   }
 });
 
-paymentIssueSelect.addEventListener("change", async () => {
-  const reason = paymentIssueSelect.value;
-  if (!reason || !selectedVerificationId) return;
+paymentIssueSelect.addEventListener("change", () => {
+  const type = paymentIssueSelect.value;
+  paymentIssueSelect.value = "";
+  if (!type || !selectedVerificationId) return;
+  openPaymentIssueModal(type);
+});
 
+function updateIssueAmountResult(order) {
+  const received = parseFloat(issueAmountReceivedInput.value);
+  const validReceived = isNaN(received) ? 0 : received;
+  const diff = validReceived - order.total;
+
+  if (issueType === "underpayment") {
+    issueAmountResultLabel.textContent = "Outstanding balance";
+    issueAmountResultValue.textContent = `${formatPeso(Math.max(0, -diff))} remaining`;
+  } else {
+    issueAmountResultLabel.textContent = "Excess amount (Unapplied payment)";
+    issueAmountResultValue.textContent = `${formatPeso(Math.max(0, diff))} excess`;
+  }
+}
+
+function openPaymentIssueModal(type) {
+  const order = allOrders.find((o) => o.id === selectedVerificationId);
+  if (!order) return;
+
+  issueType = type;
+  issueNoteManuallyEdited = false;
+  const config = PAYMENT_ISSUE_TYPES[type];
+
+  issueModalTitle.textContent = `Payment Issue: ${config.label}`;
+  issueModalBanner.textContent = config.banner;
+  issueModalOrderNumber.textContent = order.orderNumber;
+  issueModalOrderTotal.textContent = formatPeso(order.total);
+  issueConfirmBtn.textContent = config.confirmLabel;
+
+  issueReasonGroup.classList.toggle("d-none", type !== "invalid_payment");
+  issueAmountGroup.classList.toggle("d-none", type === "invalid_payment");
+
+  if (type === "invalid_payment") {
+    issueReasonSelect.value = "unclear_screenshot";
+    issueNoteInput.value = REJECTION_REASON_NOTES.unclear_screenshot;
+  } else {
+    issueAmountReceivedInput.value = "";
+    updateIssueAmountResult(order);
+    issueNoteInput.value = type === "underpayment" ? UNDERPAYMENT_NOTE : OVERPAYMENT_NOTE;
+  }
+
+  bootstrap.Modal.getOrCreateInstance(paymentIssueModalEl).show();
+}
+
+issueReasonSelect.addEventListener("change", () => {
+  if (!issueNoteManuallyEdited) {
+    issueNoteInput.value = REJECTION_REASON_NOTES[issueReasonSelect.value] || "";
+  }
+});
+
+issueAmountReceivedInput.addEventListener("input", () => {
+  const order = allOrders.find((o) => o.id === selectedVerificationId);
+  if (order) updateIssueAmountResult(order);
+});
+
+issueNoteInput.addEventListener("input", () => {
+  issueNoteManuallyEdited = true;
+});
+
+issueConfirmBtn.addEventListener("click", async () => {
   const orderId = selectedVerificationId;
   const order = allOrders.find((o) => o.id === orderId);
-  const reasonLabel = paymentIssueSelect.selectedOptions[0].textContent;
+  if (!order || !issueType) return;
+
+  const config = PAYMENT_ISSUE_TYPES[issueType];
+  const note = issueNoteInput.value.trim();
+
+  issueConfirmBtn.disabled = true;
 
   try {
-    const paymentIssue = {
-      reason,
-      reasonLabel,
-      flaggedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
-    };
+    if (config.mode === "hold") {
+      const paymentIssue = {
+        type: issueType,
+        note,
+        flaggedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
+      };
 
-    await db.collection("orders").doc(orderId).update({ paymentIssue });
+      if (issueType === "invalid_payment") {
+        paymentIssue.reason = issueReasonSelect.value;
+        paymentIssue.reasonLabel = issueReasonSelect.selectedOptions[0].textContent;
+      } else {
+        const received = parseFloat(issueAmountReceivedInput.value) || 0;
+        paymentIssue.amountReceived = received;
+        paymentIssue.outstandingBalance = Math.max(0, order.total - received);
+      }
 
-    order.paymentIssue = paymentIssue;
-    selectedVerificationId = null;
-    paymentIssueSelect.value = "";
+      await db.collection("orders").doc(orderId).update({ paymentIssue });
 
-    renderVerificationQueue();
-    renderOrdersTable();
-    bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
+      order.paymentIssue = paymentIssue;
+      selectedVerificationId = null;
+
+      renderVerificationQueue();
+      renderOrdersTable();
+      bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
+      bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
+    } else {
+      const received = parseFloat(issueAmountReceivedInput.value) || order.total;
+      const referenceNumber = referenceNumberInput.value.trim();
+
+      const update = {
+        status: "payment_confirmed",
+        "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
+        paymentOverage: {
+          amountReceived: received,
+          excessAmount: Math.max(0, received - order.total),
+          note,
+        },
+      };
+      if (referenceNumber) update.paymentReferenceNumber = referenceNumber;
+
+      await db.collection("orders").doc(orderId).update(update);
+
+      order.status = "payment_confirmed";
+      order.paymentOverage = update.paymentOverage;
+      if (referenceNumber) order.paymentReferenceNumber = referenceNumber;
+      selectedVerificationId = null;
+
+      renderVerificationQueue();
+      renderOrdersTable();
+      bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
+      openApprovedModal(order);
+    }
   } catch (error) {
-    reviewAlert.textContent = "Something went wrong flagging this order. Please try again.";
-    reviewAlert.classList.remove("d-none");
-    paymentIssueSelect.value = "";
+    alert("Something went wrong. Please try again.");
+  } finally {
+    issueConfirmBtn.disabled = false;
   }
 });
 

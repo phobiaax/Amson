@@ -1458,3 +1458,14 @@ a {
   color: #b8860b;
   margin-top: 0.35rem;
 }
+
+.issue-amount-result {
+  background-color: var(--amson-gray-bg);
+  border: 1px solid var(--amson-border);
+  border-radius: 8px;
+  padding: 0.65rem 0.9rem;
+}
+
+.issue-amount-result .product-price {
+  font-size: 1.05rem;
+}

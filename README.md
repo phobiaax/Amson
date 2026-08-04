@@ -90,8 +90,14 @@ js/verify-email.js             OTP verification logic
      status: "placed" | "payment_confirmed" | "dispatched" | "delivered" | "received"
      statusTimestamps: { placed, payment_confirmed, dispatched, delivered, received }
      paymentReferenceNumber: string             (set by admin on Approve Payment)
-     paymentIssue: { reason, reasonLabel, flaggedAt, holdUntil } | null
-                                                 (set by admin when flagging a payment problem)
+     paymentIssue: { type, note, flaggedAt, holdUntil, ...type-specific fields } | null
+                                                 (set by admin via the Payment Issue flow — "invalid_payment"
+                                                 adds reason/reasonLabel, "underpayment" adds
+                                                 amountReceived/outstandingBalance; both put the order on a
+                                                 7-day hold. "overpayment" doesn't hold — it approves the
+                                                 order instead and is recorded in paymentOverage below)
+     paymentOverage: { amountReceived, excessAmount, note } | null
+                                                 (set by admin when approving an order flagged as overpayment)
      trackingLink: string                       (set by admin on Mark as Dispatched)
      createdAt: Firestore timestamp
 
@@ -109,9 +115,9 @@ js/verify-email.js             OTP verification logic
      `payment_confirmed` on Approve Payment, and to `dispatched` on Mark as
      Dispatched. `delivered` and `received` still have no admin/customer
      action wired up yet.
-   - The "Payment Issue" dropdown on the verification review panel
-     currently uses placeholder reason options — swap in the real list once
-     it's finalized.
+   - The Online Orders table also has a manual status dropdown per row —
+     an admin can move an order to any status directly, independent of
+     the Payment Verification approve/dispatch flows.
    - **First time you load `shop/orders.html`**, Firestore will likely
      show an error in the browser console with a link to create a
      composite index (it needs one for the `customerId` + `createdAt`
