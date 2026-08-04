@@ -98,11 +98,12 @@
                     <label for="referenceNumberInput" class="form-label">Reference Number</label>
                     <input type="text" class="form-control mb-3" id="referenceNumberInput" placeholder="e.g. GC1234567890">
                   </div>
-                  <div class="col-md-5">
+                  <div class="col-md-5" style="min-width:0;">
                     <p class="detail-label mb-1">Proof of Payment</p>
-                    <a id="reviewProofImageLink" href="#" target="_blank" rel="noopener">
-                      <img id="reviewProofImage" src="" alt="Proof of payment" style="width:100%; border-radius:8px; border:1px solid var(--amson-border); background-color:#f2f2f4;">
+                    <a id="reviewProofImageLink" href="#" target="_blank" rel="noopener" class="d-block">
+                      <img id="reviewProofImage" src="" alt="Proof of payment" style="width:100%; max-height:320px; object-fit:contain; display:block; border-radius:8px; border:1px solid var(--amson-border); background-color:#f2f2f4;">
                     </a>
+                    <p class="text-muted mb-0 mt-1" style="font-size:0.78rem;">Click to view full size</p>
                   </div>
                 </div>
 

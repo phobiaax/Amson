@@ -1428,3 +1428,33 @@ a {
 .copy-btn {
   white-space: nowrap;
 }
+
+.order-status-select {
+  max-width: 175px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.order-status-select.status-received,
+.order-status-select.status-delivered {
+  color: #1a9c4b;
+  border-color: #1a9c4b;
+}
+
+.order-status-select.status-dispatched {
+  color: #b8860b;
+  border-color: #b8860b;
+}
+
+.order-status-select.status-placed,
+.order-status-select.status-payment_confirmed {
+  color: var(--amson-text-muted);
+}
+
+.hold-note {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #b8860b;
+  margin-top: 0.35rem;
+}

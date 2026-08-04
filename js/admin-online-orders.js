@@ -271,12 +271,6 @@ markDispatchedBtn.addEventListener("click", async () => {
 });
 
 /* ---------- Online Orders table ---------- */
-function statusIconFor(status) {
-  if (status === "received" || status === "delivered") return "bi-check-circle-fill";
-  if (status === "dispatched") return "bi-truck";
-  return "bi-box-seam";
-}
-
 function isCompletedOrder(order) {
   return order.status === "delivered" || order.status === "received";
 }
@@ -331,9 +325,10 @@ function renderOrdersTable() {
 
 function renderOrderRow(order) {
   const itemCount = (order.items || []).reduce((sum, item) => sum + item.qty, 0);
-  const statusHtml = order.paymentIssue
-    ? `<span class="order-status-badge" style="color:#b8860b;"><i class="bi bi-pause-fill"></i> On Hold</span>`
-    : `<span class="order-status-badge status-${order.status}"><i class="bi ${statusIconFor(order.status)}"></i> ${ORDER_STATUS_BADGE_LABELS[order.status] || order.status}</span>`;
+  const statusOptions = ORDER_STATUS_STEPS.map(
+    (step) =>
+      `<option value="${step}" ${step === order.status ? "selected" : ""}>${ORDER_STATUS_BADGE_LABELS[step]}</option>`
+  ).join("");
 
   return `
     <tr>
@@ -342,10 +337,47 @@ function renderOrderRow(order) {
       <td>${customerName(order)}</td>
       <td>${itemCount}</td>
       <td class="product-price">${formatPeso(order.total)}</td>
-      <td>${statusHtml}</td>
+      <td>
+        <select class="form-select form-select-sm order-status-select status-${order.status}" data-id="${order.id}" aria-label="Order status">
+          ${statusOptions}
+        </select>
+        ${order.paymentIssue ? '<span class="hold-note"><i class="bi bi-pause-fill"></i> On Hold</span>' : ""}
+      </td>
     </tr>
   `;
 }
+
+ordersTableBody.addEventListener("change", async (e) => {
+  const select = e.target.closest(".order-status-select");
+  if (!select) return;
+
+  const orderId = select.dataset.id;
+  const newStatus = select.value;
+  const order = allOrders.find((o) => o.id === orderId);
+  const previousStatus = order.status;
+
+  select.disabled = true;
+
+  try {
+    await db
+      .collection("orders")
+      .doc(orderId)
+      .update({
+        status: newStatus,
+        [`statusTimestamps.${newStatus}`]: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+
+    order.status = newStatus;
+    renderVerificationQueue();
+    renderOrdersTable();
+  } catch (error) {
+    order.status = previousStatus;
+    alert("Something went wrong updating this order's status. Please try again.");
+    renderOrdersTable();
+  } finally {
+    select.disabled = false;
+  }
+});
 
 function renderOrdersPagination(totalPages) {
   if (totalPages <= 1) {
