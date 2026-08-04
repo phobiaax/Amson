@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Online Orders | Amson Pharmaceuticals</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+<!-- Custom styles -->
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="admin-body">
+  <!-- ===== Sidebar ===== -->
+  <aside class="admin-sidebar">
+    <div class="admin-sidebar-brand">
+      <h1>Amson Pharmaceuticals</h1>
+      <p>Administrator</p>
+    </div>
+    <ul class="admin-nav">
+      <li><a href="dashboard.html" class="admin-nav-link"><i class="bi bi-house-door"></i>Dashboard</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-credit-card"></i>POS</a></li>
+      <li><a href="online-orders.html" class="admin-nav-link active"><i class="bi bi-globe"></i>Online Orders</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-box-seam"></i>Inventory</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-capsule"></i>Products</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-truck"></i>Suppliers</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
+    </ul>
+  </aside>
+  <div class="admin-sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- ===== Main ===== -->
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <button type="button" class="admin-sidebar-toggle" id="sidebarToggleBtn" aria-label="Open menu">
+        <i class="bi bi-list"></i>
+      </button>
+      <span class="date-label" id="adminDateLabel"></span>
+      <div class="admin-profile">
+        <i class="bi bi-person-circle" style="font-size:1.8rem; color: var(--amson-text-muted);"></i>
+        <div>
+          <p class="name" id="adminProfileName">Admin</p>
+          <p class="role">Administrator</p>
+        </div>
+        <button type="button" class="admin-logout-btn" id="adminLogoutBtn" aria-label="Log out">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <h1 class="mb-4" style="font-weight:800;">Online Orders</h1>
+
+      <div class="checkout-card p-0" style="overflow:hidden;">
+        <!-- Tabs -->
+        <div class="d-flex flex-wrap" style="border-bottom:1px solid var(--amson-border);">
+          <button type="button" class="admin-tab-btn" data-tab="verification" id="tabVerificationBtn">
+            <i class="bi bi-credit-card"></i>Payment Verification
+          </button>
+          <button type="button" class="admin-tab-btn active" data-tab="orders" id="tabOrdersBtn">
+            <i class="bi bi-cart3"></i>Online Orders
+          </button>
+        </div>
+
+        <!-- ===== Payment Verification panel ===== -->
+        <div id="verificationPanel" class="p-4 d-none">
+          <div class="row g-3">
+            <div class="col-lg-4">
+              <div id="verificationQueueList" class="d-flex flex-column gap-2"></div>
+              <p class="text-muted text-center py-4 d-none" id="verificationQueueEmpty">No orders awaiting payment verification.</p>
+            </div>
+            <div class="col-lg-8">
+              <div id="verificationReviewPanel" class="d-none">
+                <h2 class="h5 fw-bold mb-3">Proof of Payment Review</h2>
+                <div class="row g-4">
+                  <div class="col-md-7">
+                    <p class="detail-label mb-0">Order Number</p>
+                    <p class="detail-value mb-3" id="reviewOrderNumber"></p>
+                    <p class="detail-label mb-0">Customer Name</p>
+                    <p class="detail-value mb-3" id="reviewCustomerName"></p>
+                    <p class="detail-label mb-0">Order Total</p>
+                    <p class="detail-value product-price mb-3" id="reviewOrderTotal"></p>
+                    <p class="detail-label mb-0">Submitted At</p>
+                    <p class="detail-value mb-3" id="reviewSubmittedAt"></p>
+                    <label for="referenceNumberInput" class="form-label">Reference Number</label>
+                    <input type="text" class="form-control mb-3" id="referenceNumberInput" placeholder="e.g. GC1234567890">
+                  </div>
+                  <div class="col-md-5">
+                    <p class="detail-label mb-1">Proof of Payment</p>
+                    <a id="reviewProofImageLink" href="#" target="_blank" rel="noopener">
+                      <img id="reviewProofImage" src="" alt="Proof of payment" style="width:100%; border-radius:8px; border:1px solid var(--amson-border); background-color:#f2f2f4;">
+                    </a>
+                  </div>
+                </div>
+
+                <div id="reviewAlert" class="alert alert-danger auth-alert d-none mt-3" role="alert"></div>
+
+                <div class="d-flex gap-2 flex-wrap mt-3">
+                  <!-- Placeholder options — will be replaced once the real list is provided -->
+                  <select class="form-select" id="paymentIssueSelect" style="max-width:240px;">
+                    <option value="">Payment Issue</option>
+                    <option value="unclear_screenshot">Unclear screenshot</option>
+                    <option value="amount_mismatch">Amount doesn't match</option>
+                    <option value="invalid_reference">Invalid reference number</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <button type="button" class="btn btn-approve-payment flex-fill" id="approvePaymentBtn">
+                    <i class="bi bi-check-circle me-1"></i>Approve Payment
+                  </button>
+                </div>
+              </div>
+              <p class="text-muted text-center py-5 d-none" id="verificationReviewEmpty">Select an order from the queue to review its payment.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Online Orders panel ===== -->
+        <div id="ordersPanel" class="p-4">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div class="btn-group" role="group">
+              <button type="button" class="btn order-filter-btn active" data-filter="all">All Orders (<span id="filterAllCount">0</span>)</button>
+              <button type="button" class="btn order-filter-btn" data-filter="completed">Completed</button>
+              <button type="button" class="btn order-filter-btn" data-filter="pending">Pending</button>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <button type="button" class="btn btn-outline-dark-amson btn-sm" id="ordersExportBtn"><i class="bi bi-box-arrow-up-right me-1"></i>Export Report</button>
+              <input type="text" class="form-control form-control-sm" id="ordersSearchInput" placeholder="Search orders" style="width:180px;">
+              <button type="button" class="btn btn-outline-dark-amson btn-sm" id="ordersSortBtn" aria-label="Toggle sort order"><i class="bi bi-arrow-down-up"></i></button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table admin-orders-table align-middle">
+              <thead>
+                <tr>
+                  <th>Order Id</th>
+                  <th>Date &amp; Time</th>
+                  <th>Customer</th>
+                  <th>Order Count</th>
+                  <th>Order Total</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="ordersTableBody"></tbody>
+            </table>
+          </div>
+          <p class="text-muted text-center py-4 d-none" id="ordersTableEmpty">No orders found.</p>
+
+          <div class="catalog-pagination" id="ordersPagination"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Placed on hold modal -->
+<div class="modal fade" id="holdModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <div class="icon-circle" style="background-color: rgba(238,49,55,0.12); color:var(--amson-red);"><i class="bi bi-pause-fill"></i></div>
+      <h2 class="mb-2">Placed on hold!</h2>
+      <p class="text-muted mb-4">Customer has been notified and the order will be placed on hold for 7 days or until resolved.</p>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Back</button>
+        <button type="button" class="btn btn-amson flex-fill" data-bs-dismiss="modal">View Order Queue</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Payment approved modal -->
+<div class="modal fade" id="approvedModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-start p-4">
+      <div class="text-center">
+        <div class="icon-circle" style="background-color: rgba(26,156,75,0.12); color:#1a9c4b;"><i class="bi bi-check-lg"></i></div>
+        <h2 class="mb-2">Payment approved!</h2>
+        <p class="text-muted mb-3">Please book the delivery using the customer details below.</p>
+      </div>
+      <a href="https://web.lalamove.com/" target="_blank" rel="noopener" class="btn btn-amson w-100 mb-3">Go to Lalamove Web Portal</a>
+
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div><p class="detail-label mb-0">Address</p><p class="detail-value" id="approvedAddress"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedAddress"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div><p class="detail-label mb-0">Customer Name</p><p class="detail-value" id="approvedCustomerName"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedCustomerName"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div><p class="detail-label mb-0">Contact No.</p><p class="detail-value" id="approvedContactNo"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedContactNo"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div><p class="detail-label mb-0">Delivery Notes</p><p class="detail-value" id="approvedDeliveryNotes"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedDeliveryNotes"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
+
+      <label for="trackingLinkInput" class="form-label">Tracking Link</label>
+      <input type="text" class="form-control mb-3" id="trackingLinkInput" placeholder="[ Paste Courier Tracking URL Here ]">
+
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Back</button>
+        <button type="button" class="btn btn-amson flex-fill" id="markDispatchedBtn">Mark as Dispatched</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- jsPDF (Export Report) -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<!-- Firebase (compat SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- App scripts -->
+<script src="../js/firebase-config.js"></script>
+<script src="../js/products-data.js"></script>
+<script src="../js/orders.js"></script>
+<script src="../js/admin-sidebar.js"></script>
+<script src="../js/admin-online-orders.js"></script>
+<script src="../js/admin-header.js"></script>
+</body>
+</html>

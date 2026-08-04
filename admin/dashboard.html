@@ -29,7 +29,7 @@
     <ul class="admin-nav">
       <li><a href="dashboard.html" class="admin-nav-link active"><i class="bi bi-house-door"></i>Dashboard</a></li>
       <li><a href="#" class="admin-nav-link"><i class="bi bi-credit-card"></i>POS</a></li>
-      <li><a href="#" class="admin-nav-link"><i class="bi bi-globe"></i>Online Orders</a></li>
+      <li><a href="online-orders.html" class="admin-nav-link"><i class="bi bi-globe"></i>Online Orders</a></li>
       <li><a href="#" class="admin-nav-link"><i class="bi bi-box-seam"></i>Inventory</a></li>
       <li><a href="#" class="admin-nav-link"><i class="bi bi-capsule"></i>Products</a></li>
       <li><a href="#" class="admin-nav-link"><i class="bi bi-truck"></i>Suppliers</a></li>
@@ -40,10 +40,14 @@
       <li><a href="#" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
     </ul>
   </aside>
+  <div class="admin-sidebar-backdrop" id="sidebarBackdrop"></div>
 
   <!-- ===== Main ===== -->
   <main class="admin-main">
     <div class="admin-topbar">
+      <button type="button" class="admin-sidebar-toggle" id="sidebarToggleBtn" aria-label="Open menu">
+        <i class="bi bi-list"></i>
+      </button>
       <span class="date-label" id="adminDateLabel"></span>
       <div class="admin-profile">
         <i class="bi bi-person-circle" style="font-size:1.8rem; color: var(--amson-text-muted);"></i>
@@ -173,6 +177,7 @@
 <!-- App scripts -->
 <script src="../js/firebase-config.js"></script>
 <script src="../js/products-data.js"></script>
+<script src="../js/admin-sidebar.js"></script>
 <!-- admin-dashboard.js registers its "admin:ready" listener before
      admin-header.js can dispatch it — order matters here. -->
 <script src="../js/admin-dashboard.js"></script>

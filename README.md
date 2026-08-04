@@ -85,9 +85,14 @@ js/verify-email.js             OTP verification logic
      deliverySchedule: { date, slot } | null
      items: [{ id, name, price, qty }]   snapshot at order time
      total: number
+     deliveryFeeEstimate: number
      proofOfPaymentUrl: string  (Cloudinary secure_url)
      status: "placed" | "payment_confirmed" | "dispatched" | "delivered" | "received"
      statusTimestamps: { placed, payment_confirmed, dispatched, delivered, received }
+     paymentReferenceNumber: string             (set by admin on Approve Payment)
+     paymentIssue: { reason, reasonLabel, flaggedAt, holdUntil } | null
+                                                 (set by admin when flagging a payment problem)
+     trackingLink: string                       (set by admin on Mark as Dispatched)
      createdAt: Firestore timestamp
 
    counters/orders-{year}
@@ -99,10 +104,14 @@ js/verify-email.js             OTP verification logic
    - Admin accounts aren't created through the public registration form —
      create them directly in Firebase Auth + Firestore with `role: "admin"`
      and `emailVerified: true`.
-   - Only `placed` gets set automatically right now (when a customer pays).
-     Moving an order through `payment_confirmed` → `dispatched` →
-     `delivered` is a staff action — there's no admin screen for that yet,
-     so orders will currently just sit at "Placed" until that's built.
+   - `placed` is set automatically when a customer pays. From there,
+     `admin/online-orders.html` (Payment Verification tab) moves an order to
+     `payment_confirmed` on Approve Payment, and to `dispatched` on Mark as
+     Dispatched. `delivered` and `received` still have no admin/customer
+     action wired up yet.
+   - The "Payment Issue" dropdown on the verification review panel
+     currently uses placeholder reason options — swap in the real list once
+     it's finalized.
    - **First time you load `shop/orders.html`**, Firestore will likely
      show an error in the browser console with a link to create a
      composite index (it needs one for the `customerId` + `createdAt`
