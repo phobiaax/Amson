@@ -123,6 +123,15 @@ js/verify-email.js             OTP verification logic
      personal-care, health-wellness — the first time it's opened if the
      collection is empty; add/rename/delete more via "Manage Categories")
 
+   suppliers/{supplierId}
+     name: string                company name
+     contactPerson, phone, email, address: string
+     productIds: string[]        products this supplier can fulfill —
+                                  used later by Inventory's Purchase
+                                  Order flow to suggest a supplier
+     status: "active" | "inactive"
+     createdAt: Firestore timestamp
+
    counters/orders-{year}
      count: number   (used to generate sequential order numbers, don't edit by hand)
 
