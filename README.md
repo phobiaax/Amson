@@ -5,8 +5,11 @@ Integrated Real-Time Expiry Monitoring for Amson Pharmaceuticals.
 
 Plain HTML/CSS/JS + Bootstrap 5, built for static hosting on Netlify with
 Firebase as the backend (Auth, Firestore), Cloudinary for image uploads
-(payment proofs, and later prescriptions / product photos), and EmailJS
-for transactional emails (OTP codes, password reset notices).
+(payment proofs, and later prescriptions / product photos), EmailJS
+for transactional emails (OTP codes, password reset notices), and
+Choices.js for searchable select dropdowns on the admin side (product,
+supplier, batch, and category pickers — plain `<select>` elements get
+unusable to scroll through once the catalog/supplier list grows).
 
 ## Project structure
 

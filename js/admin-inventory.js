@@ -226,9 +226,33 @@ inventorySortBtn.addEventListener("click", () => {
   renderInventoryTable();
 });
 
-/* ---------- Shared repeater helpers ---------- */
+/* ---------- Shared repeater helpers ----------
+ * Product/supplier/batch pickers use Choices.js so admins can type to
+ * search instead of scrolling a plain <select> — with a growing catalog
+ * or many suppliers, a native dropdown gets unusable fast.
+ */
+function makeSearchableSelect(selectEl) {
+  return new Choices(selectEl, {
+    searchEnabled: true,
+    itemSelectText: "",
+    shouldSort: false,
+    searchResultLimit: 50,
+    fuseOptions: { threshold: 0.3 },
+  });
+}
+
+function destroyChoicesIn(container) {
+  container.querySelectorAll("select").forEach((sel) => {
+    if (sel._choices) {
+      sel._choices.destroy();
+      sel._choices = null;
+    }
+  });
+}
+
 function populateProductSelect(selectEl) {
   selectEl.innerHTML = SAMPLE_PRODUCTS.map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
+  selectEl._choices = makeSearchableSelect(selectEl);
 }
 
 function populateSupplierSelect(selectEl) {
@@ -236,6 +260,7 @@ function populateSupplierSelect(selectEl) {
     allSuppliers.map((s) => `<option value="${s.id}">${s.name}</option>`)
   );
   selectEl.innerHTML = options.join("");
+  selectEl._choices = makeSearchableSelect(selectEl);
 }
 
 function updateRemoveButtonsVisibility(container) {
@@ -289,12 +314,19 @@ receiveAddItemBtn.addEventListener("click", addReceiveItemRow);
 receiveItemsContainer.addEventListener("click", (e) => {
   const btn = e.target.closest(".repeater-remove-btn");
   if (!btn) return;
-  btn.closest(".repeater-item").remove();
+  const row = btn.closest(".repeater-item");
+  destroyChoicesIn(row);
+  row.remove();
   renumberItems(receiveItemsContainer);
   updateRemoveButtonsVisibility(receiveItemsContainer);
 });
 
 receiveStockBtn.addEventListener("click", () => {
+  destroyChoicesIn(receiveItemsContainer);
+  if (receiveSupplierSelect._choices) {
+    receiveSupplierSelect._choices.destroy();
+    receiveSupplierSelect._choices = null;
+  }
   receiveItemsContainer.innerHTML = "";
   receiveItemCount = 0;
   addReceiveItemRow();
@@ -418,13 +450,22 @@ receiveBatchFileInput.addEventListener("change", async () => {
 /* ---------- Write Off Stock ---------- */
 function populateBatchSelectForProduct(batchSelectEl, productId) {
   const batches = allBatches.filter((b) => b.productId === productId && b.quantity > 0);
-  if (batches.length === 0) {
-    batchSelectEl.innerHTML = '<option value="">No stock available</option>';
-    return;
+  const choicesData = batches.length
+    ? batches.map((b) => ({
+        value: b.id,
+        label: `${b.batchNo} — Exp ${formatExpiryLabel(b.expirationDate)} — Qty ${b.quantity}`,
+      }))
+    : [{ value: "", label: "No stock available" }];
+
+  if (batchSelectEl._choices) {
+    // Same instance, new options — the product just changed, so the
+    // batch list needs to reflect that product's batches instead of
+    // being torn down and rebuilt.
+    batchSelectEl._choices.setChoices(choicesData, "value", "label", true);
+  } else {
+    batchSelectEl.innerHTML = choicesData.map((c) => `<option value="${c.value}">${c.label}</option>`).join("");
+    batchSelectEl._choices = makeSearchableSelect(batchSelectEl);
   }
-  batchSelectEl.innerHTML = batches
-    .map((b) => `<option value="${b.id}">${b.batchNo} — Exp ${formatExpiryLabel(b.expirationDate)} — Qty ${b.quantity}</option>`)
-    .join("");
 }
 
 function addWriteOffItemRow() {
@@ -473,12 +514,15 @@ writeOffAddItemBtn.addEventListener("click", addWriteOffItemRow);
 writeOffItemsContainer.addEventListener("click", (e) => {
   const btn = e.target.closest(".repeater-remove-btn");
   if (!btn) return;
-  btn.closest(".repeater-item").remove();
+  const row = btn.closest(".repeater-item");
+  destroyChoicesIn(row);
+  row.remove();
   renumberItems(writeOffItemsContainer);
   updateRemoveButtonsVisibility(writeOffItemsContainer);
 });
 
 writeOffStockBtn.addEventListener("click", () => {
+  destroyChoicesIn(writeOffItemsContainer);
   writeOffItemsContainer.innerHTML = "";
   writeOffItemCount = 0;
   addWriteOffItemRow();

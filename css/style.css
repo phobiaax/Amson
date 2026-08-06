@@ -1693,3 +1693,43 @@ a {
   border: 1px solid var(--amson-border);
   border-radius: 8px;
 }
+
+/* ---------- Choices.js (searchable selects for product/supplier/batch pickers) ---------- */
+.choices {
+  margin-bottom: 0;
+  font-size: 1rem;
+}
+
+.choices__inner {
+  background-color: #fff;
+  border: 1px solid var(--amson-border);
+  border-radius: 6px;
+  min-height: 42px;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.95rem;
+}
+
+.choices.is-open .choices__inner,
+.choices.is-focused .choices__inner {
+  border-color: var(--amson-red);
+  box-shadow: 0 0 0 3px rgba(238, 49, 55, 0.1);
+}
+
+.choices__list--dropdown,
+.choices__list[aria-expanded] {
+  border-color: var(--amson-border);
+  border-radius: 6px;
+}
+
+.choices__list--dropdown .choices__input {
+  border-bottom: 1px solid var(--amson-border);
+}
+
+.choices__list--dropdown .choices__item--selectable.is-highlighted {
+  background-color: var(--amson-red);
+  color: #fff;
+}
+
+.choices__list--single .choices__item {
+  padding-right: 1.25rem;
+}

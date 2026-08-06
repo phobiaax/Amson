@@ -85,11 +85,34 @@ async function loadProducts() {
   }
 }
 
+// Searchable select — a long, growing category list gets tedious to
+// scroll through in a plain <select> otherwise.
+let categorySelectChoices = null;
+
 function renderCategorySelect() {
-  const options = Object.entries(CATEGORY_LABELS).map(
-    ([id, name]) => `<option value="${id}">${name}</option>`
-  );
-  productCategorySelect.innerHTML = options.join("");
+  const choicesData = Object.entries(CATEGORY_LABELS).map(([id, name]) => ({ value: id, label: name }));
+
+  if (categorySelectChoices) {
+    categorySelectChoices.setChoices(choicesData, "value", "label", true);
+  } else {
+    productCategorySelect.innerHTML = choicesData
+      .map((c) => `<option value="${c.value}">${c.label}</option>`)
+      .join("");
+    categorySelectChoices = new Choices(productCategorySelect, {
+      searchEnabled: true,
+      itemSelectText: "",
+      shouldSort: false,
+      fuseOptions: { threshold: 0.3 },
+    });
+  }
+}
+
+function setCategorySelectValue(value) {
+  if (categorySelectChoices) {
+    categorySelectChoices.setChoiceByValue(value);
+  } else {
+    productCategorySelect.value = value;
+  }
 }
 
 /* ---------- SKU generation (same pattern as order numbers) ---------- */
@@ -246,7 +269,7 @@ function resetProductForm() {
   productNameInput.value = "";
   productGenericNameInput.value = "";
   productBrandInput.value = "";
-  productCategorySelect.value = Object.keys(CATEGORY_LABELS)[0] || "";
+  setCategorySelectValue(Object.keys(CATEGORY_LABELS)[0] || "");
   productCostingInput.value = "";
   productRetailPriceInput.value = "";
   productWholesalePriceInput.value = "";
@@ -281,7 +304,7 @@ function openEditModal(product) {
   productNameInput.value = product.name || "";
   productGenericNameInput.value = product.genericName || "";
   productBrandInput.value = product.brand || "";
-  productCategorySelect.value = product.category || "";
+  setCategorySelectValue(product.category || "");
   productCostingInput.value = product.costingPrice ?? "";
   productRetailPriceInput.value = product.retailPrice ?? "";
   productWholesalePriceInput.value = product.wholesalePrice ?? "";
