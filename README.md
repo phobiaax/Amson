@@ -165,24 +165,43 @@ js/verify-email.js             OTP verification logic
      locked: true
      submittedAt: Firestore timestamp
 
+   purchaseOrders/{poId}
+     poNumber: string             e.g. "PO-2026-0001" (auto-generated, sequential)
+     supplierId: string
+     expectedDeliveryDate: string ISO date
+     items: [{ productId, expectedQty }]      what was ordered
+     status: "pending" | "received" | "discrepancy" | "closed"
+     receivingRecord: {
+       items: [{ productId, expectedQty, receivedQty, batchNo, expirationDate }],
+       discrepancies: [{ productId, expectedQty, receivedQty, diff }],
+     } | null                     set once the delivery is received against this PO
+     receivedAt, acknowledgedAt: Firestore timestamp | null
+     createdAt: Firestore timestamp
+
    counters/orders-{year}
      count: number   (used to generate sequential order numbers, don't edit by hand)
 
    counters/products
      count: number   (used to generate sequential product SKUs, don't edit by hand)
+
+   counters/purchaseOrders-{year}
+     count: number   (used to generate sequential PO numbers, don't edit by hand)
    ```
-   - **Inventory Management** (`admin/inventory.html`) covers Receive Stock
-     (including CSV batch upload — same column-format idea as Products',
-     see `js/admin-inventory.js`'s comments), Write Off Stock, FEFO
-     near-expiry flagging, and Stock Reconciliation. **Not built yet:**
-     the Purchase Order sub-module (creating a PO ahead of delivery and
-     comparing actual receipt against it, with discrepancy reports) —
-     there was no mockup for it and it's a materially different workflow
-     from the direct Receive Stock path that is built. Also not wired up:
-     automatic FEFO-based stock deduction when an online order is
-     approved/dispatched — `deductStockFEFO()` in `js/admin-inventory.js`
-     is ready for that, it just isn't called from `admin/online-orders.html`
-     yet.
+   - **Inventory Management** (`admin/inventory.html`) has two tabs: **Stock**
+     (Receive Stock — including CSV batch upload, same column-format idea
+     as Products' — Write Off Stock, FEFO near-expiry flagging, Stock
+     Reconciliation) and **Purchase Orders** (create a PO ahead of
+     delivery, receive against it later with the actual quantities/batch
+     details, automatic discrepancy detection if received ≠ expected,
+     and an acknowledge-to-close step for discrepancies). Receiving
+     against a PO adds real stock either way — partial or mismatched
+     deliveries still get added to inventory, only the PO's own status
+     reflects the variance. The Export Report PDF includes a Purchase
+     Order Discrepancies section built from this.
+   - Not wired up: automatic FEFO-based stock deduction when an online
+     order is approved/dispatched — `deductStockFEFO()` in
+     `js/admin-inventory.js` is ready for that, it just isn't called from
+     `admin/online-orders.html` yet.
    - The login page reads the `users` doc after sign-in: `admin` role goes
      to `admin/dashboard.html`; an unverified `customer` is sent to
      `verify-email.html`; a verified `customer` goes to `shop/index.html`.
