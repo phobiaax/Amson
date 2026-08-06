@@ -213,8 +213,12 @@
 <script src="../js/products-data.js"></script>
 <script src="../js/cart.js"></script>
 <script>
-  document.getElementById("featuredProductsGrid").innerHTML =
-    SAMPLE_PRODUCTS.slice(0, 5).map(renderProductCard).join("");
+  (async function init() {
+    await loadCatalogCache();
+    const storefrontProducts = SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore);
+    document.getElementById("featuredProductsGrid").innerHTML =
+      storefrontProducts.slice(0, 5).map(renderProductCard).join("");
+  })();
 </script>
 </body>
 </html>

@@ -30,11 +30,15 @@ categoryFilters.forEach((cb) => {
   });
 });
 
+function storefrontCatalog() {
+  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore);
+}
+
 function applyFilters() {
   const selected = categoryFilters.filter((cb) => cb.checked).map((cb) => cb.value);
   let filtered = selected.length
-    ? SAMPLE_PRODUCTS.filter((p) => selected.includes(p.category))
-    : SAMPLE_PRODUCTS.slice();
+    ? storefrontCatalog().filter((p) => selected.includes(p.category))
+    : storefrontCatalog();
 
   filtered.sort((a, b) => {
     switch (sortBy.value) {
@@ -102,12 +106,17 @@ pagination.addEventListener("click", (e) => {
 
 applyFiltersBtn.addEventListener("click", applyFilters);
 
-// ---- Pre-select category from a ?category= query param (nav links use this) ----
-const initialCategory = new URLSearchParams(window.location.search).get("category");
-if (initialCategory && CATEGORY_LABELS[initialCategory]) {
-  catAll.checked = false;
-  const match = categoryFilters.find((cb) => cb.value === initialCategory);
-  if (match) match.checked = true;
-}
+(async function init() {
+  await loadCatalogCache();
+  currentFiltered = storefrontCatalog();
 
-applyFilters();
+  // ---- Pre-select category from a ?category= query param (nav links use this) ----
+  const initialCategory = new URLSearchParams(window.location.search).get("category");
+  if (initialCategory && CATEGORY_LABELS[initialCategory]) {
+    catAll.checked = false;
+    const match = categoryFilters.find((cb) => cb.value === initialCategory);
+    if (match) match.checked = true;
+  }
+
+  applyFilters();
+})();

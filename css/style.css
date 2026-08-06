@@ -1469,3 +1469,62 @@ a {
 .issue-amount-result .product-price {
   font-size: 1.05rem;
 }
+
+/* ---------- Segmented toggle (Yes/No, Active/Inactive) ---------- */
+.segmented-toggle {
+  display: inline-flex;
+  border: 1px solid var(--amson-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.segmented-toggle-btn {
+  background-color: #fff;
+  border: none;
+  color: var(--amson-text-muted);
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 0.5rem 1.1rem;
+}
+
+.segmented-toggle-btn:not(:last-child) {
+  border-right: 1px solid var(--amson-border);
+}
+
+.segmented-toggle-btn.active {
+  background-color: var(--amson-red);
+  color: #fff;
+}
+
+/* ---------- Product image thumbnail in admin tables/modals ---------- */
+.product-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background-color: var(--amson-gray-bg);
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
+
+.product-image-preview {
+  width: 100%;
+  height: 140px;
+  border-radius: 8px;
+  background-color: var(--amson-gray-bg);
+  background-size: cover;
+  background-position: center;
+  border: 1px solid var(--amson-border);
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  color: var(--amson-text-muted);
+  font-size: 1.1rem;
+  padding: 0.2rem;
+}
+
+.icon-btn:hover {
+  color: var(--amson-red);
+}

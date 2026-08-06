@@ -30,10 +30,13 @@ const submitOrderBtn = document.getElementById("submitOrderBtn");
 const pendingOrderRaw = sessionStorage.getItem("amsonPendingOrder");
 const pendingOrder = pendingOrderRaw ? JSON.parse(pendingOrderRaw) : null;
 
+(async function init() {
 if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
   noPendingOrderNotice.classList.remove("d-none");
   paymentContent.classList.add("d-none");
 } else {
+  await loadCatalogCache();
+
   paymentItemsSummary.innerHTML = pendingOrder.cart
     .map((item) => {
       const product = getProductById(item.id);
@@ -145,3 +148,4 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     }
   });
 }
+})();

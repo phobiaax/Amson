@@ -62,7 +62,7 @@ function renderCartPage() {
 cartItemsContainer.addEventListener("click", (e) => {
   const row = e.target.closest(".cart-item-row");
   if (!row) return;
-  const productId = Number(row.dataset.id);
+  const productId = row.dataset.id;
   const cart = getCart();
   const item = cart.find((i) => i.id === productId);
   if (!item) return;
@@ -87,4 +87,7 @@ clearCartLink.addEventListener("click", (e) => {
   renderCartPage();
 });
 
-renderCartPage();
+(async function init() {
+  await loadCatalogCache();
+  renderCartPage();
+})();

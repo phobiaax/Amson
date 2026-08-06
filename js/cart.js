@@ -76,7 +76,7 @@ function showCartToast(message) {
 document.addEventListener("click", (e) => {
   const btn = e.target.closest(".btn-add-cart");
   if (!btn) return;
-  addToCart(Number(btn.dataset.id), 1);
+  addToCart(btn.dataset.id, 1);
   showCartToast("Added to cart.");
 });
 

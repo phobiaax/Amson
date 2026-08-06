@@ -101,8 +101,33 @@ js/verify-email.js             OTP verification logic
      trackingLink: string                       (set by admin on Mark as Dispatched)
      createdAt: Firestore timestamp
 
+   products/{productId}
+     sku: string                e.g. "MED-0001" (auto-generated, sequential)
+     name, genericName, brand: string
+     category: string           category id, references categories/{id}
+     description: string
+     costingPrice: number       admin-only, never shown to customers
+     retailPrice: number        the price customers see and pay
+     wholesalePrice: number     admin-only for now (wholesale module isn't built yet)
+     imageUrl: string | null    Cloudinary secure_url
+     availableInPOS: boolean
+     availableInOnlineStore: boolean
+     rxRequired: boolean
+     status: "active" | "inactive"   inactive products are hidden from the
+                                      storefront entirely, not just greyed out
+     createdAt: Firestore timestamp
+
+   categories/{categoryId}
+     name: string
+     (admin/products.html seeds 4 starter categories — otc, vitamins,
+     personal-care, health-wellness — the first time it's opened if the
+     collection is empty; add/rename/delete more via "Manage Categories")
+
    counters/orders-{year}
      count: number   (used to generate sequential order numbers, don't edit by hand)
+
+   counters/products
+     count: number   (used to generate sequential product SKUs, don't edit by hand)
    ```
    - The login page reads the `users` doc after sign-in: `admin` role goes
      to `admin/dashboard.html`; an unverified `customer` is sent to
@@ -118,6 +143,19 @@ js/verify-email.js             OTP verification logic
    - The Online Orders table also has a manual status dropdown per row —
      an admin can move an order to any status directly, independent of
      the Payment Verification approve/dispatch flows.
+   - **The whole storefront now reads from `products`/`categories`** via
+     `admin/products.html` instead of the old hardcoded `SAMPLE_PRODUCTS`
+     array — add your real catalog there before publishing, or the
+     storefront will just show an empty catalog.
+   - **CSV batch upload** (the "Upload Batch File" button in Add/Edit
+     Product) expects a header row with these exact column names:
+     `name,genericName,brand,category,costingPrice,retailPrice,wholesalePrice,description,rxRequired,availableInPOS,availableInOnlineStore,status`.
+     `category` should be the category's display name (e.g. "OTC
+     Medicines") — unrecognized names get created as new categories
+     automatically. `rxRequired`/`availableInPOS`/`availableInOnlineStore`
+     accept yes/no or true/false. Commas inside a field (e.g. in
+     `description`) aren't supported yet — keep those comma-free, or add
+     that product individually instead.
    - **First time you load `shop/orders.html`**, Firestore will likely
      show an error in the browser console with a link to create a
      composite index (it needs one for the `customerId` + `createdAt`

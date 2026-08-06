@@ -16,6 +16,7 @@ document.addEventListener("admin:ready", (e) => {
 
 async function loadDashboardStats() {
   try {
+    await loadCatalogCache();
     // Fetching the whole collection is fine at today's scale; revisit
     // with date-range filtering once order volume actually grows.
     const snapshot = await db.collection("orders").get();

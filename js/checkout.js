@@ -23,10 +23,15 @@ let deliverySchedule = null;
 
 const cart = getCart();
 
-if (cart.length === 0) {
-  emptyCartNotice.classList.remove("d-none");
-  checkoutContent.classList.add("d-none");
-} else {
+(async function init() {
+  if (cart.length === 0) {
+    emptyCartNotice.classList.remove("d-none");
+    checkoutContent.classList.add("d-none");
+    return;
+  }
+
+  await loadCatalogCache();
+
   checkoutItemsSummary.innerHTML = cart
     .map((item) => {
       const product = getProductById(item.id);
@@ -45,7 +50,7 @@ if (cart.length === 0) {
     .join("");
 
   checkoutTotalText.textContent = formatPeso(cartTotal(cart));
-}
+})();
 
 // ---- Delivery schedule modal ----
 saveDeliveryScheduleBtn.addEventListener("click", () => {

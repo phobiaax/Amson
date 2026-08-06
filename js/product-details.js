@@ -1,21 +1,27 @@
 /**
  * Product details page: reads ?id= from the URL, renders the matching
- * SAMPLE_PRODUCTS entry, and handles the quantity stepper + Add to Cart.
+ * product once the Firestore catalog cache loads, and handles the
+ * quantity stepper + Add to Cart.
  */
 
 const productId = new URLSearchParams(window.location.search).get("id");
-const product = getProductById(productId);
 const contentEl = document.getElementById("productDetailContent");
 const breadcrumbEl = document.getElementById("breadcrumbProductName");
 
-if (!product) {
-  contentEl.innerHTML = `
-    <div class="product-detail-card text-center">
-      <p class="mb-3">This product could not be found.</p>
-      <a href="products.html" class="btn btn-amson">Back to All Products</a>
-    </div>
-  `;
-} else {
+(async function init() {
+  await loadCatalogCache();
+  const product = getProductById(productId);
+
+  if (!product) {
+    contentEl.innerHTML = `
+      <div class="product-detail-card text-center">
+        <p class="mb-3">This product could not be found.</p>
+        <a href="products.html" class="btn btn-amson">Back to All Products</a>
+      </div>
+    `;
+    return;
+  }
+
   document.title = `${product.name} | Amson Pharmaceuticals`;
   breadcrumbEl.textContent = product.name;
 
@@ -23,16 +29,19 @@ if (!product) {
     <div class="product-detail-card">
       <div class="row g-4">
         <div class="col-lg-5">
-          <div class="product-detail-image"></div>
+          <div class="product-detail-image" ${product.imageUrl ? `style="background-image:url('${product.imageUrl}'); background-size:cover; background-position:center;"` : ""}></div>
         </div>
         <div class="col-lg-7">
           <h1 class="h3 fw-bold mb-1">${product.name}</h1>
-          <p class="text-muted mb-3">Generic Name: ${product.genericName}</p>
+          ${product.genericName ? `<p class="text-muted mb-3">Generic Name: ${product.genericName}</p>` : ""}
           <p class="product-detail-price mb-2">${formatPeso(product.price)}</p>
-          <p class="stock-badge ${product.inStock ? "in-stock" : "out-of-stock"} mb-4">
-            <i class="bi ${product.inStock ? "bi-box-seam" : "bi-x-circle"}"></i>
-            ${product.inStock ? "In Stock" : "Out of Stock"}
-          </p>
+          <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+            <p class="stock-badge ${product.inStock ? "in-stock" : "out-of-stock"} mb-0">
+              <i class="bi ${product.inStock ? "bi-box-seam" : "bi-x-circle"}"></i>
+              ${product.inStock ? "In Stock" : "Out of Stock"}
+            </p>
+            ${product.rxRequired ? `<p class="stock-badge out-of-stock mb-0"><i class="bi bi-file-medical"></i> Prescription Required</p>` : ""}
+          </div>
 
           <label class="form-label d-block">Quantity</label>
           <div class="d-flex align-items-center gap-3 mb-4">
@@ -52,10 +61,7 @@ if (!product) {
 
       <div class="product-about">
         <h2>About the Product</h2>
-        <p>${product.about}</p>
-        <p class="mb-0">
-          ${product.details.join("<br>")}
-        </p>
+        <p class="mb-0">${product.description || "No description available yet."}</p>
       </div>
     </div>
   `;
@@ -98,4 +104,4 @@ if (!product) {
       showCartToast(`Added ${currentQty()} × ${product.name} to cart.`);
     });
   }
-}
+})();
