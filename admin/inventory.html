@@ -38,7 +38,7 @@
       <li><a href="customer-accounts.html" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
       <li><a href="wholesale-accounts.html" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
       <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
-      <li><a href="#" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="notifications.html" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
       <li><a href="audit-log.html" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
     </ul>
   </aside>
@@ -57,6 +57,9 @@
           <p class="name" id="adminProfileName">Admin</p>
           <p class="role">Administrator</p>
         </div>
+        <a href="settings.html" class="admin-logout-btn" aria-label="Settings" style="text-decoration:none;">
+          <i class="bi bi-gear"></i>
+        </a>
         <button type="button" class="admin-logout-btn" id="adminLogoutBtn" aria-label="Log out">
           <i class="bi bi-box-arrow-right"></i>
         </button>
@@ -67,7 +70,6 @@
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
         <h1 class="mb-0" style="font-weight:800;">Inventory Management</h1>
         <div class="d-flex gap-2">
-          <button type="button" class="btn btn-amson" id="stockReconciliationBtn">Stock Reconciliation</button>
           <button type="button" class="btn btn-outline-dark-amson" id="exportInventoryBtn">
             <i class="bi bi-box-arrow-up-right me-1"></i>Export Report
           </button>
@@ -80,6 +82,9 @@
         </button>
         <button type="button" class="admin-tab-btn" id="tabPurchaseOrdersBtn">
           <i class="bi bi-clipboard-check"></i>Purchase Orders
+        </button>
+        <button type="button" class="admin-tab-btn" id="tabReconciliationBtn">
+          <i class="bi bi-clipboard-data"></i>Reconciliation
         </button>
       </div>
 
@@ -186,8 +191,80 @@
           <div class="catalog-pagination" id="poPagination"></div>
         </div>
       </div>
+
+      <!-- ===== Reconciliation tab ===== -->
+      <div id="reconciliationPanel" class="d-none">
+        <!-- Active session view -->
+        <div id="reconciliationActiveView" class="checkout-card p-4 mb-4 d-none">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+            <div>
+              <div class="d-flex align-items-center gap-2">
+                <h2 class="mb-0" id="reconciliationRcnNumber" style="font-weight:800;"></h2>
+                <span class="badge rounded-pill text-bg-warning">In Progress</span>
+              </div>
+              <p class="text-muted mb-0" id="reconciliationMeta"></p>
+            </div>
+            <button type="button" class="btn btn-amson" id="submitCountBtn">Submit Count</button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table admin-orders-table align-middle">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Batch #</th>
+                  <th>Expiry</th>
+                  <th>System Qty</th>
+                  <th>Counted Qty</th>
+                  <th>Variance</th>
+                </tr>
+              </thead>
+              <tbody id="reconciliationItemsBody"></tbody>
+            </table>
+          </div>
+
+          <div id="reconciliationAlert" class="alert alert-danger auth-alert d-none mt-3" role="alert"></div>
+        </div>
+
+        <!-- Empty state (no active session) -->
+        <div id="reconciliationEmptyState" class="text-center py-5 mb-4" style="border:2px dashed var(--amson-border); border-radius:12px;">
+          <i class="bi bi-paperclip" style="font-size:2rem; color: var(--amson-text-muted);"></i>
+          <p class="text-muted mt-2 mb-3">No Active Reconciliation Session</p>
+          <button type="button" class="btn btn-amson" id="openReconciliationSessionBtn">
+            <i class="bi bi-plus-lg me-1"></i>Open New Session
+          </button>
+        </div>
+
+        <h2 class="h5 fw-bold mb-3">Past Sessions</h2>
+        <div id="pastSessionsList" class="d-flex flex-column gap-2"></div>
+        <p class="text-muted text-center py-4 d-none" id="pastSessionsEmpty">No past reconciliation sessions yet.</p>
+      </div>
     </div>
   </main>
+</div>
+
+<!-- Open New Reconciliation Session modal -->
+<div class="modal fade" id="openReconciliationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content p-4">
+      <h2 class="mb-1">Open New Reconciliation Session</h2>
+      <p class="text-muted mb-3">Select the period (month) for this physical inventory count.</p>
+
+      <label class="form-label">Period</label>
+      <input type="month" class="form-control mb-3" id="reconciliationPeriodInput">
+
+      <div class="alert alert-warning" style="font-size:0.85rem;">
+        Only one active session can exist at a time. Opening a session will load the current system inventory for physical counting.
+      </div>
+
+      <div id="openReconciliationAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
+
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-amson flex-fill" id="confirmOpenSessionBtn">Open Session</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Receive Stock modal -->
@@ -255,47 +332,6 @@
           <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Cancel</button>
           <button type="button" class="btn btn-approve-payment" id="saveWriteOffBtn">Write-Off Stock</button>
         </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Stock Reconciliation modal -->
-<div class="modal fade" id="reconciliationModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-xl">
-    <div class="modal-content p-4">
-      <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
-        <div>
-          <h2 class="mb-1">Stock Reconciliation</h2>
-          <p class="text-muted mb-0">Month-end physical count — enter what's actually on the shelf for each batch.</p>
-        </div>
-        <div>
-          <label class="form-label mb-1">Reconciliation Date</label>
-          <input type="date" class="form-control form-control-sm" id="reconciliationDateInput">
-        </div>
-      </div>
-
-      <div class="reconciliation-table-wrap mb-3">
-        <table class="table admin-orders-table align-middle mb-0">
-          <thead>
-            <tr>
-              <th>Batch No.</th>
-              <th>Product</th>
-              <th>Expiry</th>
-              <th>System Qty</th>
-              <th>Counted Qty</th>
-            </tr>
-          </thead>
-          <tbody id="reconciliationTableBody"></tbody>
-        </table>
-      </div>
-
-      <div id="reconciliationAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
-      <div id="reconciliationSuccess" class="alert alert-success auth-alert d-none mb-3" role="alert"></div>
-
-      <div class="d-flex justify-content-end gap-2">
-        <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-approve-payment" id="submitReconciliationBtn">Submit Reconciliation</button>
       </div>
     </div>
   </div>

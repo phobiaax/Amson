@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Audit Log | Amson Pharmaceuticals</title>
+<title>Notifications | Amson Pharmaceuticals</title>
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -36,8 +36,8 @@
       <li><a href="customer-accounts.html" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
       <li><a href="wholesale-accounts.html" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
       <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
-      <li><a href="notifications.html" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
-      <li><a href="audit-log.html" class="admin-nav-link active"><i class="bi bi-list-check"></i>Audit Log</a></li>
+      <li><a href="notifications.html" class="admin-nav-link active"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="audit-log.html" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
     </ul>
   </aside>
   <div class="admin-sidebar-backdrop" id="sidebarBackdrop"></div>
@@ -65,47 +65,20 @@
     </div>
 
     <div class="admin-content">
-      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
-        <h1 class="mb-0" style="font-weight:800;">Audit Log</h1>
-        <button type="button" class="btn btn-outline-dark-amson" id="exportAuditLogBtn">
-          <i class="bi bi-box-arrow-up-right me-1"></i>Export Report
-        </button>
-      </div>
+      <h1 class="mb-4" style="font-weight:800;">Notifications</h1>
+
+      <p class="text-muted mb-4" style="font-size:0.85rem; max-width:680px;">
+        <i class="bi bi-info-circle me-1"></i>No Figma mockup exists yet for this page. Rather than invent
+        a whole separate notifications-writing system, this reads signals that already exist elsewhere
+        (low stock, near-expiry, pending payment verification, PO discrepancies) and lists them here.
+      </p>
 
       <div class="checkout-card p-4">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-          <input type="text" class="form-control form-control-sm" id="auditSearchInput" placeholder="Search by user, action, or details" style="max-width:320px;">
-          <div class="d-flex align-items-center gap-2 flex-wrap">
-            <label class="mb-0" style="font-size:0.85rem;">From</label>
-            <input type="date" class="form-control form-control-sm" id="auditDateFromInput" style="width:150px;">
-            <label class="mb-0" style="font-size:0.85rem;">To</label>
-            <input type="date" class="form-control form-control-sm" id="auditDateToInput" style="width:150px;">
-            <button type="button" class="btn btn-outline-dark-amson btn-sm" id="auditClearFiltersBtn">Clear</button>
-          </div>
-        </div>
-
-        <p class="text-muted mb-3" style="font-size:0.78rem;">
-          <i class="bi bi-info-circle me-1"></i>IP Address isn't shown (—) — this is a static, client-side-only
-          site with no server to reliably capture a visitor's public IP.
+        <div id="notificationsList" class="d-flex flex-column gap-2"></div>
+        <p class="text-muted text-center py-5 d-none" id="notificationsEmpty">
+          <i class="bi bi-check-circle" style="font-size:1.5rem;"></i><br>
+          Nothing needs your attention right now.
         </p>
-
-        <div class="table-responsive">
-          <table class="table admin-orders-table align-middle">
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>User</th>
-                <th>Action</th>
-                <th>Details</th>
-                <th>IP Address</th>
-              </tr>
-            </thead>
-            <tbody id="auditTableBody"></tbody>
-          </table>
-        </div>
-        <p class="text-muted text-center py-4 d-none" id="auditTableEmpty">No audit log entries found.</p>
-
-        <div class="catalog-pagination" id="auditPagination"></div>
       </div>
     </div>
   </main>
@@ -113,9 +86,6 @@
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- jsPDF (Export Report) -->
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
 <!-- Firebase (compat SDK) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -126,7 +96,7 @@
 <script src="../js/firebase-config.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/admin-sidebar.js"></script>
-<script src="../js/admin-audit-log.js"></script>
+<script src="../js/admin-notifications.js"></script>
 <script src="../js/admin-header.js"></script>
 </body>
 </html>

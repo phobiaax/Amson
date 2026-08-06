@@ -27,6 +27,7 @@ let allBatches = [];
 let allSuppliers = [];
 let allWriteOffs = [];
 let allPurchaseOrders = [];
+let allReconciliations = [];
 let inventoryFilter = "all";
 let inventorySearchTerm = "";
 let inventorySortDesc = false;
@@ -91,15 +92,30 @@ const writeOffAddItemBtn = document.getElementById("writeOffAddItemBtn");
 const writeOffModalAlert = document.getElementById("writeOffModalAlert");
 const saveWriteOffBtn = document.getElementById("saveWriteOffBtn");
 
-const stockReconciliationBtn = document.getElementById("stockReconciliationBtn");
-const reconciliationModalEl = document.getElementById("reconciliationModal");
-const reconciliationDateInput = document.getElementById("reconciliationDateInput");
-const reconciliationTableBody = document.getElementById("reconciliationTableBody");
+const tabReconciliationBtn = document.getElementById("tabReconciliationBtn");
+const reconciliationPanel = document.getElementById("reconciliationPanel");
+const reconciliationActiveView = document.getElementById("reconciliationActiveView");
+const reconciliationEmptyState = document.getElementById("reconciliationEmptyState");
+const reconciliationRcnNumber = document.getElementById("reconciliationRcnNumber");
+const reconciliationMeta = document.getElementById("reconciliationMeta");
+const reconciliationItemsBody = document.getElementById("reconciliationItemsBody");
 const reconciliationAlert = document.getElementById("reconciliationAlert");
-const reconciliationSuccess = document.getElementById("reconciliationSuccess");
-const submitReconciliationBtn = document.getElementById("submitReconciliationBtn");
+const submitCountBtn = document.getElementById("submitCountBtn");
+const openReconciliationSessionBtn = document.getElementById("openReconciliationSessionBtn");
+const pastSessionsList = document.getElementById("pastSessionsList");
+const pastSessionsEmpty = document.getElementById("pastSessionsEmpty");
 
-document.addEventListener("admin:ready", loadInventory);
+const openReconciliationModalEl = document.getElementById("openReconciliationModal");
+const reconciliationPeriodInput = document.getElementById("reconciliationPeriodInput");
+const openReconciliationAlert = document.getElementById("openReconciliationAlert");
+const confirmOpenSessionBtn = document.getElementById("confirmOpenSessionBtn");
+
+let currentAdminName = "Admin";
+document.addEventListener("admin:ready", (e) => {
+  const admin = e.detail && e.detail.admin;
+  if (admin) currentAdminName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Admin";
+  loadInventory();
+});
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -109,20 +125,23 @@ function todayISO() {
 async function loadInventory() {
   try {
     await loadCatalogCache();
-    const [batchSnapshot, supplierSnapshot, writeOffSnapshot, poSnapshot] = await Promise.all([
+    const [batchSnapshot, supplierSnapshot, writeOffSnapshot, poSnapshot, reconciliationSnapshot] = await Promise.all([
       db.collection("stockBatches").get(),
       db.collection("suppliers").get(),
       db.collection("writeOffs").get(),
       db.collection("purchaseOrders").get(),
+      db.collection("reconciliations").get(),
     ]);
 
     allBatches = batchSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allSuppliers = supplierSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allWriteOffs = writeOffSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allPurchaseOrders = poSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    allReconciliations = reconciliationSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
     renderInventoryTable();
     renderPoTable();
+    renderReconciliationTab();
   } catch (error) {
     console.error("Failed to load inventory:", error);
   }
@@ -130,15 +149,17 @@ async function loadInventory() {
 
 /* ---------- Tabs ---------- */
 function setActiveInventoryTab(tab) {
-  const isStock = tab === "stock";
-  tabStockBtn.classList.toggle("active", isStock);
-  tabPurchaseOrdersBtn.classList.toggle("active", !isStock);
-  stockPanel.classList.toggle("d-none", !isStock);
-  purchaseOrdersPanel.classList.toggle("d-none", isStock);
+  tabStockBtn.classList.toggle("active", tab === "stock");
+  tabPurchaseOrdersBtn.classList.toggle("active", tab === "po");
+  tabReconciliationBtn.classList.toggle("active", tab === "reconciliation");
+  stockPanel.classList.toggle("d-none", tab !== "stock");
+  purchaseOrdersPanel.classList.toggle("d-none", tab !== "po");
+  reconciliationPanel.classList.toggle("d-none", tab !== "reconciliation");
 }
 
 tabStockBtn.addEventListener("click", () => setActiveInventoryTab("stock"));
 tabPurchaseOrdersBtn.addEventListener("click", () => setActiveInventoryTab("po"));
+tabReconciliationBtn.addEventListener("click", () => setActiveInventoryTab("reconciliation"));
 
 /* ---------- PO number generation (same pattern as order numbers) ---------- */
 async function generatePoNumber() {
@@ -149,6 +170,18 @@ async function generatePoNumber() {
     const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
     transaction.set(counterRef, { count: nextCount }, { merge: true });
     return `PO-${year}-${String(nextCount).padStart(4, "0")}`;
+  });
+}
+
+/* ---------- Reconciliation number generation (2-digit, per mockup) ---------- */
+async function generateRcnNumber() {
+  const year = new Date().getFullYear();
+  const counterRef = db.collection("counters").doc(`reconciliations-${year}`);
+  return db.runTransaction(async (transaction) => {
+    const counterDoc = await transaction.get(counterRef);
+    const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
+    transaction.set(counterRef, { count: nextCount }, { merge: true });
+    return `RCN-${year}-${String(nextCount).padStart(2, "0")}`;
   });
 }
 
@@ -637,78 +670,199 @@ saveWriteOffBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Stock Reconciliation ---------- */
-stockReconciliationBtn.addEventListener("click", () => {
-  reconciliationDateInput.value = todayISO();
-  reconciliationAlert.classList.add("d-none");
-  reconciliationSuccess.classList.add("d-none");
-  submitReconciliationBtn.disabled = false;
-  submitReconciliationBtn.textContent = "Submit Reconciliation";
-  renderReconciliationTable();
-  bootstrap.Modal.getOrCreateInstance(reconciliationModalEl).show();
-});
+/* ---------- Stock Reconciliation (session-based) ----------
+ * Only one "in_progress" session can exist at a time. Opening a session
+ * snapshots the current active batches as the count sheet; submitting
+ * the count finalizes it in one step (whoever opened it and whoever
+ * clicks Submit Count are both just recorded as-is — no separate
+ * approval role is enforced, since this is a single admin-role app).
+ */
+function findActiveSession() {
+  return allReconciliations.find((r) => r.status === "in_progress") || null;
+}
 
-function renderReconciliationTable() {
-  const activeBatches = allBatches.filter((b) => b.status === "active");
-  reconciliationTableBody.innerHTML = activeBatches
-    .map((b) => {
-      const product = getProductById(b.productId);
+function formatPeriodLabel(period) {
+  if (!period) return "—";
+  const [year, month] = period.split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleDateString("en-PH", { month: "long", year: "numeric" });
+}
+
+function renderReconciliationTab() {
+  const activeSession = findActiveSession();
+
+  reconciliationActiveView.classList.toggle("d-none", !activeSession);
+  reconciliationEmptyState.classList.toggle("d-none", !!activeSession);
+
+  if (activeSession) {
+    reconciliationRcnNumber.textContent = activeSession.rcnNumber;
+    reconciliationMeta.textContent = `Period: ${formatPeriodLabel(activeSession.period)} — Opened by: ${activeSession.openedBy}`;
+    renderReconciliationItemsBody(activeSession);
+  }
+
+  renderPastSessions();
+}
+
+function renderReconciliationItemsBody(session) {
+  reconciliationItemsBody.innerHTML = session.items
+    .map((item, idx) => {
+      const product = getProductById(item.productId);
       return `
-        <tr data-batch-id="${b.id}">
-          <td>${b.batchNo}</td>
+        <tr data-idx="${idx}">
           <td>${product ? product.name : "Unknown product"}</td>
-          <td>${formatExpiryLabel(b.expirationDate)}</td>
-          <td>${b.quantity}</td>
-          <td><input type="number" min="0" class="form-control form-control-sm reconciliation-counted-input" style="max-width:100px;" value="${b.quantity}"></td>
+          <td>${item.batchNo}</td>
+          <td>${formatExpiryLabel(item.expirationDate)}</td>
+          <td>${item.systemQty}</td>
+          <td><input type="number" min="0" class="form-control form-control-sm reconciliation-counted-input" style="max-width:100px;" value="${item.countedQty || 0}"></td>
+          <td class="reconciliation-variance-cell">-</td>
         </tr>
       `;
     })
     .join("");
+
+  reconciliationItemsBody.querySelectorAll(".reconciliation-counted-input").forEach((input) => {
+    input.addEventListener("input", () => {
+      const row = input.closest("tr");
+      const systemQty = session.items[Number(row.dataset.idx)].systemQty;
+      const counted = parseInt(input.value, 10);
+      const cell = row.querySelector(".reconciliation-variance-cell");
+      if (isNaN(counted)) {
+        cell.textContent = "-";
+        return;
+      }
+      const diff = counted - systemQty;
+      cell.textContent = diff === 0 ? "0" : diff > 0 ? `+${diff}` : `${diff}`;
+    });
+  });
 }
 
-submitReconciliationBtn.addEventListener("click", async () => {
-  const rows = Array.from(reconciliationTableBody.querySelectorAll("tr"));
-  const adjustments = [];
-
-  rows.forEach((row) => {
-    const batchId = row.dataset.batchId;
-    const batch = allBatches.find((b) => b.id === batchId);
-    const countedQty = parseInt(row.querySelector(".reconciliation-counted-input").value, 10) || 0;
-    if (batch && countedQty !== batch.quantity) {
-      adjustments.push({
-        batchId,
-        productId: batch.productId,
-        batchNo: batch.batchNo,
-        systemQty: batch.quantity,
-        countedQty,
-        diff: countedQty - batch.quantity,
-      });
-    }
-  });
-
-  submitReconciliationBtn.disabled = true;
-
-  try {
-    for (const adj of adjustments) {
-      await db.collection("stockBatches").doc(adj.batchId).update({ quantity: adj.countedQty });
-    }
-
-    await db.collection("reconciliations").add({
-      date: reconciliationDateInput.value || todayISO(),
-      adjustments,
-      locked: true,
-      submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+function renderPastSessions() {
+  const pastSessions = allReconciliations
+    .filter((r) => r.status === "finalized")
+    .slice()
+    .sort((a, b) => {
+      const aTime = a.finalizedAt ? a.finalizedAt.toMillis() : 0;
+      const bTime = b.finalizedAt ? b.finalizedAt.toMillis() : 0;
+      return bTime - aTime;
     });
 
-    reconciliationSuccess.textContent = `Reconciliation submitted. ${adjustments.length} batch${adjustments.length === 1 ? "" : "es"} adjusted.`;
-    reconciliationSuccess.classList.remove("d-none");
-    reconciliationTableBody.querySelectorAll(".reconciliation-counted-input").forEach((input) => (input.disabled = true));
-    submitReconciliationBtn.textContent = "Submitted";
+  pastSessionsEmpty.classList.toggle("d-none", pastSessions.length > 0);
+  pastSessionsList.innerHTML = pastSessions
+    .map(
+      (session) => `
+        <div class="checkout-card p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div>
+            <p class="fw-bold mb-0">${session.rcnNumber}</p>
+            <p class="text-muted mb-0" style="font-size:0.85rem;">
+              Period: ${formatPeriodLabel(session.period)} — Opened by: ${session.openedBy} — Finalized by: ${session.finalizedBy}
+            </p>
+          </div>
+          <span class="badge rounded-pill text-bg-success">Finalized</span>
+        </div>
+      `
+    )
+    .join("");
+}
+
+openReconciliationSessionBtn.addEventListener("click", () => {
+  const now = new Date();
+  reconciliationPeriodInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  openReconciliationAlert.classList.add("d-none");
+  bootstrap.Modal.getOrCreateInstance(openReconciliationModalEl).show();
+});
+
+confirmOpenSessionBtn.addEventListener("click", async () => {
+  const period = reconciliationPeriodInput.value;
+  if (!period) {
+    openReconciliationAlert.textContent = "Please select a period.";
+    openReconciliationAlert.classList.remove("d-none");
+    return;
+  }
+  if (findActiveSession()) {
+    openReconciliationAlert.textContent = "A reconciliation session is already in progress.";
+    openReconciliationAlert.classList.remove("d-none");
+    return;
+  }
+
+  confirmOpenSessionBtn.disabled = true;
+  openReconciliationAlert.classList.add("d-none");
+
+  try {
+    const rcnNumber = await generateRcnNumber();
+    const activeBatches = allBatches.filter((b) => b.status === "active");
+    const items = activeBatches.map((b) => ({
+      batchId: b.id,
+      productId: b.productId,
+      batchNo: b.batchNo,
+      expirationDate: b.expirationDate,
+      systemQty: b.quantity,
+      countedQty: 0,
+    }));
+
+    await db.collection("reconciliations").add({
+      rcnNumber,
+      period,
+      status: "in_progress",
+      items,
+      openedBy: currentAdminName,
+      openedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      finalizedBy: null,
+      finalizedAt: null,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+
+    bootstrap.Modal.getInstance(openReconciliationModalEl).hide();
     await loadInventory();
   } catch (error) {
-    reconciliationAlert.textContent = "Something went wrong submitting the reconciliation. Please try again.";
+    openReconciliationAlert.textContent = "Something went wrong opening this session. Please try again.";
+    openReconciliationAlert.classList.remove("d-none");
+  } finally {
+    confirmOpenSessionBtn.disabled = false;
+  }
+});
+
+submitCountBtn.addEventListener("click", async () => {
+  const activeSession = findActiveSession();
+  if (!activeSession) return;
+  if (!confirm("Submit this count? This finalizes the session and updates stock quantities to match what was counted.")) return;
+
+  const rows = Array.from(reconciliationItemsBody.querySelectorAll("tr"));
+  const updatedItems = rows.map((row) => {
+    const idx = Number(row.dataset.idx);
+    const item = activeSession.items[idx];
+    const countedQty = parseInt(row.querySelector(".reconciliation-counted-input").value, 10) || 0;
+    return { ...item, countedQty, variance: countedQty - item.systemQty };
+  });
+
+  submitCountBtn.disabled = true;
+  reconciliationAlert.classList.add("d-none");
+
+  try {
+    for (const item of updatedItems) {
+      if (item.variance !== 0) {
+        await db.collection("stockBatches").doc(item.batchId).update({ quantity: item.countedQty });
+      }
+    }
+
+    await db.collection("reconciliations").doc(activeSession.id).update({
+      items: updatedItems,
+      status: "finalized",
+      finalizedBy: currentAdminName,
+      finalizedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+
+    const adjustedCount = updatedItems.filter((i) => i.variance !== 0).length;
+    await logAuditEvent({
+      action: "Stock Reconciliation Finalized",
+      details: `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)}) — ${adjustedCount} batch${adjustedCount === 1 ? "" : "es"} adjusted`,
+    });
+
+    await loadInventory();
+  } catch (error) {
+    reconciliationAlert.textContent = "Something went wrong submitting the count. Please try again.";
     reconciliationAlert.classList.remove("d-none");
-    submitReconciliationBtn.disabled = false;
+  } finally {
+    submitCountBtn.disabled = false;
   }
 });
 

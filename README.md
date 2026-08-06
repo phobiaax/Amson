@@ -164,10 +164,29 @@ js/verify-email.js             OTP verification logic
      createdAt: Firestore timestamp
 
    reconciliations/{reconciliationId}
-     date: string                 ISO date of the physical count
-     adjustments: [{ batchId, productId, batchNo, systemQty, countedQty, diff }]
-     locked: true
-     submittedAt: Firestore timestamp
+     rcnNumber: string             e.g. "RCN-2026-05" (auto-generated, sequential, 2-digit)
+     period: string                "YYYY-MM", the month being counted
+     status: "in_progress" | "finalized"
+     items: [{ batchId, productId, batchNo, expirationDate, systemQty, countedQty, variance }]
+                                    snapshotted from stockBatches when the session is opened;
+                                    countedQty/variance fill in as staff enter counts
+     openedBy: string              admin name, captured when the session was opened
+     openedAt: Firestore timestamp
+     finalizedBy: string | null    admin name, captured when Submit Count was clicked
+     finalizedAt: Firestore timestamp | null
+     createdAt: Firestore timestamp
+     (only one "in_progress" session can exist at a time — enforced client-side
+     in admin/inventory.html's Reconciliation tab. There's no separate approval
+     role: whoever opens a session and whoever submits the count are each just
+     recorded as whichever admin performed that action, which can be the same
+     person or different admins since the session is shared Firestore state.
+     Submitting the count immediately updates real stockBatches quantities to
+     match what was counted and logs a "Stock Reconciliation Finalized" audit
+     entry. This replaced an earlier one-shot version of this feature — the
+     schema above is a breaking change from that first draft.)
+
+   counters/reconciliations-{year}
+     count: number   (used to generate sequential RCN numbers, don't edit by hand)
 
    purchaseOrders/{poId}
      poNumber: string             e.g. "PO-2026-0001" (auto-generated, sequential)
@@ -230,17 +249,18 @@ js/verify-email.js             OTP verification logic
    counters/purchaseOrders-{year}
      count: number   (used to generate sequential PO numbers, don't edit by hand)
    ```
-   - **Inventory Management** (`admin/inventory.html`) has two tabs: **Stock**
-     (Receive Stock — including CSV batch upload, same column-format idea
-     as Products' — Write Off Stock, FEFO near-expiry flagging, Stock
-     Reconciliation) and **Purchase Orders** (create a PO ahead of
-     delivery, receive against it later with the actual quantities/batch
-     details, automatic discrepancy detection if received ≠ expected,
-     and an acknowledge-to-close step for discrepancies). Receiving
-     against a PO adds real stock either way — partial or mismatched
-     deliveries still get added to inventory, only the PO's own status
-     reflects the variance. The Export Report PDF includes a Purchase
-     Order Discrepancies section built from this.
+   - **Inventory Management** (`admin/inventory.html`) has three tabs:
+     **Stock** (Receive Stock — including CSV batch upload, same
+     column-format idea as Products' — Write Off Stock, FEFO near-expiry
+     flagging), **Purchase Orders** (create a PO ahead of delivery,
+     receive against it later with the actual quantities/batch details,
+     automatic discrepancy detection if received ≠ expected, and an
+     acknowledge-to-close step for discrepancies), and **Reconciliation**
+     (session-based physical stock count — see the `reconciliations`
+     schema above). Receiving against a PO adds real stock either way —
+     partial or mismatched deliveries still get added to inventory, only
+     the PO's own status reflects the variance. The Export Report PDF
+     includes a Purchase Order Discrepancies section built from this.
    - Not wired up: automatic FEFO-based stock deduction when an online
      order is approved/dispatched — `deductStockFEFO()` in
      `js/products-data.js` is ready for that, it just isn't called from
@@ -268,6 +288,16 @@ js/verify-email.js             OTP verification logic
      deactivation/reactivation, and wholesale order recording. Not yet
      logged (out of scope for now): walk-in voids (needs the POS module)
      and Wholesale Exchange approvals (module not built, see above).
+   - **Settings** (`admin/settings.html`) and **Notifications**
+     (`admin/notifications.html`) have no Figma mockup yet — both pages
+     say so on-screen. Settings is kept to editing your own profile
+     (name/contact number) and changing your password (Firebase Auth
+     reauth + `updatePassword`). Notifications doesn't add a new
+     notifications-writing system across every module — it just reads
+     existing signals (low stock, near-expiry, orders awaiting payment
+     verification, PO discrepancies) and lists them as a feed. Settings
+     is linked from a gear icon in the topbar (next to Log Out) rather
+     than the sidebar, since no mockup showed where it should live.
    - The login page reads the `users` doc after sign-in: `admin` role goes
      to `admin/dashboard.html`; an unverified `customer` is sent to
      `verify-email.html`; a verified `customer` goes to `shop/index.html`.

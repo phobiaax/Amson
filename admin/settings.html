@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Customer Accounts | Amson Pharmaceuticals</title>
+<title>Settings | Amson Pharmaceuticals</title>
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,7 +33,7 @@
       <li><a href="inventory.html" class="admin-nav-link"><i class="bi bi-box-seam"></i>Inventory</a></li>
       <li><a href="products.html" class="admin-nav-link"><i class="bi bi-capsule"></i>Products</a></li>
       <li><a href="suppliers.html" class="admin-nav-link"><i class="bi bi-truck"></i>Suppliers</a></li>
-      <li><a href="customer-accounts.html" class="admin-nav-link active"><i class="bi bi-person"></i>Customer Accounts</a></li>
+      <li><a href="customer-accounts.html" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
       <li><a href="wholesale-accounts.html" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
       <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
       <li><a href="notifications.html" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
@@ -65,81 +65,61 @@
     </div>
 
     <div class="admin-content">
-      <h1 class="mb-4" style="font-weight:800;">Customer Accounts</h1>
+      <h1 class="mb-4" style="font-weight:800;">Settings</h1>
 
-      <div class="checkout-card p-4">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-          <div class="btn-group" role="group">
-            <button type="button" class="btn order-filter-btn active" data-filter="all">All (<span id="filterAllCount">0</span>)</button>
-            <button type="button" class="btn order-filter-btn" data-filter="active">Active</button>
-            <button type="button" class="btn order-filter-btn" data-filter="deactivated">Deactivated</button>
-          </div>
-          <div class="d-flex gap-2 flex-wrap">
-            <input type="text" class="form-control form-control-sm" id="customersSearchInput" placeholder="Search customers" style="width:200px;">
-            <button type="button" class="btn btn-outline-dark-amson btn-sm" id="customersSortBtn" aria-label="Toggle sort order"><i class="bi bi-arrow-down-up"></i></button>
+      <p class="text-muted mb-4" style="font-size:0.85rem; max-width:640px;">
+        <i class="bi bi-info-circle me-1"></i>No Figma mockup exists yet for this page — this is a
+        reasonable best-guess build (profile info + password) so the link in the sidebar isn't dead.
+        Happy to redo it once a real design comes in.
+      </p>
+
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div class="checkout-card p-4">
+            <h2 class="h5 fw-bold mb-3">Profile</h2>
+
+            <label class="form-label">First Name</label>
+            <input type="text" class="form-control mb-3" id="settingsFirstNameInput">
+
+            <label class="form-label">Last Name</label>
+            <input type="text" class="form-control mb-3" id="settingsLastNameInput">
+
+            <label class="form-label">Contact Number</label>
+            <input type="text" class="form-control mb-3" id="settingsContactNumberInput">
+
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control mb-1" id="settingsEmailInput" disabled>
+            <p class="text-muted mb-3" style="font-size:0.78rem;">Email can't be changed here — contact your Firebase project admin.</p>
+
+            <div id="profileAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
+            <div id="profileSuccess" class="alert alert-success auth-alert d-none mb-3" role="alert"></div>
+
+            <button type="button" class="btn btn-amson" id="saveProfileBtn">Save Changes</button>
           </div>
         </div>
 
-        <div class="table-responsive">
-          <table class="table admin-orders-table align-middle">
-            <thead>
-              <tr>
-                <th>Customer Name</th>
-                <th>Email</th>
-                <th>Contact No.</th>
-                <th>Date Registered</th>
-                <th>Total Orders</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="customersTableBody"></tbody>
-          </table>
-        </div>
-        <p class="text-muted text-center py-4 d-none" id="customersTableEmpty">No customers found.</p>
+        <div class="col-lg-6">
+          <div class="checkout-card p-4">
+            <h2 class="h5 fw-bold mb-3">Change Password</h2>
 
-        <div class="catalog-pagination" id="customersPagination"></div>
+            <label class="form-label">Current Password</label>
+            <input type="password" class="form-control mb-3" id="currentPasswordInput">
+
+            <label class="form-label">New Password</label>
+            <input type="password" class="form-control mb-3" id="newPasswordInput" minlength="6">
+
+            <label class="form-label">Confirm New Password</label>
+            <input type="password" class="form-control mb-3" id="confirmNewPasswordInput" minlength="6">
+
+            <div id="passwordAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
+            <div id="passwordSuccess" class="alert alert-success auth-alert d-none mb-3" role="alert"></div>
+
+            <button type="button" class="btn btn-amson" id="updatePasswordBtn">Update Password</button>
+          </div>
+        </div>
       </div>
     </div>
   </main>
-</div>
-
-<!-- View Customer modal -->
-<div class="modal fade" id="viewCustomerModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content p-4">
-      <div class="d-flex justify-content-between align-items-start mb-3">
-        <div>
-          <p class="fw-bold mb-0" id="viewCustomerName"></p>
-          <p class="text-muted mb-0" id="viewCustomerEmail"></p>
-        </div>
-        <span class="badge rounded-pill" id="viewCustomerStatus"></span>
-      </div>
-      <p class="contact-line mb-1"><i class="bi bi-telephone"></i> <span id="viewCustomerPhone"></span></p>
-      <p class="contact-line mb-3"><i class="bi bi-calendar"></i> Registered <span id="viewCustomerDateRegistered"></span></p>
-
-      <div class="row g-3 mb-3">
-        <div class="col-6">
-          <p class="detail-label mb-0">Total Orders</p>
-          <p class="detail-value mb-0" id="viewCustomerTotalOrders"></p>
-        </div>
-        <div class="col-6">
-          <p class="detail-label mb-0">Email Verified</p>
-          <p class="detail-value mb-0" id="viewCustomerEmailVerified"></p>
-        </div>
-      </div>
-
-      <p class="detail-label mb-1">Shipping Address</p>
-      <p class="text-muted mb-3" id="viewCustomerAddress">—</p>
-
-      <div id="customerModalAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
-
-      <div class="d-flex gap-2">
-        <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-amson flex-fill" id="toggleCustomerStatusBtn">Deactivate Account</button>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- Bootstrap JS -->
@@ -154,7 +134,7 @@
 <script src="../js/firebase-config.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/admin-sidebar.js"></script>
-<script src="../js/admin-customer-accounts.js"></script>
+<script src="../js/admin-settings.js"></script>
 <script src="../js/admin-header.js"></script>
 </body>
 </html>
