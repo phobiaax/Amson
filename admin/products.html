@@ -30,7 +30,7 @@
       <li><a href="dashboard.html" class="admin-nav-link"><i class="bi bi-house-door"></i>Dashboard</a></li>
       <li><a href="#" class="admin-nav-link"><i class="bi bi-credit-card"></i>POS</a></li>
       <li><a href="online-orders.html" class="admin-nav-link"><i class="bi bi-globe"></i>Online Orders</a></li>
-      <li><a href="#" class="admin-nav-link"><i class="bi bi-box-seam"></i>Inventory</a></li>
+      <li><a href="inventory.html" class="admin-nav-link"><i class="bi bi-box-seam"></i>Inventory</a></li>
       <li><a href="products.html" class="admin-nav-link active"><i class="bi bi-capsule"></i>Products</a></li>
       <li><a href="suppliers.html" class="admin-nav-link"><i class="bi bi-truck"></i>Suppliers</a></li>
       <li><a href="#" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
@@ -156,6 +156,11 @@
             <span class="input-group-text">₱</span>
             <input type="number" min="0" step="0.01" class="form-control" id="productWholesalePriceInput" placeholder="0.00">
           </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Reorder Point</label>
+          <input type="number" min="0" step="1" class="form-control" id="productReorderPointInput" placeholder="e.g. 20">
+          <p class="text-muted mb-0 mt-1" style="font-size:0.75rem;">Used by Inventory to flag a batch as Low Stock.</p>
         </div>
         <div class="col-md-7">
           <label class="form-label">Description</label>

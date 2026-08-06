@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory Management | Amson Pharmaceuticals</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+<!-- Custom styles -->
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="admin-body">
+  <!-- ===== Sidebar ===== -->
+  <aside class="admin-sidebar">
+    <div class="admin-sidebar-brand">
+      <h1>Amson Pharmaceuticals</h1>
+      <p>Administrator</p>
+    </div>
+    <ul class="admin-nav">
+      <li><a href="dashboard.html" class="admin-nav-link"><i class="bi bi-house-door"></i>Dashboard</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-credit-card"></i>POS</a></li>
+      <li><a href="online-orders.html" class="admin-nav-link"><i class="bi bi-globe"></i>Online Orders</a></li>
+      <li><a href="inventory.html" class="admin-nav-link active"><i class="bi bi-box-seam"></i>Inventory</a></li>
+      <li><a href="products.html" class="admin-nav-link"><i class="bi bi-capsule"></i>Products</a></li>
+      <li><a href="suppliers.html" class="admin-nav-link"><i class="bi bi-truck"></i>Suppliers</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="#" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
+    </ul>
+  </aside>
+  <div class="admin-sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- ===== Main ===== -->
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <button type="button" class="admin-sidebar-toggle" id="sidebarToggleBtn" aria-label="Open menu">
+        <i class="bi bi-list"></i>
+      </button>
+      <span class="date-label" id="adminDateLabel"></span>
+      <div class="admin-profile">
+        <i class="bi bi-person-circle" style="font-size:1.8rem; color: var(--amson-text-muted);"></i>
+        <div>
+          <p class="name" id="adminProfileName">Admin</p>
+          <p class="role">Administrator</p>
+        </div>
+        <button type="button" class="admin-logout-btn" id="adminLogoutBtn" aria-label="Log out">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <h1 class="mb-0" style="font-weight:800;">Inventory Management</h1>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-amson" id="stockReconciliationBtn">Stock Reconciliation</button>
+          <button type="button" class="btn btn-outline-dark-amson" id="exportInventoryBtn">
+            <i class="bi bi-box-arrow-up-right me-1"></i>Export Report
+          </button>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-lg-3">
+          <button type="button" class="btn btn-amson w-100 inventory-action-tile" id="receiveStockBtn">
+            <i class="bi bi-plus-lg"></i>Receive Stock
+          </button>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <button type="button" class="btn btn-outline-dark-amson w-100 inventory-action-tile" id="writeOffStockBtn">
+            <i class="bi bi-dash-lg"></i>Write Off Stock
+          </button>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="inventory-stat-box warning">
+            <p class="label mb-0">Low Stock Items</p>
+            <p class="count" id="lowStockCount">0</p>
+          </div>
+        </div>
+        <div class="col-sm-6 col-lg-3">
+          <div class="inventory-stat-box danger">
+            <p class="label mb-0">Near-Expiry</p>
+            <p class="count" id="nearExpiryCount">0</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="checkout-card p-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn order-filter-btn active" data-filter="all">All</button>
+            <button type="button" class="btn order-filter-btn" data-filter="low_stock">Low Stock</button>
+            <button type="button" class="btn order-filter-btn" data-filter="out_of_stock">Out of Stock</button>
+            <button type="button" class="btn order-filter-btn" data-filter="near_expiry">Near-Expiry</button>
+          </div>
+          <div class="d-flex gap-2 flex-wrap">
+            <input type="text" class="form-control form-control-sm" id="inventorySearchInput" placeholder="Search by product name, batch, or category" style="width:260px;">
+            <button type="button" class="btn btn-outline-dark-amson btn-sm" id="inventorySortBtn" aria-label="Toggle sort order"><i class="bi bi-arrow-down-up"></i></button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table admin-orders-table align-middle">
+            <thead>
+              <tr>
+                <th>Batch No.</th>
+                <th>Expiration Date</th>
+                <th>Product Name</th>
+                <th>Category</th>
+                <th>Quantity</th>
+                <th>Reorder Point</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTableBody"></tbody>
+          </table>
+        </div>
+        <p class="text-muted text-center py-4 d-none" id="inventoryTableEmpty">No stock batches yet. Click "Receive Stock" to record your first delivery.</p>
+
+        <div class="catalog-pagination" id="inventoryPagination"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Receive Stock modal -->
+<div class="modal fade" id="receiveStockModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content p-4">
+      <h2 class="mb-1">Receive Stock</h2>
+      <p class="text-muted mb-3">Record a new supplier delivery</p>
+
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Supplier</label>
+          <select class="form-select" id="receiveSupplierSelect"></select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Date Received</label>
+          <input type="date" class="form-control" id="receiveDateInput">
+        </div>
+      </div>
+
+      <div id="receiveItemsContainer"></div>
+
+      <div id="receiveModalAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
+
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-dark-amson" id="receiveAddItemBtn">+ Add another item</button>
+          <button type="button" class="btn btn-outline-dark-amson" id="receiveUploadBatchBtn">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Upload Batch File
+          </button>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-approve-payment" id="saveReceiveStockBtn">Receive Stock</button>
+        </div>
+      </div>
+      <input type="file" id="receiveBatchFileInput" accept=".csv" class="d-none">
+      <p class="text-muted mb-0 mt-2" style="font-size:0.78rem;" id="receiveBatchUploadStatus"></p>
+    </div>
+  </div>
+</div>
+
+<!-- Write Off Stock modal -->
+<div class="modal fade" id="writeOffModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content p-4">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <h2 class="mb-1">Write Off Stock</h2>
+          <p class="text-muted mb-0">Remove unsellable, damaged, or expired items from active inventory</p>
+        </div>
+        <div>
+          <label class="form-label mb-1">Date</label>
+          <input type="date" class="form-control form-control-sm" id="writeOffDateInput">
+        </div>
+      </div>
+
+      <div id="writeOffItemsContainer" class="mt-3"></div>
+
+      <div id="writeOffModalAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
+
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <button type="button" class="btn btn-outline-dark-amson" id="writeOffAddItemBtn">+ Add another item</button>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-approve-payment" id="saveWriteOffBtn">Write-Off Stock</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stock Reconciliation modal -->
+<div class="modal fade" id="reconciliationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content p-4">
+      <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+        <div>
+          <h2 class="mb-1">Stock Reconciliation</h2>
+          <p class="text-muted mb-0">Month-end physical count — enter what's actually on the shelf for each batch.</p>
+        </div>
+        <div>
+          <label class="form-label mb-1">Reconciliation Date</label>
+          <input type="date" class="form-control form-control-sm" id="reconciliationDateInput">
+        </div>
+      </div>
+
+      <div class="reconciliation-table-wrap mb-3">
+        <table class="table admin-orders-table align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Batch No.</th>
+              <th>Product</th>
+              <th>Expiry</th>
+              <th>System Qty</th>
+              <th>Counted Qty</th>
+            </tr>
+          </thead>
+          <tbody id="reconciliationTableBody"></tbody>
+        </table>
+      </div>
+
+      <div id="reconciliationAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
+      <div id="reconciliationSuccess" class="alert alert-success auth-alert d-none mb-3" role="alert"></div>
+
+      <div class="d-flex justify-content-end gap-2">
+        <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-approve-payment" id="submitReconciliationBtn">Submit Reconciliation</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- jsPDF (Export Report) -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<!-- Firebase (compat SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- App scripts -->
+<script src="../js/firebase-config.js"></script>
+<script src="../js/products-data.js"></script>
+<script src="../js/admin-sidebar.js"></script>
+<script src="../js/admin-inventory.js"></script>
+<script src="../js/admin-header.js"></script>
+</body>
+</html>

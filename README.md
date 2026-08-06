@@ -113,6 +113,8 @@ js/verify-email.js             OTP verification logic
      availableInPOS: boolean
      availableInOnlineStore: boolean
      rxRequired: boolean
+     reorderPoint: number       a batch at or below this quantity shows as
+                                 Low Stock in Inventory (defaults to 20)
      status: "active" | "inactive"   inactive products are hidden from the
                                       storefront entirely, not just greyed out
      createdAt: Firestore timestamp
@@ -132,12 +134,52 @@ js/verify-email.js             OTP verification logic
      status: "active" | "inactive"
      createdAt: Firestore timestamp
 
+   stockBatches/{batchId}
+     productId: string
+     batchNo: string
+     expirationDate: string      ISO date "YYYY-MM-DD"
+     quantity: number            current remaining quantity in this batch
+     initialQuantity: number     quantity as originally received (for reporting)
+     supplierId: string | null
+     dateReceived: string        ISO date
+     status: "active"            (batches aren't deleted, just drained to 0
+                                  by write-offs/sales — keeps history intact)
+     createdAt: Firestore timestamp
+     (a batch's Normal/Low Stock/Out of Stock/Near-Expiry status is computed
+     client-side per batch, not stored — see getBatchStatus() in
+     js/products-data.js, shared by admin/inventory.html and the dashboard's
+     alert counts. Near-Expiry means within 6 months of its expirationDate.)
+
+   writeOffs/{writeOffId}
+     batchId, productId, batchNo: string
+     quantity: number            quantity written off
+     reason: string
+     createdAt: Firestore timestamp
+
+   reconciliations/{reconciliationId}
+     date: string                 ISO date of the physical count
+     adjustments: [{ batchId, productId, batchNo, systemQty, countedQty, diff }]
+     locked: true
+     submittedAt: Firestore timestamp
+
    counters/orders-{year}
      count: number   (used to generate sequential order numbers, don't edit by hand)
 
    counters/products
      count: number   (used to generate sequential product SKUs, don't edit by hand)
    ```
+   - **Inventory Management** (`admin/inventory.html`) covers Receive Stock
+     (including CSV batch upload — same column-format idea as Products',
+     see `js/admin-inventory.js`'s comments), Write Off Stock, FEFO
+     near-expiry flagging, and Stock Reconciliation. **Not built yet:**
+     the Purchase Order sub-module (creating a PO ahead of delivery and
+     comparing actual receipt against it, with discrepancy reports) —
+     there was no mockup for it and it's a materially different workflow
+     from the direct Receive Stock path that is built. Also not wired up:
+     automatic FEFO-based stock deduction when an online order is
+     approved/dispatched — `deductStockFEFO()` in `js/admin-inventory.js`
+     is ready for that, it just isn't called from `admin/online-orders.html`
+     yet.
    - The login page reads the `users` doc after sign-in: `admin` role goes
      to `admin/dashboard.html`; an unverified `customer` is sent to
      `verify-email.html`; a verified `customer` goes to `shop/index.html`.

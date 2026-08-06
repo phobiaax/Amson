@@ -30,7 +30,7 @@
       <li><a href="dashboard.html" class="admin-nav-link active"><i class="bi bi-house-door"></i>Dashboard</a></li>
       <li><a href="#" class="admin-nav-link"><i class="bi bi-credit-card"></i>POS</a></li>
       <li><a href="online-orders.html" class="admin-nav-link"><i class="bi bi-globe"></i>Online Orders</a></li>
-      <li><a href="#" class="admin-nav-link"><i class="bi bi-box-seam"></i>Inventory</a></li>
+      <li><a href="inventory.html" class="admin-nav-link"><i class="bi bi-box-seam"></i>Inventory</a></li>
       <li><a href="products.html" class="admin-nav-link"><i class="bi bi-capsule"></i>Products</a></li>
       <li><a href="suppliers.html" class="admin-nav-link"><i class="bi bi-truck"></i>Suppliers</a></li>
       <li><a href="#" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
@@ -140,22 +140,22 @@
           <div class="inventory-alert-box warning">
             <div>
               <h3>Low Stock</h3>
-              <p class="count mb-0">—</p>
+              <p class="count mb-0" id="lowStockCount">—</p>
             </div>
-            <a href="#" class="stat-card-link">View Inventory →</a>
+            <a href="inventory.html" class="stat-card-link">View Inventory →</a>
           </div>
         </div>
         <div class="col-md-6">
           <div class="inventory-alert-box danger">
             <div>
               <h3>Near-Expiry</h3>
-              <p class="count mb-0">—</p>
+              <p class="count mb-0" id="nearExpiryCount">—</p>
             </div>
-            <a href="#" class="stat-card-link">View Inventory →</a>
+            <a href="inventory.html" class="stat-card-link">View Inventory →</a>
           </div>
         </div>
       </div>
-      <p class="text-muted mt-2" style="font-size:0.8rem;">Low Stock and Near-Expiry need the Inventory module, not built yet.</p>
+      <p class="text-muted mt-2" style="font-size:0.8rem;">Counts batches, not distinct products — the same product can appear in more than one alert if it has multiple batches.</p>
     </div>
   </main>
 </div>

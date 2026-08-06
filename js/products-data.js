@@ -11,6 +11,37 @@ let SAMPLE_PRODUCTS = [];
 let CATEGORY_LABELS = {};
 let catalogLoadPromise = null;
 
+const DEFAULT_REORDER_POINT = 20;
+const NEAR_EXPIRY_MONTHS = 6;
+
+const BATCH_STATUS_LABELS = {
+  normal: "Normal",
+  low_stock: "Low Stock",
+  out_of_stock: "Out of Stock",
+  near_expiry: "Near Expiry",
+};
+
+/**
+ * A batch's status is evaluated independently per batch, not aggregated
+ * per product — two batches of the same product can show different
+ * statuses (e.g. one near-expiry, one fine). Shared between
+ * admin-inventory.js and admin-dashboard.js's alert counts.
+ */
+function getBatchStatus(batch) {
+  if (batch.quantity === 0) return "out_of_stock";
+
+  const expiry = new Date(batch.expirationDate);
+  const nearExpiryThreshold = new Date();
+  nearExpiryThreshold.setMonth(nearExpiryThreshold.getMonth() + NEAR_EXPIRY_MONTHS);
+  if (expiry <= nearExpiryThreshold) return "near_expiry";
+
+  const product = getProductById(batch.productId);
+  const reorderPoint = (product && product.reorderPoint) || DEFAULT_REORDER_POINT;
+  if (batch.quantity <= reorderPoint) return "low_stock";
+
+  return "normal";
+}
+
 const DEFAULT_CATEGORIES = {
   otc: "OTC Medicines",
   vitamins: "Vitamins & Supplements",

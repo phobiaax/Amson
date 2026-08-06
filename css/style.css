@@ -1580,3 +1580,116 @@ a {
   border-radius: 8px;
   padding: 0.75rem 1rem;
 }
+
+/* ---------- Inventory: action tiles + stat boxes ---------- */
+.inventory-action-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  height: 100%;
+  min-height: 76px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.inventory-stat-box {
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  height: 100%;
+}
+
+.inventory-stat-box .label {
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 0.25rem;
+}
+
+.inventory-stat-box .count {
+  font-size: 1.7rem;
+  font-weight: 700;
+  margin-bottom: 0;
+}
+
+.inventory-stat-box.warning {
+  border: 1px solid #f3c66b;
+}
+.inventory-stat-box.warning .label,
+.inventory-stat-box.warning .count {
+  color: #b8860b;
+}
+
+.inventory-stat-box.danger {
+  border: 1px solid var(--amson-red);
+}
+.inventory-stat-box.danger .label,
+.inventory-stat-box.danger .count {
+  color: var(--amson-red);
+}
+
+/* ---------- Repeater rows (Receive Stock / Write Off items) ---------- */
+.repeater-item {
+  border: 1px solid var(--amson-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.85rem;
+  position: relative;
+}
+
+.repeater-item .repeater-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--amson-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin-bottom: 0.75rem;
+}
+
+.repeater-remove-btn {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  background: none;
+  border: none;
+  color: var(--amson-text-muted);
+  font-size: 1rem;
+  padding: 0.2rem;
+}
+
+.repeater-remove-btn:hover {
+  color: var(--amson-red);
+}
+
+.batch-status-pill {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.batch-status-pill.normal {
+  background-color: rgba(26, 156, 75, 0.12);
+  color: #1a9c4b;
+}
+.batch-status-pill.low_stock {
+  background-color: rgba(184, 134, 11, 0.12);
+  color: #b8860b;
+}
+.batch-status-pill.out_of_stock {
+  background-color: rgba(155, 155, 163, 0.15);
+  color: #6e6e78;
+}
+.batch-status-pill.near_expiry {
+  background-color: rgba(238, 49, 55, 0.12);
+  color: var(--amson-red);
+}
+
+.reconciliation-table-wrap {
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--amson-border);
+  border-radius: 8px;
+}

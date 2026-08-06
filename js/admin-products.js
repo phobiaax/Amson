@@ -36,6 +36,7 @@ const productCategorySelect = document.getElementById("productCategorySelect");
 const productCostingInput = document.getElementById("productCostingInput");
 const productRetailPriceInput = document.getElementById("productRetailPriceInput");
 const productWholesalePriceInput = document.getElementById("productWholesalePriceInput");
+const productReorderPointInput = document.getElementById("productReorderPointInput");
 const productDescriptionInput = document.getElementById("productDescriptionInput");
 const productImageDropzone = document.getElementById("productImageDropzone");
 const productImageInput = document.getElementById("productImageInput");
@@ -249,6 +250,7 @@ function resetProductForm() {
   productCostingInput.value = "";
   productRetailPriceInput.value = "";
   productWholesalePriceInput.value = "";
+  productReorderPointInput.value = "";
   productDescriptionInput.value = "";
   productAvailablePOS.checked = true;
   productAvailableOnline.checked = true;
@@ -283,6 +285,7 @@ function openEditModal(product) {
   productCostingInput.value = product.costingPrice ?? "";
   productRetailPriceInput.value = product.retailPrice ?? "";
   productWholesalePriceInput.value = product.wholesalePrice ?? "";
+  productReorderPointInput.value = product.reorderPoint ?? "";
   productDescriptionInput.value = product.description || "";
   productAvailablePOS.checked = !!product.availableInPOS;
   productAvailableOnline.checked = !!product.availableInOnlineStore;
@@ -342,6 +345,7 @@ saveProductBtn.addEventListener("click", async () => {
       costingPrice: parseFloat(productCostingInput.value) || 0,
       retailPrice,
       wholesalePrice: parseFloat(productWholesalePriceInput.value) || 0,
+      reorderPoint: parseInt(productReorderPointInput.value, 10) || DEFAULT_REORDER_POINT,
       description: productDescriptionInput.value.trim(),
       imageUrl: imageUrl || null,
       availableInPOS: productAvailablePOS.checked,

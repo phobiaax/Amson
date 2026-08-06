@@ -19,16 +19,25 @@ async function loadDashboardStats() {
     await loadCatalogCache();
     // Fetching the whole collection is fine at today's scale; revisit
     // with date-range filtering once order volume actually grows.
-    const snapshot = await db.collection("orders").get();
-    const orders = snapshot.docs.map((doc) => doc.data());
+    const [ordersSnapshot, batchesSnapshot] = await Promise.all([
+      db.collection("orders").get(),
+      db.collection("stockBatches").get(),
+    ]);
+    const orders = ordersSnapshot.docs.map((doc) => doc.data());
+    const batches = batchesSnapshot.docs.map((doc) => doc.data());
 
     const pendingVerification = orders.filter((o) => o.status === "placed").length;
     const activeOrders = orders.filter((o) => o.status !== "received").length;
+    const batchStatuses = batches.map((b) => getBatchStatus(b));
+    const lowStock = batchStatuses.filter((s) => s === "low_stock").length;
+    const nearExpiry = batchStatuses.filter((s) => s === "near_expiry").length;
 
     document.getElementById("pendingVerificationCount").textContent = pendingVerification;
     document.getElementById("activeOrdersCount").textContent = activeOrders;
+    document.getElementById("lowStockCount").textContent = lowStock;
+    document.getElementById("nearExpiryCount").textContent = nearExpiry;
 
-    lastLoadedStats = { pendingVerification, activeOrders };
+    lastLoadedStats = { pendingVerification, activeOrders, lowStock, nearExpiry };
 
     renderSalesChart(orders);
     renderCategoryChart(orders);
@@ -151,14 +160,21 @@ document.getElementById("exportReportBtn").addEventListener("click", () => {
 
   y += 12;
   doc.setFont(undefined, "bold");
+  doc.text("Inventory Alerts", 14, y);
+  doc.setFont(undefined, "normal");
+  y += 7;
+  doc.text(`Low Stock Batches: ${lastLoadedStats ? lastLoadedStats.lowStock : "—"}`, 14, y);
+  y += 7;
+  doc.text(`Near-Expiry Batches: ${lastLoadedStats ? lastLoadedStats.nearExpiry : "—"}`, 14, y);
+
+  y += 12;
+  doc.setFont(undefined, "bold");
   doc.text("Note", 14, y);
   doc.setFont(undefined, "normal");
   y += 7;
   doc.setFontSize(9);
   doc.setTextColor(120, 120, 120);
-  doc.text("Today's Total Sales, Transactions, Low Stock, and Near-Expiry figures", 14, y);
-  y += 5;
-  doc.text("require the POS and Inventory modules, not yet available in this report.", 14, y);
+  doc.text("Today's Total Sales and Transactions require the POS module, not yet built.", 14, y);
 
   doc.save(`amson-dashboard-report-${new Date().toISOString().slice(0, 10)}.pdf`);
 });
