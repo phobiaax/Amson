@@ -13,6 +13,7 @@ let productsSearchTerm = "";
 let productsSortDesc = false;
 let productsCurrentPage = 1;
 let editingProductId = null;
+let editingProductOriginal = null;
 let selectedImageFile = null;
 let existingImageUrl = null;
 
@@ -299,6 +300,7 @@ addProductBtn.addEventListener("click", () => {
 
 function openEditModal(product) {
   editingProductId = product.id;
+  editingProductOriginal = product;
   resetProductForm();
 
   productNameInput.value = product.name || "";
@@ -379,6 +381,21 @@ saveProductBtn.addEventListener("click", async () => {
 
     if (editingProductId) {
       await db.collection("products").doc(editingProductId).update(productData);
+
+      const priceFields = [
+        ["costingPrice", "Costing price"],
+        ["retailPrice", "Retail price"],
+        ["wholesalePrice", "Wholesale price"],
+      ];
+      const priceChanges = priceFields
+        .filter(([field]) => editingProductOriginal && editingProductOriginal[field] !== productData[field])
+        .map(([field, label]) => `${label}: ${formatPeso(editingProductOriginal[field])} → ${formatPeso(productData[field])}`);
+      if (priceChanges.length > 0) {
+        await logAuditEvent({
+          action: "Price Change",
+          details: `${productData.name} (${editingProductOriginal.sku || ""}) — ${priceChanges.join("; ")}`,
+        });
+      }
     } else {
       productData.sku = await generateProductSku();
       productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();

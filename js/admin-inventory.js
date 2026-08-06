@@ -7,8 +7,9 @@
  * report.
  *
  * Not wired up yet: automatic FEFO-based stock deduction when an online
- * order is approved/dispatched. deductStockFEFO() below is ready for
- * that once admin/online-orders.html's approval flow is scoped to call it.
+ * order is approved/dispatched. deductStockFEFO() (in products-data.js,
+ * shared across pages) is ready for that once admin/online-orders.html's
+ * approval flow is scoped to call it.
  */
 
 const INVENTORY_PAGE_SIZE = 8;
@@ -156,27 +157,6 @@ function formatExpiryLabel(isoDate) {
   if (!isoDate) return "—";
   const date = new Date(isoDate);
   return date.toLocaleDateString("en-PH", { month: "long", year: "numeric" });
-}
-
-/* ---------- FEFO deduction helper (not wired into orders yet) ---------- */
-async function deductStockFEFO(productId, qty) {
-  const batches = allBatches
-    .filter((b) => b.productId === productId && b.status === "active" && b.quantity > 0)
-    .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
-
-  const totalAvailable = batches.reduce((sum, b) => sum + b.quantity, 0);
-  if (totalAvailable < qty) {
-    throw new Error("Not enough stock available to fulfill this quantity.");
-  }
-
-  let remaining = qty;
-  for (const batch of batches) {
-    if (remaining <= 0) break;
-    const deduct = Math.min(batch.quantity, remaining);
-    await db.collection("stockBatches").doc(batch.id).update({ quantity: batch.quantity - deduct });
-    batch.quantity -= deduct;
-    remaining -= deduct;
-  }
 }
 
 /* ---------- Table ---------- */
@@ -638,6 +618,12 @@ saveWriteOffBtn.addEventListener("click", async () => {
         quantity: item.qty,
         reason: item.reason,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+
+      const product = getProductById(item.productId);
+      await logAuditEvent({
+        action: "Inventory Write-Off",
+        details: `${product ? product.name : item.productId} — Batch ${batch.batchNo}, Qty ${item.qty}, Reason: ${item.reason}`,
       });
     }
 

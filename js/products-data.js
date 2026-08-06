@@ -88,6 +88,70 @@ function getProductById(id) {
   return SAMPLE_PRODUCTS.find((p) => String(p.id) === String(id));
 }
 
+/**
+ * FEFO (First-Expired-First-Out) stock deduction, shared by any flow that
+ * needs to draw down real stock against a product (Wholesale Order
+ * recording; Online Orders approval once that's wired up). Queries
+ * stockBatches live instead of relying on a page's in-memory cache, so it
+ * works correctly regardless of which admin page calls it.
+ */
+async function deductStockFEFO(productId, qty) {
+  const snapshot = await db
+    .collection("stockBatches")
+    .where("productId", "==", productId)
+    .where("status", "==", "active")
+    .get();
+
+  const batches = snapshot.docs
+    .map((doc) => ({ id: doc.id, ...doc.data() }))
+    .filter((b) => b.quantity > 0)
+    .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+
+  const totalAvailable = batches.reduce((sum, b) => sum + b.quantity, 0);
+  if (totalAvailable < qty) {
+    throw new Error("Not enough stock available to fulfill this quantity.");
+  }
+
+  let remaining = qty;
+  for (const batch of batches) {
+    if (remaining <= 0) break;
+    const deduct = Math.min(batch.quantity, remaining);
+    await db.collection("stockBatches").doc(batch.id).update({ quantity: batch.quantity - deduct });
+    remaining -= deduct;
+  }
+}
+
+/**
+ * Shared audit log helper — writes one auditLog/{id} doc per call. `actor`
+ * defaults to the currently signed-in admin (resolved via auth.currentUser
+ * + a users lookup) when not passed explicitly. IP address is always
+ * recorded as "—": a static client-only site has no reliable way to
+ * determine its own public IP without a third-party lookup service, so
+ * this is disclosed rather than faked.
+ */
+async function logAuditEvent({ action, details, actor }) {
+  try {
+    let actorName = actor;
+    if (!actorName && auth.currentUser) {
+      const userDoc = await db.collection("users").doc(auth.currentUser.uid).get();
+      if (userDoc.exists) {
+        const u = userDoc.data();
+        actorName = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email || "Unknown";
+      }
+    }
+
+    await db.collection("auditLog").add({
+      action,
+      details: details || "",
+      user: actorName || "Unknown",
+      ipAddress: "—",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Failed to write audit log entry:", error);
+  }
+}
+
 function renderProductCard(product) {
   return `
     <div class="col">

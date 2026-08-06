@@ -79,6 +79,10 @@ js/verify-email.js             OTP verification logic
      emailVerificationCode, emailVerificationExpiresAt   (deleted once verified)
      shippingAddress: { streetAddress, city, province, zipCode, deliveryNotes }
                                                           (saved after first checkout)
+     accountStatus: "active" | "deactivated"             (missing/undefined counts as
+                                                          "active" — set by admin/customer-accounts.html's
+                                                          Deactivate/Reactivate action; actually enforced
+                                                          at sign-in by js/auth.js, not just a cosmetic badge)
 
    orders/{orderId}
      orderNumber: string        e.g. "AMP-2026-0001"
@@ -178,6 +182,45 @@ js/verify-email.js             OTP verification logic
      receivedAt, acknowledgedAt: Firestore timestamp | null
      createdAt: Firestore timestamp
 
+   wholesaleAccounts/{id}
+     name: string                 company/buyer name
+     contactPerson, phone, email, address: string
+     businessType: "retail_pharmacy" | "clinic" | "hospital" | "distributor" | "other"
+     ltoDocumentUrl: string | null    Cloudinary secure_url (License to Operate)
+     permitDocumentUrl: string | null Cloudinary secure_url (Business Permit)
+     status: "active" | "inactive"
+     createdAt: Firestore timestamp
+
+   wholesaleOrders/{id}
+     wholesaleAccountId: string   references wholesaleAccounts/{id}
+     buyerName: string             snapshot at order time
+     items: [{ productId, productName, qty, unitPrice, subtotal }]
+     total: number
+     poRefNumber: string           buyer's own PO reference, optional
+     poDocumentUrl: string | null  Cloudinary secure_url, optional
+     notes: string
+     createdAt: Firestore timestamp
+     (deliberately a separate collection from purchaseOrders — a wholesale
+     order is stock going OUT via a sale, not a delivery coming IN from a
+     supplier. Recording one calls deductStockFEFO() per item immediately,
+     same FEFO helper used for supplier-PO discrepancy math, now shared in
+     js/products-data.js so any page can call it.)
+
+   auditLog/{id}
+     action: string                e.g. "Price Change", "Inventory Write-Off",
+                                    "Account Deactivated", "Account Reactivated",
+                                    "Wholesale Order Recorded"
+     details: string                human-readable summary of what changed
+     user: string                   admin's name, resolved from their users/{uid} doc
+     ipAddress: string               always "—" — see note below
+     createdAt: Firestore timestamp
+     (written by the shared logAuditEvent() helper in js/products-data.js.
+     IP Address is always "—": a static, client-only site has no server
+     to reliably capture a visitor's public IP without a third-party
+     lookup service, so this is disclosed on admin/audit-log.html rather
+     than faked. Not yet wired up: Wholesale Exchange approvals — that
+     sub-module isn't built, see the note further below.)
+
    counters/orders-{year}
      count: number   (used to generate sequential order numbers, don't edit by hand)
 
@@ -200,8 +243,31 @@ js/verify-email.js             OTP verification logic
      Order Discrepancies section built from this.
    - Not wired up: automatic FEFO-based stock deduction when an online
      order is approved/dispatched — `deductStockFEFO()` in
-     `js/admin-inventory.js` is ready for that, it just isn't called from
-     `admin/online-orders.html` yet.
+     `js/products-data.js` is ready for that, it just isn't called from
+     `admin/online-orders.html` yet. It IS already called from Wholesale
+     Order recording below.
+   - **Customer Accounts** (`admin/customer-accounts.html`) lists real
+     `users` where `role === "customer"`, with a per-customer order count
+     aggregated from `orders`. Deactivate/Reactivate actually blocks
+     sign-in (enforced in `js/auth.js`), not just a cosmetic badge.
+   - **Wholesale Accounts** (`admin/wholesale-accounts.html`) is a
+     Suppliers-style card grid backed by `wholesaleAccounts/{id}`, with
+     LTO/Permit document uploads via Cloudinary. Its "Process Order"
+     button opens the Process Wholesale Order flow, which records a
+     `wholesaleOrders/{id}` doc and deducts real stock immediately via
+     `deductStockFEFO()`.
+   - **Not built** (no mockup provided, and it's a materially separate
+     workflow from recording a new order): the **Wholesale Exchange**
+     sub-module — buyers requesting a change/replacement on an
+     already-recorded wholesale order, processed as a swap and logged to
+     the audit log. Flagging this now so it isn't mistaken for finished
+     scope.
+   - **Audit Log** (`admin/audit-log.html`) reads `auditLog/{id}`,
+     written by the shared `logAuditEvent()` helper. Currently logged:
+     product price changes, inventory write-offs, account
+     deactivation/reactivation, and wholesale order recording. Not yet
+     logged (out of scope for now): walk-in voids (needs the POS module)
+     and Wholesale Exchange approvals (module not built, see above).
    - The login page reads the `users` doc after sign-in: `admin` role goes
      to `admin/dashboard.html`; an unverified `customer` is sent to
      `verify-email.html`; a verified `customer` goes to `shop/index.html`.

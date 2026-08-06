@@ -96,7 +96,14 @@ async function performLogin(email, password) {
       return;
     }
 
-    redirectByRole(userDoc.data());
+    const userData = userDoc.data();
+    if (userData.accountStatus === "deactivated") {
+      await auth.signOut();
+      showAlert("Your account has been deactivated. Please contact support.");
+      return;
+    }
+
+    redirectByRole(userData);
   } catch (error) {
     showAlert(mapAuthError(error));
     if (typeof grecaptcha !== "undefined") grecaptcha.reset();
