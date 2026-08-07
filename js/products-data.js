@@ -127,7 +127,7 @@ async function deductStockFEFO(productId, qty) {
  * + a users lookup) when not passed explicitly. IP address is always
  * recorded as "—": a static client-only site has no reliable way to
  * determine its own public IP without a third-party lookup service, so
- * this is disclosed rather than faked.
+ * this stays an honest placeholder instead of a fabricated value.
  */
 async function logAuditEvent({ action, details, actor }) {
   try {

@@ -4,7 +4,8 @@
  * Inventory write-offs, account deactivation/reactivation, and Wholesale
  * Order recording. IP Address is always "—" — a static client-only site
  * has no reliable way to capture a visitor's public IP without a
- * third-party lookup service, so this is disclosed rather than faked.
+ * third-party lookup service, so this stays an honest placeholder
+ * instead of a fabricated value.
  */
 
 const AUDIT_PAGE_SIZE = 10;

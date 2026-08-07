@@ -1,8 +1,6 @@
 /**
- * Settings admin page: no Figma mockup exists for this yet — this is a
- * reasonable best-guess build (edit own profile info, change password)
- * so the sidebar/topbar link isn't dead. Kept intentionally small in
- * scope until a real design comes in.
+ * Settings admin page: own profile info and password, kept deliberately
+ * small in scope for now.
  */
 
 let currentAdminUid = null;

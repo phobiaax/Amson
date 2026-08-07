@@ -173,7 +173,7 @@ async function generatePoNumber() {
   });
 }
 
-/* ---------- Reconciliation number generation (2-digit, per mockup) ---------- */
+/* ---------- Reconciliation number generation (2-digit) ---------- */
 async function generateRcnNumber() {
   const year = new Date().getFullYear();
   const counterRef = db.collection("counters").doc(`reconciliations-${year}`);

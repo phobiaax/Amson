@@ -1,9 +1,9 @@
 /**
- * Notifications admin page: no Figma mockup exists for this yet. Instead
- * of building a whole separate notifications-writing system (every module
- * pushing its own notification doc), this reads signals that already
- * exist in Firestore — low stock / near-expiry batches, orders awaiting
- * payment verification, and PO discrepancies — and lists them here.
+ * Notifications admin page: rather than a separate notifications-writing
+ * system (every module pushing its own notification doc), this reads
+ * signals that already exist in Firestore — low stock / near-expiry
+ * batches, orders awaiting payment verification, and PO discrepancies —
+ * and lists them here.
  */
 
 const notificationsList = document.getElementById("notificationsList");

@@ -6,8 +6,8 @@
  * purchaseOrders (Inventory's supplier-side POs) — a wholesale order is a
  * sale going out, not a delivery coming in.
  *
- * Not built yet (no mockup, disclosed in README): the Wholesale Exchange
- * sub-module (change-item requests after an order is recorded).
+ * Not built yet: the Wholesale Exchange sub-module (change-item requests
+ * after an order is recorded) — see README for scope notes.
  */
 
 const WHOLESALE_PAGE_SIZE = 6;
