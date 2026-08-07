@@ -494,7 +494,12 @@ function renderOrderRow(order) {
         <select class="form-select form-select-sm order-status-select status-${order.status}" data-id="${order.id}" aria-label="Order status">
           ${statusOptions}
         </select>
-        ${order.paymentIssue ? '<span class="hold-note"><i class="bi bi-pause-fill"></i> On Hold</span>' : ""}
+        ${
+          order.paymentIssue
+            ? `<span class="hold-note"><i class="bi bi-pause-fill"></i> On Hold</span>
+               <button type="button" class="btn btn-outline-dark-amson btn-sm release-hold-btn mt-1" data-id="${order.id}">Release Hold</button>`
+            : ""
+        }
       </td>
     </tr>
   `;
@@ -508,6 +513,16 @@ ordersTableBody.addEventListener("change", async (e) => {
   const newStatus = select.value;
   const order = allOrders.find((o) => o.id === orderId);
   const previousStatus = order.status;
+
+  if (newStatus === previousStatus) return;
+
+  const confirmed = confirm(
+    `Change order ${order.orderNumber}'s status from "${ORDER_STATUS_BADGE_LABELS[previousStatus]}" to "${ORDER_STATUS_BADGE_LABELS[newStatus]}"?`
+  );
+  if (!confirmed) {
+    select.value = previousStatus;
+    return;
+  }
 
   select.disabled = true;
 
@@ -529,6 +544,28 @@ ordersTableBody.addEventListener("change", async (e) => {
     renderOrdersTable();
   } finally {
     select.disabled = false;
+  }
+});
+
+ordersTableBody.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".release-hold-btn");
+  if (!btn) return;
+
+  const orderId = btn.dataset.id;
+  const order = allOrders.find((o) => o.id === orderId);
+  if (!order) return;
+
+  if (!confirm(`Release the hold on order ${order.orderNumber}? It will return to the Payment Verification queue.`)) return;
+
+  btn.disabled = true;
+  try {
+    await db.collection("orders").doc(orderId).update({ paymentIssue: firebase.firestore.FieldValue.delete() });
+    delete order.paymentIssue;
+    renderVerificationQueue();
+    renderOrdersTable();
+  } catch (error) {
+    alert("Something went wrong releasing this hold. Please try again.");
+    btn.disabled = false;
   }
 });
 
@@ -580,47 +617,5 @@ ordersSortBtn.addEventListener("click", () => {
 });
 
 ordersExportBtn.addEventListener("click", () => {
-  if (typeof window.jspdf === "undefined") {
-    alert("PDF generation isn't available right now. Please try again in a moment.");
-    return;
-  }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const orders = filteredOrders();
-  let y = 20;
-
-  doc.setFontSize(16);
-  doc.setFont(undefined, "bold");
-  doc.text("Amson Pharmaceuticals - Online Orders Report", 14, y);
-  doc.setFontSize(10);
-  doc.setFont(undefined, "normal");
-  y += 8;
-  doc.text(`Generated: ${new Date().toLocaleString("en-PH")}`, 14, y);
-  y += 6;
-  doc.text(`Filter: ${ordersFilter} | Orders: ${orders.length}`, 14, y);
-
-  y += 10;
-  doc.setFont(undefined, "bold");
-  doc.text("Order No.", 14, y);
-  doc.text("Customer", 70, y);
-  doc.text("Status", 130, y);
-  doc.text("Total", 196, y, { align: "right" });
-  y += 3;
-  doc.line(14, y, 196, y);
-  doc.setFont(undefined, "normal");
-
-  orders.forEach((order) => {
-    y += 7;
-    if (y > 280) {
-      doc.addPage();
-      y = 20;
-    }
-    doc.text(order.orderNumber, 14, y);
-    doc.text(customerName(order), 70, y);
-    doc.text(order.paymentIssue ? "On Hold" : ORDER_STATUS_BADGE_LABELS[order.status] || order.status, 130, y);
-    doc.text(formatPeso(order.total), 196, y, { align: "right" });
-  });
-
-  doc.save(`amson-online-orders-${new Date().toISOString().slice(0, 10)}.pdf`);
+  exportBlankPdf("amson-online-orders");
 });

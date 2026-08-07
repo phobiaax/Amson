@@ -170,3 +170,141 @@ updatePasswordBtn.addEventListener("click", async () => {
     updatePasswordBtn.disabled = false;
   }
 });
+
+/**
+ * Change Email: reauthenticate with current password, send a 6-digit
+ * code to the new address (same OTP helpers as registration), then
+ * update Firebase Auth + Firestore once the code checks out.
+ */
+const openChangeEmailBtn = document.getElementById("openChangeEmailBtn");
+const changeEmailModalEl = document.getElementById("changeEmailModal");
+const changeEmailStep1 = document.getElementById("changeEmailStep1");
+const changeEmailStep2 = document.getElementById("changeEmailStep2");
+const newEmailInput = document.getElementById("newEmailInput");
+const changeEmailPasswordInput = document.getElementById("changeEmailPasswordInput");
+const changeEmailStep1Alert = document.getElementById("changeEmailStep1Alert");
+const sendEmailChangeCodeBtn = document.getElementById("sendEmailChangeCodeBtn");
+const changeEmailTargetDisplay = document.getElementById("changeEmailTargetDisplay");
+const emailChangeOtpInput = document.getElementById("emailChangeOtpInput");
+const changeEmailStep2Alert = document.getElementById("changeEmailStep2Alert");
+const changeEmailStep2Success = document.getElementById("changeEmailStep2Success");
+const confirmEmailChangeBtn = document.getElementById("confirmEmailChangeBtn");
+const resendEmailChangeCodeBtn = document.getElementById("resendEmailChangeCodeBtn");
+
+let pendingNewEmail = null;
+let pendingEmailOtpCode = null;
+let pendingEmailOtpExpiresAt = null;
+
+openChangeEmailBtn.addEventListener("click", () => {
+  newEmailInput.value = "";
+  changeEmailPasswordInput.value = "";
+  changeEmailStep1Alert.classList.add("d-none");
+  changeEmailStep1.classList.remove("d-none");
+  changeEmailStep2.classList.add("d-none");
+  pendingNewEmail = null;
+  pendingEmailOtpCode = null;
+  bootstrap.Modal.getOrCreateInstance(changeEmailModalEl).show();
+});
+
+async function sendEmailChangeCode() {
+  const newEmail = newEmailInput.value.trim();
+  const password = changeEmailPasswordInput.value;
+
+  changeEmailStep1Alert.classList.add("d-none");
+
+  if (!newEmail || !password) {
+    changeEmailStep1Alert.textContent = "Please enter your new email and current password.";
+    changeEmailStep1Alert.classList.remove("d-none");
+    return;
+  }
+  if (newEmail.toLowerCase() === (accountEmailInput.value || "").toLowerCase()) {
+    changeEmailStep1Alert.textContent = "That's already your current email.";
+    changeEmailStep1Alert.classList.remove("d-none");
+    return;
+  }
+
+  sendEmailChangeCodeBtn.disabled = true;
+  try {
+    const user = auth.currentUser;
+    const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
+    await user.reauthenticateWithCredential(credential);
+
+    pendingNewEmail = newEmail;
+    pendingEmailOtpCode = generateOtpCode();
+    pendingEmailOtpExpiresAt = Date.now() + 10 * 60 * 1000;
+    await sendOtpEmail(newEmail, pendingEmailOtpCode, firstNameInput.value.trim());
+
+    changeEmailTargetDisplay.textContent = newEmail;
+    changeEmailStep1.classList.add("d-none");
+    changeEmailStep2.classList.remove("d-none");
+    changeEmailStep2Alert.classList.add("d-none");
+    changeEmailStep2Success.classList.add("d-none");
+    emailChangeOtpInput.value = "";
+  } catch (error) {
+    changeEmailStep1Alert.textContent =
+      error.code === "auth/wrong-password" || error.code === "auth/invalid-credential"
+        ? "Current password is incorrect."
+        : "Something went wrong sending the code. Please try again.";
+    changeEmailStep1Alert.classList.remove("d-none");
+  } finally {
+    sendEmailChangeCodeBtn.disabled = false;
+  }
+}
+
+sendEmailChangeCodeBtn.addEventListener("click", sendEmailChangeCode);
+resendEmailChangeCodeBtn.addEventListener("click", async () => {
+  if (!pendingNewEmail) return;
+  pendingEmailOtpCode = generateOtpCode();
+  pendingEmailOtpExpiresAt = Date.now() + 10 * 60 * 1000;
+  await sendOtpEmail(pendingNewEmail, pendingEmailOtpCode, firstNameInput.value.trim());
+  changeEmailStep2Success.textContent = "A new code has been sent.";
+  changeEmailStep2Success.classList.remove("d-none");
+  changeEmailStep2Alert.classList.add("d-none");
+});
+
+confirmEmailChangeBtn.addEventListener("click", async () => {
+  const enteredCode = emailChangeOtpInput.value.trim();
+
+  changeEmailStep2Alert.classList.add("d-none");
+  changeEmailStep2Success.classList.add("d-none");
+
+  if (!pendingNewEmail) return;
+  if (enteredCode.length !== 6) {
+    changeEmailStep2Alert.textContent = "Please enter the full 6-digit code.";
+    changeEmailStep2Alert.classList.remove("d-none");
+    return;
+  }
+  if (Date.now() > pendingEmailOtpExpiresAt) {
+    changeEmailStep2Alert.textContent = "This code has expired. Please resend a new one.";
+    changeEmailStep2Alert.classList.remove("d-none");
+    return;
+  }
+  if (enteredCode !== pendingEmailOtpCode) {
+    changeEmailStep2Alert.textContent = "Incorrect code. Please try again.";
+    changeEmailStep2Alert.classList.remove("d-none");
+    return;
+  }
+
+  confirmEmailChangeBtn.disabled = true;
+  try {
+    const user = auth.currentUser;
+    await user.updateEmail(pendingNewEmail);
+    await db.collection("users").doc(signedInUid).update({ email: pendingNewEmail });
+
+    accountEmailInput.value = pendingNewEmail;
+    pendingNewEmail = null;
+    pendingEmailOtpCode = null;
+
+    changeEmailStep2Success.textContent = "Email updated.";
+    changeEmailStep2Success.classList.remove("d-none");
+    setTimeout(() => bootstrap.Modal.getInstance(changeEmailModalEl).hide(), 1200);
+  } catch (error) {
+    changeEmailStep2Alert.textContent =
+      error.code === "auth/email-already-in-use"
+        ? "That email is already used by another account."
+        : "Something went wrong updating your email. Please try again.";
+    changeEmailStep2Alert.classList.remove("d-none");
+  } finally {
+    confirmEmailChangeBtn.disabled = false;
+  }
+});

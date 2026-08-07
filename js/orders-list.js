@@ -66,19 +66,21 @@ function renderOrderCard(id, order) {
 async function loadOrders(uid) {
   ordersLoading.classList.remove("d-none");
   try {
-    const snapshot = await db
-      .collection("orders")
-      .where("customerId", "==", uid)
-      .orderBy("createdAt", "desc")
-      .get();
+    const snapshot = await db.collection("orders").where("customerId", "==", uid).get();
 
     if (snapshot.empty) {
       ordersEmptyNotice.classList.remove("d-none");
       return;
     }
 
+    const docs = snapshot.docs.slice().sort((a, b) => {
+      const aTime = a.data().createdAt ? a.data().createdAt.toMillis() : 0;
+      const bTime = b.data().createdAt ? b.data().createdAt.toMillis() : 0;
+      return bTime - aTime;
+    });
+
     const ordersById = {};
-    ordersList.innerHTML = snapshot.docs
+    ordersList.innerHTML = docs
       .map((doc) => {
         ordersById[doc.id] = doc.data();
         return renderOrderCard(doc.id, doc.data());

@@ -1473,6 +1473,8 @@ a {
 /* ---------- Segmented toggle (Yes/No, Active/Inactive) ---------- */
 .segmented-toggle {
   display: inline-flex;
+  align-self: flex-start;
+  width: fit-content;
   border: 1px solid var(--amson-border);
   border-radius: 8px;
   overflow: hidden;
@@ -1725,7 +1727,7 @@ a {
   border-bottom: 1px solid var(--amson-border);
 }
 
-.choices__list--dropdown .choices__item--selectable.is-highlighted {
+.choices .choices__list--dropdown .choices__item--selectable.is-highlighted {
   background-color: var(--amson-red);
   color: #fff;
 }

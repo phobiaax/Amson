@@ -89,6 +89,22 @@ function getProductById(id) {
 }
 
 /**
+ * Report PDF generation is temporarily scrapped - every "Export Report"
+ * button downloads a blank PDF instead of real content for now, sharing
+ * this one helper so the button/filename behavior stays consistent.
+ */
+function exportBlankPdf(filenamePrefix) {
+  if (typeof window.jspdf === "undefined") {
+    alert("PDF generation isn't available right now. Please try again in a moment.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.save(`${filenamePrefix}-${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
+/**
  * FEFO (First-Expired-First-Out) stock deduction, shared by any flow that
  * needs to draw down real stock against a product (Wholesale Order
  * recording; Online Orders approval once that's wired up). Queries

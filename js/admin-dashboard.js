@@ -128,53 +128,5 @@ function renderCategoryChart(orders) {
 }
 
 document.getElementById("exportReportBtn").addEventListener("click", () => {
-  if (typeof window.jspdf === "undefined") {
-    alert("PDF generation isn't available right now. Please try again in a moment.");
-    return;
-  }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  let y = 20;
-
-  doc.setFontSize(16);
-  doc.setFont(undefined, "bold");
-  doc.text("Amson Pharmaceuticals - Dashboard Report", 14, y);
-  doc.setFontSize(10);
-  doc.setFont(undefined, "normal");
-  y += 8;
-  doc.text(`Generated: ${new Date().toLocaleString("en-PH")}`, 14, y);
-
-  y += 12;
-  doc.setFont(undefined, "bold");
-  doc.text("Order Stats", 14, y);
-  doc.setFont(undefined, "normal");
-  y += 7;
-  doc.text(
-    `Pending Payment Verification: ${lastLoadedStats ? lastLoadedStats.pendingVerification : "-"}`,
-    14,
-    y
-  );
-  y += 7;
-  doc.text(`Active Online Orders: ${lastLoadedStats ? lastLoadedStats.activeOrders : "-"}`, 14, y);
-
-  y += 12;
-  doc.setFont(undefined, "bold");
-  doc.text("Inventory Alerts", 14, y);
-  doc.setFont(undefined, "normal");
-  y += 7;
-  doc.text(`Low Stock Batches: ${lastLoadedStats ? lastLoadedStats.lowStock : "-"}`, 14, y);
-  y += 7;
-  doc.text(`Near-Expiry Batches: ${lastLoadedStats ? lastLoadedStats.nearExpiry : "-"}`, 14, y);
-
-  y += 12;
-  doc.setFont(undefined, "bold");
-  doc.text("Note", 14, y);
-  doc.setFont(undefined, "normal");
-  y += 7;
-  doc.setFontSize(9);
-  doc.setTextColor(120, 120, 120);
-  doc.text("Today's Total Sales and Transactions require the POS module, not yet built.", 14, y);
-
-  doc.save(`amson-dashboard-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+  exportBlankPdf("amson-dashboard-report");
 });

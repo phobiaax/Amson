@@ -323,44 +323,5 @@ async function deleteSupplier(id) {
 
 /* ---------- Export ---------- */
 exportSuppliersBtn.addEventListener("click", () => {
-  if (typeof window.jspdf === "undefined") {
-    alert("PDF generation isn't available right now. Please try again in a moment.");
-    return;
-  }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  let y = 20;
-
-  doc.setFontSize(16);
-  doc.setFont(undefined, "bold");
-  doc.text("Amson Pharmaceuticals - Supplier Directory", 14, y);
-  doc.setFontSize(10);
-  doc.setFont(undefined, "normal");
-  y += 8;
-  doc.text(`Generated: ${new Date().toLocaleString("en-PH")}`, 14, y);
-
-  y += 10;
-  doc.setFont(undefined, "bold");
-  doc.text("Company", 14, y);
-  doc.text("Contact", 80, y);
-  doc.text("Phone", 130, y);
-  doc.text("Status", 175, y);
-  y += 3;
-  doc.line(14, y, 196, y);
-  doc.setFont(undefined, "normal");
-
-  filteredSuppliers().forEach((supplier) => {
-    y += 7;
-    if (y > 280) {
-      doc.addPage();
-      y = 20;
-    }
-    doc.text(supplier.name, 14, y);
-    doc.text(supplier.contactPerson || "-", 80, y);
-    doc.text(supplier.phone || "-", 130, y);
-    doc.text(supplier.status === "active" ? "Active" : "Inactive", 175, y);
-  });
-
-  doc.save(`amson-suppliers-${new Date().toISOString().slice(0, 10)}.pdf`);
+  exportBlankPdf("amson-suppliers");
 });

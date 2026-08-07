@@ -12,6 +12,9 @@ const checkoutForm = document.getElementById("checkoutForm");
 const proceedToPaymentBtn = document.getElementById("proceedToPaymentBtn");
 const deliveryScheduleLabel = document.getElementById("deliveryScheduleLabel");
 const saveDeliveryScheduleBtn = document.getElementById("saveDeliveryScheduleBtn");
+const deliveryAsapCheck = document.getElementById("deliveryAsapCheck");
+const deliveryDateInput = document.getElementById("deliveryDate");
+const deliveryTimeSlotInput = document.getElementById("deliveryTimeSlot");
 
 const TIME_SLOT_LABELS = {
   morning: "Morning (8AM-12PM)",
@@ -53,10 +56,28 @@ const cart = getCart();
 })();
 
 // ---- Delivery schedule modal ----
+const todayISO = new Date().toISOString().slice(0, 10);
+deliveryDateInput.min = todayISO;
+
+deliveryAsapCheck.addEventListener("change", () => {
+  const isAsap = deliveryAsapCheck.checked;
+  deliveryDateInput.disabled = isAsap;
+  deliveryTimeSlotInput.disabled = isAsap;
+  if (isAsap) {
+    deliveryDateInput.value = "";
+  }
+});
+
 saveDeliveryScheduleBtn.addEventListener("click", () => {
-  const date = document.getElementById("deliveryDate").value;
-  const slot = document.getElementById("deliveryTimeSlot").value;
-  if (!date) return;
+  if (deliveryAsapCheck.checked) {
+    deliverySchedule = { asap: true };
+    deliveryScheduleLabel.textContent = "As soon as possible";
+    return;
+  }
+
+  const date = deliveryDateInput.value;
+  const slot = deliveryTimeSlotInput.value;
+  if (!date || date < todayISO) return;
   deliverySchedule = { date, slot };
   deliveryScheduleLabel.textContent = `${date} · ${TIME_SLOT_LABELS[slot]}`;
 });

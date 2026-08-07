@@ -49,7 +49,15 @@
         </div>
 
         <div id="accountActions" class="d-flex align-items-center gap-3 d-none">
-          <a href="#" class="bell-icon"><i class="bi bi-bell"></i></a>
+          <div class="dropdown">
+            <a href="#" class="bell-icon position-relative" id="notifBellBtn" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-bell"></i>
+              <span id="notifBadge" class="cart-badge d-none">0</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end account-dropdown-menu" id="notifDropdownList" style="min-width:280px; max-height:340px; overflow-y:auto;">
+              <li class="px-3 py-2 text-muted" id="notifEmptyState">Nothing new right now.</li>
+            </ul>
+          </div>
           <div class="dropdown">
             <button class="account-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
               <i class="bi bi-person-circle"></i>
@@ -107,10 +115,13 @@
           </div>
           <div class="col-sm-6">
             <label for="accountEmailInput" class="form-label">Email</label>
-            <input type="email" class="form-control" id="accountEmailInput" disabled>
+            <div class="d-flex gap-2">
+              <input type="email" class="form-control" id="accountEmailInput" disabled>
+              <button type="button" class="btn btn-outline-dark-amson" id="openChangeEmailBtn" style="white-space:nowrap;">Change Email</button>
+            </div>
           </div>
         </div>
-        <p class="text-muted mt-2 mb-3" style="font-size:0.8rem;">Email can't be changed here. Contact support if it needs to change.</p>
+        <p class="text-muted mt-2 mb-3" style="font-size:0.8rem;">Changing your email requires verifying the new address with a code.</p>
 
         <div id="profileAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
         <div id="profileSuccess" class="alert alert-success auth-alert d-none mb-3" role="alert"></div>
@@ -175,6 +186,40 @@
   </div>
 </main>
 
+<!-- Change Email modal -->
+<div class="modal fade" id="changeEmailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content p-4">
+      <h2 class="mb-3">Change Email</h2>
+
+      <div id="changeEmailStep1">
+        <label for="newEmailInput" class="form-label">New Email</label>
+        <input type="email" class="form-control mb-3" id="newEmailInput" placeholder="you@example.com">
+
+        <label for="changeEmailPasswordInput" class="form-label">Current Password</label>
+        <input type="password" class="form-control mb-3" id="changeEmailPasswordInput" placeholder="Confirm it's you">
+
+        <div id="changeEmailStep1Alert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
+
+        <button type="button" class="btn btn-amson w-100" id="sendEmailChangeCodeBtn">Send Verification Code</button>
+      </div>
+
+      <div id="changeEmailStep2" class="d-none">
+        <p class="text-muted mb-3">Enter the 6-digit code sent to <span id="changeEmailTargetDisplay" class="fw-medium"></span>.</p>
+
+        <label for="emailChangeOtpInput" class="form-label">Verification Code</label>
+        <input type="text" inputmode="numeric" maxlength="6" class="form-control mb-3" id="emailChangeOtpInput" placeholder="123456">
+
+        <div id="changeEmailStep2Alert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
+        <div id="changeEmailStep2Success" class="alert alert-success auth-alert d-none mb-3" role="alert"></div>
+
+        <button type="button" class="btn btn-amson w-100 mb-2" id="confirmEmailChangeBtn">Verify and Update Email</button>
+        <button type="button" class="btn btn-outline-dark-amson w-100" id="resendEmailChangeCodeBtn">Resend Code</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Footer ===== -->
 <footer class="site-footer pt-5">
   <div class="container">
@@ -206,6 +251,9 @@
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+<!-- EmailJS (verification code emails) -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
 <!-- Firebase (compat SDK) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -213,6 +261,8 @@
 
 <!-- App scripts -->
 <script src="../js/firebase-config.js"></script>
+<script src="../js/emailjs-config.js"></script>
+<script src="../js/otp.js"></script>
 <script src="../js/shop-header.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/cart.js"></script>

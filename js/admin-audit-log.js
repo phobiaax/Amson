@@ -163,45 +163,5 @@ auditClearFiltersBtn.addEventListener("click", () => {
 
 /* ---------- Export ---------- */
 exportAuditLogBtn.addEventListener("click", () => {
-  if (typeof window.jspdf === "undefined") {
-    alert("PDF generation isn't available right now. Please try again in a moment.");
-    return;
-  }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  let y = 20;
-
-  doc.setFontSize(16);
-  doc.setFont(undefined, "bold");
-  doc.text("Amson Pharmaceuticals - Audit Log", 14, y);
-  doc.setFontSize(10);
-  doc.setFont(undefined, "normal");
-  y += 8;
-  doc.text(`Generated: ${new Date().toLocaleString("en-PH")}`, 14, y);
-
-  y += 10;
-  doc.setFont(undefined, "bold");
-  doc.text("Timestamp", 14, y);
-  doc.text("User", 55, y);
-  doc.text("Action", 90, y);
-  doc.text("Details", 130, y);
-  y += 3;
-  doc.line(14, y, 196, y);
-  doc.setFont(undefined, "normal");
-  doc.setFontSize(8);
-
-  filteredAuditEntries().forEach((entry) => {
-    y += 6;
-    if (y > 280) {
-      doc.addPage();
-      y = 20;
-    }
-    doc.text(formatTimestamp(entry.createdAt), 14, y);
-    doc.text(entry.user || "-", 55, y);
-    doc.text(entry.action || "-", 90, y);
-    doc.text((entry.details || "-").slice(0, 45), 130, y);
-  });
-
-  doc.save(`amson-audit-log-${new Date().toISOString().slice(0, 10)}.pdf`);
+  exportBlankPdf("amson-audit-log");
 });
