@@ -80,8 +80,7 @@
               <p class="stat-card-label">Today's Total Sales</p>
               <i class="bi bi-currency-dollar stat-card-icon" style="color:#1a9c4b;"></i>
             </div>
-            <p class="stat-card-value placeholder mb-0">—</p>
-            <p class="stat-card-note">Needs the POS module (coming later)</p>
+            <p class="stat-card-value placeholder mb-0">-</p>
           </div>
         </div>
         <div class="col-sm-6 col-lg-3">
@@ -90,8 +89,7 @@
               <p class="stat-card-label">Transactions Today</p>
               <i class="bi bi-cart3 stat-card-icon" style="color:#4A90D9;"></i>
             </div>
-            <p class="stat-card-value placeholder mb-0">—</p>
-            <p class="stat-card-note">Needs the POS module (coming later)</p>
+            <p class="stat-card-value placeholder mb-0">-</p>
           </div>
         </div>
         <div class="col-sm-6 col-lg-3">
@@ -99,7 +97,7 @@
             <div class="stat-card-header">
               <p class="stat-card-label">Pending Payment Verification</p>
             </div>
-            <p class="stat-card-value mb-0" id="pendingVerificationCount">—</p>
+            <p class="stat-card-value mb-0" id="pendingVerificationCount">-</p>
             <a href="#" class="stat-card-link">View Pending →</a>
           </div>
         </div>
@@ -108,7 +106,7 @@
             <div class="stat-card-header">
               <p class="stat-card-label">Active Online Orders</p>
             </div>
-            <p class="stat-card-value mb-0" id="activeOrdersCount">—</p>
+            <p class="stat-card-value mb-0" id="activeOrdersCount">-</p>
             <a href="#" class="stat-card-link">View Orders →</a>
           </div>
         </div>
@@ -119,7 +117,6 @@
         <div class="col-lg-7">
           <div class="chart-card">
             <h2>Monthly Sales Performance</h2>
-            <p class="text-muted" style="font-size:0.78rem; margin-top:-0.75rem;">Based on online orders only — will include POS sales once that module exists.</p>
             <div class="chart-canvas-wrap">
               <canvas id="salesChart"></canvas>
               <p class="chart-empty-note d-none" id="salesChartEmpty">No online sales yet.</p>
@@ -143,7 +140,7 @@
           <div class="inventory-alert-box warning">
             <div>
               <h3>Low Stock</h3>
-              <p class="count mb-0" id="lowStockCount">—</p>
+              <p class="count mb-0" id="lowStockCount">-</p>
             </div>
             <a href="inventory.html" class="stat-card-link">View Inventory →</a>
           </div>
@@ -152,13 +149,13 @@
           <div class="inventory-alert-box danger">
             <div>
               <h3>Near-Expiry</h3>
-              <p class="count mb-0" id="nearExpiryCount">—</p>
+              <p class="count mb-0" id="nearExpiryCount">-</p>
             </div>
             <a href="inventory.html" class="stat-card-link">View Inventory →</a>
           </div>
         </div>
       </div>
-      <p class="text-muted mt-2" style="font-size:0.8rem;">Counts batches, not distinct products — the same product can appear in more than one alert if it has multiple batches.</p>
+      <p class="text-muted mt-2" style="font-size:0.8rem;">Counts batches, not distinct products - the same product can appear in more than one alert if it has multiple batches.</p>
     </div>
   </main>
 </div>
@@ -182,7 +179,7 @@
 <script src="../js/products-data.js"></script>
 <script src="../js/admin-sidebar.js"></script>
 <!-- admin-dashboard.js registers its "admin:ready" listener before
-     admin-header.js can dispatch it — order matters here. -->
+     admin-header.js can dispatch it - order matters here. -->
 <script src="../js/admin-dashboard.js"></script>
 <script src="../js/admin-header.js"></script>
 </body>

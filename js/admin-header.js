@@ -1,7 +1,7 @@
 /**
  * Shared admin shell logic (reusable across future admin pages, not just
  * the dashboard): enforces that only a signed-in user with role "admin"
- * can view the page — anyone else gets redirected — and populates the
+ * can view the page - anyone else gets redirected - and populates the
  * top bar's date and profile info. Fires an "admin:ready" event once the
  * check passes, carrying the admin's Firestore doc, so page-specific
  * scripts can safely load their own data after this.

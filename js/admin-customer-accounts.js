@@ -88,7 +88,7 @@ function filteredCustomers() {
 }
 
 function formatDate(timestamp) {
-  if (!timestamp) return "—";
+  if (!timestamp) return "-";
   return timestamp.toDate().toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
 }
 
@@ -118,8 +118,8 @@ function renderCustomerRow(customer) {
   return `
     <tr>
       <td>${customer.firstName || ""} ${customer.lastName || ""}</td>
-      <td>${customer.email || "—"}</td>
-      <td>${customer.contactNumber || "—"}</td>
+      <td>${customer.email || "-"}</td>
+      <td>${customer.contactNumber || "-"}</td>
       <td>${formatDate(customer.createdAt)}</td>
       <td>${customer.totalOrders}</td>
       <td><span class="badge rounded-pill ${status === "active" ? "text-bg-success" : "text-bg-secondary"}">${status === "active" ? "Active" : "Deactivated"}</span></td>
@@ -185,8 +185,8 @@ function openViewModal(customer) {
   customerModalAlert.classList.add("d-none");
 
   document.getElementById("viewCustomerName").textContent = `${customer.firstName || ""} ${customer.lastName || ""}`;
-  document.getElementById("viewCustomerEmail").textContent = customer.email || "—";
-  document.getElementById("viewCustomerPhone").textContent = customer.contactNumber || "—";
+  document.getElementById("viewCustomerEmail").textContent = customer.email || "-";
+  document.getElementById("viewCustomerPhone").textContent = customer.contactNumber || "-";
   document.getElementById("viewCustomerDateRegistered").textContent = formatDate(customer.createdAt);
   document.getElementById("viewCustomerTotalOrders").textContent = customer.totalOrders;
   document.getElementById("viewCustomerEmailVerified").textContent = customer.emailVerified ? "Yes" : "No";

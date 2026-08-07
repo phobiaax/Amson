@@ -86,7 +86,7 @@ async function loadProducts() {
   }
 }
 
-// Searchable select — a long, growing category list gets tedious to
+// Searchable select - a long, growing category list gets tedious to
 // scroll through in a plain <select> otherwise.
 let categorySelectChoices = null;
 
@@ -174,15 +174,15 @@ function renderProductsTable() {
 function renderProductRow(product) {
   return `
     <tr>
-      <td class="fw-medium">${product.sku || "—"}</td>
+      <td class="fw-medium">${product.sku || "-"}</td>
       <td>
         <div class="d-flex align-items-center gap-2">
           <div class="product-thumb" ${product.imageUrl ? `style="background-image:url('${product.imageUrl}');"` : ""}></div>
           <span>${product.name}</span>
         </div>
       </td>
-      <td>${product.brand || "—"}</td>
-      <td>${CATEGORY_LABELS[product.category] || "—"}</td>
+      <td>${product.brand || "-"}</td>
+      <td>${CATEGORY_LABELS[product.category] || "-"}</td>
       <td class="product-price">${formatPeso(product.retailPrice)}</td>
       <td>${product.rxRequired ? '<span class="badge rounded-pill text-bg-danger">Yes</span>' : '<span class="badge rounded-pill text-bg-light text-dark">No</span>'}</td>
       <td>${product.status === "active" ? '<span class="badge rounded-pill text-bg-success">Active</span>' : '<span class="badge rounded-pill text-bg-secondary">Inactive</span>'}</td>
@@ -393,7 +393,7 @@ saveProductBtn.addEventListener("click", async () => {
       if (priceChanges.length > 0) {
         await logAuditEvent({
           action: "Price Change",
-          details: `${productData.name} (${editingProductOriginal.sku || ""}) — ${priceChanges.join("; ")}`,
+          details: `${productData.name} (${editingProductOriginal.sku || ""}) - ${priceChanges.join("; ")}`,
         });
       }
     } else {

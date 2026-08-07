@@ -1,6 +1,6 @@
 /**
  * Shared order helpers used by payment.js (creating orders), orders.html
- * (list), and order-details.html (tracking) — status labels, date
+ * (list), and order-details.html (tracking) - status labels, date
  * formatting, order number generation, and receipt PDF generation.
  */
 

@@ -110,16 +110,16 @@ function renderSupplierCard(supplier) {
             <div class="supplier-icon"><i class="bi bi-building"></i></div>
             <div>
               <p class="fw-bold mb-0">${supplier.name}</p>
-              <p class="text-muted mb-0" style="font-size:0.88rem;">${supplier.contactPerson || "—"}</p>
+              <p class="text-muted mb-0" style="font-size:0.88rem;">${supplier.contactPerson || "-"}</p>
             </div>
           </div>
           <span class="badge rounded-pill ${supplier.status === "active" ? "text-bg-success" : "text-bg-secondary"}">
             ${supplier.status === "active" ? "Active" : "Inactive"}
           </span>
         </div>
-        <p class="contact-line"><i class="bi bi-telephone"></i> ${supplier.phone || "—"}</p>
-        <p class="contact-line"><i class="bi bi-envelope"></i> ${supplier.email || "—"}</p>
-        <p class="contact-line mb-3"><i class="bi bi-geo-alt"></i> ${supplier.address || "—"}</p>
+        <p class="contact-line"><i class="bi bi-telephone"></i> ${supplier.phone || "-"}</p>
+        <p class="contact-line"><i class="bi bi-envelope"></i> ${supplier.email || "-"}</p>
+        <p class="contact-line mb-3"><i class="bi bi-geo-alt"></i> ${supplier.address || "-"}</p>
         <div class="d-flex gap-2 align-items-center">
           <button type="button" class="icon-btn view-supplier-btn" data-id="${supplier.id}" aria-label="View"><i class="bi bi-eye"></i></button>
           <button type="button" class="btn btn-outline-dark-amson flex-fill edit-supplier-btn" data-id="${supplier.id}"><i class="bi bi-pencil me-1"></i>Edit</button>
@@ -175,10 +175,10 @@ function openViewModal(supplier) {
   if (!supplier) return;
 
   document.getElementById("viewSupplierName").textContent = supplier.name;
-  document.getElementById("viewSupplierContactPerson").textContent = supplier.contactPerson || "—";
-  document.getElementById("viewSupplierPhone").textContent = supplier.phone || "—";
-  document.getElementById("viewSupplierEmail").textContent = supplier.email || "—";
-  document.getElementById("viewSupplierAddress").textContent = supplier.address || "—";
+  document.getElementById("viewSupplierContactPerson").textContent = supplier.contactPerson || "-";
+  document.getElementById("viewSupplierPhone").textContent = supplier.phone || "-";
+  document.getElementById("viewSupplierEmail").textContent = supplier.email || "-";
+  document.getElementById("viewSupplierAddress").textContent = supplier.address || "-";
 
   const statusEl = document.getElementById("viewSupplierStatus");
   statusEl.textContent = supplier.status === "active" ? "Active" : "Inactive";
@@ -334,7 +334,7 @@ exportSuppliersBtn.addEventListener("click", () => {
 
   doc.setFontSize(16);
   doc.setFont(undefined, "bold");
-  doc.text("Amson Pharmaceuticals — Supplier Directory", 14, y);
+  doc.text("Amson Pharmaceuticals - Supplier Directory", 14, y);
   doc.setFontSize(10);
   doc.setFont(undefined, "normal");
   y += 8;
@@ -357,8 +357,8 @@ exportSuppliersBtn.addEventListener("click", () => {
       y = 20;
     }
     doc.text(supplier.name, 14, y);
-    doc.text(supplier.contactPerson || "—", 80, y);
-    doc.text(supplier.phone || "—", 130, y);
+    doc.text(supplier.contactPerson || "-", 80, y);
+    doc.text(supplier.phone || "-", 130, y);
     doc.text(supplier.status === "active" ? "Active" : "Inactive", 175, y);
   });
 

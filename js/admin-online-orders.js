@@ -119,7 +119,7 @@ tabOrdersBtn.addEventListener("click", () => setActiveTab("orders"));
 
 /* ---------- Payment Verification queue ---------- */
 function customerName(order) {
-  return order.contact ? `${order.contact.firstName} ${order.contact.lastName}` : "—";
+  return order.contact ? `${order.contact.firstName} ${order.contact.lastName}` : "-";
 }
 
 function verificationQueue() {
@@ -592,7 +592,7 @@ ordersExportBtn.addEventListener("click", () => {
 
   doc.setFontSize(16);
   doc.setFont(undefined, "bold");
-  doc.text("Amson Pharmaceuticals — Online Orders Report", 14, y);
+  doc.text("Amson Pharmaceuticals - Online Orders Report", 14, y);
   doc.setFontSize(10);
   doc.setFont(undefined, "normal");
   y += 8;

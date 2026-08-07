@@ -11,7 +11,7 @@ async function sendOtpEmail(toEmail, code, toName = "") {
     typeof emailjs === "undefined" ||
     EMAILJS_SERVICE_ID === "YOUR_EMAILJS_SERVICE_ID"
   ) {
-    console.warn("EmailJS is not configured yet — OTP email was not sent.", {
+    console.warn("EmailJS is not configured yet - OTP email was not sent.", {
       toEmail,
       code,
     });

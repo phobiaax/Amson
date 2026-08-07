@@ -146,14 +146,14 @@ resendCodeLink.addEventListener("click", async (e) => {
 });
 
 // ---- Wrong email: back to registration ----
-// Leaves behind an unverified account under the mistyped email — harmless
+// Leaves behind an unverified account under the mistyped email - harmless
 // clutter for now, cleanup can happen once there's an admin panel.
 backToRegisterBtn.addEventListener("click", async () => {
   sessionStorage.removeItem("amsonPendingVerificationEmail");
   try {
     await auth.signOut();
   } catch (error) {
-    // Not fatal — registering again will just sign in as the new account.
+    // Not fatal - registering again will just sign in as the new account.
   }
   window.location.href = "register.html";
 });

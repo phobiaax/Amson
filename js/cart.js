@@ -1,6 +1,6 @@
 /**
  * Client-side shopping cart, backed by localStorage. Swap for a Firestore
- * cart/order write once checkout is wired to the backend — cartTotal(),
+ * cart/order write once checkout is wired to the backend - cartTotal(),
  * cartCount(), getCart() etc. can stay as the read layer.
  */
 

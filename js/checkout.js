@@ -93,7 +93,7 @@ proceedToPaymentBtn.addEventListener("click", async () => {
   sessionStorage.setItem("amsonPendingOrder", JSON.stringify(order));
 
   // Save the address to the customer's profile so future checkouts can
-  // skip re-typing it. Best-effort — a failure here shouldn't block checkout.
+  // skip re-typing it. Best-effort - a failure here shouldn't block checkout.
   if (signedInUid) {
     try {
       await db.collection("users").doc(signedInUid).set(
@@ -101,7 +101,7 @@ proceedToPaymentBtn.addEventListener("click", async () => {
         { merge: true }
       );
     } catch (error) {
-      // Not fatal — the order still has the address in sessionStorage.
+      // Not fatal - the order still has the address in sessionStorage.
     }
   }
 
@@ -136,5 +136,5 @@ try {
     }
   });
 } catch (error) {
-  // Firebase failed to load — checkout still works with manual entry.
+  // Firebase failed to load - checkout still works with manual entry.
 }

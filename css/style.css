@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Amson Pharmaceuticals — Global Styles
+   Amson Pharmaceuticals - Global Styles
    ========================================================================== */
 
 :root {
@@ -202,7 +202,7 @@ a {
   box-shadow: 0 0 0 3px rgba(238, 49, 55, 0.1);
 }
 
-/* Suppress Bootstrap's built-in valid/invalid check icon — it renders in
+/* Suppress Bootstrap's built-in valid/invalid check icon - it renders in
    the same corner as our custom field icons (toggle-password, etc.) and
    visually collides with them. */
 .input-icon-group .form-control:valid,
@@ -1308,7 +1308,7 @@ a {
 }
 
 /* Below desktop width, the sidebar stays a real sidebar (not a
-   horizontal scrolling bar) — it's just off-canvas until toggled open. */
+   horizontal scrolling bar) - it's just off-canvas until toggled open. */
 @media (max-width: 991.98px) {
   .admin-sidebar-toggle {
     display: inline-block;

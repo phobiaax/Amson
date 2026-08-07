@@ -1,7 +1,7 @@
 /**
  * Product catalog page: filter (by category), sort, and client-side
  * pagination over SAMPLE_PRODUCTS. Swap SAMPLE_PRODUCTS for a Firestore
- * query later — this filter/sort/paginate logic can stay the same.
+ * query later - this filter/sort/paginate logic can stay the same.
  */
 
 const PAGE_SIZE = 16;

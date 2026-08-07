@@ -3,7 +3,7 @@
  * (Active Online Orders, Pending Payment Verification) and renders two
  * Chart.js visualizations built from real order history. Today's Total
  * Sales, Transactions Today, Low Stock, and Near-Expiry need the POS and
- * Inventory modules — neither exists yet, so those stay as placeholders
+ * Inventory modules - neither exists yet, so those stay as placeholders
  * until those modules are built.
  */
 
@@ -139,7 +139,7 @@ document.getElementById("exportReportBtn").addEventListener("click", () => {
 
   doc.setFontSize(16);
   doc.setFont(undefined, "bold");
-  doc.text("Amson Pharmaceuticals — Dashboard Report", 14, y);
+  doc.text("Amson Pharmaceuticals - Dashboard Report", 14, y);
   doc.setFontSize(10);
   doc.setFont(undefined, "normal");
   y += 8;
@@ -151,21 +151,21 @@ document.getElementById("exportReportBtn").addEventListener("click", () => {
   doc.setFont(undefined, "normal");
   y += 7;
   doc.text(
-    `Pending Payment Verification: ${lastLoadedStats ? lastLoadedStats.pendingVerification : "—"}`,
+    `Pending Payment Verification: ${lastLoadedStats ? lastLoadedStats.pendingVerification : "-"}`,
     14,
     y
   );
   y += 7;
-  doc.text(`Active Online Orders: ${lastLoadedStats ? lastLoadedStats.activeOrders : "—"}`, 14, y);
+  doc.text(`Active Online Orders: ${lastLoadedStats ? lastLoadedStats.activeOrders : "-"}`, 14, y);
 
   y += 12;
   doc.setFont(undefined, "bold");
   doc.text("Inventory Alerts", 14, y);
   doc.setFont(undefined, "normal");
   y += 7;
-  doc.text(`Low Stock Batches: ${lastLoadedStats ? lastLoadedStats.lowStock : "—"}`, 14, y);
+  doc.text(`Low Stock Batches: ${lastLoadedStats ? lastLoadedStats.lowStock : "-"}`, 14, y);
   y += 7;
-  doc.text(`Near-Expiry Batches: ${lastLoadedStats ? lastLoadedStats.nearExpiry : "—"}`, 14, y);
+  doc.text(`Near-Expiry Batches: ${lastLoadedStats ? lastLoadedStats.nearExpiry : "-"}`, 14, y);
 
   y += 12;
   doc.setFont(undefined, "bold");

@@ -39,7 +39,7 @@ let poFilter = "all";
 let poSearchTerm = "";
 let poCurrentPage = 1;
 
-// Scoped to each tab's own panel — the Stock and Purchase Orders tabs
+// Scoped to each tab's own panel - the Stock and Purchase Orders tabs
 // both use .order-filter-btn, and without scoping, clicking a filter
 // chip on one tab would also blow away the other tab's active state.
 const filterButtons = Array.from(document.querySelectorAll("#stockPanel .order-filter-btn"));
@@ -187,7 +187,7 @@ async function generateRcnNumber() {
 
 /* ---------- Formatting ---------- */
 function formatExpiryLabel(isoDate) {
-  if (!isoDate) return "—";
+  if (!isoDate) return "-";
   const date = new Date(isoDate);
   return date.toLocaleDateString("en-PH", { month: "long", year: "numeric" });
 }
@@ -253,7 +253,7 @@ function renderBatchRow(batch) {
       <td class="fw-medium">${batch.batchNo}</td>
       <td>${formatExpiryLabel(batch.expirationDate)}</td>
       <td>${product ? product.name : "Unknown product"}</td>
-      <td>${product ? CATEGORY_LABELS[product.category] || "—" : "—"}</td>
+      <td>${product ? CATEGORY_LABELS[product.category] || "-" : "-"}</td>
       <td>${batch.quantity}</td>
       <td>${reorderPoint}</td>
       <td><span class="batch-status-pill ${batch.computedStatus}">${BATCH_STATUS_LABELS[batch.computedStatus]}</span></td>
@@ -308,7 +308,7 @@ inventorySortBtn.addEventListener("click", () => {
 
 /* ---------- Shared repeater helpers ----------
  * Product/supplier/batch pickers use Choices.js so admins can type to
- * search instead of scrolling a plain <select> — with a growing catalog
+ * search instead of scrolling a plain <select> - with a growing catalog
  * or many suppliers, a native dropdown gets unusable fast.
  */
 function makeSearchableSelect(selectEl) {
@@ -521,7 +521,7 @@ receiveBatchFileInput.addEventListener("change", async () => {
   }
 
   receiveBatchUploadStatus.textContent = `Imported ${imported} batch${imported === 1 ? "" : "es"}.${
-    skipped ? ` Skipped ${skipped} row(s) — check SKU, batch no., expiry date, and quantity.` : ""
+    skipped ? ` Skipped ${skipped} row(s) - check SKU, batch no., expiry date, and quantity.` : ""
   }`;
   receiveBatchFileInput.value = "";
   await loadInventory();
@@ -533,12 +533,12 @@ function populateBatchSelectForProduct(batchSelectEl, productId) {
   const choicesData = batches.length
     ? batches.map((b) => ({
         value: b.id,
-        label: `${b.batchNo} — Exp ${formatExpiryLabel(b.expirationDate)} — Qty ${b.quantity}`,
+        label: `${b.batchNo} - Exp ${formatExpiryLabel(b.expirationDate)} - Qty ${b.quantity}`,
       }))
     : [{ value: "", label: "No stock available" }];
 
   if (batchSelectEl._choices) {
-    // Same instance, new options — the product just changed, so the
+    // Same instance, new options - the product just changed, so the
     // batch list needs to reflect that product's batches instead of
     // being torn down and rebuilt.
     batchSelectEl._choices.setChoices(choicesData, "value", "label", true);
@@ -656,7 +656,7 @@ saveWriteOffBtn.addEventListener("click", async () => {
       const product = getProductById(item.productId);
       await logAuditEvent({
         action: "Inventory Write-Off",
-        details: `${product ? product.name : item.productId} — Batch ${batch.batchNo}, Qty ${item.qty}, Reason: ${item.reason}`,
+        details: `${product ? product.name : item.productId} - Batch ${batch.batchNo}, Qty ${item.qty}, Reason: ${item.reason}`,
       });
     }
 
@@ -674,7 +674,7 @@ saveWriteOffBtn.addEventListener("click", async () => {
  * Only one "in_progress" session can exist at a time. Opening a session
  * snapshots the current active batches as the count sheet; submitting
  * the count finalizes it in one step (whoever opened it and whoever
- * clicks Submit Count are both just recorded as-is — no separate
+ * clicks Submit Count are both just recorded as-is - no separate
  * approval role is enforced, since this is a single admin-role app).
  */
 function findActiveSession() {
@@ -682,7 +682,7 @@ function findActiveSession() {
 }
 
 function formatPeriodLabel(period) {
-  if (!period) return "—";
+  if (!period) return "-";
   const [year, month] = period.split("-");
   const date = new Date(Number(year), Number(month) - 1, 1);
   return date.toLocaleDateString("en-PH", { month: "long", year: "numeric" });
@@ -696,7 +696,7 @@ function renderReconciliationTab() {
 
   if (activeSession) {
     reconciliationRcnNumber.textContent = activeSession.rcnNumber;
-    reconciliationMeta.textContent = `Period: ${formatPeriodLabel(activeSession.period)} — Opened by: ${activeSession.openedBy}`;
+    reconciliationMeta.textContent = `Period: ${formatPeriodLabel(activeSession.period)} - Opened by: ${activeSession.openedBy}`;
     renderReconciliationItemsBody(activeSession);
   }
 
@@ -754,7 +754,7 @@ function renderPastSessions() {
           <div>
             <p class="fw-bold mb-0">${session.rcnNumber}</p>
             <p class="text-muted mb-0" style="font-size:0.85rem;">
-              Period: ${formatPeriodLabel(session.period)} — Opened by: ${session.openedBy} — Finalized by: ${session.finalizedBy}
+              Period: ${formatPeriodLabel(session.period)} - Opened by: ${session.openedBy} - Finalized by: ${session.finalizedBy}
             </p>
           </div>
           <span class="badge rounded-pill text-bg-success">Finalized</span>
@@ -854,7 +854,7 @@ submitCountBtn.addEventListener("click", async () => {
     const adjustedCount = updatedItems.filter((i) => i.variance !== 0).length;
     await logAuditEvent({
       action: "Stock Reconciliation Finalized",
-      details: `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)}) — ${adjustedCount} batch${adjustedCount === 1 ? "" : "es"} adjusted`,
+      details: `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)}) - ${adjustedCount} batch${adjustedCount === 1 ? "" : "es"} adjusted`,
     });
 
     await loadInventory();
@@ -879,7 +879,7 @@ exportInventoryBtn.addEventListener("click", () => {
 
   doc.setFontSize(16);
   doc.setFont(undefined, "bold");
-  doc.text("Amson Pharmaceuticals — Inventory Report", 14, y);
+  doc.text("Amson Pharmaceuticals - Inventory Report", 14, y);
   doc.setFontSize(10);
   doc.setFont(undefined, "normal");
   y += 8;
@@ -931,7 +931,7 @@ exportInventoryBtn.addEventListener("click", () => {
         doc.addPage();
         y = 20;
       }
-      doc.text(`${writeOff.batchNo} — Qty ${writeOff.quantity} — ${writeOff.reason}`, 14, y);
+      doc.text(`${writeOff.batchNo} - Qty ${writeOff.quantity} - ${writeOff.reason}`, 14, y);
     });
   }
 
@@ -961,7 +961,7 @@ exportInventoryBtn.addEventListener("click", () => {
           y = 20;
         }
         doc.text(
-          `${po.poNumber} — ${product ? product.name : "Unknown"} — Expected ${d.expectedQty}, Received ${d.receivedQty} (${d.diff > 0 ? "+" : ""}${d.diff})`,
+          `${po.poNumber} - ${product ? product.name : "Unknown"} - Expected ${d.expectedQty}, Received ${d.receivedQty} (${d.diff > 0 ? "+" : ""}${d.diff})`,
           14,
           y
         );
@@ -1025,7 +1025,7 @@ function renderPoRow(po) {
   return `
     <tr>
       <td class="fw-medium">${po.poNumber}</td>
-      <td>${supplier ? supplier.name : "—"}</td>
+      <td>${supplier ? supplier.name : "-"}</td>
       <td>${formatExpiryLabel(po.expectedDeliveryDate)}</td>
       <td>${po.items.length} item${po.items.length === 1 ? "" : "s"}</td>
       <td><span class="badge rounded-pill ${PO_STATUS_BADGE_CLASS[po.status]}">${PO_STATUS_LABELS[po.status]}</span></td>
@@ -1183,7 +1183,7 @@ function openViewPoModal(po) {
   const supplier = allSuppliers.find((s) => s.id === po.supplierId);
 
   document.getElementById("viewPoTitle").textContent = po.poNumber;
-  document.getElementById("viewPoSubtitle").textContent = `${supplier ? supplier.name : "Unknown supplier"} — Expected ${formatExpiryLabel(po.expectedDeliveryDate)}`;
+  document.getElementById("viewPoSubtitle").textContent = `${supplier ? supplier.name : "Unknown supplier"} - Expected ${formatExpiryLabel(po.expectedDeliveryDate)}`;
 
   const badge = document.getElementById("viewPoStatusBadge");
   badge.textContent = PO_STATUS_LABELS[po.status];
@@ -1206,7 +1206,7 @@ function openViewPoModal(po) {
 function renderPoReceivingForm(po) {
   const content = document.getElementById("viewPoContent");
   content.innerHTML = `
-    <p class="text-muted mb-3">Enter what was actually received for each item. Partial deliveries are fine — stock gets added either way, and any mismatch gets flagged as a discrepancy.</p>
+    <p class="text-muted mb-3">Enter what was actually received for each item. Partial deliveries are fine - stock gets added either way, and any mismatch gets flagged as a discrepancy.</p>
     <table class="table admin-orders-table align-middle mb-0">
       <thead>
         <tr><th>Product</th><th>Expected Qty</th><th>Received Qty</th><th>Batch No.</th><th>Expiry Date</th></tr>
@@ -1325,7 +1325,7 @@ function renderPoDiscrepancyReport(po) {
           .map((item) => {
             const product = getProductById(item.productId);
             const diff = item.receivedQty - item.expectedQty;
-            const diffLabel = diff === 0 ? "—" : diff > 0 ? `+${diff}` : String(diff);
+            const diffLabel = diff === 0 ? "-" : diff > 0 ? `+${diff}` : String(diff);
             return `
               <tr>
                 <td>${product ? product.name : "Unknown product"}</td>
@@ -1372,7 +1372,7 @@ async function acknowledgePo(po) {
 function renderPoReadOnlySummary(po) {
   const content = document.getElementById("viewPoContent");
   const record =
-    po.receivingRecord || { items: po.items.map((it) => ({ ...it, receivedQty: it.expectedQty, batchNo: "—" })) };
+    po.receivingRecord || { items: po.items.map((it) => ({ ...it, receivedQty: it.expectedQty, batchNo: "-" })) };
 
   content.innerHTML = `
     <table class="table admin-orders-table align-middle mb-0">
@@ -1388,7 +1388,7 @@ function renderPoReadOnlySummary(po) {
                 <td>${product ? product.name : "Unknown product"}</td>
                 <td>${item.expectedQty}</td>
                 <td>${item.receivedQty}</td>
-                <td>${item.batchNo || "—"}</td>
+                <td>${item.batchNo || "-"}</td>
               </tr>
             `;
           })

@@ -2,7 +2,7 @@
  * Audit Log admin page: read-only listing of auditLog/{id}, written by
  * logAuditEvent() (js/products-data.js) from Product price-change edits,
  * Inventory write-offs, account deactivation/reactivation, and Wholesale
- * Order recording. IP Address is always "—" — a static client-only site
+ * Order recording. IP Address is always "-" - a static client-only site
  * has no reliable way to capture a visitor's public IP without a
  * third-party lookup service, so this stays an honest placeholder
  * instead of a fabricated value.
@@ -67,7 +67,7 @@ function filteredAuditEntries() {
 }
 
 function formatTimestamp(timestamp) {
-  if (!timestamp) return "—";
+  if (!timestamp) return "-";
   return timestamp.toDate().toLocaleString("en-PH", {
     year: "numeric",
     month: "short",
@@ -100,10 +100,10 @@ function renderAuditRow(entry) {
   return `
     <tr>
       <td>${formatTimestamp(entry.createdAt)}</td>
-      <td>${entry.user || "—"}</td>
-      <td>${entry.action || "—"}</td>
-      <td>${entry.details || "—"}</td>
-      <td>${entry.ipAddress || "—"}</td>
+      <td>${entry.user || "-"}</td>
+      <td>${entry.action || "-"}</td>
+      <td>${entry.details || "-"}</td>
+      <td>${entry.ipAddress || "-"}</td>
     </tr>
   `;
 }
@@ -174,7 +174,7 @@ exportAuditLogBtn.addEventListener("click", () => {
 
   doc.setFontSize(16);
   doc.setFont(undefined, "bold");
-  doc.text("Amson Pharmaceuticals — Audit Log", 14, y);
+  doc.text("Amson Pharmaceuticals - Audit Log", 14, y);
   doc.setFontSize(10);
   doc.setFont(undefined, "normal");
   y += 8;
@@ -198,9 +198,9 @@ exportAuditLogBtn.addEventListener("click", () => {
       y = 20;
     }
     doc.text(formatTimestamp(entry.createdAt), 14, y);
-    doc.text(entry.user || "—", 55, y);
-    doc.text(entry.action || "—", 90, y);
-    doc.text((entry.details || "—").slice(0, 45), 130, y);
+    doc.text(entry.user || "-", 55, y);
+    doc.text(entry.action || "-", 90, y);
+    doc.text((entry.details || "-").slice(0, 45), 130, y);
   });
 
   doc.save(`amson-audit-log-${new Date().toISOString().slice(0, 10)}.pdf`);

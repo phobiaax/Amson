@@ -1,8 +1,8 @@
 /**
  * Notifications admin page: rather than a separate notifications-writing
  * system (every module pushing its own notification doc), this reads
- * signals that already exist in Firestore — low stock / near-expiry
- * batches, orders awaiting payment verification, and PO discrepancies —
+ * signals that already exist in Firestore - low stock / near-expiry
+ * batches, orders awaiting payment verification, and PO discrepancies,
  * and lists them here.
  */
 
@@ -49,14 +49,14 @@ async function loadNotifications() {
           notifications.push({
             severity: "warning",
             icon: "bi-box-seam",
-            message: `${productName} (Batch ${b.batchNo}) is low on stock — ${b.quantity} left.`,
+            message: `${productName} (Batch ${b.batchNo}) is low on stock - ${b.quantity} left.`,
             link: "inventory.html",
           });
         } else if (status === "near_expiry") {
           notifications.push({
             severity: "warning",
             icon: "bi-hourglass-split",
-            message: `${productName} (Batch ${b.batchNo}) is near expiry — ${b.expirationDate}.`,
+            message: `${productName} (Batch ${b.batchNo}) is near expiry - ${b.expirationDate}.`,
             link: "inventory.html",
           });
         }

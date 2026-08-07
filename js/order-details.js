@@ -66,7 +66,7 @@ function renderOrder(order) {
     `${order.shipping.streetAddress}, ${order.shipping.city}, ${order.shipping.province} ${order.shipping.zipCode}`;
   document.getElementById("detailContactNo").textContent = order.contact.contactNumber;
   document.getElementById("detailCustomerName").textContent = `${order.contact.firstName} ${order.contact.lastName}`;
-  document.getElementById("detailDeliveryNotes").textContent = order.shipping.deliveryNotes || "—";
+  document.getElementById("detailDeliveryNotes").textContent = order.shipping.deliveryNotes || "-";
 
   document.getElementById("detailItemsList").innerHTML = order.items
     .map(

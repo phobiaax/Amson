@@ -1,5 +1,5 @@
 /**
- * Shared Cloudinary upload helper — used by payment.js now, and reusable
+ * Shared Cloudinary upload helper - used by payment.js now, and reusable
  * later for prescription uploads and product photos in the admin panel.
  */
 

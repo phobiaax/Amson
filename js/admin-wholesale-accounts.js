@@ -3,11 +3,11 @@
  * the Suppliers card-grid pattern), plus the Process Wholesale Order flow
  * that records a wholesaleOrders/{id} doc and deducts real stock via
  * deductStockFEFO() per line item. Deliberately a separate collection from
- * purchaseOrders (Inventory's supplier-side POs) — a wholesale order is a
+ * purchaseOrders (Inventory's supplier-side POs) - a wholesale order is a
  * sale going out, not a delivery coming in.
  *
  * Not built yet: the Wholesale Exchange sub-module (change-item requests
- * after an order is recorded) — see README for scope notes.
+ * after an order is recorded) - see README for scope notes.
  */
 
 const WHOLESALE_PAGE_SIZE = 6;
@@ -127,17 +127,17 @@ function renderWholesaleCard(account) {
             <div class="supplier-icon"><i class="bi bi-shop"></i></div>
             <div>
               <p class="fw-bold mb-0">${account.name}</p>
-              <p class="text-muted mb-0" style="font-size:0.88rem;">${account.contactPerson || "—"}</p>
+              <p class="text-muted mb-0" style="font-size:0.88rem;">${account.contactPerson || "-"}</p>
             </div>
           </div>
           <span class="badge rounded-pill ${account.status === "active" ? "text-bg-success" : "text-bg-secondary"}">
             ${account.status === "active" ? "Active" : "Inactive"}
           </span>
         </div>
-        <p class="contact-line"><i class="bi bi-briefcase"></i> ${BUSINESS_TYPE_LABELS[account.businessType] || "—"}</p>
-        <p class="contact-line"><i class="bi bi-telephone"></i> ${account.phone || "—"}</p>
-        <p class="contact-line"><i class="bi bi-envelope"></i> ${account.email || "—"}</p>
-        <p class="contact-line mb-3"><i class="bi bi-geo-alt"></i> ${account.address || "—"}</p>
+        <p class="contact-line"><i class="bi bi-briefcase"></i> ${BUSINESS_TYPE_LABELS[account.businessType] || "-"}</p>
+        <p class="contact-line"><i class="bi bi-telephone"></i> ${account.phone || "-"}</p>
+        <p class="contact-line"><i class="bi bi-envelope"></i> ${account.email || "-"}</p>
+        <p class="contact-line mb-3"><i class="bi bi-geo-alt"></i> ${account.address || "-"}</p>
         <div class="d-flex gap-2 align-items-center flex-wrap">
           <button type="button" class="btn btn-amson flex-fill process-order-btn" data-id="${account.id}"><i class="bi bi-cart-check me-1"></i>Process Order</button>
           <button type="button" class="icon-btn edit-wholesale-btn" data-id="${account.id}" aria-label="Edit"><i class="bi bi-pencil"></i></button>
@@ -252,11 +252,11 @@ function openEditModal(account) {
 
   if (account.ltoDocumentUrl) {
     existingLtoUrl = account.ltoDocumentUrl;
-    wholesaleLtoStatus.textContent = "Existing file on record — choose a new file to replace it.";
+    wholesaleLtoStatus.textContent = "Existing file on record - choose a new file to replace it.";
   }
   if (account.permitDocumentUrl) {
     existingPermitUrl = account.permitDocumentUrl;
-    wholesalePermitStatus.textContent = "Existing file on record — choose a new file to replace it.";
+    wholesalePermitStatus.textContent = "Existing file on record - choose a new file to replace it.";
   }
 
   wholesaleModalTitle.textContent = "Edit Wholesale Account";
@@ -455,7 +455,7 @@ function openProcessOrderModal(account) {
   processOrderAlert.classList.add("d-none");
 
   processOrderBuyerName.textContent = account.name;
-  processOrderBuyerContact.textContent = `${account.contactPerson || "—"} · ${account.phone || "—"} · ${account.email || "—"}`;
+  processOrderBuyerContact.textContent = `${account.contactPerson || "-"} · ${account.phone || "-"} · ${account.email || "-"}`;
 
   const docLinks = [];
   if (account.ltoDocumentUrl) docLinks.push(`<a href="${account.ltoDocumentUrl}" target="_blank" rel="noopener">LTO</a>`);
@@ -535,7 +535,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
 
     await logAuditEvent({
       action: "Wholesale Order Recorded",
-      details: `${account ? account.name : ""} — ${orderItems.length} item(s), Total ${formatPeso(total)}`,
+      details: `${account ? account.name : ""} - ${orderItems.length} item(s), Total ${formatPeso(total)}`,
     });
 
     bootstrap.Modal.getInstance(processOrderModalEl).hide();

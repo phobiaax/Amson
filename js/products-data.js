@@ -1,7 +1,7 @@
 /**
  * Product catalog cache, backed by the real Firestore "products" and
  * "categories" collections. SAMPLE_PRODUCTS/CATEGORY_LABELS stay as the
- * same shared, synchronous lookup shape every page already expects —
+ * same shared, synchronous lookup shape every page already expects;
  * loadCatalogCache() just populates them from Firestore once per page
  * load instead of from a hardcoded array. Call and await it before any
  * code that reads product/category data.
@@ -23,7 +23,7 @@ const BATCH_STATUS_LABELS = {
 
 /**
  * A batch's status is evaluated independently per batch, not aggregated
- * per product — two batches of the same product can show different
+ * per product - two batches of the same product can show different
  * statuses (e.g. one near-expiry, one fine). Shared between
  * admin-inventory.js and admin-dashboard.js's alert counts.
  */
@@ -67,7 +67,7 @@ function loadCatalogCache() {
         id: doc.id,
         ...data,
         // Back-compat aliases: existing cart/checkout/payment/dashboard
-        // code was written against "price" and "inStock" — keep those
+        // code was written against "price" and "inStock" - keep those
         // working instead of touching every call site.
         price: data.retailPrice,
         inStock: data.status === "active",
@@ -122,10 +122,10 @@ async function deductStockFEFO(productId, qty) {
 }
 
 /**
- * Shared audit log helper — writes one auditLog/{id} doc per call. `actor`
+ * Shared audit log helper - writes one auditLog/{id} doc per call. `actor`
  * defaults to the currently signed-in admin (resolved via auth.currentUser
  * + a users lookup) when not passed explicitly. IP address is always
- * recorded as "—": a static client-only site has no reliable way to
+ * recorded as "-": a static client-only site has no reliable way to
  * determine its own public IP without a third-party lookup service, so
  * this stays an honest placeholder instead of a fabricated value.
  */
@@ -144,7 +144,7 @@ async function logAuditEvent({ action, details, actor }) {
       action,
       details: details || "",
       user: actorName || "Unknown",
-      ipAddress: "—",
+      ipAddress: "-",
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
   } catch (error) {
