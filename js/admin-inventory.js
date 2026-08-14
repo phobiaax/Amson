@@ -125,13 +125,11 @@ function todayISO() {
 async function loadInventory() {
   try {
     await loadCatalogCache();
-    const [batchSnapshot, supplierSnapshot, writeOffSnapshot, poSnapshot, reconciliationSnapshot] = await Promise.all([
-      db.collection("stockBatches").get(),
-      db.collection("suppliers").get(),
-      db.collection("writeOffs").get(),
-      db.collection("purchaseOrders").get(),
-      db.collection("reconciliations").get(),
-    ]);
+    const batchSnapshot = await db.collection("stockBatches").get();
+    const supplierSnapshot = await db.collection("suppliers").get();
+    const writeOffSnapshot = await db.collection("writeOffs").get();
+    const poSnapshot = await db.collection("purchaseOrders").get();
+    const reconciliationSnapshot = await db.collection("reconciliations").get();
 
     allBatches = batchSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allSuppliers = supplierSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -165,24 +163,20 @@ tabReconciliationBtn.addEventListener("click", () => setActiveInventoryTab("reco
 async function generatePoNumber() {
   const year = new Date().getFullYear();
   const counterRef = db.collection("counters").doc(`purchaseOrders-${year}`);
-  return db.runTransaction(async (transaction) => {
-    const counterDoc = await transaction.get(counterRef);
-    const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
-    transaction.set(counterRef, { count: nextCount }, { merge: true });
-    return `PO-${year}-${String(nextCount).padStart(4, "0")}`;
-  });
+  const counterDoc = await counterRef.get();
+  const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
+  await counterRef.set({ count: nextCount }, { merge: true });
+  return `PO-${year}-${String(nextCount).padStart(4, "0")}`;
 }
 
 /* ---------- Reconciliation number generation (2-digit) ---------- */
 async function generateRcnNumber() {
   const year = new Date().getFullYear();
   const counterRef = db.collection("counters").doc(`reconciliations-${year}`);
-  return db.runTransaction(async (transaction) => {
-    const counterDoc = await transaction.get(counterRef);
-    const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
-    transaction.set(counterRef, { count: nextCount }, { merge: true });
-    return `RCN-${year}-${String(nextCount).padStart(2, "0")}`;
-  });
+  const counterDoc = await counterRef.get();
+  const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
+  await counterRef.set({ count: nextCount }, { merge: true });
+  return `RCN-${year}-${String(nextCount).padStart(2, "0")}`;
 }
 
 /* ---------- Formatting ---------- */
@@ -387,19 +381,16 @@ function addReceiveItemRow() {
   receiveItemsContainer.appendChild(row);
   populateProductSelect(row.querySelector(".receive-product-select"));
   updateRemoveButtonsVisibility(receiveItemsContainer);
+
+  row.querySelector(".repeater-remove-btn").addEventListener("click", () => {
+    destroyChoicesIn(row);
+    row.remove();
+    renumberItems(receiveItemsContainer);
+    updateRemoveButtonsVisibility(receiveItemsContainer);
+  });
 }
 
 receiveAddItemBtn.addEventListener("click", addReceiveItemRow);
-
-receiveItemsContainer.addEventListener("click", (e) => {
-  const btn = e.target.closest(".repeater-remove-btn");
-  if (!btn) return;
-  const row = btn.closest(".repeater-item");
-  destroyChoicesIn(row);
-  row.remove();
-  renumberItems(receiveItemsContainer);
-  updateRemoveButtonsVisibility(receiveItemsContainer);
-});
 
 receiveStockBtn.addEventListener("click", () => {
   destroyChoicesIn(receiveItemsContainer);
@@ -583,6 +574,13 @@ function addWriteOffItemRow() {
   productSelect.addEventListener("change", () => populateBatchSelectForProduct(batchSelect, productSelect.value));
 
   updateRemoveButtonsVisibility(writeOffItemsContainer);
+
+  row.querySelector(".repeater-remove-btn").addEventListener("click", () => {
+    destroyChoicesIn(row);
+    row.remove();
+    renumberItems(writeOffItemsContainer);
+    updateRemoveButtonsVisibility(writeOffItemsContainer);
+  });
 }
 
 function receiveOrWriteOffAppend(row) {
@@ -590,16 +588,6 @@ function receiveOrWriteOffAppend(row) {
 }
 
 writeOffAddItemBtn.addEventListener("click", addWriteOffItemRow);
-
-writeOffItemsContainer.addEventListener("click", (e) => {
-  const btn = e.target.closest(".repeater-remove-btn");
-  if (!btn) return;
-  const row = btn.closest(".repeater-item");
-  destroyChoicesIn(row);
-  row.remove();
-  renumberItems(writeOffItemsContainer);
-  updateRemoveButtonsVisibility(writeOffItemsContainer);
-});
 
 writeOffStockBtn.addEventListener("click", () => {
   destroyChoicesIn(writeOffItemsContainer);
@@ -914,6 +902,12 @@ function renderPoTable() {
   } else {
     poTableEmpty.classList.add("d-none");
     poTableBody.innerHTML = pageItems.map(renderPoRow).join("");
+    poTableBody.querySelectorAll(".view-po-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const po = allPurchaseOrders.find((p) => p.id === btn.dataset.id);
+        if (po) openViewPoModal(po);
+      });
+    });
   }
 
   renderPoPagination(totalPages);
@@ -973,13 +967,6 @@ poSearchInput.addEventListener("input", () => {
   renderPoTable();
 });
 
-poTableBody.addEventListener("click", (e) => {
-  const btn = e.target.closest(".view-po-btn");
-  if (!btn) return;
-  const po = allPurchaseOrders.find((p) => p.id === btn.dataset.id);
-  if (po) openViewPoModal(po);
-});
-
 /* ---------- Create Purchase Order ---------- */
 function addPoItemRow() {
   poItemCount += 1;
@@ -1002,19 +989,16 @@ function addPoItemRow() {
   poItemsContainer.appendChild(row);
   populateProductSelect(row.querySelector(".po-product-select"));
   updateRemoveButtonsVisibility(poItemsContainer);
+
+  row.querySelector(".repeater-remove-btn").addEventListener("click", () => {
+    destroyChoicesIn(row);
+    row.remove();
+    renumberItems(poItemsContainer);
+    updateRemoveButtonsVisibility(poItemsContainer);
+  });
 }
 
 poAddItemBtn.addEventListener("click", addPoItemRow);
-
-poItemsContainer.addEventListener("click", (e) => {
-  const btn = e.target.closest(".repeater-remove-btn");
-  if (!btn) return;
-  const row = btn.closest(".repeater-item");
-  destroyChoicesIn(row);
-  row.remove();
-  renumberItems(poItemsContainer);
-  updateRemoveButtonsVisibility(poItemsContainer);
-});
 
 createPoBtn.addEventListener("click", () => {
   destroyChoicesIn(poItemsContainer);

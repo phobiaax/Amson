@@ -49,13 +49,13 @@ const DEFAULT_CATEGORIES = {
   "health-wellness": "Health & Wellness",
 };
 
-function loadCatalogCache() {
+async function loadCatalogCache() {
   if (catalogLoadPromise) return catalogLoadPromise;
 
-  catalogLoadPromise = Promise.all([
-    db.collection("categories").get(),
-    db.collection("products").get(),
-  ]).then(([categorySnapshot, productSnapshot]) => {
+  catalogLoadPromise = (async () => {
+    const categorySnapshot = await db.collection("categories").get();
+    const productSnapshot = await db.collection("products").get();
+
     CATEGORY_LABELS = {};
     categorySnapshot.docs.forEach((doc) => {
       CATEGORY_LABELS[doc.id] = doc.data().name;
@@ -75,7 +75,7 @@ function loadCatalogCache() {
     });
 
     return { products: SAMPLE_PRODUCTS, categories: CATEGORY_LABELS };
-  });
+  })();
 
   return catalogLoadPromise;
 }
@@ -123,7 +123,10 @@ async function deductStockFEFO(productId, qty) {
     .filter((b) => b.quantity > 0)
     .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
 
-  const totalAvailable = batches.reduce((sum, b) => sum + b.quantity, 0);
+  let totalAvailable = 0;
+  for (const b of batches) {
+    totalAvailable += b.quantity;
+  }
   if (totalAvailable < qty) {
     throw new Error("Not enough stock available to fulfill this quantity.");
   }

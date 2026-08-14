@@ -19,10 +19,8 @@ async function loadDashboardStats() {
     await loadCatalogCache();
     // Fetching the whole collection is fine at today's scale; revisit
     // with date-range filtering once order volume actually grows.
-    const [ordersSnapshot, batchesSnapshot] = await Promise.all([
-      db.collection("orders").get(),
-      db.collection("stockBatches").get(),
-    ]);
+    const ordersSnapshot = await db.collection("orders").get();
+    const batchesSnapshot = await db.collection("stockBatches").get();
     const orders = ordersSnapshot.docs.map((doc) => doc.data());
     const batches = batchesSnapshot.docs.map((doc) => doc.data());
 

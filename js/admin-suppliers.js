@@ -96,6 +96,16 @@ function renderSuppliersGrid() {
   } else {
     suppliersEmpty.classList.add("d-none");
     suppliersGrid.innerHTML = pageItems.map(renderSupplierCard).join("");
+
+    document.querySelectorAll(".view-supplier-btn").forEach((btn) => {
+      btn.addEventListener("click", () => openViewModal(allSuppliers.find((s) => s.id === btn.dataset.id)));
+    });
+    document.querySelectorAll(".edit-supplier-btn").forEach((btn) => {
+      btn.addEventListener("click", () => openEditModal(allSuppliers.find((s) => s.id === btn.dataset.id)));
+    });
+    document.querySelectorAll(".delete-supplier-btn").forEach((btn) => {
+      btn.addEventListener("click", () => deleteSupplier(btn.dataset.id));
+    });
   }
 
   renderSuppliersPagination(totalPages);
@@ -160,15 +170,6 @@ suppliersSearchInput.addEventListener("input", () => {
   renderSuppliersGrid();
 });
 
-suppliersGrid.addEventListener("click", (e) => {
-  const viewBtn = e.target.closest(".view-supplier-btn");
-  const editBtn = e.target.closest(".edit-supplier-btn");
-  const deleteBtn = e.target.closest(".delete-supplier-btn");
-
-  if (viewBtn) openViewModal(allSuppliers.find((s) => s.id === viewBtn.dataset.id));
-  if (editBtn) openEditModal(allSuppliers.find((s) => s.id === editBtn.dataset.id));
-  if (deleteBtn) deleteSupplier(deleteBtn.dataset.id);
-});
 
 /* ---------- View modal ---------- */
 function openViewModal(supplier) {

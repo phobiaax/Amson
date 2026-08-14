@@ -119,12 +119,10 @@ function setCategorySelectValue(value) {
 /* ---------- SKU generation (same pattern as order numbers) ---------- */
 async function generateProductSku() {
   const counterRef = db.collection("counters").doc("products");
-  return db.runTransaction(async (transaction) => {
-    const counterDoc = await transaction.get(counterRef);
-    const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
-    transaction.set(counterRef, { count: nextCount }, { merge: true });
-    return `MED-${String(nextCount).padStart(4, "0")}`;
-  });
+  const counterDoc = await counterRef.get();
+  const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
+  await counterRef.set({ count: nextCount }, { merge: true });
+  return `MED-${String(nextCount).padStart(4, "0")}`;
 }
 
 /* ---------- Table ---------- */
@@ -166,6 +164,13 @@ function renderProductsTable() {
   } else {
     productsTableEmpty.classList.add("d-none");
     productsTableBody.innerHTML = pageItems.map(renderProductRow).join("");
+
+    document.querySelectorAll(".view-product-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const product = allProducts.find((p) => p.id === btn.dataset.id);
+        if (product) openEditModal(product);
+      });
+    });
   }
 
   renderProductsPagination(totalPages);
@@ -236,12 +241,6 @@ productsSortBtn.addEventListener("click", () => {
   renderProductsTable();
 });
 
-productsTableBody.addEventListener("click", (e) => {
-  const btn = e.target.closest(".view-product-btn");
-  if (!btn) return;
-  const product = allProducts.find((p) => p.id === btn.dataset.id);
-  if (product) openEditModal(product);
-});
 
 /* ---------- Segmented toggles ---------- */
 function wireSegmentedToggle(container) {
@@ -528,38 +527,38 @@ function renderCategoriesList() {
       `
     )
     .join("");
+
+  document.querySelectorAll(".rename-category-btn").forEach((btn) => {
+    btn.addEventListener("click", () => renameCategory(btn.dataset.id));
+  });
+  document.querySelectorAll(".delete-category-btn").forEach((btn) => {
+    btn.addEventListener("click", () => deleteCategory(btn.dataset.id));
+  });
 }
 
-categoriesList.addEventListener("click", async (e) => {
-  const renameBtn = e.target.closest(".rename-category-btn");
-  const deleteBtn = e.target.closest(".delete-category-btn");
+async function renameCategory(id) {
+  const newName = prompt("Rename category to:", CATEGORY_LABELS[id]);
+  if (!newName || !newName.trim()) return;
+  await db.collection("categories").doc(id).update({ name: newName.trim() });
+  CATEGORY_LABELS[id] = newName.trim();
+  renderCategoriesList();
+  renderCategorySelect();
+  renderProductsTable();
+}
 
-  if (renameBtn) {
-    const id = renameBtn.dataset.id;
-    const newName = prompt("Rename category to:", CATEGORY_LABELS[id]);
-    if (!newName || !newName.trim()) return;
-    await db.collection("categories").doc(id).update({ name: newName.trim() });
-    CATEGORY_LABELS[id] = newName.trim();
-    renderCategoriesList();
-    renderCategorySelect();
-    renderProductsTable();
+async function deleteCategory(id) {
+  const inUse = allProducts.some((p) => p.category === id);
+  if (inUse) {
+    categoriesAlert.textContent = "This category is still used by at least one product. Reassign those products first.";
+    categoriesAlert.classList.remove("d-none");
+    return;
   }
-
-  if (deleteBtn) {
-    const id = deleteBtn.dataset.id;
-    const inUse = allProducts.some((p) => p.category === id);
-    if (inUse) {
-      categoriesAlert.textContent = "This category is still used by at least one product. Reassign those products first.";
-      categoriesAlert.classList.remove("d-none");
-      return;
-    }
-    if (!confirm(`Delete the "${CATEGORY_LABELS[id]}" category?`)) return;
-    await db.collection("categories").doc(id).delete();
-    delete CATEGORY_LABELS[id];
-    renderCategoriesList();
-    renderCategorySelect();
-  }
-});
+  if (!confirm(`Delete the "${CATEGORY_LABELS[id]}" category?`)) return;
+  await db.collection("categories").doc(id).delete();
+  delete CATEGORY_LABELS[id];
+  renderCategoriesList();
+  renderCategorySelect();
+}
 
 addCategoryBtn.addEventListener("click", async () => {
   const name = newCategoryNameInput.value.trim();

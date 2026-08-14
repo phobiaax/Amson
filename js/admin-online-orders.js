@@ -147,6 +147,10 @@ function renderVerificationQueue() {
         `
       )
       .join("");
+
+    document.querySelectorAll(".verification-queue-item").forEach((btn) => {
+      btn.addEventListener("click", () => selectVerificationItem(btn.dataset.id));
+    });
   }
 
   if (selectedVerificationId && !queue.some((order) => order.id === selectedVerificationId)) {
@@ -161,14 +165,12 @@ function renderVerificationQueue() {
   }
 }
 
-verificationQueueList.addEventListener("click", (e) => {
-  const btn = e.target.closest(".verification-queue-item");
-  if (!btn) return;
-  selectedVerificationId = btn.dataset.id;
+function selectVerificationItem(id) {
+  selectedVerificationId = id;
   reviewAlert.classList.add("d-none");
   paymentIssueSelect.value = "";
   renderVerificationQueue();
-});
+}
 
 function renderReviewPanel(order) {
   verificationReviewEmpty.classList.add("d-none");
@@ -471,13 +473,23 @@ function renderOrdersTable() {
   } else {
     ordersTableEmpty.classList.add("d-none");
     ordersTableBody.innerHTML = pageItems.map(renderOrderRow).join("");
+
+    document.querySelectorAll(".order-status-select").forEach((select) => {
+      select.addEventListener("change", () => handleOrderStatusChange(select));
+    });
+    document.querySelectorAll(".release-hold-btn").forEach((btn) => {
+      btn.addEventListener("click", () => releaseOrderHold(btn));
+    });
   }
 
   renderOrdersPagination(totalPages);
 }
 
 function renderOrderRow(order) {
-  const itemCount = (order.items || []).reduce((sum, item) => sum + item.qty, 0);
+  let itemCount = 0;
+  for (const item of order.items || []) {
+    itemCount += item.qty;
+  }
   const statusOptions = ORDER_STATUS_STEPS.map(
     (step) =>
       `<option value="${step}" ${step === order.status ? "selected" : ""}>${ORDER_STATUS_BADGE_LABELS[step]}</option>`
@@ -505,10 +517,7 @@ function renderOrderRow(order) {
   `;
 }
 
-ordersTableBody.addEventListener("change", async (e) => {
-  const select = e.target.closest(".order-status-select");
-  if (!select) return;
-
+async function handleOrderStatusChange(select) {
   const orderId = select.dataset.id;
   const newStatus = select.value;
   const order = allOrders.find((o) => o.id === orderId);
@@ -545,12 +554,9 @@ ordersTableBody.addEventListener("change", async (e) => {
   } finally {
     select.disabled = false;
   }
-});
+}
 
-ordersTableBody.addEventListener("click", async (e) => {
-  const btn = e.target.closest(".release-hold-btn");
-  if (!btn) return;
-
+async function releaseOrderHold(btn) {
   const orderId = btn.dataset.id;
   const order = allOrders.find((o) => o.id === orderId);
   if (!order) return;
@@ -567,7 +573,7 @@ ordersTableBody.addEventListener("click", async (e) => {
     alert("Something went wrong releasing this hold. Please try again.");
     btn.disabled = false;
   }
-});
+}
 
 function renderOrdersPagination(totalPages) {
   if (totalPages <= 1) {

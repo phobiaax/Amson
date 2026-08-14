@@ -113,6 +113,16 @@ function renderWholesaleGrid() {
   } else {
     wholesaleEmpty.classList.add("d-none");
     wholesaleGrid.innerHTML = pageItems.map(renderWholesaleCard).join("");
+
+    document.querySelectorAll(".edit-wholesale-btn").forEach((btn) => {
+      btn.addEventListener("click", () => openEditModal(allWholesaleAccounts.find((w) => w.id === btn.dataset.id)));
+    });
+    document.querySelectorAll(".delete-wholesale-btn").forEach((btn) => {
+      btn.addEventListener("click", () => deleteWholesaleAccount(btn.dataset.id));
+    });
+    document.querySelectorAll(".process-order-btn").forEach((btn) => {
+      btn.addEventListener("click", () => openProcessOrderModal(allWholesaleAccounts.find((w) => w.id === btn.dataset.id)));
+    });
   }
 
   renderWholesalePagination(totalPages);
@@ -176,16 +186,6 @@ wholesaleSearchInput.addEventListener("input", () => {
   wholesaleSearchTerm = wholesaleSearchInput.value.trim();
   wholesaleCurrentPage = 1;
   renderWholesaleGrid();
-});
-
-wholesaleGrid.addEventListener("click", (e) => {
-  const editBtn = e.target.closest(".edit-wholesale-btn");
-  const deleteBtn = e.target.closest(".delete-wholesale-btn");
-  const processBtn = e.target.closest(".process-order-btn");
-
-  if (editBtn) openEditModal(allWholesaleAccounts.find((w) => w.id === editBtn.dataset.id));
-  if (deleteBtn) deleteWholesaleAccount(deleteBtn.dataset.id);
-  if (processBtn) openProcessOrderModal(allWholesaleAccounts.find((w) => w.id === processBtn.dataset.id));
 });
 
 /* ---------- Add / Edit modal ---------- */
@@ -409,6 +409,14 @@ function addProcessOrderItemRow() {
   `;
   processOrderItemsContainer.appendChild(row);
 
+  row.querySelector(".repeater-remove-btn").addEventListener("click", () => {
+    destroyChoicesIn(row);
+    row.remove();
+    renumberItems(processOrderItemsContainer);
+    updateRemoveButtonsVisibility(processOrderItemsContainer);
+    recalcProcessOrderTotal();
+  });
+
   const productSelect = row.querySelector(".order-product-select");
   populateOrderProductSelect(productSelect);
 
@@ -428,24 +436,14 @@ function addProcessOrderItemRow() {
 
 processOrderAddItemBtn.addEventListener("click", addProcessOrderItemRow);
 
-processOrderItemsContainer.addEventListener("click", (e) => {
-  const btn = e.target.closest(".repeater-remove-btn");
-  if (!btn) return;
-  const row = btn.closest(".repeater-item");
-  destroyChoicesIn(row);
-  row.remove();
-  renumberItems(processOrderItemsContainer);
-  updateRemoveButtonsVisibility(processOrderItemsContainer);
-  recalcProcessOrderTotal();
-});
-
 function recalcProcessOrderTotal() {
   const rows = Array.from(processOrderItemsContainer.querySelectorAll(".repeater-item"));
-  const total = rows.reduce((sum, row) => {
+  let total = 0;
+  for (const row of rows) {
     const qty = parseFloat(row.querySelector(".order-qty-input").value) || 0;
     const price = parseFloat(row.querySelector(".order-price-input").value) || 0;
-    return sum + qty * price;
-  }, 0);
+    total += qty * price;
+  }
   processOrderTotal.textContent = formatPeso(total);
 }
 
@@ -508,7 +506,10 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     let poDocumentUrl = null;
     if (selectedPoDocFile) poDocumentUrl = await uploadToCloudinary(selectedPoDocFile);
 
-    const total = items.reduce((sum, it) => sum + it.qty * it.unitPrice, 0);
+    let total = 0;
+    for (const it of items) {
+      total += it.qty * it.unitPrice;
+    }
     const account = allWholesaleAccounts.find((w) => w.id === processingAccountId);
 
     const orderItems = items.map((it) => {

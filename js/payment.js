@@ -54,10 +54,11 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     })
     .join("");
 
-  const total = pendingOrder.cart.reduce((sum, item) => {
+  let total = 0;
+  for (const item of pendingOrder.cart) {
     const product = getProductById(item.id);
-    return sum + (product ? product.price * item.qty : 0);
-  }, 0);
+    if (product) total += product.price * item.qty;
+  }
 
   paymentTotalText.textContent = formatPeso(total);
   deliveryFeeText.textContent = `~${formatPeso(ESTIMATED_DELIVERY_FEE)}`;

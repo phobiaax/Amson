@@ -47,14 +47,20 @@ function clearCart() {
 }
 
 function cartCount(cart = getCart()) {
-  return cart.reduce((sum, item) => sum + item.qty, 0);
+  let sum = 0;
+  for (const item of cart) {
+    sum += item.qty;
+  }
+  return sum;
 }
 
 function cartTotal(cart = getCart()) {
-  return cart.reduce((sum, item) => {
+  let sum = 0;
+  for (const item of cart) {
     const product = getProductById(item.id);
-    return sum + (product ? product.price * item.qty : 0);
-  }, 0);
+    if (product) sum += product.price * item.qty;
+  }
+  return sum;
 }
 
 function updateCartBadge() {

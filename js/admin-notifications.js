@@ -20,11 +20,9 @@ document.addEventListener("admin:ready", loadNotifications);
 async function loadNotifications() {
   try {
     await loadCatalogCache();
-    const [batchSnapshot, orderSnapshot, poSnapshot] = await Promise.all([
-      db.collection("stockBatches").get(),
-      db.collection("orders").get(),
-      db.collection("purchaseOrders").get(),
-    ]);
+    const batchSnapshot = await db.collection("stockBatches").get();
+    const orderSnapshot = await db.collection("orders").get();
+    const poSnapshot = await db.collection("purchaseOrders").get();
 
     const batches = batchSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     const orders = orderSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));

@@ -32,10 +32,8 @@ document.addEventListener("admin:ready", loadCustomers);
 /* ---------- Load ---------- */
 async function loadCustomers() {
   try {
-    const [usersSnapshot, ordersSnapshot] = await Promise.all([
-      db.collection("users").where("role", "==", "customer").get(),
-      db.collection("orders").get(),
-    ]);
+    const usersSnapshot = await db.collection("users").where("role", "==", "customer").get();
+    const ordersSnapshot = await db.collection("orders").get();
 
     const orderCounts = {};
     ordersSnapshot.docs.forEach((doc) => {
@@ -108,6 +106,13 @@ function renderCustomersTable() {
   } else {
     customersTableEmpty.classList.add("d-none");
     customersTableBody.innerHTML = pageItems.map(renderCustomerRow).join("");
+
+    document.querySelectorAll(".view-customer-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const customer = allCustomers.find((c) => c.id === btn.dataset.id);
+        openViewModal(customer);
+      });
+    });
   }
 
   renderCustomersPagination(totalPages);
@@ -174,10 +179,6 @@ customersSortBtn.addEventListener("click", () => {
 });
 
 /* ---------- View modal ---------- */
-customersTableBody.addEventListener("click", (e) => {
-  const viewBtn = e.target.closest(".view-customer-btn");
-  if (viewBtn) openViewModal(allCustomers.find((c) => c.id === viewBtn.dataset.id));
-});
 
 function openViewModal(customer) {
   if (!customer) return;

@@ -54,12 +54,10 @@ async function generateOrderNumber() {
   const year = new Date().getFullYear();
   const counterRef = db.collection("counters").doc(`orders-${year}`);
 
-  return db.runTransaction(async (transaction) => {
-    const counterDoc = await transaction.get(counterRef);
-    const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
-    transaction.set(counterRef, { count: nextCount }, { merge: true });
-    return `AMP-${year}-${String(nextCount).padStart(4, "0")}`;
-  });
+  const counterDoc = await counterRef.get();
+  const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
+  await counterRef.set({ count: nextCount }, { merge: true });
+  return `AMP-${year}-${String(nextCount).padStart(4, "0")}`;
 }
 
 /**

@@ -87,11 +87,11 @@ async function loadOrders(uid) {
       })
       .join("");
 
-    ordersList.addEventListener("click", (e) => {
-      const btn = e.target.closest(".download-receipt-btn");
-      if (!btn) return;
-      const order = ordersById[btn.dataset.id];
-      if (order) downloadOrderReceipt(order);
+    document.querySelectorAll(".download-receipt-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const order = ordersById[btn.dataset.id];
+        if (order) downloadOrderReceipt(order);
+      });
     });
   } catch (error) {
     console.error("Failed to load orders:", error);
