@@ -1,7 +1,8 @@
 /**
  * Login page logic: Firebase Authentication + Firestore role lookup (RBAC).
  * Expects a Firestore collection "users" with one doc per uid:
- *   { role: "admin" | "customer", firstName, lastName, email, emailVerified, ... }
+ *   { role: "customer" | one of STAFF_ROLES (admin-roles.js), firstName,
+ *     lastName, email, emailVerified, ... }
  */
 
 const loginForm = document.getElementById("loginForm");
@@ -57,7 +58,7 @@ function mapAuthError(error) {
 }
 
 function redirectByRole(userData) {
-  if (userData.role === "admin") {
+  if (STAFF_ROLES.includes(userData.role)) {
     window.location.href = "admin/dashboard.html";
     return;
   }

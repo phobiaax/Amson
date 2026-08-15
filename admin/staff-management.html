@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Customer Accounts | Amson Pharmaceuticals</title>
+<title>Staff Management | Amson Pharmaceuticals</title>
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -33,9 +33,9 @@
       <li><a href="inventory.html" class="admin-nav-link"><i class="bi bi-box-seam"></i>Inventory</a></li>
       <li><a href="products.html" class="admin-nav-link"><i class="bi bi-capsule"></i>Products</a></li>
       <li><a href="suppliers.html" class="admin-nav-link"><i class="bi bi-truck"></i>Suppliers</a></li>
-      <li><a href="customer-accounts.html" class="admin-nav-link active"><i class="bi bi-person"></i>Customer Accounts</a></li>
+      <li><a href="customer-accounts.html" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
       <li><a href="wholesale-accounts.html" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
-      <li><a href="staff-management.html" class="admin-nav-link" id="staffManagementNavLink"><i class="bi bi-people"></i>Staff Management</a></li>
+      <li><a href="staff-management.html" class="admin-nav-link active" id="staffManagementNavLink"><i class="bi bi-people"></i>Staff Management</a></li>
       <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
       <li><a href="notifications.html" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
       <li><a href="audit-log.html" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
@@ -66,7 +66,12 @@
     </div>
 
     <div class="admin-content">
-      <h1 class="mb-4" style="font-weight:800;">Customer Accounts</h1>
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <h1 class="mb-0" style="font-weight:800;">Staff Management</h1>
+        <button type="button" class="btn btn-amson" id="addStaffBtn">
+          <i class="bi bi-plus-lg me-1"></i>Add Staff Account
+        </button>
+      </div>
 
       <div class="checkout-card p-4">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
@@ -75,69 +80,63 @@
             <button type="button" class="btn order-filter-btn" data-filter="active">Active</button>
             <button type="button" class="btn order-filter-btn" data-filter="deactivated">Deactivated</button>
           </div>
-          <div class="d-flex gap-2 flex-wrap">
-            <input type="text" class="form-control form-control-sm" id="customersSearchInput" placeholder="Search customers" style="width:200px;">
-            <button type="button" class="btn btn-outline-dark-amson btn-sm" id="customersSortBtn" aria-label="Toggle sort order"><i class="bi bi-arrow-down-up"></i></button>
-          </div>
+          <input type="text" class="form-control form-control-sm" id="staffSearchInput" placeholder="Search staff" style="width:200px;">
         </div>
 
         <div class="table-responsive">
           <table class="table admin-orders-table align-middle">
             <thead>
               <tr>
-                <th>Customer Name</th>
+                <th>Name</th>
                 <th>Email</th>
-                <th>Contact No.</th>
-                <th>Date Registered</th>
-                <th>Total Orders</th>
+                <th>Role</th>
                 <th>Status</th>
                 <th></th>
               </tr>
             </thead>
-            <tbody id="customersTableBody"></tbody>
+            <tbody id="staffTableBody"></tbody>
           </table>
         </div>
-        <p class="text-muted text-center py-4 d-none" id="customersTableEmpty">No customers found.</p>
+        <p class="text-muted text-center py-4 d-none" id="staffTableEmpty">No staff accounts found.</p>
 
-        <div class="catalog-pagination" id="customersPagination"></div>
+        <div class="catalog-pagination" id="staffPagination"></div>
       </div>
     </div>
   </main>
 </div>
 
-<!-- View Customer modal -->
-<div class="modal fade" id="viewCustomerModal" tabindex="-1" aria-hidden="true">
+<!-- Add / Edit Staff modal -->
+<div class="modal fade" id="staffModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content p-4">
-      <div class="d-flex justify-content-between align-items-start mb-3">
-        <div>
-          <p class="fw-bold mb-0" id="viewCustomerName"></p>
-          <p class="text-muted mb-0" id="viewCustomerEmail"></p>
-        </div>
-        <span class="badge rounded-pill" id="viewCustomerStatus"></span>
-      </div>
-      <p class="contact-line mb-1"><i class="bi bi-telephone"></i> <span id="viewCustomerPhone"></span></p>
-      <p class="contact-line mb-3"><i class="bi bi-calendar"></i> Registered <span id="viewCustomerDateRegistered"></span></p>
+      <h2 class="mb-3" id="staffModalTitle">Add Staff Account</h2>
 
-      <div class="row g-3 mb-3">
-        <div class="col-6">
-          <p class="detail-label mb-0">Total Orders</p>
-          <p class="detail-value mb-0" id="viewCustomerTotalOrders"></p>
-        </div>
-        <div class="col-6">
-          <p class="detail-label mb-0">Email Verified</p>
-          <p class="detail-value mb-0" id="viewCustomerEmailVerified"></p>
-        </div>
+      <label class="form-label">First Name</label>
+      <input type="text" class="form-control mb-3" id="staffFirstNameInput">
+
+      <label class="form-label">Last Name</label>
+      <input type="text" class="form-control mb-3" id="staffLastNameInput">
+
+      <div id="staffCredentialFields">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control mb-3" id="staffEmailInput">
+
+        <label class="form-label">Temporary Password</label>
+        <input type="password" class="form-control mb-3" id="staffPasswordInput" minlength="6" placeholder="At least 6 characters">
       </div>
 
-      <p class="detail-label mb-1">Shipping Address</p>
-      <p class="text-muted mb-3" id="viewCustomerAddress">-</p>
+      <label class="form-label">Role</label>
+      <select class="form-select mb-3" id="staffRoleInput">
+        <option value="branch_manager">Branch Manager</option>
+        <option value="technical_staff">Technical Staff</option>
+        <option value="sales_staff">Sales Staff</option>
+      </select>
 
-      <div id="customerModalAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
+      <div id="staffModalAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
 
       <div class="d-flex gap-2">
-        <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-amson flex-fill" id="toggleCustomerStatusBtn">Deactivate Account</button>
+        <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-amson flex-fill" id="saveStaffBtn">Save</button>
       </div>
     </div>
   </div>
@@ -155,7 +154,7 @@
 <script src="../js/firebase-config.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/admin-sidebar.js"></script>
-<script src="../js/admin-customer-accounts.js"></script>
+<script src="../js/admin-staff-management.js"></script>
 <script src="../js/admin-roles.js"></script>
 <script src="../js/admin-header.js"></script>
 </body>
