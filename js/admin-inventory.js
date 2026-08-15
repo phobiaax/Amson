@@ -5,11 +5,6 @@
  * delivery, receive against a PO with automatic discrepancy detection,
  * acknowledge to close), and an inventory/write-off/discrepancy PDF
  * report.
- *
- * Not wired up yet: automatic FEFO-based stock deduction when an online
- * order is approved/dispatched. deductStockFEFO() (in products-data.js,
- * shared across pages) is ready for that once admin/online-orders.html's
- * approval flow is scoped to call it.
  */
 
 const INVENTORY_PAGE_SIZE = 8;

@@ -204,6 +204,10 @@ approvePaymentBtn.addEventListener("click", async () => {
   reviewAlert.classList.add("d-none");
 
   try {
+    for (const item of order.items || []) {
+      await deductStockFEFO(item.id, item.qty);
+    }
+
     await db.collection("orders").doc(orderId).update({
       status: "payment_confirmed",
       "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
@@ -218,7 +222,7 @@ approvePaymentBtn.addEventListener("click", async () => {
     renderOrdersTable();
     openApprovedModal(order);
   } catch (error) {
-    reviewAlert.textContent = "Something went wrong approving this payment. Please try again.";
+    reviewAlert.textContent = error.message || "Something went wrong approving this payment. Please try again.";
     reviewAlert.classList.remove("d-none");
   } finally {
     approvePaymentBtn.disabled = false;
@@ -331,6 +335,10 @@ issueConfirmBtn.addEventListener("click", async () => {
       const received = parseFloat(issueAmountReceivedInput.value) || order.total;
       const referenceNumber = referenceNumberInput.value.trim();
 
+      for (const item of order.items || []) {
+        await deductStockFEFO(item.id, item.qty);
+      }
+
       const update = {
         status: "payment_confirmed",
         "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
@@ -355,7 +363,7 @@ issueConfirmBtn.addEventListener("click", async () => {
       openApprovedModal(order);
     }
   } catch (error) {
-    alert("Something went wrong. Please try again.");
+    alert(error.message || "Something went wrong. Please try again.");
   } finally {
     issueConfirmBtn.disabled = false;
   }
@@ -536,6 +544,12 @@ async function handleOrderStatusChange(select) {
   select.disabled = true;
 
   try {
+    if (newStatus === "payment_confirmed" && previousStatus === "placed") {
+      for (const item of order.items || []) {
+        await deductStockFEFO(item.id, item.qty);
+      }
+    }
+
     await db
       .collection("orders")
       .doc(orderId)
@@ -549,7 +563,7 @@ async function handleOrderStatusChange(select) {
     renderOrdersTable();
   } catch (error) {
     order.status = previousStatus;
-    alert("Something went wrong updating this order's status. Please try again.");
+    alert(error.message || "Something went wrong updating this order's status. Please try again.");
     renderOrdersTable();
   } finally {
     select.disabled = false;

@@ -81,7 +81,7 @@ async function loadCatalogCache() {
 }
 
 function formatPeso(amount) {
-  return `₱${(amount || 0).toLocaleString("en-PH")}`;
+  return `₱${(amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function getProductById(id) {
@@ -107,9 +107,9 @@ function exportBlankPdf(filenamePrefix) {
 /**
  * FEFO (First-Expired-First-Out) stock deduction, shared by any flow that
  * needs to draw down real stock against a product (Wholesale Order
- * recording; Online Orders approval once that's wired up). Queries
- * stockBatches live instead of relying on a page's in-memory cache, so it
- * works correctly regardless of which admin page calls it.
+ * recording; Online Orders payment approval). Queries stockBatches live
+ * instead of relying on a page's in-memory cache, so it works correctly
+ * regardless of which admin page calls it.
  */
 async function deductStockFEFO(productId, qty) {
   const snapshot = await db
