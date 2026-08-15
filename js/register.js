@@ -1,7 +1,5 @@
 /**
- * Register page logic: creates a Firebase Auth account + a matching
- * Firestore users/{uid} doc with role: "customer" (admin accounts are
- * created manually in Firebase, not through public registration).
+ * Register page logic.
  */
 
 const registerForm = document.getElementById("registerForm");
@@ -20,7 +18,7 @@ const agreeTermsInput = document.getElementById("agreeTerms");
 const passwordHint = document.getElementById("passwordHint");
 const passwordMatchHint = document.getElementById("passwordMatchHint");
 
-// ---- Password visibility toggles (works for both password fields) ----
+// ---- Password visibility toggles ----
 document.querySelectorAll(".toggle-password").forEach((btn) => {
   btn.addEventListener("click", () => {
     const target = document.getElementById(btn.dataset.target);

@@ -1,5 +1,5 @@
 /**
- * Shared OTP helpers used by the register and email verification pages.
+ * Shared OTP helpers.
  */
 
 function generateOtpCode() {
@@ -18,8 +18,6 @@ async function sendOtpEmail(toEmail, code, toName = "") {
     return false;
   }
 
-  // Sent under a few common EmailJS variable name conventions so this
-  // works regardless of which one the template actually uses.
   await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_OTP_TEMPLATE_ID, {
     to_email: toEmail,
     otp_code: code,

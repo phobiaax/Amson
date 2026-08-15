@@ -1,7 +1,5 @@
 /**
- * Shared order helpers used by payment.js (creating orders), orders.html
- * (list), and order-details.html (tracking) - status labels, date
- * formatting, order number generation, and receipt PDF generation.
+ * Shared order helpers.
  */
 
 const ORDER_STATUS_STEPS = ["placed", "payment_confirmed", "dispatched", "delivered", "received"];
@@ -47,11 +45,6 @@ function formatOrderDateTime(timestamp) {
   });
 }
 
-/**
- * Atomically generates a human-friendly order number like "AMP-2026-0001"
- * using a per-year counter document, so two orders submitted at the same
- * moment can't collide (no backend/Cloud Functions needed).
- */
 async function generateOrderNumber() {
   const year = new Date().getFullYear();
   const counterRef = db.collection("counters").doc(`orders-${year}`);
@@ -62,10 +55,6 @@ async function generateOrderNumber() {
   return `AMP-${year}-${String(nextCount).padStart(4, "0")}`;
 }
 
-/**
- * Generates and downloads a simple PDF receipt for an order using jsPDF.
- * Expects the order object shape written by payment.js.
- */
 function downloadOrderReceipt(order) {
   if (typeof window.jspdf === "undefined") {
     alert("PDF generation isn't available right now. Please try again in a moment.");

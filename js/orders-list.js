@@ -1,6 +1,5 @@
 /**
- * "My Orders" list page: queries orders/{id} where customerId matches the
- * signed-in user, newest first, and renders one card per order.
+ * My Orders list page.
  */
 
 const ordersSignedOutNotice = document.getElementById("ordersSignedOutNotice");

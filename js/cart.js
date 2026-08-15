@@ -1,7 +1,5 @@
 /**
- * Client-side shopping cart, backed by localStorage. Swap for a Firestore
- * cart/order write once checkout is wired to the backend - cartTotal(),
- * cartCount(), getCart() etc. can stay as the read layer.
+ * Client-side shopping cart.
  */
 
 const CART_STORAGE_KEY = "amsonCart";
@@ -78,7 +76,7 @@ function showCartToast(message) {
   bootstrap.Toast.getOrCreateInstance(toastEl).show();
 }
 
-// ---- Global "+ Add to Cart" click delegation (product cards on any page) ----
+// ---- Add to Cart ----
 document.addEventListener("click", (e) => {
   const btn = e.target.closest(".btn-add-cart");
   if (!btn) return;

@@ -1,10 +1,5 @@
 /**
- * Staff Management admin page (Branch Manager only, see ADMIN_PAGE_ACCESS
- * in admin-roles.js): create/edit/deactivate staff accounts and assign
- * them a role. New staff accounts are created through a secondary
- * Firebase app instance so that creating one doesn't sign the current
- * admin out and sign in as the new account instead - the Firebase client
- * SDK signs in as whichever user it just created.
+ * Staff Management admin page.
  */
 
 const STAFF_PAGE_SIZE = 8;

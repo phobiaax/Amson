@@ -1,7 +1,5 @@
 /**
- * Product catalog page: filter (by category), sort, and client-side
- * pagination over SAMPLE_PRODUCTS. Swap SAMPLE_PRODUCTS for a Firestore
- * query later - this filter/sort/paginate logic can stay the same.
+ * Product catalog page.
  */
 
 const PAGE_SIZE = 16;
@@ -110,7 +108,7 @@ applyFiltersBtn.addEventListener("click", applyFilters);
   await loadCatalogCache();
   currentFiltered = storefrontCatalog();
 
-  // ---- Pre-select category from a ?category= query param (nav links use this) ----
+  // ---- Pre-select category from query param ----
   const initialCategory = new URLSearchParams(window.location.search).get("category");
   if (initialCategory && CATEGORY_LABELS[initialCategory]) {
     catAll.checked = false;

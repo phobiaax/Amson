@@ -1,9 +1,5 @@
 /**
- * Customer Accounts admin page: read-only listing of users/{uid} where
- * role === "customer", enriched with a per-customer order count from
- * orders/{orderId}.customerId. Deactivate/Reactivate actually blocks sign-in
- * (see the accountStatus check in js/auth.js's performLogin()), not just a
- * cosmetic badge.
+ * Customer Accounts admin page.
  */
 
 const CUSTOMERS_PAGE_SIZE = 8;

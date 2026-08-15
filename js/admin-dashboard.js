@@ -1,10 +1,5 @@
 /**
- * Admin dashboard: populates real stats from the orders collection
- * (Active Online Orders, Pending Payment Verification) and renders two
- * Chart.js visualizations built from real order history. Today's Total
- * Sales, Transactions Today, Low Stock, and Near-Expiry need the POS and
- * Inventory modules - neither exists yet, so those stay as placeholders
- * until those modules are built.
+ * Admin dashboard.
  */
 
 let lastLoadedStats = null;
@@ -17,8 +12,6 @@ document.addEventListener("admin:ready", (e) => {
 async function loadDashboardStats() {
   try {
     await loadCatalogCache();
-    // Fetching the whole collection is fine at today's scale; revisit
-    // with date-range filtering once order volume actually grows.
     const ordersSnapshot = await db.collection("orders").get();
     const batchesSnapshot = await db.collection("stockBatches").get();
     const orders = ordersSnapshot.docs.map((doc) => doc.data());
@@ -47,8 +40,6 @@ async function loadDashboardStats() {
 function renderSalesChart(orders) {
   const canvas = document.getElementById("salesChart");
   const emptyState = document.getElementById("salesChartEmpty");
-  // Keyed by sortable ISO date so chronological order doesn't depend on
-  // whatever order Firestore happened to return the orders in.
   const dailyTotals = {};
 
   orders.forEach((order) => {

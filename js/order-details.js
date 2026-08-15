@@ -1,7 +1,5 @@
 /**
- * Order tracking page: loads a single orders/{id} doc (id from the URL),
- * verifies it belongs to the signed-in customer, and renders the status
- * timeline, shipping address, items, and total.
+ * Order tracking page.
  */
 
 const orderNotFoundNotice = document.getElementById("orderNotFoundNotice");

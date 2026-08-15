@@ -1,7 +1,5 @@
 /**
- * Product details page: reads ?id= from the URL, renders the matching
- * product once the Firestore catalog cache loads, and handles the
- * quantity stepper + Add to Cart.
+ * Product details page.
  */
 
 const productId = new URLSearchParams(window.location.search).get("id");

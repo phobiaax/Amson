@@ -1,8 +1,5 @@
 /**
- * Login page logic: Firebase Authentication + Firestore role lookup (RBAC).
- * Expects a Firestore collection "users" with one doc per uid:
- *   { role: "customer" | one of STAFF_ROLES (admin-roles.js), firstName,
- *     lastName, email, emailVerified, ... }
+ * Login page logic.
  */
 
 const loginForm = document.getElementById("loginForm");

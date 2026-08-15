@@ -1,7 +1,5 @@
 /**
- * Customer Account Settings page: edit profile info, shipping address,
- * and change password. Mirrors the shipping address fields saved during
- * checkout (js/checkout.js) so either page keeps the same data in sync.
+ * Customer Account Settings page.
  */
 
 let signedInUid = null;
@@ -171,11 +169,7 @@ updatePasswordBtn.addEventListener("click", async () => {
   }
 });
 
-/**
- * Change Email: reauthenticate with current password, send a 6-digit
- * code to the new address (same OTP helpers as registration), then
- * update Firebase Auth + Firestore once the code checks out.
- */
+// ---- Change Email ----
 const openChangeEmailBtn = document.getElementById("openChangeEmailBtn");
 const changeEmailModalEl = document.getElementById("changeEmailModal");
 const changeEmailStep1 = document.getElementById("changeEmailStep1");

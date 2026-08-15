@@ -1,7 +1,5 @@
 /**
- * Online Orders admin page: Payment Verification queue (approve/flag
- * proof-of-payment submissions) and the full Online Orders table
- * (filter/search/sort/paginate), built from real orders/{id} documents.
+ * Online Orders admin page.
  */
 
 const ORDERS_PAGE_SIZE = 8;

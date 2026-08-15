@@ -1,8 +1,5 @@
 /**
- * EmailJS configuration for transactional emails (OTP codes, password reset
- * notices, order confirmations). Sign up at https://www.emailjs.com,
- * create an email service and a template, then fill these in.
- * The OTP template should include a variable named "otp_code".
+ * EmailJS configuration.
  */
 const EMAILJS_PUBLIC_KEY = "4ViMsdUv4UZhGxe6P";
 const EMAILJS_SERVICE_ID = "service_wqp7tp9";

@@ -1,10 +1,5 @@
 /**
- * Product catalog cache, backed by the real Firestore "products" and
- * "categories" collections. SAMPLE_PRODUCTS/CATEGORY_LABELS stay as the
- * same shared, synchronous lookup shape every page already expects;
- * loadCatalogCache() just populates them from Firestore once per page
- * load instead of from a hardcoded array. Call and await it before any
- * code that reads product/category data.
+ * Product catalog cache.
  */
 
 let SAMPLE_PRODUCTS = [];
@@ -21,12 +16,6 @@ const BATCH_STATUS_LABELS = {
   near_expiry: "Near Expiry",
 };
 
-/**
- * A batch's status is evaluated independently per batch, not aggregated
- * per product - two batches of the same product can show different
- * statuses (e.g. one near-expiry, one fine). Shared between
- * admin-inventory.js and admin-dashboard.js's alert counts.
- */
 function getBatchStatus(batch) {
   if (batch.quantity === 0) return "out_of_stock";
 
@@ -66,9 +55,6 @@ async function loadCatalogCache() {
       return {
         id: doc.id,
         ...data,
-        // Back-compat aliases: existing cart/checkout/payment/dashboard
-        // code was written against "price" and "inStock" - keep those
-        // working instead of touching every call site.
         price: data.retailPrice,
         inStock: data.status === "active",
       };
@@ -88,11 +74,6 @@ function getProductById(id) {
   return SAMPLE_PRODUCTS.find((p) => String(p.id) === String(id));
 }
 
-/**
- * Report PDF generation is temporarily scrapped - every "Export Report"
- * button downloads a blank PDF instead of real content for now, sharing
- * this one helper so the button/filename behavior stays consistent.
- */
 function exportBlankPdf(filenamePrefix) {
   if (typeof window.jspdf === "undefined") {
     alert("PDF generation isn't available right now. Please try again in a moment.");
@@ -104,13 +85,7 @@ function exportBlankPdf(filenamePrefix) {
   doc.save(`${filenamePrefix}-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
-/**
- * FEFO (First-Expired-First-Out) stock deduction, shared by any flow that
- * needs to draw down real stock against a product (Wholesale Order
- * recording; Online Orders payment approval). Queries stockBatches live
- * instead of relying on a page's in-memory cache, so it works correctly
- * regardless of which admin page calls it.
- */
+// ---- FEFO stock deduction ----
 async function deductStockFEFO(productId, qty) {
   const snapshot = await db
     .collection("stockBatches")
@@ -140,14 +115,7 @@ async function deductStockFEFO(productId, qty) {
   }
 }
 
-/**
- * Shared audit log helper - writes one auditLog/{id} doc per call. `actor`
- * defaults to the currently signed-in admin (resolved via auth.currentUser
- * + a users lookup) when not passed explicitly. IP address is always
- * recorded as "-": a static client-only site has no reliable way to
- * determine its own public IP without a third-party lookup service, so
- * this stays an honest placeholder instead of a fabricated value.
- */
+// ---- Audit log helper ----
 async function logAuditEvent({ action, details, actor }) {
   try {
     let actorName = actor;

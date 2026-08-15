@@ -1,6 +1,5 @@
 /**
- * Settings admin page: own profile info and password, kept deliberately
- * small in scope for now.
+ * Settings admin page.
  */
 
 let currentAdminUid = null;

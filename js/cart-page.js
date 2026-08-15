@@ -1,6 +1,5 @@
 /**
- * Cart page: renders items from getCart(), and wires quantity steppers,
- * remove links, "Clear All", and the running total.
+ * Cart page.
  */
 
 const cartHeading = document.getElementById("cartHeading");

@@ -1,8 +1,5 @@
 /**
- * Supplier Management admin page: CRUD for suppliers/{id}, each linked
- * to zero or more products via a productIds array (used later by the
- * Inventory module's Purchase Order flow to suggest which supplier can
- * fulfill a given product).
+ * Supplier Management admin page.
  */
 
 const SUPPLIERS_PAGE_SIZE = 6;

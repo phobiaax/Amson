@@ -1,13 +1,5 @@
 /**
- * Shared admin shell logic (reusable across future admin pages, not just
- * the dashboard): enforces that only a signed-in user with a staff role
- * can view the admin side - anyone else gets redirected - and further
- * restricts which admin pages each staff role can open (see
- * ADMIN_PAGE_ACCESS in admin-roles.js). Populates the top bar's date,
- * profile name and role, and hides sidebar links the current role can't
- * use. Fires an "admin:ready" event once the check passes, carrying the
- * admin's Firestore doc, so page-specific scripts can safely load their
- * own data after this.
+ * Shared admin shell logic.
  */
 
 const adminDateLabel = document.getElementById("adminDateLabel");

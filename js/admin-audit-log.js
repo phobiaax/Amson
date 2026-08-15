@@ -1,11 +1,5 @@
 /**
- * Audit Log admin page: read-only listing of auditLog/{id}, written by
- * logAuditEvent() (js/products-data.js) from Product price-change edits,
- * Inventory write-offs, account deactivation/reactivation, and Wholesale
- * Order recording. IP Address is always "-" - a static client-only site
- * has no reliable way to capture a visitor's public IP without a
- * third-party lookup service, so this stays an honest placeholder
- * instead of a fabricated value.
+ * Audit Log admin page.
  */
 
 const AUDIT_PAGE_SIZE = 10;

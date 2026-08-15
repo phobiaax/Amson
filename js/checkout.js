@@ -1,7 +1,5 @@
 /**
- * Checkout page: prefills contact info for signed-in customers, renders
- * the order summary from the cart, and hands off to payment.html via
- * sessionStorage (no backend order write yet).
+ * Checkout page.
  */
 
 const emptyCartNotice = document.getElementById("emptyCartNotice");
@@ -113,25 +111,19 @@ proceedToPaymentBtn.addEventListener("click", async () => {
 
   sessionStorage.setItem("amsonPendingOrder", JSON.stringify(order));
 
-  // Save the address to the customer's profile so future checkouts can
-  // skip re-typing it. Best-effort - a failure here shouldn't block checkout.
   if (signedInUid) {
     try {
       await db.collection("users").doc(signedInUid).set(
         { shippingAddress: shipping },
         { merge: true }
       );
-    } catch (error) {
-      // Not fatal - the order still has the address in sessionStorage.
-    }
+    } catch (error) {}
   }
 
   window.location.href = "payment.html";
 });
 
-// ---- Prefill contact info + saved shipping address for signed-in
-// customers (best-effort; checkout itself must keep working even if this
-// never resolves) ----
+// ---- Prefill contact info + saved shipping address ----
 try {
   auth.onAuthStateChanged(async (user) => {
     if (!user) return;
@@ -152,10 +144,6 @@ try {
         document.getElementById("zipCode").value = data.shippingAddress.zipCode || "";
         document.getElementById("deliveryNotes").value = data.shippingAddress.deliveryNotes || "";
       }
-    } catch (error) {
-      // Guest checkout still works with manually entered info.
-    }
+    } catch (error) {}
   });
-} catch (error) {
-  // Firebase failed to load - checkout still works with manual entry.
-}
+} catch (error) {}

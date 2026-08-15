@@ -1,13 +1,5 @@
 /**
- * Wholesale Accounts admin page: CRUD for wholesaleAccounts/{id} (mirrors
- * the Suppliers card-grid pattern), plus the Process Wholesale Order flow
- * that records a wholesaleOrders/{id} doc and deducts real stock via
- * deductStockFEFO() per line item. Deliberately a separate collection from
- * purchaseOrders (Inventory's supplier-side POs) - a wholesale order is a
- * sale going out, not a delivery coming in.
- *
- * Not built yet: the Wholesale Exchange sub-module (change-item requests
- * after an order is recorded) - see README for scope notes.
+ * Wholesale Accounts admin page.
  */
 
 const WHOLESALE_PAGE_SIZE = 6;

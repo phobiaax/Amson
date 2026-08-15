@@ -1,7 +1,5 @@
 /**
- * Email verification page: checks the 6-digit code the user enters against
- * the emailVerificationCode stored on their Firestore users/{uid} doc by
- * register.js (or regenerated here via "Resend").
+ * Email verification page.
  */
 
 const verifyEmailDisplay = document.getElementById("verifyEmailDisplay");
@@ -146,14 +144,10 @@ resendCodeLink.addEventListener("click", async (e) => {
 });
 
 // ---- Wrong email: back to registration ----
-// Leaves behind an unverified account under the mistyped email - harmless
-// clutter for now, cleanup can happen once there's an admin panel.
 backToRegisterBtn.addEventListener("click", async () => {
   sessionStorage.removeItem("amsonPendingVerificationEmail");
   try {
     await auth.signOut();
-  } catch (error) {
-    // Not fatal - registering again will just sign in as the new account.
-  }
+  } catch (error) {}
   window.location.href = "register.html";
 });

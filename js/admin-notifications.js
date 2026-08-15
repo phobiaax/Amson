@@ -1,9 +1,5 @@
 /**
- * Notifications admin page: rather than a separate notifications-writing
- * system (every module pushing its own notification doc), this reads
- * signals that already exist in Firestore - low stock / near-expiry
- * batches, orders awaiting payment verification, and PO discrepancies,
- * and lists them here.
+ * Notifications admin page.
  */
 
 const notificationsList = document.getElementById("notificationsList");

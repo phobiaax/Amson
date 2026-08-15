@@ -1,8 +1,5 @@
 /**
- * Product Management admin page: CRUD for the real products/{id} and
- * categories/{id} Firestore collections that the storefront now reads
- * from (see products-data.js's loadCatalogCache()), plus a simple CSV
- * batch-upload path for adding many products at once.
+ * Product Management admin page.
  */
 
 const PRODUCTS_PAGE_SIZE = 8;
@@ -86,8 +83,6 @@ async function loadProducts() {
   }
 }
 
-// Searchable select - a long, growing category list gets tedious to
-// scroll through in a plain <select> otherwise.
 let categorySelectChoices = null;
 
 function renderCategorySelect() {

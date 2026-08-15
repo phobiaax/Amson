@@ -1,10 +1,5 @@
 /**
- * Inventory Management admin page: real stock tracked per batch
- * (stockBatches/{id}), Receive Stock, Write Off Stock, FEFO near-expiry
- * flagging, Stock Reconciliation, Purchase Orders (create ahead of
- * delivery, receive against a PO with automatic discrepancy detection,
- * acknowledge to close), and an inventory/write-off/discrepancy PDF
- * report.
+ * Inventory Management admin page.
  */
 
 const INVENTORY_PAGE_SIZE = 8;
@@ -34,9 +29,6 @@ let poFilter = "all";
 let poSearchTerm = "";
 let poCurrentPage = 1;
 
-// Scoped to each tab's own panel - the Stock and Purchase Orders tabs
-// both use .order-filter-btn, and without scoping, clicking a filter
-// chip on one tab would also blow away the other tab's active state.
 const filterButtons = Array.from(document.querySelectorAll("#stockPanel .order-filter-btn"));
 const poFilterButtons = Array.from(document.querySelectorAll("#purchaseOrdersPanel .order-filter-btn"));
 const inventorySearchInput = document.getElementById("inventorySearchInput");
@@ -295,11 +287,7 @@ inventorySortBtn.addEventListener("click", () => {
   renderInventoryTable();
 });
 
-/* ---------- Shared repeater helpers ----------
- * Product/supplier/batch pickers use Choices.js so admins can type to
- * search instead of scrolling a plain <select> - with a growing catalog
- * or many suppliers, a native dropdown gets unusable fast.
- */
+/* ---------- Shared repeater helpers ---------- */
 function makeSearchableSelect(selectEl) {
   return new Choices(selectEl, {
     searchEnabled: true,
@@ -524,9 +512,6 @@ function populateBatchSelectForProduct(batchSelectEl, productId) {
     : [{ value: "", label: "No stock available" }];
 
   if (batchSelectEl._choices) {
-    // Same instance, new options - the product just changed, so the
-    // batch list needs to reflect that product's batches instead of
-    // being torn down and rebuilt.
     batchSelectEl._choices.setChoices(choicesData, "value", "label", true);
   } else {
     batchSelectEl.innerHTML = choicesData.map((c) => `<option value="${c.value}">${c.label}</option>`).join("");
@@ -653,13 +638,7 @@ saveWriteOffBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Stock Reconciliation (session-based) ----------
- * Only one "in_progress" session can exist at a time. Opening a session
- * snapshots the current active batches as the count sheet; submitting
- * the count finalizes it in one step (whoever opened it and whoever
- * clicks Submit Count are both just recorded as-is - no separate
- * approval role is enforced, since this is a single admin-role app).
- */
+/* ---------- Stock Reconciliation (session-based) ---------- */
 function findActiveSession() {
   return allReconciliations.find((r) => r.status === "in_progress") || null;
 }
@@ -1143,8 +1122,6 @@ async function submitPoReceiving(po) {
   alertEl.classList.add("d-none");
 
   try {
-    // Partial or full stock received still gets added to inventory,
-    // independent of whether it matches what was expected.
     for (const item of receivedItems) {
       if (item.receivedQty <= 0) continue;
       await db.collection("stockBatches").add({

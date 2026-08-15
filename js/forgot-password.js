@@ -1,6 +1,5 @@
 /**
- * Standalone "Reset Your Password" page: sends a Firebase password reset
- * email to the address entered.
+ * Reset Your Password page.
  */
 
 const forgotPasswordForm = document.getElementById("forgotPasswordForm");

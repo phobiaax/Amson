@@ -1,7 +1,5 @@
 /**
- * Shared header behavior for storefront pages: shows Login/Register for
- * guests, or the account dropdown (with first name) for signed-in
- * customers, using Firebase Auth state + the Firestore users/{uid} doc.
+ * Shared header behavior for storefront pages.
  */
 
 const guestActions = document.getElementById("guestActions");
@@ -33,11 +31,6 @@ auth.onAuthStateChanged(async (user) => {
   loadCustomerNotifications(user.uid);
 });
 
-/**
- * Reads the signed-in customer's own orders for anything worth flagging
- * (a payment issue on hold, or a recent dispatched/delivered update)
- * rather than a separate notifications-writing system.
- */
 async function loadCustomerNotifications(uid) {
   if (!notifDropdownList) return;
 

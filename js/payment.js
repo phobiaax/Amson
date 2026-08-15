@@ -1,12 +1,5 @@
 /**
- * Payment page: reads the pending order saved by checkout.js, shows a
- * hardcoded QR Ph payment code (no third-party payment gateway per
- * Amson's requirements), and requires a proof-of-payment upload before
- * "Submit Order" is enabled. On submit: uploads the proof image to
- * Cloudinary (see js/cloudinary.js - chosen over Firebase Storage to
- * avoid the Blaze plan's billing requirement), writes an orders/{id} doc
- * in Firestore with status "placed", clears the cart, and shows a
- * confirmation panel.
+ * Payment page.
  */
 
 const ESTIMATED_DELIVERY_FEE = 85;

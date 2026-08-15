@@ -1,7 +1,5 @@
 /**
- * Shared RBAC constants for the admin side, used by admin-header.js and
- * admin-staff-management.js. "admin" is kept as a full-access legacy role
- * so existing accounts still work.
+ * Shared RBAC constants for the admin side.
  */
 
 const STAFF_ROLES = ["admin", "branch_manager", "technical_staff", "sales_staff"];
@@ -13,10 +11,6 @@ const STAFF_ROLE_LABELS = {
   sales_staff: "Sales Staff",
 };
 
-// Walk-in Orders/POS and Live Chat don't exist yet, so Sales Staff is
-// scoped to just the catalog and their own account for now. Price
-// Management doesn't have its own page yet either - it's part of the
-// Products edit form - so there's nothing to restrict there yet.
 const ADMIN_PAGE_ACCESS = {
   "dashboard.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "products.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],

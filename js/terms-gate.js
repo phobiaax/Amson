@@ -1,12 +1,5 @@
 /**
- * Mandatory "scroll to the bottom before you can accept" gate for the
- * combined Terms and Conditions / Privacy Policy modal.
- *
- * The agreeTerms checkbox looks and behaves like a normal checkbox, but
- * until the modal has been accepted once, clicking it opens the modal
- * instead of toggling. The "I Have Read and Agree" button inside stays
- * disabled until the body has been scrolled to the end. Accepting closes
- * the modal and checks the box; after that it's just a normal checkbox.
+ * Terms and Conditions / Privacy Policy scroll-to-accept gate.
  */
 
 document.querySelectorAll(".legal-modal").forEach((modal) => {
