@@ -43,23 +43,43 @@ async function loadCustomerNotifications(uid) {
       if (order.paymentIssue) {
         notifications.push({
           priority: 0,
-          orderId: doc.id,
+          link: `order-details.html?id=${doc.id}`,
           title: `Payment issue on order ${order.orderNumber}`,
           detail: "Please check your order for details.",
         });
       } else if (order.status === "dispatched") {
         notifications.push({
           priority: 1,
-          orderId: doc.id,
+          link: `order-details.html?id=${doc.id}`,
           title: `Order ${order.orderNumber} is on its way`,
           detail: "Your order has been dispatched for delivery.",
         });
       } else if (order.status === "delivered") {
         notifications.push({
           priority: 2,
-          orderId: doc.id,
+          link: `order-details.html?id=${doc.id}`,
           title: `Order ${order.orderNumber} has been delivered`,
           detail: "Let us know if anything's missing or damaged.",
+        });
+      }
+    });
+
+    const rxSnapshot = await db.collection("prescriptionOrders").where("customerId", "==", uid).get();
+    rxSnapshot.docs.forEach((doc) => {
+      const order = doc.data();
+      if (order.status === "ready_for_pickup") {
+        notifications.push({
+          priority: 0,
+          link: `rx-order-details.html?id=${doc.id}`,
+          title: `Prescription pre-order ${order.orderNumber} is ready for pick-up`,
+          detail: "Please bring the original physical prescription when you collect it.",
+        });
+      } else if (order.status === "rejected") {
+        notifications.push({
+          priority: 0,
+          link: `rx-order-details.html?id=${doc.id}`,
+          title: `Prescription pre-order ${order.orderNumber} was rejected`,
+          detail: order.rejectionReason || "Please check your order for details.",
         });
       }
     });
@@ -87,7 +107,7 @@ function renderCustomerNotifications(notifications) {
     .map(
       (n) => `
         <li>
-          <a class="dropdown-item" href="order-details.html?id=${n.orderId}" style="white-space:normal;">
+          <a class="dropdown-item" href="${n.link}" style="white-space:normal;">
             <div class="fw-medium">${n.title}</div>
             <div class="text-muted" style="font-size:0.78rem;">${n.detail}</div>
           </a>

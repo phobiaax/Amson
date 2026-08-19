@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Payment | Amson Pharmaceuticals</title>
+<title>Prescription Pre-Order | Amson Pharmaceuticals</title>
 
 <!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -88,54 +88,78 @@
   </nav>
 </header>
 
-<!-- ===== Payment ===== -->
+<!-- ===== Prescription Pre-Order ===== -->
 <main class="section-block bg-light-gray">
   <div class="container">
-    <h1 class="section-title mb-4">Payment</h1>
+    <h1 class="section-title mb-2">Prescription Pre-Order</h1>
+    <p class="text-muted mb-4">Pre-order prescription medicines for in-store pick-up. Delivery is not available for prescription orders.</p>
 
-    <div id="noPendingOrderNotice" class="cart-card text-center d-none">
-      <p class="text-muted mb-3">We couldn't find an order to pay for. Please check out again.</p>
-      <a href="cart.html" class="btn btn-amson">Back to Cart</a>
+    <div id="rxSignedOutNotice" class="cart-card text-center d-none">
+      <p class="text-muted mb-3">Please log in to submit a prescription pre-order.</p>
+      <a href="../login.html" class="btn btn-amson">Log In</a>
     </div>
 
-    <div class="row g-4" id="paymentContent">
+    <div id="rxEmptyNotice" class="cart-card text-center d-none">
+      <p class="text-muted mb-3">You haven't added any prescription medicines yet.</p>
+      <a href="products.html" class="btn btn-amson">Browse Products</a>
+    </div>
+
+    <div class="row g-4 d-none" id="rxPreorderContent">
       <div class="col-lg-7">
-        <div class="qr-box">
-          <div class="qr-code-image" style="width:100%; max-width:320px; height:360px;">
-            <img src="../assets/payment-qr.png" alt="Amson Pharmaceuticals QR Ph payment code" style="max-width:100%; max-height:100%;" onerror="this.classList.add('d-none'); document.getElementById('qrPlaceholder').classList.remove('d-none');">
-            <div id="qrPlaceholder" class="text-muted text-center p-3" style="font-size:0.8rem;">
-              <i class="bi bi-qr-code" style="font-size:3rem;"></i>
-              <p class="mb-0 mt-2">Add your official QR Ph payment image<br>(account name + QR code) to<br><code>assets/payment-qr.png</code></p>
+        <div class="cart-card mb-4">
+          <h2 class="h5 fw-bold mb-3">Your Items</h2>
+          <div id="rxItemsContainer"></div>
+        </div>
+
+        <div class="cart-card mb-4">
+          <h2 class="h5 fw-bold mb-2">Upload Prescription</h2>
+          <p class="text-muted mb-3" style="font-size:0.85rem;">Upload a clear photo of a valid doctor's prescription covering the medicine(s) above.</p>
+          <div class="upload-dropzone" id="rxUploadDropzone">
+            <div id="rxUploadEmptyState">
+              <i class="bi bi-upload"></i>
+              <span>Click to upload prescription photo</span>
+              <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
             </div>
+            <div id="rxUploadPreviewState" class="d-none">
+              <img id="rxUploadPreviewImage" src="" alt="Prescription preview" style="max-width:100%; max-height:180px; border-radius:8px;">
+              <p class="mb-0 mt-2" id="rxUploadPreviewFilename" style="font-size:0.85rem; color:var(--amson-dark);"></p>
+              <p class="text-muted mb-0" style="font-size:0.75rem;">Click to change</p>
+            </div>
+            <input type="file" id="rxPrescriptionInput" accept="image/png,image/jpeg" class="d-none">
           </div>
+        </div>
 
-          <div class="text-start mt-4">
-            <p class="fw-bold mb-2">Payment Instructions:</p>
-            <ol style="font-size:0.92rem;">
-              <li>Scan the QR code above to send the payment.</li>
-              <li>Take a screenshot of your completed payment confirmation.</li>
-              <li>Upload the screenshot below.</li>
-            </ol>
-
-            <p class="payment-warning mb-3">
-              <i class="bi bi-exclamation-triangle-fill"></i>
-              Please double-check the amount before sending. Payments are non-refundable.
-            </p>
-
-            <div class="upload-dropzone" id="uploadDropzone">
-              <div id="uploadEmptyState">
-                <i class="bi bi-upload"></i>
-                <span id="uploadDropzoneLabel">Click to upload proof of payment</span>
-                <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
+        <div class="cart-card">
+          <h2 class="h5 fw-bold mb-3">Pay via QR PH</h2>
+          <div class="qr-box">
+            <div class="qr-code-image" style="width:100%; max-width:320px; height:280px;">
+              <img src="../assets/payment-qr.png" alt="Amson Pharmaceuticals QR Ph payment code" style="max-width:100%; max-height:100%;" onerror="this.classList.add('d-none'); document.getElementById('rxQrPlaceholder').classList.remove('d-none');">
+              <div id="rxQrPlaceholder" class="text-muted text-center p-3 d-none" style="font-size:0.8rem;">
+                <i class="bi bi-qr-code" style="font-size:3rem;"></i>
+                <p class="mb-0 mt-2">Add your official QR Ph payment image<br>(account name + QR code) to<br><code>assets/payment-qr.png</code></p>
               </div>
-              <div id="uploadPreviewState" class="d-none">
-                <img id="uploadPreviewImage" src="" alt="Proof of payment preview" style="max-width:100%; max-height:180px; border-radius:8px;">
-                <p class="mb-0 mt-2" id="uploadPreviewFilename" style="font-size:0.85rem; color:var(--amson-dark);"></p>
-                <p class="text-muted mb-0" style="font-size:0.75rem;">Click to change</p>
-              </div>
-              <input type="file" id="proofOfPaymentInput" accept="image/png,image/jpeg" class="d-none">
             </div>
-            <p class="text-danger d-none mb-0 mt-2" id="uploadErrorText" style="font-size:0.82rem;"></p>
+
+            <div class="text-start mt-4">
+              <p class="payment-warning mb-3">
+                <i class="bi bi-exclamation-triangle-fill"></i>
+                Please pay the exact total shown before uploading your screenshot. Payments are non-refundable.
+              </p>
+
+              <div class="upload-dropzone" id="rxPaymentDropzone">
+                <div id="rxPaymentEmptyState">
+                  <i class="bi bi-upload"></i>
+                  <span>Click to upload proof of payment</span>
+                  <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
+                </div>
+                <div id="rxPaymentPreviewState" class="d-none">
+                  <img id="rxPaymentPreviewImage" src="" alt="Proof of payment preview" style="max-width:100%; max-height:180px; border-radius:8px;">
+                  <p class="mb-0 mt-2" id="rxPaymentPreviewFilename" style="font-size:0.85rem; color:var(--amson-dark);"></p>
+                  <p class="text-muted mb-0" style="font-size:0.75rem;">Click to change</p>
+                </div>
+                <input type="file" id="rxPaymentInput" accept="image/png,image/jpeg" class="d-none">
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -143,38 +167,35 @@
       <div class="col-lg-5">
         <div class="summary-card">
           <h2 class="mb-3">Order Summary</h2>
-          <div id="paymentItemsSummary"></div>
+
+          <div class="alert alert-warning" style="font-size:0.85rem;">
+            <i class="bi bi-shop me-1"></i>This order is for <strong>in-store pick-up only</strong>. Delivery is not available for prescription medicines.
+          </div>
 
           <div class="summary-total-row">
-            <span>Pay via QR PH</span>
-            <strong id="paymentTotalText" class="product-price mb-0">₱0</strong>
-          </div>
-          <div class="d-flex justify-content-between mt-2">
-            <span class="text-muted">Delivery Fee</span>
-            <span class="text-muted" id="deliveryFeeText">~₱85.00</span>
+            <span>Total</span>
+            <strong id="rxTotalText" class="product-price mb-0">₱0.00</strong>
           </div>
 
           <div class="summary-note">
-            <strong>Note:</strong> The delivery fee shown is an estimate based on your selected location. The final shipping cost will be determined by the assigned third-party courier and must be paid in cash directly to the rider upon delivery.
+            <strong>Note:</strong> Please bring the original physical prescription when you pick up your order at the branch, even if your online submission has already been approved.
           </div>
 
-          <button type="button" class="btn btn-amson w-100 py-2" id="submitOrderBtn" disabled>Submit Order</button>
-
-          <p class="text-muted text-center mt-3 mb-0" style="font-size:0.82rem;">
-            By submitting your order, you agree to our <a href="#" class="link-red">Terms and Conditions</a>. Your payment will be verified by our staff before processing.
-          </p>
+          <p class="text-danger d-none mb-2 mt-2" id="rxErrorText" style="font-size:0.82rem;"></p>
+          <button type="button" class="btn btn-amson w-100 py-2" id="submitRxOrderBtn" disabled>Submit Pre-Order</button>
         </div>
       </div>
     </div>
 
-    <div id="orderConfirmation" class="cart-card text-center d-none">
+    <div id="rxOrderConfirmation" class="cart-card text-center d-none">
       <div class="icon-circle" style="background-color: rgba(26,156,75,0.12); color:#1a9c4b;"><i class="bi bi-check-circle-fill"></i></div>
-      <h2 class="mb-2">Thank You for Your Order!</h2>
-      <p class="text-muted mb-1">We've received your order and proof of payment. Our team will verify it and contact you shortly to confirm delivery.</p>
-      <p class="fw-bold mb-4" id="confirmedOrderNumber"></p>
+      <h2 class="mb-2">Prescription Pre-Order Submitted!</h2>
+      <p class="text-muted mb-1">Our pharmacist will review your prescription and payment. We'll notify you once it's approved and ready for pick-up.</p>
+      <p class="fw-bold mb-1" id="confirmedRxOrderNumber"></p>
+      <p class="text-muted mb-4" style="font-size:0.85rem;">Please bring the original physical prescription when you pick up your order.</p>
       <div class="d-flex gap-2 justify-content-center flex-wrap">
         <a href="index.html" class="btn btn-outline-dark-amson">Back to Home</a>
-        <a href="orders.html" class="btn btn-amson d-none" id="viewOrdersLink">View My Orders</a>
+        <a href="orders.html" class="btn btn-amson">View My Orders</a>
       </div>
     </div>
   </div>
@@ -221,9 +242,10 @@
 <script src="../js/shop-header.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/cart.js"></script>
+<script src="../js/rx-cart.js"></script>
 <script src="../js/orders.js"></script>
 <script src="../js/cloudinary-config.js"></script>
 <script src="../js/cloudinary.js"></script>
-<script src="../js/payment.js"></script>
+<script src="../js/prescription-preorder.js"></script>
 </body>
 </html>

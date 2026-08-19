@@ -19,10 +19,12 @@ async function loadNotifications() {
     const batchSnapshot = await db.collection("stockBatches").get();
     const orderSnapshot = await db.collection("orders").get();
     const poSnapshot = await db.collection("purchaseOrders").get();
+    const rxSnapshot = await db.collection("prescriptionOrders").get();
 
     const batches = batchSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     const orders = orderSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     const purchaseOrders = poSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    const rxOrders = rxSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
     const notifications = [];
 
@@ -75,6 +77,17 @@ async function loadNotifications() {
           icon: "bi-exclamation-triangle",
           message: `Purchase Order ${po.poNumber} has a delivery discrepancy pending acknowledgement.`,
           link: "inventory.html",
+        });
+      });
+
+    rxOrders
+      .filter((o) => o.status === "pending_verification")
+      .forEach((o) => {
+        notifications.push({
+          severity: "info",
+          icon: "bi-file-medical",
+          message: `Prescription pre-order ${o.orderNumber} is awaiting verification.`,
+          link: "prescription-orders.html",
         });
       });
 

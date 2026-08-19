@@ -6,6 +6,14 @@ const ordersSignedOutNotice = document.getElementById("ordersSignedOutNotice");
 const ordersEmptyNotice = document.getElementById("ordersEmptyNotice");
 const ordersLoading = document.getElementById("ordersLoading");
 const ordersList = document.getElementById("ordersList");
+const rxOrdersSection = document.getElementById("rxOrdersSection");
+const rxOrdersList = document.getElementById("rxOrdersList");
+
+const RX_STATUS_BADGE_LABELS = {
+  pending_verification: "Pending Prescription Verification",
+  ready_for_pickup: "Ready for Pick-up",
+  rejected: "Rejected",
+};
 
 function statusIconFor(status) {
   return status === "received" ? "bi-check-circle-fill" : "bi-box-seam";
@@ -101,10 +109,77 @@ async function loadOrders(uid) {
   }
 }
 
+function renderRxOrderCard(id, order) {
+  const itemsHtml = order.items
+    .map(
+      (item) => `
+        <div class="cart-item-row">
+          <div class="cart-item-image"></div>
+          <div class="cart-item-details">
+            <h3 class="product-name mb-1">${item.name}</h3>
+            <p class="text-muted mb-0" style="font-size:0.85rem;">Qty: ${item.qty}</p>
+          </div>
+          <div class="product-price mb-0">${formatPeso(item.price * item.qty)}</div>
+        </div>
+      `
+    )
+    .join("");
+
+  return `
+    <div class="order-card">
+      <div class="order-card-header">
+        <div class="order-meta-group">
+          <div>
+            <p class="order-meta-label mb-0">Order Number</p>
+            <p class="order-meta-value mb-0">${order.orderNumber}</p>
+          </div>
+          <div>
+            <p class="order-meta-label mb-0">Date</p>
+            <p class="order-meta-value mb-0">${formatOrderDate(order.createdAt)}</p>
+          </div>
+          <div>
+            <p class="order-meta-label mb-0">Total</p>
+            <p class="order-meta-value product-price mb-0" style="font-size:1rem;">${formatPeso(order.total)}</p>
+          </div>
+        </div>
+        <span class="order-status-badge status-${order.status === "rejected" ? "cancelled" : order.status}">
+          <i class="bi bi-file-medical"></i>
+          ${RX_STATUS_BADGE_LABELS[order.status] || order.status}
+        </span>
+      </div>
+      <div class="order-card-body">
+        ${itemsHtml}
+      </div>
+      <div class="order-card-footer">
+        <a href="rx-order-details.html?id=${id}" class="btn btn-amson">View Details ></a>
+      </div>
+    </div>
+  `;
+}
+
+async function loadPrescriptionOrders(uid) {
+  try {
+    const snapshot = await db.collection("prescriptionOrders").where("customerId", "==", uid).get();
+    if (snapshot.empty) return;
+
+    const docs = snapshot.docs.slice().sort((a, b) => {
+      const aTime = a.data().createdAt ? a.data().createdAt.toMillis() : 0;
+      const bTime = b.data().createdAt ? b.data().createdAt.toMillis() : 0;
+      return bTime - aTime;
+    });
+
+    rxOrdersSection.classList.remove("d-none");
+    rxOrdersList.innerHTML = docs.map((doc) => renderRxOrderCard(doc.id, doc.data())).join("");
+  } catch (error) {
+    console.error("Failed to load prescription pre-orders:", error);
+  }
+}
+
 auth.onAuthStateChanged((user) => {
   if (!user) {
     ordersSignedOutNotice.classList.remove("d-none");
     return;
   }
   loadOrders(user.uid);
+  loadPrescriptionOrders(user.uid);
 });

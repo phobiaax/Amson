@@ -934,7 +934,8 @@ a {
 }
 
 .order-status-badge.status-received,
-.order-status-badge.status-delivered {
+.order-status-badge.status-delivered,
+.order-status-badge.status-ready_for_pickup {
   color: #1a9c4b;
 }
 
@@ -943,7 +944,8 @@ a {
 }
 
 .order-status-badge.status-placed,
-.order-status-badge.status-payment_confirmed {
+.order-status-badge.status-payment_confirmed,
+.order-status-badge.status-pending_verification {
   color: var(--amson-text-muted);
 }
 

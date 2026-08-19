@@ -184,9 +184,13 @@ function renderProductCard(product) {
         </a>
         <p class="product-desc">${product.description || ""}</p>
         <p class="product-price">${formatPeso(product.price)}</p>
-        <button type="button" class="btn btn-amson w-100 btn-add-cart" data-id="${product.id}" ${product.inStock ? "" : "disabled"}>
-          ${product.inStock ? "+ Add to Cart" : "Out of Stock"}
-        </button>
+        ${
+          product.rxRequired
+            ? `<a href="product-details.html?id=${product.id}" class="btn btn-outline-dark-amson w-100"><i class="bi bi-file-medical me-1"></i>Prescription Required</a>`
+            : `<button type="button" class="btn btn-amson w-100 btn-add-cart" data-id="${product.id}" ${product.inStock ? "" : "disabled"}>
+                 ${product.inStock ? "+ Add to Cart" : "Out of Stock"}
+               </button>`
+        }
       </div>
     </div>
   `;

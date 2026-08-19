@@ -15,6 +15,7 @@ const ADMIN_PAGE_ACCESS = {
   "dashboard.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "products.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "online-orders.html": ["admin", "branch_manager", "technical_staff"],
+  "prescription-orders.html": ["admin", "branch_manager", "technical_staff"],
   "inventory.html": ["admin", "branch_manager", "technical_staff"],
   "suppliers.html": ["admin", "branch_manager", "technical_staff"],
   "customer-accounts.html": ["admin", "branch_manager", "technical_staff"],
