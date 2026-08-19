@@ -947,6 +947,10 @@ a {
   color: var(--amson-text-muted);
 }
 
+.order-status-badge.status-cancelled {
+  color: var(--amson-red);
+}
+
 .order-card-body {
   padding: 1.25rem 1.5rem;
 }

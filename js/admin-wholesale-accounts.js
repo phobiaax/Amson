@@ -492,7 +492,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
 
   try {
     for (const item of items) {
-      await deductStockFEFO(item.productId, item.qty);
+      await deductStockFEFO(item.productId, item.qty, { includeWholesaleOnly: true });
     }
 
     let poDocumentUrl = null;

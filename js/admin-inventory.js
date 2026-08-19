@@ -112,6 +112,7 @@ function todayISO() {
 async function loadInventory() {
   try {
     await loadCatalogCache();
+    await enforceExpiryStatus();
     const batchSnapshot = await db.collection("stockBatches").get();
     const supplierSnapshot = await db.collection("suppliers").get();
     const writeOffSnapshot = await db.collection("writeOffs").get();
@@ -237,7 +238,10 @@ function renderBatchRow(batch) {
       <td>${product ? CATEGORY_LABELS[product.category] || "-" : "-"}</td>
       <td>${batch.quantity}</td>
       <td>${reorderPoint}</td>
-      <td><span class="batch-status-pill ${batch.computedStatus}">${BATCH_STATUS_LABELS[batch.computedStatus]}</span></td>
+      <td>
+        <span class="batch-status-pill ${batch.computedStatus}">${BATCH_STATUS_LABELS[batch.computedStatus]}</span>
+        ${batch.status === "wholesale_only" ? '<span class="badge rounded-pill text-bg-secondary ms-1">Wholesale Only</span>' : ""}
+      </td>
     </tr>
   `;
 }
@@ -751,7 +755,7 @@ confirmOpenSessionBtn.addEventListener("click", async () => {
 
   try {
     const rcnNumber = await generateRcnNumber();
-    const activeBatches = allBatches.filter((b) => b.status === "active");
+    const activeBatches = allBatches.filter((b) => b.status === "active" || b.status === "wholesale_only");
     const items = activeBatches.map((b) => ({
       batchId: b.id,
       productId: b.productId,

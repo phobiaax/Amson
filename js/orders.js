@@ -18,11 +18,45 @@ const ORDER_STATUS_BADGE_LABELS = {
   dispatched: "Dispatched",
   delivered: "Delivered",
   received: "Received",
+  cancelled: "Cancelled",
 };
+
+const DISPATCH_AUTO_DELIVER_MS = 3 * 24 * 60 * 60 * 1000;
 
 function orderStatusIndex(status) {
   const idx = ORDER_STATUS_STEPS.indexOf(status);
   return idx === -1 ? 0 : idx;
+}
+
+// ---- Deadline enforcement (lazy, checked on page load) ----
+async function enforceOrderDeadline(orderId, order) {
+  const now = Date.now();
+
+  if (order.paymentIssue && order.paymentIssue.holdUntil && order.paymentIssue.holdUntil.toMillis() < now) {
+    await db.collection("orders").doc(orderId).update({
+      status: "cancelled",
+      "statusTimestamps.cancelled": firebase.firestore.FieldValue.serverTimestamp(),
+      paymentIssue: firebase.firestore.FieldValue.delete(),
+      cancelReason: "Payment issue hold expired without resolution.",
+    });
+    order.status = "cancelled";
+    order.cancelReason = "Payment issue hold expired without resolution.";
+    delete order.paymentIssue;
+    return order;
+  }
+
+  if (order.status === "dispatched" && order.statusTimestamps && order.statusTimestamps.dispatched) {
+    const dispatchedAt = order.statusTimestamps.dispatched.toMillis();
+    if (now - dispatchedAt > DISPATCH_AUTO_DELIVER_MS) {
+      await db.collection("orders").doc(orderId).update({
+        status: "delivered",
+        "statusTimestamps.delivered": firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      order.status = "delivered";
+    }
+  }
+
+  return order;
 }
 
 function formatOrderDate(timestamp) {

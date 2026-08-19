@@ -57,7 +57,17 @@ const newCategoryNameInput = document.getElementById("newCategoryNameInput");
 const addCategoryBtn = document.getElementById("addCategoryBtn");
 const categoriesAlert = document.getElementById("categoriesAlert");
 
+const priceRestrictedNote = document.getElementById("priceRestrictedNote");
+
+let currentAdminRole = "admin";
+document.addEventListener("admin:ready", (e) => {
+  currentAdminRole = (e.detail && e.detail.admin && e.detail.admin.role) || "admin";
+});
 document.addEventListener("admin:ready", loadProducts);
+
+function canEditPrices() {
+  return currentAdminRole === "admin" || currentAdminRole === "branch_manager";
+}
 
 /* ---------- Load ---------- */
 async function ensureDefaultCategories() {
@@ -280,6 +290,12 @@ function resetProductForm() {
   productImagePreviewState.classList.add("d-none");
   productModalAlert.classList.add("d-none");
   batchUploadStatus.textContent = "";
+
+  const priceLocked = !!editingProductId && !canEditPrices();
+  productCostingInput.disabled = priceLocked;
+  productRetailPriceInput.disabled = priceLocked;
+  productWholesalePriceInput.disabled = priceLocked;
+  priceRestrictedNote.classList.toggle("d-none", !priceLocked);
 }
 
 addProductBtn.addEventListener("click", () => {
@@ -374,8 +390,6 @@ saveProductBtn.addEventListener("click", async () => {
     };
 
     if (editingProductId) {
-      await db.collection("products").doc(editingProductId).update(productData);
-
       const priceFields = [
         ["costingPrice", "Costing price"],
         ["retailPrice", "Retail price"],
@@ -384,6 +398,14 @@ saveProductBtn.addEventListener("click", async () => {
       const priceChanges = priceFields
         .filter(([field]) => editingProductOriginal && editingProductOriginal[field] !== productData[field])
         .map(([field, label]) => `${label}: ${formatPeso(editingProductOriginal[field])} → ${formatPeso(productData[field])}`);
+
+      if (priceChanges.length > 0 && !confirm(`Confirm price change for ${productData.name}?\n\n${priceChanges.join("\n")}`)) {
+        saveProductBtn.disabled = false;
+        return;
+      }
+
+      await db.collection("products").doc(editingProductId).update(productData);
+
       if (priceChanges.length > 0) {
         await logAuditEvent({
           action: "Price Change",

@@ -34,6 +34,12 @@ function renderTimeline(order) {
 }
 
 function updateMarkReceivedButton(status) {
+  if (status === "cancelled") {
+    markReceivedBtn.disabled = true;
+    markReceivedBtn.textContent = "Order Cancelled";
+    return;
+  }
+
   const idx = orderStatusIndex(status);
   const deliveredIdx = orderStatusIndex("delivered");
   const receivedIdx = orderStatusIndex("received");
@@ -58,7 +64,17 @@ function renderOrder(order) {
   statusEl.className = `order-status-badge status-${order.status}`;
   statusEl.textContent = ORDER_STATUS_BADGE_LABELS[order.status] || order.status;
 
-  renderTimeline(order);
+  const cancelledNotice = document.getElementById("orderCancelledNotice");
+  const timelineEl = document.getElementById("orderTimeline");
+  if (order.status === "cancelled") {
+    timelineEl.classList.add("d-none");
+    cancelledNotice.textContent = order.cancelReason || "This order was cancelled.";
+    cancelledNotice.classList.remove("d-none");
+  } else {
+    timelineEl.classList.remove("d-none");
+    cancelledNotice.classList.add("d-none");
+    renderTimeline(order);
+  }
 
   document.getElementById("detailAddress").textContent =
     `${order.shipping.streetAddress}, ${order.shipping.city}, ${order.shipping.province} ${order.shipping.zipCode}`;
@@ -102,7 +118,7 @@ async function loadOrder(uid) {
     }
 
     currentOrderRef = docRef;
-    currentOrder = doc.data();
+    currentOrder = await enforceOrderDeadline(orderId, doc.data());
     renderOrder(currentOrder);
     orderDetailContent.classList.remove("d-none");
   } catch (error) {

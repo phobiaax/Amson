@@ -54,6 +54,36 @@ function mapAuthError(error) {
   }
 }
 
+const LOGIN_LOCKOUT_THRESHOLD = 5;
+const LOGIN_LOCKOUT_MS = 2 * 60 * 1000;
+
+function loginAttemptsDocId(email) {
+  return email.trim().toLowerCase();
+}
+
+async function checkLoginLockout(email) {
+  const doc = await db.collection("loginAttempts").doc(loginAttemptsDocId(email)).get();
+  if (!doc.exists) return null;
+  const lockedUntil = doc.data().lockedUntil;
+  return lockedUntil && lockedUntil > Date.now() ? lockedUntil : null;
+}
+
+async function recordFailedLogin(email) {
+  const docRef = db.collection("loginAttempts").doc(loginAttemptsDocId(email));
+  const doc = await docRef.get();
+  const count = (doc.exists ? doc.data().count : 0) + 1;
+  const update = { count };
+  if (count >= LOGIN_LOCKOUT_THRESHOLD) {
+    update.lockedUntil = Date.now() + LOGIN_LOCKOUT_MS;
+  }
+  await docRef.set(update, { merge: true });
+  return update.lockedUntil || null;
+}
+
+async function clearLoginAttempts(email) {
+  await db.collection("loginAttempts").doc(loginAttemptsDocId(email)).delete();
+}
+
 function redirectByRole(userData) {
   if (STAFF_ROLES.includes(userData.role)) {
     window.location.href = "admin/dashboard.html";
@@ -79,6 +109,13 @@ async function performLogin(email, password) {
 
   setLoading(true);
   try {
+    const lockedUntil = await checkLoginLockout(email);
+    if (lockedUntil) {
+      const secondsLeft = Math.ceil((lockedUntil - Date.now()) / 1000);
+      showAlert(`Too many failed attempts. Please try again in ${secondsLeft} seconds.`);
+      return;
+    }
+
     await auth.setPersistence(
       rememberMeInput.checked
         ? firebase.auth.Auth.Persistence.LOCAL
@@ -101,9 +138,19 @@ async function performLogin(email, password) {
       return;
     }
 
+    await clearLoginAttempts(email);
     redirectByRole(userData);
   } catch (error) {
-    showAlert(mapAuthError(error));
+    if (["auth/wrong-password", "auth/user-not-found", "auth/invalid-credential"].includes(error.code)) {
+      const newLockedUntil = await recordFailedLogin(email);
+      if (newLockedUntil) {
+        showAlert("Too many failed attempts. Your account is locked for 2 minutes.");
+      } else {
+        showAlert(mapAuthError(error));
+      }
+    } else {
+      showAlert(mapAuthError(error));
+    }
     if (typeof grecaptcha !== "undefined") grecaptcha.reset();
   } finally {
     setLoading(false);

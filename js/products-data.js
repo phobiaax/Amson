@@ -8,6 +8,7 @@ let catalogLoadPromise = null;
 
 const DEFAULT_REORDER_POINT = 20;
 const NEAR_EXPIRY_MONTHS = 6;
+const BAD_ORDER_MONTHS = 2;
 
 const BATCH_STATUS_LABELS = {
   normal: "Normal",
@@ -29,6 +30,37 @@ function getBatchStatus(batch) {
   if (batch.quantity <= reorderPoint) return "low_stock";
 
   return "normal";
+}
+
+// ---- Near-expiry auto-handling (lazy, checked on Inventory page load) ----
+async function enforceExpiryStatus() {
+  const snapshot = await db.collection("stockBatches").where("status", "==", "active").get();
+  const batches = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+  const badOrderThreshold = new Date();
+  badOrderThreshold.setMonth(badOrderThreshold.getMonth() + BAD_ORDER_MONTHS);
+
+  const wholesaleOnlyThreshold = new Date();
+  wholesaleOnlyThreshold.setMonth(wholesaleOnlyThreshold.getMonth() + NEAR_EXPIRY_MONTHS);
+
+  for (const batch of batches) {
+    if (batch.quantity <= 0) continue;
+    const expiry = new Date(batch.expirationDate);
+
+    if (expiry <= badOrderThreshold) {
+      await db.collection("stockBatches").doc(batch.id).update({ status: "bad_order", quantity: 0 });
+      await db.collection("writeOffs").add({
+        batchId: batch.id,
+        productId: batch.productId,
+        batchNo: batch.batchNo,
+        quantity: batch.quantity,
+        reason: "Bad Order - within 2 months of expiry (auto-flagged)",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    } else if (expiry <= wholesaleOnlyThreshold) {
+      await db.collection("stockBatches").doc(batch.id).update({ status: "wholesale_only" });
+    }
+  }
 }
 
 const DEFAULT_CATEGORIES = {
@@ -86,11 +118,12 @@ function exportBlankPdf(filenamePrefix) {
 }
 
 // ---- FEFO stock deduction ----
-async function deductStockFEFO(productId, qty) {
+async function deductStockFEFO(productId, qty, { includeWholesaleOnly = false } = {}) {
+  const allowedStatuses = includeWholesaleOnly ? ["active", "wholesale_only"] : ["active"];
   const snapshot = await db
     .collection("stockBatches")
     .where("productId", "==", productId)
-    .where("status", "==", "active")
+    .where("status", "in", allowedStatuses)
     .get();
 
   const batches = snapshot.docs

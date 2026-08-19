@@ -79,12 +79,13 @@ async function loadOrders(uid) {
     });
 
     const ordersById = {};
-    ordersList.innerHTML = docs
-      .map((doc) => {
-        ordersById[doc.id] = doc.data();
-        return renderOrderCard(doc.id, doc.data());
-      })
-      .join("");
+    let cardsHtml = "";
+    for (const doc of docs) {
+      const order = await enforceOrderDeadline(doc.id, doc.data());
+      ordersById[doc.id] = order;
+      cardsHtml += renderOrderCard(doc.id, order);
+    }
+    ordersList.innerHTML = cardsHtml;
 
     document.querySelectorAll(".download-receipt-btn").forEach((btn) => {
       btn.addEventListener("click", () => {

@@ -96,6 +96,11 @@ async function loadOrders() {
   try {
     const snapshot = await db.collection("orders").get();
     allOrders = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    for (const order of allOrders) {
+      await enforceOrderDeadline(order.id, order);
+    }
+
     renderVerificationQueue();
     renderOrdersTable();
   } catch (error) {
@@ -496,10 +501,16 @@ function renderOrderRow(order) {
   for (const item of order.items || []) {
     itemCount += item.qty;
   }
-  const statusOptions = ORDER_STATUS_STEPS.map(
-    (step) =>
-      `<option value="${step}" ${step === order.status ? "selected" : ""}>${ORDER_STATUS_BADGE_LABELS[step]}</option>`
-  ).join("");
+
+  const statusCell =
+    order.status === "cancelled"
+      ? `<span class="badge rounded-pill text-bg-danger">Cancelled</span>`
+      : `<select class="form-select form-select-sm order-status-select status-${order.status}" data-id="${order.id}" aria-label="Order status">
+          ${ORDER_STATUS_STEPS.map(
+            (step) =>
+              `<option value="${step}" ${step === order.status ? "selected" : ""}>${ORDER_STATUS_BADGE_LABELS[step]}</option>`
+          ).join("")}
+        </select>`;
 
   return `
     <tr>
@@ -509,9 +520,7 @@ function renderOrderRow(order) {
       <td>${itemCount}</td>
       <td class="product-price">${formatPeso(order.total)}</td>
       <td>
-        <select class="form-select form-select-sm order-status-select status-${order.status}" data-id="${order.id}" aria-label="Order status">
-          ${statusOptions}
-        </select>
+        ${statusCell}
         ${
           order.paymentIssue
             ? `<span class="hold-note"><i class="bi bi-pause-fill"></i> On Hold</span>
