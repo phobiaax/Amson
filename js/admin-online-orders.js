@@ -62,7 +62,7 @@ const referenceNumberInput = document.getElementById("referenceNumberInput");
 const paymentIssueSelect = document.getElementById("paymentIssueSelect");
 const approvePaymentBtn = document.getElementById("approvePaymentBtn");
 
-const filterButtons = Array.from(document.querySelectorAll(".order-filter-btn"));
+const filterButtons = Array.from(document.querySelectorAll("#ordersPanel .order-filter-btn"));
 const filterAllCount = document.getElementById("filterAllCount");
 const ordersExportBtn = document.getElementById("ordersExportBtn");
 const ordersSearchInput = document.getElementById("ordersSearchInput");
@@ -151,7 +151,7 @@ function renderVerificationQueue() {
       )
       .join("");
 
-    document.querySelectorAll(".verification-queue-item").forEach((btn) => {
+    document.querySelectorAll("#verificationQueueList .verification-queue-item").forEach((btn) => {
       btn.addEventListener("click", () => selectVerificationItem(btn.dataset.id));
     });
   }

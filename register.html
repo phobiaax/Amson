@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
 <!-- Custom styles -->
+<link rel="icon" type="image/png" href="assets/logo.png">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -41,7 +42,7 @@
 
       <!-- Cart & Auth actions -->
       <div class="d-flex align-items-center gap-3 order-2 order-md-3 ms-auto">
-        <a href="#" class="cart-icon position-relative"><i class="bi bi-cart3"></i></a>
+        <a href="shop/cart.html" class="cart-icon position-relative"><i class="bi bi-cart3"></i></a>
         <a href="login.html" class="btn btn-outline-dark-amson btn-sm px-3">Login</a>
         <a href="register.html" class="btn btn-amson btn-sm px-3">Register</a>
       </div>
@@ -52,11 +53,11 @@
   <nav class="category-nav">
     <div class="container">
       <ul class="nav flex-nowrap flex-md-wrap justify-content-md-center">
-        <li class="nav-item"><a class="nav-link" href="#">All Products</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">OTC Medicines</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Vitamins &amp; Supplements</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Personal Care</a></li>
-        <li class="nav-item"><a class="nav-link" href="#">Health &amp; Wellness</a></li>
+        <li class="nav-item"><a class="nav-link" href="shop/products.html">All Products</a></li>
+        <li class="nav-item"><a class="nav-link" href="shop/products.html?category=otc">OTC Medicines</a></li>
+        <li class="nav-item"><a class="nav-link" href="shop/products.html?category=vitamins">Vitamins &amp; Supplements</a></li>
+        <li class="nav-item"><a class="nav-link" href="shop/products.html?category=personal-care">Personal Care</a></li>
+        <li class="nav-item"><a class="nav-link" href="shop/products.html?category=health-wellness">Health &amp; Wellness</a></li>
       </ul>
     </div>
   </nav>
@@ -104,12 +105,12 @@
           <label for="password" class="form-label">Password</label>
           <div class="input-icon-group">
             <i class="bi bi-lock field-icon"></i>
-            <input type="password" class="form-control" id="password" placeholder="••••••••" required minlength="6">
+            <input type="password" class="form-control" id="password" placeholder="••••••••" required minlength="6" pattern="^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$">
             <button type="button" class="toggle-password" data-target="password" aria-label="Show password">
               <i class="bi bi-eye"></i>
             </button>
           </div>
-          <p class="form-text text-danger mb-0 d-none" id="passwordHint">Must be at least 6 characters.</p>
+          <p class="form-text text-danger mb-0 d-none" id="passwordHint">Must be at least 6 characters, with letters, numbers, and a special character.</p>
         </div>
 
         <div class="mb-3">

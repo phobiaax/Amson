@@ -30,6 +30,8 @@ document.querySelectorAll(".toggle-password").forEach((btn) => {
   });
 });
 
+const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+
 // ---- Live password length / match feedback ----
 function updatePasswordMatchHint() {
   if (!confirmPasswordInput.value) {
@@ -49,8 +51,8 @@ function updatePasswordMatchHint() {
 }
 
 passwordInput.addEventListener("input", () => {
-  const tooShort = passwordInput.value.length > 0 && passwordInput.value.length < 6;
-  passwordHint.classList.toggle("d-none", !tooShort);
+  const invalid = passwordInput.value.length > 0 && !PASSWORD_PATTERN.test(passwordInput.value);
+  passwordHint.classList.toggle("d-none", !invalid);
   updatePasswordMatchHint();
 });
 
@@ -79,7 +81,7 @@ function mapAuthError(error) {
     case "auth/invalid-email":
       return "Please enter a valid email address.";
     case "auth/weak-password":
-      return "Password should be at least 6 characters.";
+      return "Password must be at least 6 characters, with letters, numbers, and a special character.";
     default:
       return error.message || "Something went wrong. Please try again.";
   }
@@ -92,6 +94,11 @@ registerForm.addEventListener("submit", async (e) => {
 
   if (!registerForm.checkValidity()) {
     registerForm.classList.add("was-validated");
+    return;
+  }
+
+  if (!PASSWORD_PATTERN.test(passwordInput.value)) {
+    showAlert("Password must be at least 6 characters, with letters, numbers, and a special character.");
     return;
   }
 

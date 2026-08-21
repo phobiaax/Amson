@@ -35,9 +35,11 @@ service cloud.firestore {
         request.resource.data.role in ["admin", "branch_manager", "technical_staff", "sales_staff"];
 
       // Updating your own doc, as long as role/accountStatus don't change.
+      // .get(key, default) avoids erroring when a field isn't set at all -
+      // a brand-new customer doc has no accountStatus field yet.
       allow update: if isSignedIn() && myUid() == uid &&
-        request.resource.data.role == resource.data.role &&
-        request.resource.data.accountStatus == resource.data.accountStatus;
+        request.resource.data.get("role", null) == resource.data.get("role", null) &&
+        request.resource.data.get("accountStatus", null) == resource.data.get("accountStatus", null);
 
       // Staff updating any user's doc (Staff Management, Customer Accounts, etc).
       allow update: if isStaff();
