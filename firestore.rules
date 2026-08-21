@@ -1,0 +1,176 @@
+rules_version = '2';
+
+// Firestore Security Rules for Amson Pharmaceuticals.
+//
+// How to deploy this file:
+//   1. Firebase Console -> Firestore Database -> Rules tab -> paste this
+//      file's contents in and click Publish. (Easiest, no install needed.)
+//   2. Or, with the Firebase CLI installed and this file at the repo root:
+//        firebase deploy --only firestore:rules
+//
+// This replaces whatever is live right now (very likely the default
+// "test mode" rule that allows anyone, no login required, to read and
+// write every document).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function myUid() {
+      return request.auth.uid;
+    }
+
+    // The caller's own role, looked up from their own users/{uid} doc.
+    // Every staff check reads this, so a customer can never grant
+    // themselves staff access just by writing a "role" field somewhere
+    // else - the source of truth is always the doc keyed by their own uid.
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(myUid())).data.role;
+    }
+
+    function isStaff() {
+      return isSignedIn() &&
+        myRole() in ["admin", "branch_manager", "technical_staff", "sales_staff"];
+    }
+
+    // Branch Manager (or the legacy "admin" role) only - matches
+    // Staff Management and Price Management access in the app itself.
+    function isManager() {
+      return isSignedIn() && myRole() in ["admin", "branch_manager"];
+    }
+
+    // ---------------------------------------------------------------
+    // users/{uid} - one profile per account, customer or staff.
+    // ---------------------------------------------------------------
+    match /users/{uid} {
+      allow read: if isSignedIn() && (myUid() == uid || isStaff());
+
+      // A signed-in visitor may create their OWN doc as a customer at
+      // registration - never as staff, and never someone else's uid.
+      allow create: if isSignedIn() && myUid() == uid &&
+        request.resource.data.role == "customer";
+
+      // Owners may update their own doc, but can never touch role or
+      // accountStatus themselves - that's the whole privilege-escalation
+      // guard. Staff may update any user's doc (Staff Management,
+      // Customer Accounts deactivate/reactivate, admin's own settings).
+      allow update: if isStaff() || (
+        isSignedIn() && myUid() == uid &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.accountStatus == resource.data.accountStatus
+      );
+
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------
+    // Catalog - public read (storefront needs it without login),
+    // staff-only write. Note: retail and wholesale prices both live on
+    // the same product doc, so this does not by itself hide wholesale
+    // pricing from a customer who inspects the raw document - only the
+    // UI avoids showing it today.
+    // ---------------------------------------------------------------
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isStaff();
+    }
+
+    // ---------------------------------------------------------------
+    // Retail orders - the customer who placed it can create and read
+    // their own; staff can read/write all of them (verification,
+    // holds, dispatch, the lazy hold/delivery-deadline checks).
+    // ---------------------------------------------------------------
+    match /orders/{orderId} {
+      allow read: if isStaff() ||
+        (isSignedIn() && resource.data.customerId == myUid());
+
+      allow create: if isSignedIn() &&
+        request.resource.data.customerId == myUid();
+
+      // Customers may only update their own order (covers "Order
+      // Received" confirmation and the auto-cancel/auto-deliver checks
+      // that run from the customer's own order pages); staff may
+      // update any order.
+      allow update: if isStaff() ||
+        (isSignedIn() && resource.data.customerId == myUid());
+
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------
+    // Prescription pre-orders - same ownership pattern as orders.
+    // ---------------------------------------------------------------
+    match /prescriptionOrders/{orderId} {
+      allow read: if isStaff() ||
+        (isSignedIn() && resource.data.customerId == myUid());
+
+      allow create: if isSignedIn() &&
+        request.resource.data.customerId == myUid();
+
+      allow update: if isStaff();
+      allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------
+    // Staff-only operational data - never readable by a customer.
+    // ---------------------------------------------------------------
+    match /stockBatches/{batchId}      { allow read, write: if isStaff(); }
+    match /suppliers/{supplierId}      { allow read, write: if isStaff(); }
+    match /purchaseOrders/{poId}       { allow read, write: if isStaff(); }
+    match /reconciliations/{reconId}   { allow read, write: if isStaff(); }
+    match /writeOffs/{writeOffId}      { allow read, write: if isStaff(); }
+    match /wholesaleAccounts/{acctId}  { allow read, write: if isStaff(); }
+    match /wholesaleOrders/{orderId}   { allow read, write: if isStaff(); }
+
+    // ---------------------------------------------------------------
+    // Audit Log - append-only. Any staff member may add an entry;
+    // nobody may ever edit or delete one, matching REQ124.
+    // ---------------------------------------------------------------
+    match /auditLog/{entryId} {
+      allow read: if isStaff();
+      allow create: if isStaff();
+      allow update, delete: if false;
+    }
+
+    // ---------------------------------------------------------------
+    // Staff-only administrative screens.
+    // ---------------------------------------------------------------
+    match /notifications/{notifId} { allow read, write: if isStaff(); }
+
+    // ---------------------------------------------------------------
+    // Shared numeric counters (order numbers, SKUs, PO numbers, etc).
+    // No sensitive content - just an integer - so any signed-in user
+    // may read/write one. Placing an order or a prescription pre-order
+    // requires incrementing one of these from the customer's own
+    // browser, and there's no backend here to do it for them.
+    // ---------------------------------------------------------------
+    match /counters/{counterId} {
+      allow read, write: if isSignedIn();
+    }
+
+    // ---------------------------------------------------------------
+    // Failed-login tracking for account lockout. This has to be
+    // reachable BEFORE sign-in succeeds (that's the whole point), so
+    // it can't require isSignedIn(). The trade-off: unauthenticated
+    // clients can read/write lockout state for an email they already
+    // know. No other collection is exposed this way.
+    // ---------------------------------------------------------------
+    match /loginAttempts/{email} {
+      allow read, create, update: if true;
+      allow delete: if false;
+    }
+
+    // Deny everything else by default.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
