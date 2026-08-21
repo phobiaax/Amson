@@ -19,6 +19,9 @@ const uploadPreviewFilename = document.getElementById("uploadPreviewFilename");
 const uploadErrorText = document.getElementById("uploadErrorText");
 const proofOfPaymentInput = document.getElementById("proofOfPaymentInput");
 const submitOrderBtn = document.getElementById("submitOrderBtn");
+const deliveryFeeRow = document.getElementById("deliveryFeeRow");
+const deliveryFeeNoteSummary = document.getElementById("deliveryFeeNoteSummary");
+const pickupNoteSummary = document.getElementById("pickupNoteSummary");
 
 const prescriptionUploadBox = document.getElementById("prescriptionUploadBox");
 const rxUploadDropzone = document.getElementById("rxUploadDropzone");
@@ -57,6 +60,9 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     return product && product.rxRequired;
   });
   prescriptionUploadBox.classList.toggle("d-none", !requiresPrescription);
+  deliveryFeeRow.classList.toggle("d-none", requiresPrescription);
+  deliveryFeeNoteSummary.classList.toggle("d-none", requiresPrescription);
+  pickupNoteSummary.classList.toggle("d-none", !requiresPrescription);
 
   paymentItemsSummary.innerHTML = pendingOrder.cart
     .map((item) => {
@@ -168,7 +174,7 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
         deliverySchedule: pendingOrder.deliverySchedule,
         items,
         total,
-        deliveryFeeEstimate: ESTIMATED_DELIVERY_FEE,
+        deliveryFeeEstimate: requiresPrescription ? 0 : ESTIMATED_DELIVERY_FEE,
         proofOfPaymentUrl,
         requiresPrescription,
         prescriptionPhotoUrl,

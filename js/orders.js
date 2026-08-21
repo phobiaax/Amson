@@ -4,12 +4,24 @@
 
 const ORDER_STATUS_STEPS = ["placed", "payment_confirmed", "dispatched", "delivered", "received"];
 
+// Prescription orders are pick-up only - there's no courier "dispatched"
+// leg, so approving payment goes straight to "delivered" (reused here as
+// the "ready for pick-up" state) and skips "dispatched" entirely.
+const PICKUP_ORDER_STATUS_STEPS = ["placed", "payment_confirmed", "delivered", "received"];
+
 const ORDER_STATUS_STEP_LABELS = {
   placed: "Order Placed",
   payment_confirmed: "Payment Confirmed",
   dispatched: "Order Dispatched",
   delivered: "Order Delivered",
   received: "Order Received",
+};
+
+const PICKUP_ORDER_STATUS_STEP_LABELS = {
+  placed: "Order Placed",
+  payment_confirmed: "Payment Confirmed",
+  delivered: "Ready for Pick-up",
+  received: "Picked Up",
 };
 
 const ORDER_STATUS_BADGE_LABELS = {
@@ -21,10 +33,31 @@ const ORDER_STATUS_BADGE_LABELS = {
   cancelled: "Cancelled",
 };
 
+const PICKUP_ORDER_STATUS_BADGE_LABELS = {
+  placed: "Order Placed",
+  payment_confirmed: "Payment Confirmed",
+  delivered: "Ready for Pick-up",
+  received: "Picked Up",
+  cancelled: "Cancelled",
+};
+
 const DISPATCH_AUTO_DELIVER_MS = 3 * 24 * 60 * 60 * 1000;
 
-function orderStatusIndex(status) {
-  const idx = ORDER_STATUS_STEPS.indexOf(status);
+function orderStatusSteps(order) {
+  return order.requiresPrescription ? PICKUP_ORDER_STATUS_STEPS : ORDER_STATUS_STEPS;
+}
+
+function orderStepLabels(order) {
+  return order.requiresPrescription ? PICKUP_ORDER_STATUS_STEP_LABELS : ORDER_STATUS_STEP_LABELS;
+}
+
+function orderBadgeLabel(order) {
+  const labels = order.requiresPrescription ? PICKUP_ORDER_STATUS_BADGE_LABELS : ORDER_STATUS_BADGE_LABELS;
+  return labels[order.status] || order.status;
+}
+
+function orderStatusIndex(status, steps = ORDER_STATUS_STEPS) {
+  const idx = steps.indexOf(status);
   return idx === -1 ? 0 : idx;
 }
 
@@ -113,7 +146,7 @@ function downloadOrderReceipt(order) {
   y += 6;
   doc.text(`Date: ${formatOrderDate(order.createdAt)}`, 14, y);
   y += 6;
-  doc.text(`Status: ${ORDER_STATUS_BADGE_LABELS[order.status] || order.status}`, 14, y);
+  doc.text(`Status: ${orderBadgeLabel(order)}`, 14, y);
 
   y += 10;
   doc.setFont(undefined, "bold");
@@ -128,10 +161,16 @@ function downloadOrderReceipt(order) {
 
   y += 10;
   doc.setFont(undefined, "bold");
-  doc.text("Shipping Address", 14, y);
+  doc.text(order.shipping ? "Shipping Address" : "Fulfillment", 14, y);
   doc.setFont(undefined, "normal");
   y += 6;
-  doc.text(`${order.shipping.streetAddress}, ${order.shipping.city}, ${order.shipping.province} ${order.shipping.zipCode}`, 14, y);
+  doc.text(
+    order.shipping
+      ? `${order.shipping.streetAddress}, ${order.shipping.city}, ${order.shipping.province} ${order.shipping.zipCode}`
+      : "Pick-up at Amson Pharmaceuticals store",
+    14,
+    y
+  );
 
   y += 12;
   doc.setFont(undefined, "bold");

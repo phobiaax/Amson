@@ -75,6 +75,7 @@ const holdModalEl = document.getElementById("holdModal");
 const approvedModalEl = document.getElementById("approvedModal");
 const trackingLinkInput = document.getElementById("trackingLinkInput");
 const markDispatchedBtn = document.getElementById("markDispatchedBtn");
+const pickupReadyModalEl = document.getElementById("pickupReadyModal");
 
 const paymentIssueModalEl = document.getElementById("paymentIssueModal");
 const issueModalTitle = document.getElementById("issueModalTitle");
@@ -220,19 +221,34 @@ approvePaymentBtn.addEventListener("click", async () => {
       await deductStockFEFO(item.id, item.qty);
     }
 
-    await db.collection("orders").doc(orderId).update({
-      status: "payment_confirmed",
-      "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
-      paymentReferenceNumber: referenceNumber,
-    });
+    if (order.requiresPrescription) {
+      // Pick-up orders have no courier leg - go straight to "ready for pick-up".
+      await db.collection("orders").doc(orderId).update({
+        status: "delivered",
+        "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
+        "statusTimestamps.delivered": firebase.firestore.FieldValue.serverTimestamp(),
+        paymentReferenceNumber: referenceNumber,
+      });
+      order.status = "delivered";
+    } else {
+      await db.collection("orders").doc(orderId).update({
+        status: "payment_confirmed",
+        "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
+        paymentReferenceNumber: referenceNumber,
+      });
+      order.status = "payment_confirmed";
+    }
 
-    order.status = "payment_confirmed";
     order.paymentReferenceNumber = referenceNumber;
     selectedVerificationId = null;
 
     renderVerificationQueue();
     renderOrdersTable();
-    openApprovedModal(order);
+    if (order.requiresPrescription) {
+      bootstrap.Modal.getOrCreateInstance(pickupReadyModalEl).show();
+    } else {
+      openApprovedModal(order);
+    }
   } catch (error) {
     reviewAlert.textContent = error.message || "Something went wrong approving this payment. Please try again.";
     reviewAlert.classList.remove("d-none");
@@ -352,7 +368,7 @@ issueConfirmBtn.addEventListener("click", async () => {
       }
 
       const update = {
-        status: "payment_confirmed",
+        status: order.requiresPrescription ? "delivered" : "payment_confirmed",
         "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
         paymentOverage: {
           amountReceived: received,
@@ -360,11 +376,12 @@ issueConfirmBtn.addEventListener("click", async () => {
           note,
         },
       };
+      if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
       if (referenceNumber) update.paymentReferenceNumber = referenceNumber;
 
       await db.collection("orders").doc(orderId).update(update);
 
-      order.status = "payment_confirmed";
+      order.status = update.status;
       order.paymentOverage = update.paymentOverage;
       if (referenceNumber) order.paymentReferenceNumber = referenceNumber;
       selectedVerificationId = null;
@@ -372,7 +389,11 @@ issueConfirmBtn.addEventListener("click", async () => {
       renderVerificationQueue();
       renderOrdersTable();
       bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
-      openApprovedModal(order);
+      if (order.requiresPrescription) {
+        bootstrap.Modal.getOrCreateInstance(pickupReadyModalEl).show();
+      } else {
+        openApprovedModal(order);
+      }
     }
   } catch (error) {
     alert(error.message || "Something went wrong. Please try again.");
@@ -511,13 +532,15 @@ function renderOrderRow(order) {
     itemCount += item.qty;
   }
 
+  const steps = orderStatusSteps(order);
+  const labels = orderStepLabels(order);
   const statusCell =
     order.status === "cancelled"
       ? `<span class="badge rounded-pill text-bg-danger">Cancelled</span>`
       : `<select class="form-select form-select-sm order-status-select status-${order.status}" data-id="${order.id}" aria-label="Order status">
-          ${ORDER_STATUS_STEPS.map(
+          ${steps.map(
             (step) =>
-              `<option value="${step}" ${step === order.status ? "selected" : ""}>${ORDER_STATUS_BADGE_LABELS[step]}</option>`
+              `<option value="${step}" ${step === order.status ? "selected" : ""}>${labels[step]}</option>`
           ).join("")}
         </select>`;
 
@@ -549,8 +572,9 @@ async function handleOrderStatusChange(select) {
 
   if (newStatus === previousStatus) return;
 
+  const labels = orderStepLabels(order);
   const confirmed = confirm(
-    `Change order ${order.orderNumber}'s status from "${ORDER_STATUS_BADGE_LABELS[previousStatus]}" to "${ORDER_STATUS_BADGE_LABELS[newStatus]}"?`
+    `Change order ${order.orderNumber}'s status from "${labels[previousStatus] || previousStatus}" to "${labels[newStatus] || newStatus}"?`
   );
   if (!confirmed) {
     select.value = previousStatus;

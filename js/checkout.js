@@ -13,6 +13,14 @@ const saveDeliveryScheduleBtn = document.getElementById("saveDeliveryScheduleBtn
 const deliveryAsapCheck = document.getElementById("deliveryAsapCheck");
 const deliveryDateInput = document.getElementById("deliveryDate");
 const deliveryTimeSlotInput = document.getElementById("deliveryTimeSlot");
+const pickupNoticeCard = document.getElementById("pickupNoticeCard");
+const shippingAddressSection = document.getElementById("shippingAddressSection");
+const deliveryFeeNote = document.getElementById("deliveryFeeNote");
+const deliveryScheduleBtn = document.getElementById("deliveryScheduleBtn");
+const streetAddressInput = document.getElementById("streetAddress");
+const cityInput = document.getElementById("city");
+const provinceInput = document.getElementById("province");
+const zipCodeInput = document.getElementById("zipCode");
 
 const TIME_SLOT_LABELS = {
   morning: "Morning (8AM-12PM)",
@@ -21,6 +29,7 @@ const TIME_SLOT_LABELS = {
 };
 
 let deliverySchedule = null;
+let requiresPrescription = false;
 
 const cart = getCart();
 
@@ -32,6 +41,19 @@ const cart = getCart();
   }
 
   await loadCatalogCache();
+
+  requiresPrescription = cart.some((item) => {
+    const product = getProductById(item.id);
+    return product && product.rxRequired;
+  });
+
+  if (requiresPrescription) {
+    pickupNoticeCard.classList.remove("d-none");
+    shippingAddressSection.classList.add("d-none");
+    deliveryFeeNote.classList.add("d-none");
+    deliveryScheduleBtn.classList.add("d-none");
+    [streetAddressInput, cityInput, provinceInput, zipCodeInput].forEach((input) => (input.required = false));
+  }
 
   checkoutItemsSummary.innerHTML = cart
     .map((item) => {
@@ -94,13 +116,15 @@ proceedToPaymentBtn.addEventListener("click", async () => {
     return;
   }
 
-  const shipping = {
-    streetAddress: document.getElementById("streetAddress").value.trim(),
-    city: document.getElementById("city").value.trim(),
-    province: document.getElementById("province").value.trim(),
-    zipCode: document.getElementById("zipCode").value.trim(),
-    deliveryNotes: document.getElementById("deliveryNotes").value.trim(),
-  };
+  const shipping = requiresPrescription
+    ? null
+    : {
+        streetAddress: streetAddressInput.value.trim(),
+        city: cityInput.value.trim(),
+        province: provinceInput.value.trim(),
+        zipCode: zipCodeInput.value.trim(),
+        deliveryNotes: document.getElementById("deliveryNotes").value.trim(),
+      };
 
   const order = {
     contact: {
@@ -110,13 +134,13 @@ proceedToPaymentBtn.addEventListener("click", async () => {
       contactNumber: document.getElementById("contactNumber").value.trim(),
     },
     shipping,
-    deliverySchedule,
+    deliverySchedule: requiresPrescription ? null : deliverySchedule,
     cart: getCart(),
   };
 
   sessionStorage.setItem("amsonPendingOrder", JSON.stringify(order));
 
-  if (signedInUid) {
+  if (signedInUid && shipping) {
     try {
       await db.collection("users").doc(signedInUid).set(
         { shippingAddress: shipping },
@@ -146,10 +170,10 @@ try {
       document.getElementById("contactNumber").value = data.contactNumber || "";
 
       if (data.shippingAddress) {
-        document.getElementById("streetAddress").value = data.shippingAddress.streetAddress || "";
-        document.getElementById("city").value = data.shippingAddress.city || "";
-        document.getElementById("province").value = data.shippingAddress.province || "";
-        document.getElementById("zipCode").value = data.shippingAddress.zipCode || "";
+        streetAddressInput.value = data.shippingAddress.streetAddress || "";
+        cityInput.value = data.shippingAddress.city || "";
+        provinceInput.value = data.shippingAddress.province || "";
+        zipCodeInput.value = data.shippingAddress.zipCode || "";
         document.getElementById("deliveryNotes").value = data.shippingAddress.deliveryNotes || "";
       }
     } catch (error) {}

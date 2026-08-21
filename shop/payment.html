@@ -171,13 +171,17 @@
             <span>Pay via QR PH</span>
             <strong id="paymentTotalText" class="product-price mb-0">₱0</strong>
           </div>
-          <div class="d-flex justify-content-between mt-2">
+          <div class="d-flex justify-content-between mt-2" id="deliveryFeeRow">
             <span class="text-muted">Delivery Fee</span>
             <span class="text-muted" id="deliveryFeeText">~₱85.00</span>
           </div>
 
-          <div class="summary-note">
+          <div class="summary-note" id="deliveryFeeNoteSummary">
             <strong>Note:</strong> The delivery fee shown is an estimate based on your selected location. The final shipping cost will be determined by the assigned third-party courier and must be paid in cash directly to the rider upon delivery.
+          </div>
+
+          <div class="summary-note d-none" id="pickupNoteSummary">
+            <strong>Note:</strong> This order includes a prescription item and will be for in-store pick-up only. There is no delivery fee.
           </div>
 
           <button type="button" class="btn btn-amson w-100 py-2" id="submitOrderBtn" disabled>Submit Order</button>

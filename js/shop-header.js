@@ -54,6 +54,13 @@ async function loadCustomerNotifications(uid) {
           title: `Order ${order.orderNumber} is on its way`,
           detail: "Your order has been dispatched for delivery.",
         });
+      } else if (order.status === "delivered" && order.requiresPrescription) {
+        notifications.push({
+          priority: 1,
+          link: `order-details.html?id=${doc.id}`,
+          title: `Order ${order.orderNumber} is ready for pick-up`,
+          detail: "Please bring a valid ID (and the original prescription, if applicable) when you collect it.",
+        });
       } else if (order.status === "delivered") {
         notifications.push({
           priority: 2,

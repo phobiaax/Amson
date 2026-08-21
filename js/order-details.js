@@ -13,19 +13,21 @@ let currentOrderRef = null;
 let currentOrder = null;
 
 function renderTimeline(order) {
-  const currentIdx = orderStatusIndex(order.status);
+  const steps = orderStatusSteps(order);
+  const labels = orderStepLabels(order);
+  const currentIdx = orderStatusIndex(order.status, steps);
   const timelineEl = document.getElementById("orderTimeline");
 
-  timelineEl.innerHTML = ORDER_STATUS_STEPS.map((step, idx) => {
+  timelineEl.innerHTML = steps.map((step, idx) => {
     const isCompleted = idx <= currentIdx;
     const timestamp = order.statusTimestamps ? order.statusTimestamps[step] : null;
-    const icon = idx === ORDER_STATUS_STEPS.length - 1 && isCompleted ? "bi-check-circle-fill" : "bi-box-seam";
+    const icon = idx === steps.length - 1 && isCompleted ? "bi-check-circle-fill" : "bi-box-seam";
 
     return `
       <div class="timeline-step ${isCompleted ? "completed" : ""}">
         <div class="timeline-icon"><i class="bi ${icon}"></i></div>
         <div>
-          <p class="timeline-title">${ORDER_STATUS_STEP_LABELS[step]}</p>
+          <p class="timeline-title">${labels[step]}</p>
           <p class="timeline-time mb-0">${timestamp ? formatOrderDateTime(timestamp) : "Pending"}</p>
         </div>
       </div>
@@ -33,26 +35,28 @@ function renderTimeline(order) {
   }).join("");
 }
 
-function updateMarkReceivedButton(status) {
-  if (status === "cancelled") {
+function updateMarkReceivedButton(order) {
+  if (order.status === "cancelled") {
     markReceivedBtn.disabled = true;
     markReceivedBtn.textContent = "Order Cancelled";
     return;
   }
 
-  const idx = orderStatusIndex(status);
-  const deliveredIdx = orderStatusIndex("delivered");
-  const receivedIdx = orderStatusIndex("received");
+  const steps = orderStatusSteps(order);
+  const idx = orderStatusIndex(order.status, steps);
+  const readyIdx = orderStatusIndex("delivered", steps);
+  const receivedIdx = orderStatusIndex("received", steps);
+  const pickup = !!order.requiresPrescription;
 
   if (idx >= receivedIdx) {
     markReceivedBtn.disabled = true;
-    markReceivedBtn.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i>Order Marked as Received';
-  } else if (idx === deliveredIdx) {
+    markReceivedBtn.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i>${pickup ? "Marked as Picked Up" : "Order Marked as Received"}`;
+  } else if (idx === readyIdx) {
     markReceivedBtn.disabled = false;
-    markReceivedBtn.textContent = "Mark as Received";
+    markReceivedBtn.textContent = pickup ? "Mark as Picked Up" : "Mark as Received";
   } else {
     markReceivedBtn.disabled = true;
-    markReceivedBtn.textContent = "Awaiting Delivery";
+    markReceivedBtn.textContent = pickup ? "Awaiting Pick-up Readiness" : "Awaiting Delivery";
   }
 }
 
@@ -62,7 +66,7 @@ function renderOrder(order) {
 
   const statusEl = document.getElementById("detailOrderStatus");
   statusEl.className = `order-status-badge status-${order.status}`;
-  statusEl.textContent = ORDER_STATUS_BADGE_LABELS[order.status] || order.status;
+  statusEl.textContent = orderBadgeLabel(order);
 
   const cancelledNotice = document.getElementById("orderCancelledNotice");
   const timelineEl = document.getElementById("orderTimeline");
@@ -76,11 +80,16 @@ function renderOrder(order) {
     renderTimeline(order);
   }
 
-  document.getElementById("detailAddress").textContent =
-    `${order.shipping.streetAddress}, ${order.shipping.city}, ${order.shipping.province} ${order.shipping.zipCode}`;
+  if (order.shipping) {
+    document.getElementById("detailAddress").textContent =
+      `${order.shipping.streetAddress}, ${order.shipping.city}, ${order.shipping.province} ${order.shipping.zipCode}`;
+    document.getElementById("detailDeliveryNotes").textContent = order.shipping.deliveryNotes || "-";
+  } else {
+    document.getElementById("detailAddress").textContent = "Pick-up at Amson Pharmaceuticals store";
+    document.getElementById("detailDeliveryNotes").textContent = "-";
+  }
   document.getElementById("detailContactNo").textContent = order.contact.contactNumber;
   document.getElementById("detailCustomerName").textContent = `${order.contact.firstName} ${order.contact.lastName}`;
-  document.getElementById("detailDeliveryNotes").textContent = order.shipping.deliveryNotes || "-";
 
   const prescriptionSection = document.getElementById("detailPrescriptionSection");
   if (order.prescriptionPhotoUrl) {
@@ -107,7 +116,7 @@ function renderOrder(order) {
     .join("");
 
   document.getElementById("detailTotal").textContent = formatPeso(order.total);
-  updateMarkReceivedButton(order.status);
+  updateMarkReceivedButton(order);
 }
 
 async function loadOrder(uid) {
@@ -154,7 +163,7 @@ markReceivedBtn.addEventListener("click", async () => {
     currentOrder = doc.data();
     renderOrder(currentOrder);
   } catch (error) {
-    updateMarkReceivedButton(currentOrder.status);
+    updateMarkReceivedButton(currentOrder);
   }
 });
 

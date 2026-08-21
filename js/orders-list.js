@@ -46,7 +46,7 @@ function renderOrderCard(id, order) {
         </div>
         <span class="order-status-badge status-${order.status}">
           <i class="bi ${statusIconFor(order.status)}"></i>
-          ${ORDER_STATUS_BADGE_LABELS[order.status] || order.status}
+          ${orderBadgeLabel(order)}
         </span>
       </div>
       <div class="order-card-body">
