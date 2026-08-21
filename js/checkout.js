@@ -84,6 +84,11 @@ saveDeliveryScheduleBtn.addEventListener("click", () => {
 let signedInUid = null;
 
 proceedToPaymentBtn.addEventListener("click", async () => {
+  if (!signedInUid) {
+    window.location.href = "../login.html";
+    return;
+  }
+
   if (!checkoutForm.checkValidity()) {
     checkoutForm.classList.add("was-validated");
     return;
@@ -123,10 +128,13 @@ proceedToPaymentBtn.addEventListener("click", async () => {
   window.location.href = "payment.html";
 });
 
-// ---- Prefill contact info + saved shipping address ----
+// ---- Require login to check out; prefill contact info + saved address ----
 try {
   auth.onAuthStateChanged(async (user) => {
-    if (!user) return;
+    if (!user) {
+      window.location.href = "../login.html";
+      return;
+    }
     signedInUid = user.uid;
     try {
       const doc = await db.collection("users").doc(user.uid).get();

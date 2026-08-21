@@ -212,6 +212,27 @@ a {
   background-image: none;
 }
 
+/* Registration form: no green "valid" success styling on any field - only
+   red feedback after a failed submit attempt. */
+#registerForm.was-validated .form-control:valid,
+#registerForm .form-control.is-valid {
+  border-color: var(--amson-border);
+  background-image: none;
+}
+#registerForm.was-validated .form-control:valid:focus,
+#registerForm .form-control.is-valid:focus {
+  border-color: var(--amson-red);
+  box-shadow: 0 0 0 3px rgba(238, 49, 55, 0.1);
+}
+#registerForm.was-validated .form-check-input:valid,
+#registerForm .form-check-input.is-valid {
+  border-color: #dee2e6;
+}
+#registerForm.was-validated .form-check-input:valid ~ .form-check-label,
+#registerForm .form-check-input.is-valid ~ .form-check-label {
+  color: inherit;
+}
+
 .input-icon-group .field-icon {
   position: absolute;
   left: 0.85rem;

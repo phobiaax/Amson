@@ -23,6 +23,11 @@ const submitOrderBtn = document.getElementById("submitOrderBtn");
 const pendingOrderRaw = sessionStorage.getItem("amsonPendingOrder");
 const pendingOrder = pendingOrderRaw ? JSON.parse(pendingOrderRaw) : null;
 
+// ---- Require login (in case this page is opened directly) ----
+auth.onAuthStateChanged((user) => {
+  if (!user) window.location.href = "../login.html";
+});
+
 (async function init() {
 if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
   noPendingOrderNotice.classList.remove("d-none");

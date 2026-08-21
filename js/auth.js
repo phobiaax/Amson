@@ -62,10 +62,17 @@ function loginAttemptsDocId(email) {
 }
 
 async function checkLoginLockout(email) {
-  const doc = await db.collection("loginAttempts").doc(loginAttemptsDocId(email)).get();
+  const docRef = db.collection("loginAttempts").doc(loginAttemptsDocId(email));
+  const doc = await docRef.get();
   if (!doc.exists) return null;
   const lockedUntil = doc.data().lockedUntil;
-  return lockedUntil && lockedUntil > Date.now() ? lockedUntil : null;
+  if (lockedUntil && lockedUntil > Date.now()) return lockedUntil;
+  if (lockedUntil) {
+    // Lockout period has passed - clear it so the next attempt gets a
+    // fresh set of tries instead of instantly re-locking.
+    await docRef.delete();
+  }
+  return null;
 }
 
 async function recordFailedLogin(email) {
@@ -156,6 +163,19 @@ async function performLogin(email, password) {
     setLoading(false);
   }
 }
+
+// ---- Already signed in (e.g. "Remember me" from a previous visit) -
+// skip the login form and go straight to where they belong ----
+auth.onAuthStateChanged(async (user) => {
+  if (!user) return;
+  try {
+    const doc = await db.collection("users").doc(user.uid).get();
+    if (!doc.exists) return;
+    const userData = doc.data();
+    if (userData.accountStatus === "deactivated") return;
+    redirectByRole(userData);
+  } catch (error) {}
+});
 
 // ---- Login form submit ----
 loginForm.addEventListener("submit", (e) => {

@@ -18,6 +18,11 @@ const agreeTermsInput = document.getElementById("agreeTerms");
 const passwordHint = document.getElementById("passwordHint");
 const passwordMatchHint = document.getElementById("passwordMatchHint");
 
+// ---- Already signed in - skip the registration form ----
+auth.onAuthStateChanged((user) => {
+  if (user) window.location.href = "shop/index.html";
+});
+
 // ---- Password visibility toggles ----
 document.querySelectorAll(".toggle-password").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -38,15 +43,21 @@ function updatePasswordMatchHint() {
     passwordMatchHint.classList.add("d-none");
     return;
   }
-  passwordMatchHint.classList.remove("d-none");
-  if (passwordInput.value === confirmPasswordInput.value) {
-    passwordMatchHint.textContent = "✓ Passwords match";
-    passwordMatchHint.classList.remove("text-danger");
-    passwordMatchHint.classList.add("text-success");
-  } else {
+  if (passwordInput.value !== confirmPasswordInput.value) {
+    passwordMatchHint.classList.remove("d-none");
     passwordMatchHint.textContent = "✕ Passwords do not match";
     passwordMatchHint.classList.remove("text-success");
     passwordMatchHint.classList.add("text-danger");
+  } else if (!PASSWORD_PATTERN.test(passwordInput.value)) {
+    // Passwords match but the password itself is still too weak to submit -
+    // the red passwordHint above already explains why, so stay quiet here
+    // instead of claiming a false "match" success.
+    passwordMatchHint.classList.add("d-none");
+  } else {
+    passwordMatchHint.classList.remove("d-none");
+    passwordMatchHint.textContent = "✓ Passwords match";
+    passwordMatchHint.classList.remove("text-danger");
+    passwordMatchHint.classList.add("text-success");
   }
 }
 
