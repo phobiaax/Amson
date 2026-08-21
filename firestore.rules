@@ -22,19 +22,25 @@ service cloud.firestore {
 
     // ---- users ----
     match /users/{uid} {
-      allow read: if isSignedIn() && (myUid() == uid || isStaff());
+      // Reading your own doc, or any doc if you're staff.
+      allow read: if isSignedIn() && myUid() == uid;
+      allow read: if isStaff();
 
-      allow create: if isSignedIn() && (
-        (myUid() == uid && request.resource.data.role == "customer") ||
-        (myRole() in ["admin", "branch_manager"] &&
-         request.resource.data.role in ["admin", "branch_manager", "technical_staff", "sales_staff"])
-      );
+      // Self-registration as a customer.
+      allow create: if isSignedIn() && myUid() == uid &&
+        request.resource.data.role == "customer";
 
-      allow update: if isStaff() || (
-        isSignedIn() && myUid() == uid &&
+      // Branch Manager (or the legacy admin role) creating a staff account.
+      allow create: if isSignedIn() && myRole() in ["admin", "branch_manager"] &&
+        request.resource.data.role in ["admin", "branch_manager", "technical_staff", "sales_staff"];
+
+      // Updating your own doc, as long as role/accountStatus don't change.
+      allow update: if isSignedIn() && myUid() == uid &&
         request.resource.data.role == resource.data.role &&
-        request.resource.data.accountStatus == resource.data.accountStatus
-      );
+        request.resource.data.accountStatus == resource.data.accountStatus;
+
+      // Staff updating any user's doc (Staff Management, Customer Accounts, etc).
+      allow update: if isStaff();
 
       allow delete: if false;
     }
@@ -52,22 +58,22 @@ service cloud.firestore {
 
     // ---- retail orders ----
     match /orders/{orderId} {
-      allow read: if isStaff() ||
-        (isSignedIn() && resource.data.customerId == myUid());
+      allow read: if isSignedIn() && resource.data.customerId == myUid();
+      allow read: if isStaff();
 
       allow create: if isSignedIn() &&
         request.resource.data.customerId == myUid();
 
-      allow update: if isStaff() ||
-        (isSignedIn() && resource.data.customerId == myUid());
+      allow update: if isSignedIn() && resource.data.customerId == myUid();
+      allow update: if isStaff();
 
       allow delete: if false;
     }
 
     // ---- prescription pre-orders ----
     match /prescriptionOrders/{orderId} {
-      allow read: if isStaff() ||
-        (isSignedIn() && resource.data.customerId == myUid());
+      allow read: if isSignedIn() && resource.data.customerId == myUid();
+      allow read: if isStaff();
 
       allow create: if isSignedIn() &&
         request.resource.data.customerId == myUid();
