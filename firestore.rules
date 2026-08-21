@@ -101,8 +101,7 @@ service cloud.firestore {
 
     // ---- pre-auth login lockout tracking ----
     match /loginAttempts/{email} {
-      allow read, create, update: if true;
-      allow delete: if false;
+      allow read, create, update, delete: if true;
     }
 
     match /{document=**} {
