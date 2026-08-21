@@ -82,6 +82,15 @@ function renderOrder(order) {
   document.getElementById("detailCustomerName").textContent = `${order.contact.firstName} ${order.contact.lastName}`;
   document.getElementById("detailDeliveryNotes").textContent = order.shipping.deliveryNotes || "-";
 
+  const prescriptionSection = document.getElementById("detailPrescriptionSection");
+  if (order.prescriptionPhotoUrl) {
+    document.getElementById("detailPrescriptionLink").href = order.prescriptionPhotoUrl;
+    document.getElementById("detailPrescriptionImage").src = order.prescriptionPhotoUrl;
+    prescriptionSection.classList.remove("d-none");
+  } else {
+    prescriptionSection.classList.add("d-none");
+  }
+
   document.getElementById("detailItemsList").innerHTML = order.items
     .map(
       (item) => `

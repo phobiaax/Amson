@@ -20,13 +20,30 @@ const uploadErrorText = document.getElementById("uploadErrorText");
 const proofOfPaymentInput = document.getElementById("proofOfPaymentInput");
 const submitOrderBtn = document.getElementById("submitOrderBtn");
 
+const prescriptionUploadBox = document.getElementById("prescriptionUploadBox");
+const rxUploadDropzone = document.getElementById("rxUploadDropzone");
+const rxUploadEmptyState = document.getElementById("rxUploadEmptyState");
+const rxUploadPreviewState = document.getElementById("rxUploadPreviewState");
+const rxUploadPreviewImage = document.getElementById("rxUploadPreviewImage");
+const rxUploadPreviewFilename = document.getElementById("rxUploadPreviewFilename");
+const rxUploadErrorText = document.getElementById("rxUploadErrorText");
+const prescriptionPhotoInput = document.getElementById("prescriptionPhotoInput");
+
 const pendingOrderRaw = sessionStorage.getItem("amsonPendingOrder");
 const pendingOrder = pendingOrderRaw ? JSON.parse(pendingOrderRaw) : null;
+
+let requiresPrescription = false;
 
 // ---- Require login (in case this page is opened directly) ----
 auth.onAuthStateChanged((user) => {
   if (!user) window.location.href = "../login.html";
 });
+
+function updateSubmitButtonState() {
+  const hasProof = !!proofOfPaymentInput.files[0];
+  const hasPrescription = !requiresPrescription || !!prescriptionPhotoInput.files[0];
+  submitOrderBtn.disabled = !(hasProof && hasPrescription);
+}
 
 (async function init() {
 if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
@@ -34,6 +51,12 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
   paymentContent.classList.add("d-none");
 } else {
   await loadCatalogCache();
+
+  requiresPrescription = pendingOrder.cart.some((item) => {
+    const product = getProductById(item.id);
+    return product && product.rxRequired;
+  });
+  prescriptionUploadBox.classList.toggle("d-none", !requiresPrescription);
 
   paymentItemsSummary.innerHTML = pendingOrder.cart
     .map((item) => {
@@ -75,7 +98,7 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
       proofOfPaymentInput.value = "";
       uploadEmptyState.classList.remove("d-none");
       uploadPreviewState.classList.add("d-none");
-      submitOrderBtn.disabled = true;
+      updateSubmitButtonState();
       return;
     }
 
@@ -83,20 +106,48 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     uploadPreviewFilename.textContent = file.name;
     uploadEmptyState.classList.add("d-none");
     uploadPreviewState.classList.remove("d-none");
-    submitOrderBtn.disabled = false;
+    updateSubmitButtonState();
+  });
+
+  rxUploadDropzone.addEventListener("click", () => prescriptionPhotoInput.click());
+
+  prescriptionPhotoInput.addEventListener("change", () => {
+    const file = prescriptionPhotoInput.files[0];
+    if (!file) return;
+
+    rxUploadErrorText.classList.add("d-none");
+
+    if (file.size > MAX_PROOF_FILE_SIZE_BYTES) {
+      rxUploadErrorText.textContent = "That file is too large. Please upload an image under 10MB.";
+      rxUploadErrorText.classList.remove("d-none");
+      prescriptionPhotoInput.value = "";
+      rxUploadEmptyState.classList.remove("d-none");
+      rxUploadPreviewState.classList.add("d-none");
+      updateSubmitButtonState();
+      return;
+    }
+
+    rxUploadPreviewImage.src = URL.createObjectURL(file);
+    rxUploadPreviewFilename.textContent = file.name;
+    rxUploadEmptyState.classList.add("d-none");
+    rxUploadPreviewState.classList.remove("d-none");
+    updateSubmitButtonState();
   });
 
   submitOrderBtn.addEventListener("click", async () => {
     const file = proofOfPaymentInput.files[0];
-    if (!file) return;
+    const prescriptionFile = prescriptionPhotoInput.files[0];
+    if (!file || (requiresPrescription && !prescriptionFile)) return;
 
     uploadErrorText.classList.add("d-none");
+    rxUploadErrorText.classList.add("d-none");
     submitOrderBtn.disabled = true;
     submitOrderBtn.textContent = "Submitting...";
 
     try {
       const user = auth.currentUser;
       const proofOfPaymentUrl = await uploadToCloudinary(file);
+      const prescriptionPhotoUrl = prescriptionFile ? await uploadToCloudinary(prescriptionFile) : null;
       const orderNumber = await generateOrderNumber();
 
       const items = pendingOrder.cart.map((item) => {
@@ -119,6 +170,8 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
         total,
         deliveryFeeEstimate: ESTIMATED_DELIVERY_FEE,
         proofOfPaymentUrl,
+        requiresPrescription,
+        prescriptionPhotoUrl,
         status: "placed",
         statusTimestamps: {
           placed: firebase.firestore.FieldValue.serverTimestamp(),

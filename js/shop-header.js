@@ -64,26 +64,6 @@ async function loadCustomerNotifications(uid) {
       }
     });
 
-    const rxSnapshot = await db.collection("prescriptionOrders").where("customerId", "==", uid).get();
-    rxSnapshot.docs.forEach((doc) => {
-      const order = doc.data();
-      if (order.status === "ready_for_pickup") {
-        notifications.push({
-          priority: 0,
-          link: `rx-order-details.html?id=${doc.id}`,
-          title: `Prescription pre-order ${order.orderNumber} is ready for pick-up`,
-          detail: "Please bring the original physical prescription when you collect it.",
-        });
-      } else if (order.status === "rejected") {
-        notifications.push({
-          priority: 0,
-          link: `rx-order-details.html?id=${doc.id}`,
-          title: `Prescription pre-order ${order.orderNumber} was rejected`,
-          detail: order.rejectionReason || "Please check your order for details.",
-        });
-      }
-    });
-
     notifications.sort((a, b) => a.priority - b.priority);
     renderCustomerNotifications(notifications.slice(0, 5));
   } catch (error) {

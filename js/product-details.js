@@ -53,14 +53,12 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
 
           ${
             product.rxRequired
-              ? `<p class="text-muted mb-3" style="font-size:0.85rem;">This medicine requires a valid prescription and can't be added to the regular cart. Add it to a prescription pre-order instead.</p>
-                 <button type="button" class="btn btn-amson w-100 py-2" id="addToRxCartBtn" ${product.inStock ? "" : "disabled"}>
-                   <i class="bi bi-file-medical me-2"></i>${product.inStock ? "Add to Prescription Pre-Order" : "Out of Stock"}
-                 </button>`
-              : `<button type="button" class="btn btn-amson w-100 py-2" id="addToCartBtn" ${product.inStock ? "" : "disabled"}>
-                   <i class="bi bi-cart3 me-2"></i>${product.inStock ? "Add to Cart" : "Out of Stock"}
-                 </button>`
+              ? `<p class="text-muted mb-3" style="font-size:0.85rem;">This medicine requires a valid prescription. You'll be asked to upload it at checkout.</p>`
+              : ""
           }
+          <button type="button" class="btn btn-amson w-100 py-2" id="addToCartBtn" ${product.inStock ? "" : "disabled"}>
+            <i class="bi bi-cart3 me-2"></i>${product.inStock ? "Add to Cart" : "Out of Stock"}
+          </button>
         </div>
       </div>
 
@@ -107,14 +105,6 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
     addToCartBtn.addEventListener("click", () => {
       addToCart(product.id, currentQty());
       showCartToast(`Added ${currentQty()} × ${product.name} to cart.`);
-    });
-  }
-
-  const addToRxCartBtn = document.getElementById("addToRxCartBtn");
-  if (addToRxCartBtn) {
-    addToRxCartBtn.addEventListener("click", () => {
-      addToRxCart(product.id, currentQty());
-      showCartToast(`Added ${currentQty()} × ${product.name} to your prescription pre-order.`);
     });
   }
 })();

@@ -188,6 +188,15 @@ function renderReviewPanel(order) {
   const proofUrl = order.proofOfPaymentUrl || "";
   document.getElementById("reviewProofImageLink").href = proofUrl;
   document.getElementById("reviewProofImage").src = proofUrl;
+
+  const prescriptionSection = document.getElementById("reviewPrescriptionSection");
+  if (order.prescriptionPhotoUrl) {
+    document.getElementById("reviewPrescriptionLink").href = order.prescriptionPhotoUrl;
+    document.getElementById("reviewPrescriptionImage").src = order.prescriptionPhotoUrl;
+    prescriptionSection.classList.remove("d-none");
+  } else {
+    prescriptionSection.classList.add("d-none");
+  }
 }
 
 approvePaymentBtn.addEventListener("click", async () => {
