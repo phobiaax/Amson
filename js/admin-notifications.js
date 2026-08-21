@@ -87,7 +87,7 @@ async function loadNotifications() {
           severity: "info",
           icon: "bi-file-medical",
           message: `Prescription pre-order ${o.orderNumber} is awaiting verification.`,
-          link: "prescription-orders.html",
+          link: "online-orders.html?group=prescription",
         });
       });
 
