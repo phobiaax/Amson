@@ -164,9 +164,13 @@ async function performLogin(email, password) {
   }
 }
 
-// ---- Already signed in (e.g. "Remember me" from a previous visit) -
-// skip the login form and go straight to where they belong ----
+// ---- Already signed in on arrival (e.g. "Remember me" from a previous
+// visit, not a sign-in performLogin() just triggered below) - skip the
+// login form and go straight to where they belong ----
+let isInitialLoginAuthCheck = true;
 auth.onAuthStateChanged(async (user) => {
+  if (!isInitialLoginAuthCheck) return;
+  isInitialLoginAuthCheck = false;
   if (!user) return;
   try {
     const doc = await db.collection("users").doc(user.uid).get();

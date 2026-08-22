@@ -18,8 +18,12 @@ const agreeTermsInput = document.getElementById("agreeTerms");
 const passwordHint = document.getElementById("passwordHint");
 const passwordMatchHint = document.getElementById("passwordMatchHint");
 
-// ---- Already signed in - skip the registration form ----
+// ---- Already signed in (on arrival, not from our own sign-up below) -
+// skip the registration form ----
+let isInitialAuthCheck = true;
 auth.onAuthStateChanged((user) => {
+  if (!isInitialAuthCheck) return;
+  isInitialAuthCheck = false;
   if (user) window.location.href = "shop/index.html";
 });
 
