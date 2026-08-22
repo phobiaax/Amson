@@ -133,8 +133,11 @@ async function performLogin(email, password) {
     const userDoc = await db.collection("users").doc(credential.user.uid).get();
 
     if (!userDoc.exists) {
-      await auth.signOut();
-      showAlert("No account profile found. Please contact support.");
+      // The login exists but the profile write never finished (e.g. it got
+      // interrupted right after registration) - let them finish it instead
+      // of dead-ending here. Stay signed in so they can write their own doc.
+      await clearLoginAttempts(email);
+      window.location.href = "complete-profile.html";
       return;
     }
 
@@ -170,7 +173,10 @@ auth.onAuthStateChanged(async (user) => {
   if (!user) return;
   try {
     const doc = await db.collection("users").doc(user.uid).get();
-    if (!doc.exists) return;
+    if (!doc.exists) {
+      window.location.href = "complete-profile.html";
+      return;
+    }
     const userData = doc.data();
     if (userData.accountStatus === "deactivated") return;
     redirectByRole(userData);

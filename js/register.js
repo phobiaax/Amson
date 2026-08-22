@@ -19,8 +19,16 @@ const passwordHint = document.getElementById("passwordHint");
 const passwordMatchHint = document.getElementById("passwordMatchHint");
 
 // ---- Already signed in - skip the registration form ----
-auth.onAuthStateChanged((user) => {
-  if (user) window.location.href = "shop/index.html";
+auth.onAuthStateChanged(async (user) => {
+  if (!user) return;
+  try {
+    const doc = await db.collection("users").doc(user.uid).get();
+    if (!doc.exists) {
+      window.location.href = "complete-profile.html";
+      return;
+    }
+  } catch (error) {}
+  window.location.href = "shop/index.html";
 });
 
 // ---- Password visibility toggles ----
