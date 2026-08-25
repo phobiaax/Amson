@@ -76,33 +76,37 @@
       <form id="registerForm" novalidate>
         <div class="row">
           <div class="col-sm-6 mb-3">
-            <label for="firstName" class="form-label">First Name</label>
-            <input type="text" class="form-control" id="firstName" placeholder="Juan" required>
+            <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="firstName" placeholder="Juan" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\s\-']+" required>
+            <p class="form-text text-danger mb-0 d-none" id="firstNameHint">Names can only contain letters.</p>
           </div>
           <div class="col-sm-6 mb-3">
-            <label for="lastName" class="form-label">Last Name</label>
-            <input type="text" class="form-control" id="lastName" placeholder="Dela Cruz" required>
+            <label for="lastName" class="form-label">Last Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="lastName" placeholder="Dela Cruz" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\s\-']+" required>
+            <p class="form-text text-danger mb-0 d-none" id="lastNameHint">Names can only contain letters.</p>
           </div>
         </div>
 
         <div class="mb-3">
-          <label for="email" class="form-label">Email Address</label>
+          <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
           <div class="input-icon-group">
             <i class="bi bi-envelope field-icon"></i>
             <input type="email" class="form-control" id="email" placeholder="your@email.com" required>
           </div>
+          <p class="form-text text-danger mb-0 d-none" id="emailHint">Enter a valid email address.</p>
         </div>
 
         <div class="mb-3">
-          <label for="contactNumber" class="form-label">Contact Number</label>
+          <label for="contactNumber" class="form-label">Contact Number <span class="text-danger">*</span></label>
           <div class="input-icon-group">
             <i class="bi bi-telephone field-icon"></i>
-            <input type="tel" class="form-control" id="contactNumber" placeholder="+63 917 123 4567" required>
+            <input type="tel" class="form-control" id="contactNumber" placeholder="0917 123 4567" required>
           </div>
+          <p class="form-text text-danger mb-0 d-none" id="contactNumberHint">Enter a valid Philippine mobile number (e.g. 0917 123 4567).</p>
         </div>
 
         <div class="mb-3">
-          <label for="password" class="form-label">Password</label>
+          <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
           <div class="input-icon-group">
             <i class="bi bi-lock field-icon"></i>
             <input type="password" class="form-control" id="password" placeholder="••••••••" required minlength="6" pattern="^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$">
@@ -114,7 +118,7 @@
         </div>
 
         <div class="mb-3">
-          <label for="confirmPassword" class="form-label">Confirm Password</label>
+          <label for="confirmPassword" class="form-label">Confirm Password <span class="text-danger">*</span></label>
           <div class="input-icon-group">
             <i class="bi bi-lock field-icon"></i>
             <input type="password" class="form-control" id="confirmPassword" placeholder="••••••••" required minlength="6">

@@ -17,6 +17,10 @@ const confirmPasswordInput = document.getElementById("confirmPassword");
 const agreeTermsInput = document.getElementById("agreeTerms");
 const passwordHint = document.getElementById("passwordHint");
 const passwordMatchHint = document.getElementById("passwordMatchHint");
+const firstNameHint = document.getElementById("firstNameHint");
+const lastNameHint = document.getElementById("lastNameHint");
+const emailHint = document.getElementById("emailHint");
+const contactNumberHint = document.getElementById("contactNumberHint");
 
 // ---- Already signed in (on arrival, not from our own sign-up below) -
 // skip the registration form ----
@@ -40,6 +44,32 @@ document.querySelectorAll(".toggle-password").forEach((btn) => {
 });
 
 const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+const NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ\s\-']+$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PH_PHONE_PATTERN = /^(\+63|0)9\d{9}$/;
+
+function normalizePhPhone(value) {
+  return value.trim().replace(/[\s-]/g, "");
+}
+
+// ---- Live name / email / phone feedback ----
+function wireLiveHint(input, hint, pattern) {
+  input.addEventListener("input", () => {
+    const invalid = input.value.trim().length > 0 && !pattern.test(input.value.trim());
+    hint.classList.toggle("d-none", !invalid);
+  });
+}
+
+wireLiveHint(firstNameInput, firstNameHint, NAME_PATTERN);
+wireLiveHint(lastNameInput, lastNameHint, NAME_PATTERN);
+wireLiveHint(emailInput, emailHint, EMAIL_PATTERN);
+
+contactNumberInput.addEventListener("input", () => {
+  const invalid =
+    contactNumberInput.value.trim().length > 0 &&
+    !PH_PHONE_PATTERN.test(normalizePhPhone(contactNumberInput.value));
+  contactNumberHint.classList.toggle("d-none", !invalid);
+});
 
 // ---- Live password length / match feedback ----
 function updatePasswordMatchHint() {
@@ -109,6 +139,21 @@ registerForm.addEventListener("submit", async (e) => {
 
   if (!registerForm.checkValidity()) {
     registerForm.classList.add("was-validated");
+    return;
+  }
+
+  if (!NAME_PATTERN.test(firstNameInput.value.trim()) || !NAME_PATTERN.test(lastNameInput.value.trim())) {
+    showAlert("Names can only contain letters.");
+    return;
+  }
+
+  if (!EMAIL_PATTERN.test(emailInput.value.trim())) {
+    showAlert("Please enter a valid email address.");
+    return;
+  }
+
+  if (!PH_PHONE_PATTERN.test(normalizePhPhone(contactNumberInput.value))) {
+    showAlert("Please enter a valid Philippine mobile number (e.g. 0917 123 4567).");
     return;
   }
 

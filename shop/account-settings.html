@@ -166,15 +166,33 @@
         <div class="row g-3">
           <div class="col-sm-4">
             <label for="currentPasswordInput" class="form-label">Current Password</label>
-            <input type="password" class="form-control" id="currentPasswordInput">
+            <div class="input-icon-group">
+              <i class="bi bi-lock field-icon"></i>
+              <input type="password" class="form-control" id="currentPasswordInput">
+              <button type="button" class="toggle-password" data-target="currentPasswordInput" aria-label="Show password">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
           </div>
           <div class="col-sm-4">
             <label for="newPasswordInput" class="form-label">New Password</label>
-            <input type="password" class="form-control" id="newPasswordInput" minlength="6">
+            <div class="input-icon-group">
+              <i class="bi bi-lock field-icon"></i>
+              <input type="password" class="form-control" id="newPasswordInput" minlength="6">
+              <button type="button" class="toggle-password" data-target="newPasswordInput" aria-label="Show password">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
           </div>
           <div class="col-sm-4">
             <label for="confirmNewPasswordInput" class="form-label">Confirm New Password</label>
-            <input type="password" class="form-control" id="confirmNewPasswordInput" minlength="6">
+            <div class="input-icon-group">
+              <i class="bi bi-lock field-icon"></i>
+              <input type="password" class="form-control" id="confirmNewPasswordInput" minlength="6">
+              <button type="button" class="toggle-password" data-target="confirmNewPasswordInput" aria-label="Show password">
+                <i class="bi bi-eye"></i>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -198,7 +216,13 @@
         <input type="email" class="form-control mb-3" id="newEmailInput" placeholder="you@example.com">
 
         <label for="changeEmailPasswordInput" class="form-label">Current Password</label>
-        <input type="password" class="form-control mb-3" id="changeEmailPasswordInput" placeholder="Confirm it's you">
+        <div class="input-icon-group mb-3">
+          <i class="bi bi-lock field-icon"></i>
+          <input type="password" class="form-control" id="changeEmailPasswordInput" placeholder="Confirm it's you">
+          <button type="button" class="toggle-password" data-target="changeEmailPasswordInput" aria-label="Show password">
+            <i class="bi bi-eye"></i>
+          </button>
+        </div>
 
         <div id="changeEmailStep1Alert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
 
