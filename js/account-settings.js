@@ -31,6 +31,9 @@ const passwordAlert = document.getElementById("passwordAlert");
 const passwordSuccess = document.getElementById("passwordSuccess");
 const updatePasswordBtn = document.getElementById("updatePasswordBtn");
 
+const storeCreditCard = document.getElementById("storeCreditCard");
+const storeCreditAmount = document.getElementById("storeCreditAmount");
+
 // ---- Password visibility toggles ----
 document.querySelectorAll(".toggle-password").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -73,7 +76,26 @@ auth.onAuthStateChanged(async (user) => {
   } catch (error) {
     console.error("Failed to load account settings:", error);
   }
+
+  loadStoreCredit(user.uid);
 });
+
+async function loadStoreCredit(uid) {
+  try {
+    const snapshot = await db.collection("orders").where("customerId", "==", uid).get();
+    const totalCredit = snapshot.docs.reduce((sum, doc) => {
+      const order = doc.data();
+      return order.status === "closed_unresolved" ? sum + (order.unappliedCredit || 0) : sum;
+    }, 0);
+
+    if (totalCredit > 0) {
+      storeCreditAmount.textContent = formatPeso(totalCredit);
+      storeCreditCard.classList.remove("d-none");
+    }
+  } catch (error) {
+    console.error("Failed to load store credit:", error);
+  }
+}
 
 saveProfileBtn.addEventListener("click", async () => {
   const firstName = firstNameInput.value.trim();

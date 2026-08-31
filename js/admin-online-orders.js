@@ -493,7 +493,8 @@ function openApprovedModal(order) {
   document.getElementById("approvedCustomerName").textContent = customerName(order);
   document.getElementById("approvedContactNo").textContent = order.contact ? order.contact.contactNumber : "";
   document.getElementById("approvedDeliveryNotes").textContent = shipping.deliveryNotes || "None";
-  trackingLinkInput.value = "";
+  trackingLinkInput.value = order.trackingLink || "";
+  trackingLinkInput.classList.remove("is-invalid");
 
   bootstrap.Modal.getOrCreateInstance(approvedModalEl).show();
 }
@@ -602,6 +603,12 @@ function renderOrdersTable() {
     document.querySelectorAll(".release-hold-btn").forEach((btn) => {
       btn.addEventListener("click", () => releaseOrderHold(btn));
     });
+    document.querySelectorAll(".book-delivery-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const order = allOrders.find((o) => o.id === btn.dataset.id);
+        if (order) openApprovedModal(order);
+      });
+    });
   }
 
   renderOrdersPagination(totalPages);
@@ -642,6 +649,13 @@ function renderOrderRow(order) {
       <span class="hold-note" title="${waitingOn}"><i class="bi bi-pause-fill"></i> On Hold: ${issueLabel}</span>
       <p class="text-muted mb-1" style="font-size:0.78rem;">${waitingOn}</p>
       <button type="button" class="btn btn-outline-dark-amson btn-sm release-hold-btn" data-id="${order.id}">Release Hold</button>`;
+  } else if (staffCanAdvance && nextStep === "dispatched") {
+    // Booking the courier needs the address/Lalamove link/tracking-link
+    // form in the approved modal, not a bare status jump - reopen the same
+    // modal shown right after approval so that info is never lost.
+    statusCell = `
+      <p class="mb-1"><span class="badge rounded-pill text-bg-secondary">${labels[order.status]}</span></p>
+      <button type="button" class="btn btn-outline-dark-amson btn-sm book-delivery-btn" data-id="${order.id}">Book Delivery</button>`;
   } else if (staffCanAdvance) {
     statusCell = `<select class="form-select form-select-sm order-status-select status-${order.status}" data-id="${order.id}" aria-label="Order status">
           <option value="${order.status}" selected>${labels[order.status]}</option>
