@@ -24,9 +24,13 @@ function getBatchStatus(batch) {
   nearExpiryThreshold.setMonth(nearExpiryThreshold.getMonth() + NEAR_EXPIRY_MONTHS);
   if (expiry <= nearExpiryThreshold) return "near_expiry";
 
+  // Low Stock is judged on the product's total stock across all its
+  // batches, not this one batch alone - a product split across several
+  // batches shouldn't look low just because any single lot is small.
   const product = getProductById(batch.productId);
   const reorderPoint = (product && product.reorderPoint) || DEFAULT_REORDER_POINT;
-  if (batch.quantity <= reorderPoint) return "low_stock";
+  const totalStock = product ? product.totalStock : batch.quantity;
+  if (totalStock <= reorderPoint) return "low_stock";
 
   return "normal";
 }
@@ -132,34 +136,41 @@ function exportBlankPdf(filenamePrefix) {
 }
 
 // ---- FEFO stock deduction ----
+// Runs as a Firestore transaction so two staff approving two different
+// orders for the same tightly-stocked product at nearly the same time
+// can't both pass the availability check against stale reads and both
+// succeed - Firestore detects the conflicting read and retries the
+// transaction with fresh data, so the second one correctly re-checks
+// against what the first one actually left behind.
 async function deductStockFEFO(productId, qty, { includeWholesaleOnly = false } = {}) {
   const allowedStatuses = includeWholesaleOnly ? ["active", "wholesale_only"] : ["active"];
-  const snapshot = await db
-    .collection("stockBatches")
-    .where("productId", "==", productId)
-    .where("status", "in", allowedStatuses)
-    .get();
 
-  const batches = snapshot.docs
-    .map((doc) => ({ id: doc.id, ...doc.data() }))
-    .filter((b) => b.quantity > 0)
-    .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(
+      db.collection("stockBatches").where("productId", "==", productId).where("status", "in", allowedStatuses)
+    );
 
-  let totalAvailable = 0;
-  for (const b of batches) {
-    totalAvailable += b.quantity;
-  }
-  if (totalAvailable < qty) {
-    throw new Error("Not enough stock available to fulfill this quantity.");
-  }
+    const batches = snapshot.docs
+      .map((doc) => ({ id: doc.id, ref: doc.ref, ...doc.data() }))
+      .filter((b) => b.quantity > 0)
+      .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
 
-  let remaining = qty;
-  for (const batch of batches) {
-    if (remaining <= 0) break;
-    const deduct = Math.min(batch.quantity, remaining);
-    await db.collection("stockBatches").doc(batch.id).update({ quantity: batch.quantity - deduct });
-    remaining -= deduct;
-  }
+    let totalAvailable = 0;
+    for (const b of batches) {
+      totalAvailable += b.quantity;
+    }
+    if (totalAvailable < qty) {
+      throw new Error("Not enough stock available to fulfill this quantity.");
+    }
+
+    let remaining = qty;
+    for (const batch of batches) {
+      if (remaining <= 0) break;
+      const deduct = Math.min(batch.quantity, remaining);
+      transaction.update(batch.ref, { quantity: batch.quantity - deduct });
+      remaining -= deduct;
+    }
+  });
 }
 
 // ---- Audit log helper ----
