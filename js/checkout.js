@@ -91,7 +91,7 @@ deliveryAsapCheck.addEventListener("change", () => {
 saveDeliveryScheduleBtn.addEventListener("click", () => {
   if (deliveryAsapCheck.checked) {
     deliverySchedule = { asap: true };
-    deliveryScheduleLabel.textContent = "No preferred schedule";
+    deliveryScheduleLabel.textContent = "No preferred schedule (within 48 hours)";
     return;
   }
 

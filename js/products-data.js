@@ -8,22 +8,15 @@ let catalogLoadPromise = null;
 
 const DEFAULT_REORDER_POINT = 20;
 const NEAR_EXPIRY_MONTHS = 6;
-const BAD_ORDER_MONTHS = 2;
 
 const BATCH_STATUS_LABELS = {
   normal: "Normal",
   low_stock: "Low Stock",
   out_of_stock: "Out of Stock",
   near_expiry: "Near Expiry",
-  bad_order: "Bad Order",
 };
 
 function getBatchStatus(batch) {
-  // Auto-rejected on receiving for being too close to expiry (see
-  // enforceExpiryStatus below) - call this out distinctly instead of
-  // letting it fall through to the generic "Out of Stock" pill, since the
-  // two mean very different things to staff.
-  if (batch.status === "bad_order") return "bad_order";
   if (batch.quantity === 0) return "out_of_stock";
 
   const expiry = new Date(batch.expirationDate);
@@ -39,12 +32,12 @@ function getBatchStatus(batch) {
 }
 
 // ---- Near-expiry auto-handling (lazy, checked on Inventory page load) ----
+// Stock this close to expiry is flagged wholesale_only so it doesn't get
+// sold retail - quantity is never touched automatically; staff decide
+// whether to write it off themselves.
 async function enforceExpiryStatus() {
   const snapshot = await db.collection("stockBatches").where("status", "==", "active").get();
   const batches = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-
-  const badOrderThreshold = new Date();
-  badOrderThreshold.setMonth(badOrderThreshold.getMonth() + BAD_ORDER_MONTHS);
 
   const wholesaleOnlyThreshold = new Date();
   wholesaleOnlyThreshold.setMonth(wholesaleOnlyThreshold.getMonth() + NEAR_EXPIRY_MONTHS);
@@ -53,17 +46,7 @@ async function enforceExpiryStatus() {
     if (batch.quantity <= 0) continue;
     const expiry = new Date(batch.expirationDate);
 
-    if (expiry <= badOrderThreshold) {
-      await db.collection("stockBatches").doc(batch.id).update({ status: "bad_order", quantity: 0 });
-      await db.collection("writeOffs").add({
-        batchId: batch.id,
-        productId: batch.productId,
-        batchNo: batch.batchNo,
-        quantity: batch.quantity,
-        reason: "Bad Order - within 2 months of expiry (auto-flagged)",
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-    } else if (expiry <= wholesaleOnlyThreshold) {
+    if (expiry <= wholesaleOnlyThreshold) {
       await db.collection("stockBatches").doc(batch.id).update({ status: "wholesale_only" });
     }
   }
