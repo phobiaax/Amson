@@ -10,7 +10,7 @@ const ORDER_STATUS_STEPS = ["placed", "payment_confirmed", "dispatched", "delive
 const PICKUP_ORDER_STATUS_STEPS = ["placed", "payment_confirmed", "delivered", "received"];
 
 const ORDER_STATUS_STEP_LABELS = {
-  placed: "Order Placed",
+  placed: "Order Pending Verification",
   payment_confirmed: "Payment Confirmed",
   dispatched: "Order Dispatched",
   delivered: "Order Delivered",
@@ -18,14 +18,14 @@ const ORDER_STATUS_STEP_LABELS = {
 };
 
 const PICKUP_ORDER_STATUS_STEP_LABELS = {
-  placed: "Order Placed",
+  placed: "Order Pending Verification",
   payment_confirmed: "Payment Confirmed",
   delivered: "Ready for Pick-up",
   received: "Picked Up",
 };
 
 const ORDER_STATUS_BADGE_LABELS = {
-  placed: "Order Placed",
+  placed: "Order Pending Verification",
   payment_confirmed: "Payment Confirmed",
   dispatched: "Dispatched",
   delivered: "Delivered",
@@ -34,7 +34,7 @@ const ORDER_STATUS_BADGE_LABELS = {
 };
 
 const PICKUP_ORDER_STATUS_BADGE_LABELS = {
-  placed: "Order Placed",
+  placed: "Order Pending Verification",
   payment_confirmed: "Payment Confirmed",
   delivered: "Ready for Pick-up",
   received: "Picked Up",

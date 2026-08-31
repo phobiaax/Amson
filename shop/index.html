@@ -224,7 +224,7 @@
 <script>
   (async function init() {
     await loadCatalogCache();
-    const storefrontProducts = SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore);
+    const storefrontProducts = storefrontCatalog();
     document.getElementById("featuredProductsGrid").innerHTML =
       storefrontProducts.slice(0, 5).map(renderProductCard).join("");
   })();

@@ -28,10 +28,6 @@ categoryFilters.forEach((cb) => {
   });
 });
 
-function storefrontCatalog() {
-  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore);
-}
-
 function applyFilters() {
   const selected = categoryFilters.filter((cb) => cb.checked).map((cb) => cb.value);
   let filtered = selected.length

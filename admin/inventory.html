@@ -136,6 +136,7 @@
               <thead>
                 <tr>
                   <th>Batch No.</th>
+                  <th>Date Added</th>
                   <th>Expiration Date</th>
                   <th>Product Name</th>
                   <th>Category</th>
@@ -278,7 +279,10 @@
 
       <div class="row g-3 mb-3">
         <div class="col-md-6">
-          <label class="form-label">Supplier</label>
+          <div class="d-flex justify-content-between align-items-center">
+            <label class="form-label mb-0">Supplier</label>
+            <button type="button" class="btn btn-link btn-sm p-0" id="receiveNewSupplierBtn" style="font-size:0.8rem;">+ New Supplier</button>
+          </div>
           <select class="form-select" id="receiveSupplierSelect"></select>
         </div>
         <div class="col-md-6">
@@ -305,6 +309,58 @@
       </div>
       <input type="file" id="receiveBatchFileInput" accept=".csv" class="d-none">
       <p class="text-muted mb-0 mt-2" style="font-size:0.78rem;" id="receiveBatchUploadStatus"></p>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Add Supplier modal (launched from within Receive Stock) -->
+<div class="modal fade" id="quickAddSupplierModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content p-4">
+      <h2 class="mb-1">New Supplier</h2>
+      <p class="text-muted mb-3">Add a supplier without leaving Receive Stock.</p>
+
+      <label class="form-label">Company Name *</label>
+      <input type="text" class="form-control mb-3" id="quickSupplierNameInput">
+
+      <label class="form-label">Contact Person</label>
+      <input type="text" class="form-control mb-3" id="quickSupplierContactInput">
+
+      <label class="form-label">Phone</label>
+      <input type="text" class="form-control mb-3" id="quickSupplierPhoneInput">
+
+      <div id="quickAddSupplierAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
+
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-dark-amson flex-fill" id="quickAddSupplierCancelBtn">Cancel</button>
+        <button type="button" class="btn btn-amson flex-fill" id="quickAddSupplierSaveBtn">Add Supplier</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Add Product modal (launched from within Receive Stock) -->
+<div class="modal fade" id="quickAddProductModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content p-4">
+      <h2 class="mb-1">New Product</h2>
+      <p class="text-muted mb-3">Add a product without leaving Receive Stock. You can fill in the rest of its details later in Product Management.</p>
+
+      <label class="form-label">Product Name *</label>
+      <input type="text" class="form-control mb-3" id="quickProductNameInput">
+
+      <label class="form-label">Category *</label>
+      <select class="form-select mb-3" id="quickProductCategorySelect"></select>
+
+      <label class="form-label">Retail Price *</label>
+      <input type="number" min="0" step="0.01" class="form-control mb-3" id="quickProductPriceInput">
+
+      <div id="quickAddProductAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
+
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-dark-amson flex-fill" id="quickAddProductCancelBtn">Cancel</button>
+        <button type="button" class="btn btn-amson flex-fill" id="quickAddProductSaveBtn">Add Product</button>
+      </div>
     </div>
   </div>
 </div>

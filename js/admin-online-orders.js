@@ -58,7 +58,7 @@ const verificationQueueEmpty = document.getElementById("verificationQueueEmpty")
 const verificationReviewPanel = document.getElementById("verificationReviewPanel");
 const verificationReviewEmpty = document.getElementById("verificationReviewEmpty");
 const reviewAlert = document.getElementById("reviewAlert");
-const referenceNumberInput = document.getElementById("referenceNumberInput");
+const reviewReferenceNumber = document.getElementById("reviewReferenceNumber");
 const paymentIssueSelect = document.getElementById("paymentIssueSelect");
 const approvePaymentBtn = document.getElementById("approvePaymentBtn");
 
@@ -184,7 +184,7 @@ function renderReviewPanel(order) {
   document.getElementById("reviewCustomerName").textContent = customerName(order);
   document.getElementById("reviewOrderTotal").textContent = formatPeso(order.total);
   document.getElementById("reviewSubmittedAt").textContent = formatOrderDateTime(order.createdAt);
-  referenceNumberInput.value = "";
+  reviewReferenceNumber.textContent = order.paymentReferenceNumber || "-";
 
   const proofUrl = order.proofOfPaymentUrl || "";
   document.getElementById("reviewProofImageLink").href = proofUrl;
@@ -202,13 +202,6 @@ function renderReviewPanel(order) {
 
 approvePaymentBtn.addEventListener("click", async () => {
   if (!selectedVerificationId) return;
-  const referenceNumber = referenceNumberInput.value.trim();
-
-  if (!referenceNumber) {
-    reviewAlert.textContent = "Please enter the reference number from the proof of payment before approving.";
-    reviewAlert.classList.remove("d-none");
-    return;
-  }
 
   const orderId = selectedVerificationId;
   const order = allOrders.find((o) => o.id === orderId);
@@ -227,19 +220,16 @@ approvePaymentBtn.addEventListener("click", async () => {
         status: "delivered",
         "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
         "statusTimestamps.delivered": firebase.firestore.FieldValue.serverTimestamp(),
-        paymentReferenceNumber: referenceNumber,
       });
       order.status = "delivered";
     } else {
       await db.collection("orders").doc(orderId).update({
         status: "payment_confirmed",
         "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
-        paymentReferenceNumber: referenceNumber,
       });
       order.status = "payment_confirmed";
     }
 
-    order.paymentReferenceNumber = referenceNumber;
     selectedVerificationId = null;
 
     renderVerificationQueue();
@@ -361,7 +351,6 @@ issueConfirmBtn.addEventListener("click", async () => {
       bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
     } else {
       const received = parseFloat(issueAmountReceivedInput.value) || order.total;
-      const referenceNumber = referenceNumberInput.value.trim();
 
       for (const item of order.items || []) {
         await deductStockFEFO(item.id, item.qty);
@@ -377,13 +366,11 @@ issueConfirmBtn.addEventListener("click", async () => {
         },
       };
       if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
-      if (referenceNumber) update.paymentReferenceNumber = referenceNumber;
 
       await db.collection("orders").doc(orderId).update(update);
 
       order.status = update.status;
       order.paymentOverage = update.paymentOverage;
-      if (referenceNumber) order.paymentReferenceNumber = referenceNumber;
       selectedVerificationId = null;
 
       renderVerificationQueue();

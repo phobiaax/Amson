@@ -121,15 +121,6 @@ function setCategorySelectValue(value) {
   }
 }
 
-/* ---------- SKU generation (same pattern as order numbers) ---------- */
-async function generateProductSku() {
-  const counterRef = db.collection("counters").doc("products");
-  const counterDoc = await counterRef.get();
-  const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
-  await counterRef.set({ count: nextCount }, { merge: true });
-  return `MED-${String(nextCount).padStart(4, "0")}`;
-}
-
 /* ---------- Table ---------- */
 function filteredProducts() {
   let filtered = allProducts.slice();

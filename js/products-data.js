@@ -76,19 +76,28 @@ async function loadCatalogCache() {
   catalogLoadPromise = (async () => {
     const categorySnapshot = await db.collection("categories").get();
     const productSnapshot = await db.collection("products").get();
+    const batchSnapshot = await db.collection("stockBatches").where("status", "==", "active").get();
 
     CATEGORY_LABELS = {};
     categorySnapshot.docs.forEach((doc) => {
       CATEGORY_LABELS[doc.id] = doc.data().name;
     });
 
+    const stockByProduct = {};
+    batchSnapshot.docs.forEach((doc) => {
+      const batch = doc.data();
+      stockByProduct[batch.productId] = (stockByProduct[batch.productId] || 0) + (batch.quantity || 0);
+    });
+
     SAMPLE_PRODUCTS = productSnapshot.docs.map((doc) => {
       const data = doc.data();
+      const totalStock = stockByProduct[doc.id] || 0;
       return {
         id: doc.id,
         ...data,
         price: data.retailPrice,
-        inStock: data.status === "active",
+        totalStock,
+        inStock: data.status === "active" && totalStock > 0,
       };
     });
 
@@ -96,6 +105,22 @@ async function loadCatalogCache() {
   })();
 
   return catalogLoadPromise;
+}
+
+// A product is only ready to sell online once it has real stock received
+// through Inventory Management (Receive Stock) - staff can create a
+// product ahead of time without it appearing to customers yet.
+function storefrontCatalog() {
+  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore && p.totalStock > 0);
+}
+
+/* ---------- SKU generation (same pattern as order numbers) ---------- */
+async function generateProductSku() {
+  const counterRef = db.collection("counters").doc("products");
+  const counterDoc = await counterRef.get();
+  const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
+  await counterRef.set({ count: nextCount }, { merge: true });
+  return `MED-${String(nextCount).padStart(4, "0")}`;
 }
 
 function formatPeso(amount) {

@@ -91,7 +91,7 @@ deliveryAsapCheck.addEventListener("change", () => {
 saveDeliveryScheduleBtn.addEventListener("click", () => {
   if (deliveryAsapCheck.checked) {
     deliverySchedule = { asap: true };
-    deliveryScheduleLabel.textContent = "As soon as possible";
+    deliveryScheduleLabel.textContent = "No preferred schedule";
     return;
   }
 

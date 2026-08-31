@@ -70,6 +70,25 @@ const saveReceiveStockBtn = document.getElementById("saveReceiveStockBtn");
 const receiveUploadBatchBtn = document.getElementById("receiveUploadBatchBtn");
 const receiveBatchFileInput = document.getElementById("receiveBatchFileInput");
 const receiveBatchUploadStatus = document.getElementById("receiveBatchUploadStatus");
+const receiveNewSupplierBtn = document.getElementById("receiveNewSupplierBtn");
+
+const quickAddSupplierModalEl = document.getElementById("quickAddSupplierModal");
+const quickSupplierNameInput = document.getElementById("quickSupplierNameInput");
+const quickSupplierContactInput = document.getElementById("quickSupplierContactInput");
+const quickSupplierPhoneInput = document.getElementById("quickSupplierPhoneInput");
+const quickAddSupplierAlert = document.getElementById("quickAddSupplierAlert");
+const quickAddSupplierCancelBtn = document.getElementById("quickAddSupplierCancelBtn");
+const quickAddSupplierSaveBtn = document.getElementById("quickAddSupplierSaveBtn");
+
+const quickAddProductModalEl = document.getElementById("quickAddProductModal");
+const quickProductNameInput = document.getElementById("quickProductNameInput");
+const quickProductCategorySelect = document.getElementById("quickProductCategorySelect");
+const quickProductPriceInput = document.getElementById("quickProductPriceInput");
+const quickAddProductAlert = document.getElementById("quickAddProductAlert");
+const quickAddProductCancelBtn = document.getElementById("quickAddProductCancelBtn");
+const quickAddProductSaveBtn = document.getElementById("quickAddProductSaveBtn");
+
+let quickAddProductTargetSelect = null;
 
 const writeOffStockBtn = document.getElementById("writeOffStockBtn");
 const writeOffModalEl = document.getElementById("writeOffModal");
@@ -174,6 +193,12 @@ function formatExpiryLabel(isoDate) {
   return date.toLocaleDateString("en-PH", { month: "long", year: "numeric" });
 }
 
+function formatDateAdded(timestamp) {
+  if (!timestamp) return "-";
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  return date.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+}
+
 /* ---------- Table ---------- */
 function filteredBatches() {
   let filtered = allBatches.map((b) => ({ ...b, computedStatus: getBatchStatus(b) }));
@@ -233,6 +258,7 @@ function renderBatchRow(batch) {
   return `
     <tr>
       <td class="fw-medium">${batch.batchNo}</td>
+      <td>${formatDateAdded(batch.createdAt)}</td>
       <td>${formatExpiryLabel(batch.expirationDate)}</td>
       <td>${product ? product.name : "Unknown product"}</td>
       <td>${product ? CATEGORY_LABELS[product.category] || "-" : "-"}</td>
@@ -348,7 +374,10 @@ function addReceiveItemRow() {
     <button type="button" class="repeater-remove-btn" aria-label="Remove item"><i class="bi bi-x-lg"></i></button>
     <div class="row g-3">
       <div class="col-md-6">
-        <label class="form-label">Product</label>
+        <div class="d-flex justify-content-between align-items-center">
+          <label class="form-label mb-0">Product</label>
+          <button type="button" class="btn btn-link btn-sm p-0 quick-add-product-btn" style="font-size:0.8rem;">+ New Product</button>
+        </div>
         <select class="form-select receive-product-select"></select>
       </div>
       <div class="col-md-6">
@@ -374,6 +403,10 @@ function addReceiveItemRow() {
     row.remove();
     renumberItems(receiveItemsContainer);
     updateRemoveButtonsVisibility(receiveItemsContainer);
+  });
+
+  row.querySelector(".quick-add-product-btn").addEventListener("click", () => {
+    openQuickAddProductModal(row.querySelector(".receive-product-select"));
   });
 }
 
@@ -503,6 +536,161 @@ receiveBatchFileInput.addEventListener("change", async () => {
   }`;
   receiveBatchFileInput.value = "";
   await loadInventory();
+});
+
+/* ---------- Quick Add Supplier / Product (launched from within Receive Stock) ---------- */
+quickAddSupplierModalEl.addEventListener("hidden.bs.modal", () => {
+  bootstrap.Modal.getOrCreateInstance(receiveStockModalEl).show();
+});
+quickAddProductModalEl.addEventListener("hidden.bs.modal", () => {
+  bootstrap.Modal.getOrCreateInstance(receiveStockModalEl).show();
+});
+
+function populateQuickProductCategorySelect() {
+  quickProductCategorySelect.innerHTML = Object.entries(CATEGORY_LABELS)
+    .map(([id, name]) => `<option value="${id}">${name}</option>`)
+    .join("");
+}
+
+function refreshSupplierSelects() {
+  const options = [{ value: "", label: "No supplier / unspecified" }].concat(
+    allSuppliers.map((s) => ({ value: s.id, label: s.name }))
+  );
+  [receiveSupplierSelect, poSupplierSelect].forEach((sel) => {
+    if (sel._choices) sel._choices.setChoices(options, "value", "label", true);
+  });
+}
+
+function refreshProductSelects(newProductId) {
+  const options = SAMPLE_PRODUCTS.map((p) => ({ value: p.id, label: p.name }));
+  document.querySelectorAll(".receive-product-select, .writeoff-product-select, .po-product-select").forEach((sel) => {
+    if (!sel._choices) return;
+    const previousValue = sel.value;
+    sel._choices.setChoices(options, "value", "label", true);
+    if (sel === quickAddProductTargetSelect && newProductId) {
+      sel._choices.setChoiceByValue(newProductId);
+    } else if (previousValue) {
+      sel._choices.setChoiceByValue(previousValue);
+    }
+  });
+}
+
+receiveNewSupplierBtn.addEventListener("click", () => {
+  quickSupplierNameInput.value = "";
+  quickSupplierContactInput.value = "";
+  quickSupplierPhoneInput.value = "";
+  quickAddSupplierAlert.classList.add("d-none");
+  bootstrap.Modal.getInstance(receiveStockModalEl).hide();
+  receiveStockModalEl.addEventListener("hidden.bs.modal", function handler() {
+    receiveStockModalEl.removeEventListener("hidden.bs.modal", handler);
+    bootstrap.Modal.getOrCreateInstance(quickAddSupplierModalEl).show();
+  });
+});
+
+function openQuickAddProductModal(targetSelect) {
+  quickAddProductTargetSelect = targetSelect;
+  quickProductNameInput.value = "";
+  quickProductPriceInput.value = "";
+  quickAddProductAlert.classList.add("d-none");
+  populateQuickProductCategorySelect();
+  bootstrap.Modal.getInstance(receiveStockModalEl).hide();
+  receiveStockModalEl.addEventListener("hidden.bs.modal", function handler() {
+    receiveStockModalEl.removeEventListener("hidden.bs.modal", handler);
+    bootstrap.Modal.getOrCreateInstance(quickAddProductModalEl).show();
+  });
+}
+
+quickAddSupplierCancelBtn.addEventListener("click", () => {
+  bootstrap.Modal.getInstance(quickAddSupplierModalEl).hide();
+});
+
+quickAddProductCancelBtn.addEventListener("click", () => {
+  bootstrap.Modal.getInstance(quickAddProductModalEl).hide();
+});
+
+quickAddSupplierSaveBtn.addEventListener("click", async () => {
+  const name = quickSupplierNameInput.value.trim();
+  if (!name) {
+    quickAddSupplierAlert.textContent = "Company name is required.";
+    quickAddSupplierAlert.classList.remove("d-none");
+    return;
+  }
+
+  quickAddSupplierSaveBtn.disabled = true;
+  quickAddSupplierAlert.classList.add("d-none");
+
+  try {
+    const supplierData = {
+      name,
+      contactPerson: quickSupplierContactInput.value.trim(),
+      phone: quickSupplierPhoneInput.value.trim(),
+      email: "",
+      address: "",
+      productIds: [],
+      status: "active",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    };
+    const docRef = await db.collection("suppliers").add(supplierData);
+    allSuppliers.push({ id: docRef.id, ...supplierData });
+
+    refreshSupplierSelects();
+    if (receiveSupplierSelect._choices) receiveSupplierSelect._choices.setChoiceByValue(docRef.id);
+
+    bootstrap.Modal.getInstance(quickAddSupplierModalEl).hide();
+  } catch (error) {
+    quickAddSupplierAlert.textContent = "Something went wrong adding this supplier. Please try again.";
+    quickAddSupplierAlert.classList.remove("d-none");
+  } finally {
+    quickAddSupplierSaveBtn.disabled = false;
+  }
+});
+
+quickAddProductSaveBtn.addEventListener("click", async () => {
+  const name = quickProductNameInput.value.trim();
+  const category = quickProductCategorySelect.value;
+  const retailPrice = parseFloat(quickProductPriceInput.value);
+
+  if (!name || !category || isNaN(retailPrice)) {
+    quickAddProductAlert.textContent = "Product name, category, and retail price are required.";
+    quickAddProductAlert.classList.remove("d-none");
+    return;
+  }
+
+  quickAddProductSaveBtn.disabled = true;
+  quickAddProductAlert.classList.add("d-none");
+
+  try {
+    const sku = await generateProductSku();
+    const docRef = await db.collection("products").add({
+      name,
+      genericName: "",
+      brand: "",
+      category,
+      costingPrice: 0,
+      retailPrice,
+      wholesalePrice: 0,
+      reorderPoint: DEFAULT_REORDER_POINT,
+      description: "",
+      imageUrl: null,
+      availableInPOS: true,
+      availableInOnlineStore: true,
+      rxRequired: false,
+      status: "active",
+      sku,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+
+    catalogLoadPromise = null; // force a fresh read so the new product shows up everywhere
+    await loadCatalogCache();
+    refreshProductSelects(docRef.id);
+
+    bootstrap.Modal.getInstance(quickAddProductModalEl).hide();
+  } catch (error) {
+    quickAddProductAlert.textContent = "Something went wrong adding this product. Please try again.";
+    quickAddProductAlert.classList.remove("d-none");
+  } finally {
+    quickAddProductSaveBtn.disabled = false;
+  }
 });
 
 /* ---------- Write Off Stock ---------- */

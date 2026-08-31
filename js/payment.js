@@ -2,7 +2,6 @@
  * Payment page.
  */
 
-const ESTIMATED_DELIVERY_FEE = 85;
 const MAX_PROOF_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 const noPendingOrderNotice = document.getElementById("noPendingOrderNotice");
@@ -10,7 +9,6 @@ const paymentContent = document.getElementById("paymentContent");
 const orderConfirmation = document.getElementById("orderConfirmation");
 const paymentItemsSummary = document.getElementById("paymentItemsSummary");
 const paymentTotalText = document.getElementById("paymentTotalText");
-const deliveryFeeText = document.getElementById("deliveryFeeText");
 const uploadDropzone = document.getElementById("uploadDropzone");
 const uploadEmptyState = document.getElementById("uploadEmptyState");
 const uploadPreviewState = document.getElementById("uploadPreviewState");
@@ -18,8 +16,9 @@ const uploadPreviewImage = document.getElementById("uploadPreviewImage");
 const uploadPreviewFilename = document.getElementById("uploadPreviewFilename");
 const uploadErrorText = document.getElementById("uploadErrorText");
 const proofOfPaymentInput = document.getElementById("proofOfPaymentInput");
+const referenceNumberInput = document.getElementById("referenceNumberInput");
+const referenceNumberErrorText = document.getElementById("referenceNumberErrorText");
 const submitOrderBtn = document.getElementById("submitOrderBtn");
-const deliveryFeeRow = document.getElementById("deliveryFeeRow");
 const deliveryFeeNoteSummary = document.getElementById("deliveryFeeNoteSummary");
 const pickupNoteSummary = document.getElementById("pickupNoteSummary");
 
@@ -44,8 +43,9 @@ auth.onAuthStateChanged((user) => {
 
 function updateSubmitButtonState() {
   const hasProof = !!proofOfPaymentInput.files[0];
+  const hasReferenceNumber = !!referenceNumberInput.value.trim();
   const hasPrescription = !requiresPrescription || !!prescriptionPhotoInput.files[0];
-  submitOrderBtn.disabled = !(hasProof && hasPrescription);
+  submitOrderBtn.disabled = !(hasProof && hasReferenceNumber && hasPrescription);
 }
 
 (async function init() {
@@ -60,7 +60,6 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     return product && product.rxRequired;
   });
   prescriptionUploadBox.classList.toggle("d-none", !requiresPrescription);
-  deliveryFeeRow.classList.toggle("d-none", requiresPrescription);
   deliveryFeeNoteSummary.classList.toggle("d-none", requiresPrescription);
   pickupNoteSummary.classList.toggle("d-none", !requiresPrescription);
 
@@ -88,9 +87,13 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
   }
 
   paymentTotalText.textContent = formatPeso(total);
-  deliveryFeeText.textContent = `~${formatPeso(ESTIMATED_DELIVERY_FEE)}`;
 
   uploadDropzone.addEventListener("click", () => proofOfPaymentInput.click());
+
+  referenceNumberInput.addEventListener("input", () => {
+    referenceNumberErrorText.classList.add("d-none");
+    updateSubmitButtonState();
+  });
 
   proofOfPaymentInput.addEventListener("change", () => {
     const file = proofOfPaymentInput.files[0];
@@ -143,10 +146,18 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
   submitOrderBtn.addEventListener("click", async () => {
     const file = proofOfPaymentInput.files[0];
     const prescriptionFile = prescriptionPhotoInput.files[0];
-    if (!file || (requiresPrescription && !prescriptionFile)) return;
+    const referenceNumber = referenceNumberInput.value.trim();
+    if (!file || !referenceNumber || (requiresPrescription && !prescriptionFile)) {
+      if (!referenceNumber) {
+        referenceNumberErrorText.textContent = "Please enter the reference number from your proof of payment.";
+        referenceNumberErrorText.classList.remove("d-none");
+      }
+      return;
+    }
 
     uploadErrorText.classList.add("d-none");
     rxUploadErrorText.classList.add("d-none");
+    referenceNumberErrorText.classList.add("d-none");
     submitOrderBtn.disabled = true;
     submitOrderBtn.textContent = "Submitting...";
 
@@ -174,8 +185,8 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
         deliverySchedule: pendingOrder.deliverySchedule,
         items,
         total,
-        deliveryFeeEstimate: requiresPrescription ? 0 : ESTIMATED_DELIVERY_FEE,
         proofOfPaymentUrl,
+        paymentReferenceNumber: referenceNumber,
         requiresPrescription,
         prescriptionPhotoUrl,
         status: "placed",

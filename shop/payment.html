@@ -158,6 +158,11 @@
               <input type="file" id="proofOfPaymentInput" accept="image/png,image/jpeg" class="d-none">
             </div>
             <p class="text-danger d-none mb-0 mt-2" id="uploadErrorText" style="font-size:0.82rem;"></p>
+
+            <label for="referenceNumberInput" class="form-label mt-3">Reference Number *</label>
+            <input type="text" class="form-control" id="referenceNumberInput" placeholder="e.g. GC1234567890">
+            <p class="text-muted mb-0 mt-1" style="font-size:0.78rem;">Enter the reference number shown on your payment confirmation screenshot.</p>
+            <p class="text-danger d-none mb-0 mt-1" id="referenceNumberErrorText" style="font-size:0.82rem;"></p>
           </div>
         </div>
       </div>
@@ -171,13 +176,8 @@
             <span>Pay via QR PH</span>
             <strong id="paymentTotalText" class="product-price mb-0">₱0</strong>
           </div>
-          <div class="d-flex justify-content-between mt-2" id="deliveryFeeRow">
-            <span class="text-muted">Delivery Fee</span>
-            <span class="text-muted" id="deliveryFeeText">~₱85.00</span>
-          </div>
-
           <div class="summary-note" id="deliveryFeeNoteSummary">
-            <strong>Note:</strong> The delivery fee shown is an estimate based on your selected location. The final shipping cost will be determined by the assigned third-party courier and must be paid in cash directly to the rider upon delivery.
+            <strong>Note:</strong> This website does not calculate a delivery fee. Please pay your delivery rider directly (cash) once your order arrives.
           </div>
 
           <div class="summary-note d-none" id="pickupNoteSummary">
