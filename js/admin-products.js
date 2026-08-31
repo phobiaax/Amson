@@ -422,6 +422,15 @@ saveProductBtn.addEventListener("click", async () => {
 
 deleteProductBtn.addEventListener("click", async () => {
   if (!editingProductId) return;
+
+  const stockSnapshot = await db.collection("stockBatches").where("productId", "==", editingProductId).get();
+  const hasStock = stockSnapshot.docs.some((doc) => (doc.data().quantity || 0) > 0);
+  if (hasStock) {
+    productModalAlert.textContent = "This product still has stock on hand. Write off its remaining batches in Inventory Management before deleting it.";
+    productModalAlert.classList.remove("d-none");
+    return;
+  }
+
   if (!confirm("Delete this product? This can't be undone.")) return;
 
   try {

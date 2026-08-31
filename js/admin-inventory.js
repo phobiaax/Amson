@@ -247,9 +247,22 @@ function renderInventoryTable() {
   } else {
     inventoryTableEmpty.classList.add("d-none");
     inventoryTableBody.innerHTML = pageItems.map(renderBatchRow).join("");
+    inventoryTableBody.querySelectorAll(".delete-orphan-batch-btn").forEach((btn) => {
+      btn.addEventListener("click", () => deleteOrphanBatch(btn.dataset.id));
+    });
   }
 
   renderInventoryPagination(totalPages);
+}
+
+async function deleteOrphanBatch(batchId) {
+  if (!confirm("This batch's product no longer exists. Delete this leftover inventory record? This can't be undone.")) return;
+  try {
+    await db.collection("stockBatches").doc(batchId).delete();
+    await loadInventory();
+  } catch (error) {
+    alert("Something went wrong deleting this record. Please try again.");
+  }
 }
 
 function renderBatchRow(batch) {
@@ -267,6 +280,9 @@ function renderBatchRow(batch) {
       <td>
         <span class="batch-status-pill ${batch.computedStatus}">${BATCH_STATUS_LABELS[batch.computedStatus]}</span>
         ${batch.status === "wholesale_only" ? '<span class="badge rounded-pill text-bg-secondary ms-1">Wholesale Only</span>' : ""}
+      </td>
+      <td>
+        ${product ? "" : `<button type="button" class="icon-btn delete-orphan-batch-btn" data-id="${batch.id}" aria-label="Delete orphaned batch" title="This batch's product was deleted - remove this leftover record"><i class="bi bi-trash text-danger"></i></button>`}
       </td>
     </tr>
   `;

@@ -85,7 +85,10 @@ service cloud.firestore {
     }
 
     // ---- staff-only operational data ----
-    match /stockBatches/{batchId}      { allow read, write: if isStaff(); }
+    // stockBatches read is public (like products/categories) because the
+    // storefront needs it to compute real available stock per product -
+    // writes stay staff-only.
+    match /stockBatches/{batchId}      { allow read: if true; allow write: if isStaff(); }
     match /suppliers/{supplierId}      { allow read, write: if isStaff(); }
     match /purchaseOrders/{poId}       { allow read, write: if isStaff(); }
     match /reconciliations/{reconId}   { allow read, write: if isStaff(); }
