@@ -217,6 +217,17 @@ function renderOrder(order) {
     renderTimeline(order);
   }
 
+  const overpaymentNotice = document.getElementById("overpaymentNotice");
+  const overpaymentCredit = order.paymentOverage ? order.paymentOverage.excessAmount || 0 : 0;
+  if (overpaymentCredit > 0) {
+    overpaymentNotice.textContent =
+      `You paid ${formatPeso(overpaymentCredit)} more than this order's total. That excess has been kept as credit toward a future purchase - ` +
+      `please reach out via live chat to apply it (in line with our no-refund policy).`;
+    overpaymentNotice.classList.remove("d-none");
+  } else {
+    overpaymentNotice.classList.add("d-none");
+  }
+
   if (order.shipping) {
     document.getElementById("detailAddress").textContent =
       `${order.shipping.streetAddress}, ${order.shipping.city}, ${order.shipping.province} ${order.shipping.zipCode}`;

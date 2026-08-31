@@ -62,6 +62,18 @@ function computeUnappliedCredit(order) {
   return 0;
 }
 
+// The amount of this order's payment currently held as credit, whichever
+// path it came from: a hold that closed unresolved (unappliedCredit,
+// computed above and stored at close time), or an overpayment that was
+// approved immediately with the excess recorded on the order
+// (paymentOverage - REQ098, excess is credit toward a future transaction,
+// never refunded).
+function orderCreditAmount(order) {
+  if (order.status === "closed_unresolved") return order.unappliedCredit || 0;
+  if (order.paymentOverage) return order.paymentOverage.excessAmount || 0;
+  return 0;
+}
+
 const DISPATCH_AUTO_DELIVER_MS = 3 * 24 * 60 * 60 * 1000;
 
 function orderStatusSteps(order) {

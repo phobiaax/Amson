@@ -83,10 +83,7 @@ auth.onAuthStateChanged(async (user) => {
 async function loadStoreCredit(uid) {
   try {
     const snapshot = await db.collection("orders").where("customerId", "==", uid).get();
-    const totalCredit = snapshot.docs.reduce((sum, doc) => {
-      const order = doc.data();
-      return order.status === "closed_unresolved" ? sum + (order.unappliedCredit || 0) : sum;
-    }, 0);
+    const totalCredit = snapshot.docs.reduce((sum, doc) => sum + orderCreditAmount(doc.data()), 0);
 
     if (totalCredit > 0) {
       storeCreditAmount.textContent = formatPeso(totalCredit);
