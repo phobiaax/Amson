@@ -447,6 +447,23 @@ saveReceiveStockBtn.addEventListener("click", async () => {
     return;
   }
 
+  // Stock this close to expiry gets auto-flagged as a Bad Order and its
+  // quantity zeroed out the moment Inventory reloads (see
+  // enforceExpiryStatus in products-data.js) - warn before that happens
+  // silently, since it's easy to type in a near-term test/typo date.
+  const badOrderThreshold = new Date();
+  badOrderThreshold.setMonth(badOrderThreshold.getMonth() + BAD_ORDER_MONTHS);
+  const nearExpiryItems = items.filter((it) => new Date(it.expirationDate) <= badOrderThreshold);
+  if (nearExpiryItems.length > 0) {
+    const productNames = nearExpiryItems
+      .map((it) => (getProductById(it.productId) || {}).name || "Unknown product")
+      .join(", ");
+    const proceed = confirm(
+      `${productNames} ${nearExpiryItems.length === 1 ? "has" : "have"} an expiry date within ${BAD_ORDER_MONTHS} months from today. Amson auto-flags stock this close to expiry as a Bad Order and sets its quantity to 0 as soon as it's received - it will NOT be sellable or show up in the storefront. Continue anyway?`
+    );
+    if (!proceed) return;
+  }
+
   saveReceiveStockBtn.disabled = true;
   receiveModalAlert.classList.add("d-none");
 

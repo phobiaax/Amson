@@ -1087,6 +1087,7 @@ a {
   display: flex;
   min-height: 100vh;
   width: 100%;
+  min-width: 0;
 }
 
 .admin-sidebar {
@@ -1156,6 +1157,7 @@ a {
 
 .admin-main {
   flex-grow: 1;
+  flex-shrink: 1;
   min-width: 0;
   background-color: var(--amson-gray-bg);
 }
@@ -1714,6 +1716,10 @@ a {
 .batch-status-pill.near_expiry {
   background-color: rgba(238, 49, 55, 0.12);
   color: var(--amson-red);
+}
+.batch-status-pill.bad_order {
+  background-color: var(--amson-red);
+  color: #fff;
 }
 
 .reconciliation-table-wrap {

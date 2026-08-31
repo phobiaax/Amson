@@ -15,9 +15,15 @@ const BATCH_STATUS_LABELS = {
   low_stock: "Low Stock",
   out_of_stock: "Out of Stock",
   near_expiry: "Near Expiry",
+  bad_order: "Bad Order",
 };
 
 function getBatchStatus(batch) {
+  // Auto-rejected on receiving for being too close to expiry (see
+  // enforceExpiryStatus below) - call this out distinctly instead of
+  // letting it fall through to the generic "Out of Stock" pill, since the
+  // two mean very different things to staff.
+  if (batch.status === "bad_order") return "bad_order";
   if (batch.quantity === 0) return "out_of_stock";
 
   const expiry = new Date(batch.expirationDate);
