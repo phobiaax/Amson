@@ -83,7 +83,7 @@ async function loadCustomerNotifications(uid) {
           priority: 0,
           link: `order-details.html?id=${doc.id}`,
           title: `You have ${formatPeso(order.paymentOverage.excessAmount)} credit from order ${order.orderNumber}`,
-          detail: "Overpayment kept as credit toward a future purchase - reach out via live chat to apply it.",
+          detail: "Overpayment kept as credit - our team will apply it to your next order.",
         });
       }
       // Same for credit left over from a hold that closed unresolved -
@@ -94,7 +94,7 @@ async function loadCustomerNotifications(uid) {
           priority: 0,
           link: `order-details.html?id=${doc.id}`,
           title: `You have ${formatPeso(order.unappliedCredit)} credit from order ${order.orderNumber}`,
-          detail: "Kept as credit toward a future purchase - reach out via live chat to apply it.",
+          detail: "Kept as credit - our team will apply it to your next order.",
         });
       }
     });
