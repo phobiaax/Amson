@@ -159,6 +159,34 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     rxUploadErrorText.classList.add("d-none");
     referenceNumberErrorText.classList.add("d-none");
     submitOrderBtn.disabled = true;
+    submitOrderBtn.textContent = "Checking stock...";
+
+    // Stock may have changed since the cart was filled (another customer
+    // bought it, or it just hasn't been received yet) - re-check against
+    // live numbers right before the order is created, not the possibly
+    // stale numbers from when checkout started.
+    catalogLoadPromise = null;
+    await loadCatalogCache();
+
+    const outOfStockItems = pendingOrder.cart
+      .map((item) => ({ item, product: getProductById(item.id) }))
+      .filter(({ item, product }) => item.qty > (product ? product.totalStock : 0));
+
+    if (outOfStockItems.length > 0) {
+      const details = outOfStockItems
+        .map(({ item, product }) =>
+          product
+            ? `${product.name} (only ${product.totalStock} left, ${item.qty} in your cart)`
+            : "an item that's no longer available"
+        )
+        .join("; ");
+      uploadErrorText.textContent = `Some items in your cart exceed what's currently in stock: ${details}. Please go back to your cart and adjust the quantity.`;
+      uploadErrorText.classList.remove("d-none");
+      submitOrderBtn.disabled = false;
+      submitOrderBtn.textContent = "Submit Order";
+      return;
+    }
+
     submitOrderBtn.textContent = "Submitting...";
 
     try {

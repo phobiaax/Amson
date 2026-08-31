@@ -17,23 +17,44 @@ function saveCart(cart) {
   updateCartBadge();
 }
 
+// Both return { qty, capped } - capped is true if the requested quantity
+// had to be reduced to stay within the product's real available stock.
 function addToCart(productId, qty = 1) {
   const cart = getCart();
   const existing = cart.find((item) => item.id === productId);
+  const product = typeof getProductById === "function" ? getProductById(productId) : null;
+  const maxQty = product ? product.totalStock : Infinity;
+
+  const currentQty = existing ? existing.qty : 0;
+  const desiredQty = currentQty + qty;
+  const finalQty = Math.min(desiredQty, maxQty);
+  const capped = finalQty < desiredQty;
+
+  if (finalQty <= 0) {
+    return { qty: currentQty, capped: true };
+  }
+
   if (existing) {
-    existing.qty += qty;
+    existing.qty = finalQty;
   } else {
-    cart.push({ id: productId, qty });
+    cart.push({ id: productId, qty: finalQty });
   }
   saveCart(cart);
+  return { qty: finalQty, capped };
 }
 
 function updateCartItemQty(productId, qty) {
   const cart = getCart();
   const item = cart.find((i) => i.id === productId);
-  if (!item) return;
-  item.qty = Math.max(1, qty);
+  if (!item) return { qty: 0, capped: false };
+  const product = typeof getProductById === "function" ? getProductById(productId) : null;
+  const maxQty = product ? product.totalStock : Infinity;
+  const desiredQty = Math.max(1, qty);
+  const finalQty = Math.min(desiredQty, Math.max(maxQty, 1));
+  const capped = finalQty < desiredQty;
+  item.qty = finalQty;
   saveCart(cart);
+  return { qty: finalQty, capped };
 }
 
 function removeFromCart(productId) {
@@ -80,8 +101,14 @@ function showCartToast(message) {
 document.addEventListener("click", (e) => {
   const btn = e.target.closest(".btn-add-cart");
   if (!btn) return;
-  addToCart(btn.dataset.id, 1);
-  showCartToast("Added to cart.");
+  const result = addToCart(btn.dataset.id, 1);
+  if (result.capped && result.qty === 0) {
+    showCartToast("Sorry, that item is out of stock.");
+  } else if (result.capped) {
+    showCartToast(`Only ${result.qty} in stock - your cart is now at the limit.`);
+  } else {
+    showCartToast("Added to cart.");
+  }
 });
 
 document.addEventListener("DOMContentLoaded", updateCartBadge);

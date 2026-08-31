@@ -84,6 +84,10 @@
         <div id="verificationPanel" class="p-4 d-none">
           <div class="row g-3">
             <div class="col-lg-4">
+              <div class="d-flex gap-2 mb-2">
+                <input type="text" class="form-control form-control-sm" id="verificationSearchInput" placeholder="Search order # or customer">
+                <button type="button" class="btn btn-outline-dark-amson btn-sm" id="verificationSortBtn" aria-label="Toggle sort order"><i class="bi bi-arrow-down-up"></i></button>
+              </div>
               <div id="verificationQueueList" class="d-flex flex-column gap-2"></div>
               <p class="text-muted text-center py-4 d-none" id="verificationQueueEmpty">No orders awaiting payment verification.</p>
             </div>

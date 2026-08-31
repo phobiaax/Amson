@@ -50,6 +50,7 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
             </div>
             <span class="text-muted">Subtotal: <strong id="subtotalText">${formatPeso(product.price)}</strong></span>
           </div>
+          ${product.inStock ? `<p class="text-muted mb-3" style="font-size:0.82rem;" id="stockLimitNote">${product.totalStock} available</p>` : ""}
 
           ${
             product.rxRequired
@@ -71,9 +72,11 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
 
   const qtyInput = document.getElementById("qtyInput");
   const subtotalText = document.getElementById("subtotalText");
+  const maxQty = Math.max(product.totalStock || 0, 0);
 
   function currentQty() {
-    return Math.max(1, parseInt(qtyInput.value, 10) || 1);
+    const val = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+    return maxQty > 0 ? Math.min(val, maxQty) : val;
   }
 
   function updateSubtotal() {
@@ -86,7 +89,11 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
   });
 
   document.getElementById("qtyPlus").addEventListener("click", () => {
-    qtyInput.value = currentQty() + 1;
+    if (maxQty > 0 && currentQty() >= maxQty) {
+      qtyInput.value = maxQty;
+    } else {
+      qtyInput.value = currentQty() + 1;
+    }
     updateSubtotal();
   });
 
@@ -103,8 +110,14 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
   const addToCartBtn = document.getElementById("addToCartBtn");
   if (addToCartBtn) {
     addToCartBtn.addEventListener("click", () => {
-      addToCart(product.id, currentQty());
-      showCartToast(`Added ${currentQty()} × ${product.name} to cart.`);
+      const result = addToCart(product.id, currentQty());
+      if (result.capped && result.qty === 0) {
+        showCartToast("Sorry, that item is out of stock.");
+      } else if (result.capped) {
+        showCartToast(`Only ${result.qty} in stock - your cart is now at the limit.`);
+      } else {
+        showCartToast(`Added ${currentQty()} × ${product.name} to cart.`);
+      }
     });
   }
 })();

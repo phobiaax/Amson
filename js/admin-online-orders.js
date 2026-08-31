@@ -47,6 +47,8 @@ let ordersFilter = "all";
 let ordersSearchTerm = "";
 let ordersSortDesc = true;
 let ordersCurrentPage = 1;
+let verificationSearchTerm = "";
+let verificationSortDesc = true;
 
 const tabVerificationBtn = document.getElementById("tabVerificationBtn");
 const tabOrdersBtn = document.getElementById("tabOrdersBtn");
@@ -55,6 +57,8 @@ const ordersPanel = document.getElementById("ordersPanel");
 
 const verificationQueueList = document.getElementById("verificationQueueList");
 const verificationQueueEmpty = document.getElementById("verificationQueueEmpty");
+const verificationSearchInput = document.getElementById("verificationSearchInput");
+const verificationSortBtn = document.getElementById("verificationSortBtn");
 const verificationReviewPanel = document.getElementById("verificationReviewPanel");
 const verificationReviewEmpty = document.getElementById("verificationReviewEmpty");
 const reviewAlert = document.getElementById("reviewAlert");
@@ -127,7 +131,24 @@ function customerName(order) {
 }
 
 function verificationQueue() {
-  return allOrders.filter((order) => order.status === "placed" && !order.paymentIssue);
+  let queue = allOrders.filter((order) => order.status === "placed" && !order.paymentIssue);
+
+  if (verificationSearchTerm) {
+    const term = verificationSearchTerm.toLowerCase();
+    queue = queue.filter(
+      (order) =>
+        (order.orderNumber || "").toLowerCase().includes(term) ||
+        customerName(order).toLowerCase().includes(term)
+    );
+  }
+
+  queue.sort((a, b) => {
+    const aTime = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+    const bTime = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+    return verificationSortDesc ? bTime - aTime : aTime - bTime;
+  });
+
+  return queue;
 }
 
 function renderVerificationQueue() {
@@ -145,6 +166,7 @@ function renderVerificationQueue() {
             <div>
               <p class="fw-bold mb-0">${order.orderNumber}</p>
               <p class="text-muted mb-0" style="font-size:0.85rem;">${customerName(order)}</p>
+              <p class="text-muted mb-0" style="font-size:0.78rem;">${formatOrderDate(order.createdAt)}</p>
             </div>
             <span class="fw-bold">${formatPeso(order.total)}</span>
           </button>
@@ -521,15 +543,27 @@ function renderOrderRow(order) {
 
   const steps = orderStatusSteps(order);
   const labels = orderStepLabels(order);
-  const statusCell =
-    order.status === "cancelled"
-      ? `<span class="badge rounded-pill text-bg-danger">Cancelled</span>`
-      : `<select class="form-select form-select-sm order-status-select status-${order.status}" data-id="${order.id}" aria-label="Order status">
-          ${steps.map(
-            (step) =>
-              `<option value="${step}" ${step === order.status ? "selected" : ""}>${labels[step]}</option>`
-          ).join("")}
+  const currentIndex = steps.indexOf(order.status);
+  const nextStep = steps[currentIndex + 1];
+  // "received" is confirmed by the customer, never set by staff - once the
+  // only remaining step is "received", there's nothing left for staff to
+  // do here. Staff can also only ever move forward one step at a time,
+  // never skip ahead and never go back.
+  const staffCanAdvance = order.status !== "cancelled" && nextStep && nextStep !== "received";
+
+  let statusCell;
+  if (order.status === "cancelled") {
+    statusCell = `<span class="badge rounded-pill text-bg-danger">Cancelled</span>`;
+  } else if (staffCanAdvance) {
+    statusCell = `<select class="form-select form-select-sm order-status-select status-${order.status}" data-id="${order.id}" aria-label="Order status">
+          <option value="${order.status}" selected>${labels[order.status]}</option>
+          <option value="${nextStep}">${labels[nextStep]}</option>
         </select>`;
+  } else {
+    statusCell = `<select class="form-select form-select-sm order-status-select status-${order.status}" disabled aria-label="Order status">
+          <option selected>${labels[order.status]}</option>
+        </select>`;
+  }
 
   return `
     <tr>
@@ -558,6 +592,16 @@ async function handleOrderStatusChange(select) {
   const previousStatus = order.status;
 
   if (newStatus === previousStatus) return;
+
+  // Defense in depth: only ever allow moving exactly one step forward,
+  // regardless of what's in the DOM - never skip steps, never go
+  // backward, and never let staff set "received" (that's customer-only).
+  const steps = orderStatusSteps(order);
+  const expectedNext = steps[steps.indexOf(previousStatus) + 1];
+  if (newStatus !== expectedNext || newStatus === "received") {
+    select.value = previousStatus;
+    return;
+  }
 
   const labels = orderStepLabels(order);
   const confirmed = confirm(
@@ -661,6 +705,16 @@ ordersSearchInput.addEventListener("input", () => {
 ordersSortBtn.addEventListener("click", () => {
   ordersSortDesc = !ordersSortDesc;
   renderOrdersTable();
+});
+
+verificationSearchInput.addEventListener("input", () => {
+  verificationSearchTerm = verificationSearchInput.value.trim();
+  renderVerificationQueue();
+});
+
+verificationSortBtn.addEventListener("click", () => {
+  verificationSortDesc = !verificationSortDesc;
+  renderVerificationQueue();
 });
 
 ordersExportBtn.addEventListener("click", () => {

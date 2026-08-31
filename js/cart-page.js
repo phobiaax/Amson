@@ -35,6 +35,7 @@ function renderCartPage() {
     .map((item) => {
       const product = getProductById(item.id);
       if (!product) return "";
+      const atLimit = item.qty >= product.totalStock;
       return `
         <div class="cart-item-row" data-id="${product.id}">
           <div class="cart-item-image"></div>
@@ -44,10 +45,11 @@ function renderCartPage() {
               <div class="qty-stepper">
                 <button type="button" class="cart-qty-minus" aria-label="Decrease quantity">&minus;</button>
                 <input type="text" class="cart-qty-input" value="${item.qty}" inputmode="numeric" readonly>
-                <button type="button" class="cart-qty-plus" aria-label="Increase quantity">+</button>
+                <button type="button" class="cart-qty-plus" aria-label="Increase quantity" ${atLimit ? "disabled" : ""}>+</button>
               </div>
               <a href="#" class="remove-item-link"><i class="bi bi-trash"></i> Remove</a>
             </div>
+            <p class="text-muted mb-0 mt-1" style="font-size:0.78rem;">${product.totalStock} available</p>
           </div>
           <div class="product-price mb-0">${formatPeso(product.price * item.qty)}</div>
         </div>
@@ -63,8 +65,9 @@ function renderCartPage() {
     row.querySelector(".cart-qty-plus").addEventListener("click", () => {
       const item = getCart().find((i) => i.id === productId);
       if (!item) return;
-      updateCartItemQty(productId, item.qty + 1);
+      const result = updateCartItemQty(productId, item.qty + 1);
       renderCartPage();
+      if (result.capped) showCartToast(`Only ${result.qty} in stock - that's the most you can order.`);
     });
 
     row.querySelector(".cart-qty-minus").addEventListener("click", () => {
