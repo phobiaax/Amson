@@ -30,7 +30,7 @@ const ORDER_STATUS_BADGE_LABELS = {
   dispatched: "Dispatched",
   delivered: "Delivered",
   received: "Received",
-  cancelled: "Cancelled",
+  closed_unresolved: "Closed (Unresolved)",
 };
 
 const PICKUP_ORDER_STATUS_BADGE_LABELS = {
@@ -38,8 +38,29 @@ const PICKUP_ORDER_STATUS_BADGE_LABELS = {
   payment_confirmed: "Payment Confirmed",
   delivered: "Ready for Pick-up",
   received: "Picked Up",
-  cancelled: "Cancelled",
+  closed_unresolved: "Closed (Unresolved)",
 };
+
+// No order is ever refunded - a hold that never gets resolved just closes,
+// and whatever payment was genuinely verified is kept as credit toward a
+// future purchase instead. What counts as "verified" depends on why the
+// hold existed: an underpayment's partial amount was real, a screenshot
+// that was never confirmed valid has nothing to carry over, and stock
+// simply running out doesn't call the original payment into question at
+// all - the whole amount carries over.
+const HOLD_REASON_LABELS = {
+  invalid_payment: "Payment Issue - Invalid Payment",
+  underpayment: "Payment Issue - Underpayment",
+  out_of_stock: "Item Out of Stock",
+};
+
+function computeUnappliedCredit(order) {
+  const issue = order.paymentIssue;
+  if (!issue) return 0;
+  if (issue.type === "underpayment") return issue.amountReceived || 0;
+  if (issue.type === "out_of_stock") return order.total || 0;
+  return 0;
+}
 
 const DISPATCH_AUTO_DELIVER_MS = 3 * 24 * 60 * 60 * 1000;
 
@@ -66,14 +87,19 @@ async function enforceOrderDeadline(orderId, order) {
   const now = Date.now();
 
   if (order.paymentIssue && order.paymentIssue.holdUntil && order.paymentIssue.holdUntil.toMillis() < now) {
+    const unappliedCredit = computeUnappliedCredit(order);
+    const closedReason = `${HOLD_REASON_LABELS[order.paymentIssue.type] || "This order"} was not resolved within 7 days.`;
+
     await db.collection("orders").doc(orderId).update({
-      status: "cancelled",
-      "statusTimestamps.cancelled": firebase.firestore.FieldValue.serverTimestamp(),
+      status: "closed_unresolved",
+      "statusTimestamps.closed_unresolved": firebase.firestore.FieldValue.serverTimestamp(),
       paymentIssue: firebase.firestore.FieldValue.delete(),
-      cancelReason: "Payment issue hold expired without resolution.",
+      closedReason,
+      unappliedCredit,
     });
-    order.status = "cancelled";
-    order.cancelReason = "Payment issue hold expired without resolution.";
+    order.status = "closed_unresolved";
+    order.closedReason = closedReason;
+    order.unappliedCredit = unappliedCredit;
     delete order.paymentIssue;
     return order;
   }

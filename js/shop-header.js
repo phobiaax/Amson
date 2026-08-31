@@ -41,10 +41,11 @@ async function loadCustomerNotifications(uid) {
     snapshot.docs.forEach((doc) => {
       const order = doc.data();
       if (order.paymentIssue) {
+        const isStockHold = order.paymentIssue.type === "out_of_stock";
         notifications.push({
           priority: 0,
           link: `order-details.html?id=${doc.id}`,
-          title: `Payment issue on order ${order.orderNumber}`,
+          title: isStockHold ? `Order ${order.orderNumber} - item out of stock` : `Payment issue on order ${order.orderNumber}`,
           detail: "Please check your order for details.",
         });
       } else if (order.status === "dispatched") {

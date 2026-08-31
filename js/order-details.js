@@ -22,6 +22,7 @@ const issueReferenceNumberInput = document.getElementById("issueReferenceNumberI
 const issueResubmitError = document.getElementById("issueResubmitError");
 const issueResubmitSuccess = document.getElementById("issueResubmitSuccess");
 const issueResubmitBtn = document.getElementById("issueResubmitBtn");
+const issueActionsContainer = document.getElementById("issueActionsContainer");
 
 const MAX_ISSUE_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -53,9 +54,9 @@ function renderTimeline(order) {
 }
 
 function updateMarkReceivedButton(order) {
-  if (order.status === "cancelled") {
+  if (order.status === "closed_unresolved") {
     markReceivedBtn.disabled = true;
-    markReceivedBtn.textContent = "Order Cancelled";
+    markReceivedBtn.textContent = "Order Closed";
     return;
   }
 
@@ -96,6 +97,11 @@ function renderPaymentIssue(order) {
 
   paymentIssueSection.classList.remove("d-none");
 
+  // Out of stock isn't something the customer can fix by uploading
+  // anything - it's purely informational, so the resubmit form doesn't
+  // apply here.
+  issueActionsContainer.classList.toggle("d-none", issue.type === "out_of_stock");
+
   if (issue.type === "invalid_payment") {
     paymentIssueTitle.textContent = `Payment Issue: ${issue.reasonLabel || "Invalid Payment"}`;
     paymentIssueDetail.textContent = issue.note || "There's a problem with your proof of payment. Please upload a corrected screenshot below.";
@@ -104,13 +110,18 @@ function renderPaymentIssue(order) {
     paymentIssueDetail.textContent =
       `We received ${formatPeso(issue.amountReceived)}, but your order total is ${formatPeso(order.total)} ` +
       `(${formatPeso(issue.outstandingBalance)} short). ${issue.note || "Please send the remaining balance and upload a screenshot of the new payment below."}`;
+  } else if (issue.type === "out_of_stock") {
+    paymentIssueTitle.textContent = "Order Issue: Item Out of Stock";
+    paymentIssueDetail.textContent =
+      issue.note ||
+      "One or more items in your order are currently out of stock. We're checking on a restock - no action is needed from you right now.";
   } else {
     paymentIssueTitle.textContent = "Payment Issue";
     paymentIssueDetail.textContent = issue.note || "There's a problem with your payment. Please contact us or upload a corrected screenshot below.";
   }
 
   paymentIssueDeadline.textContent = issue.holdUntil
-    ? `Please resolve this by ${formatOrderDateTime(issue.holdUntil)}, or this order will be automatically cancelled.`
+    ? `If this isn't resolved by ${formatOrderDateTime(issue.holdUntil)}, this order will be closed and any payment you've already made will be kept as credit toward a future purchase (in line with our no-refund policy).`
     : "";
 }
 
@@ -187,15 +198,22 @@ function renderOrder(order) {
 
   renderPaymentIssue(order);
 
-  const cancelledNotice = document.getElementById("orderCancelledNotice");
+  const closedNotice = document.getElementById("orderClosedNotice");
   const timelineEl = document.getElementById("orderTimeline");
-  if (order.status === "cancelled") {
+  if (order.status === "closed_unresolved") {
     timelineEl.classList.add("d-none");
-    cancelledNotice.textContent = order.cancelReason || "This order was cancelled.";
-    cancelledNotice.classList.remove("d-none");
+    const reason = order.closedReason || "This order was closed.";
+    // No order is ever refunded - if any payment was verified before this
+    // closed, it's kept as credit toward a future purchase instead.
+    const creditNote =
+      order.unappliedCredit > 0
+        ? ` ${formatPeso(order.unappliedCredit)} of your payment has been retained as credit - please reach out via live chat to apply it to a future order.`
+        : "";
+    closedNotice.textContent = reason + creditNote;
+    closedNotice.classList.remove("d-none");
   } else {
     timelineEl.classList.remove("d-none");
-    cancelledNotice.classList.add("d-none");
+    closedNotice.classList.add("d-none");
     renderTimeline(order);
   }
 

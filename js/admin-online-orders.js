@@ -24,6 +24,11 @@ const PAYMENT_ISSUE_TYPES = {
     confirmLabel: "Confirm & approve payment",
     mode: "approve",
   },
+  // Not staff-selectable from the dropdown below - this hold is created
+  // automatically when approving payment fails because stock ran out.
+  out_of_stock: {
+    label: "Out of Stock",
+  },
 };
 
 const REJECTION_REASON_NOTES = {
@@ -285,8 +290,32 @@ approvePaymentBtn.addEventListener("click", async () => {
       openApprovedModal(order);
     }
   } catch (error) {
-    reviewAlert.textContent = error.message || "Something went wrong approving this payment. Please try again.";
-    reviewAlert.classList.remove("d-none");
+    if (error.message === "Not enough stock available to fulfill this quantity.") {
+      // The payment itself was fine - it's purely a fulfillment problem,
+      // so this isn't a dead end: place the order on the same kind of
+      // 7-day hold as a payment issue, giving time for a restock before
+      // it closes (per the no-cancellation, no-refund policy).
+      try {
+        const paymentIssue = {
+          type: "out_of_stock",
+          note: "One or more items in this order are no longer in stock. We're checking for a restock before this can proceed.",
+          flaggedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
+        };
+        await db.collection("orders").doc(orderId).update({ paymentIssue });
+        order.paymentIssue = paymentIssue;
+        selectedVerificationId = null;
+        renderVerificationQueue();
+        renderOrdersTable();
+        bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
+      } catch (holdError) {
+        reviewAlert.textContent = "Not enough stock to approve this order, and it couldn't be placed on hold automatically. Please try again.";
+        reviewAlert.classList.remove("d-none");
+      }
+    } else {
+      reviewAlert.textContent = error.message || "Something went wrong approving this payment. Please try again.";
+      reviewAlert.classList.remove("d-none");
+    }
   } finally {
     approvePaymentBtn.disabled = false;
   }
@@ -428,7 +457,27 @@ issueConfirmBtn.addEventListener("click", async () => {
       }
     }
   } catch (error) {
-    alert(error.message || "Something went wrong. Please try again.");
+    if (error.message === "Not enough stock available to fulfill this quantity.") {
+      try {
+        const paymentIssue = {
+          type: "out_of_stock",
+          note: "One or more items in this order are no longer in stock. We're checking for a restock before this can proceed.",
+          flaggedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
+        };
+        await db.collection("orders").doc(orderId).update({ paymentIssue });
+        order.paymentIssue = paymentIssue;
+        selectedVerificationId = null;
+        renderVerificationQueue();
+        renderOrdersTable();
+        bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
+        bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
+      } catch (holdError) {
+        alert("Not enough stock to approve this order, and it couldn't be placed on hold automatically. Please try again.");
+      }
+    } else {
+      alert(error.message || "Something went wrong. Please try again.");
+    }
   } finally {
     issueConfirmBtn.disabled = false;
   }
@@ -572,18 +621,23 @@ function renderOrderRow(order) {
   // only remaining step is "received", there's nothing left for staff to
   // do here. Staff can also only ever move forward one step at a time,
   // never skip ahead and never go back.
-  const staffCanAdvance = order.status !== "cancelled" && !order.paymentIssue && nextStep && nextStep !== "received";
+  const staffCanAdvance = order.status !== "closed_unresolved" && !order.paymentIssue && nextStep && nextStep !== "received";
 
   let statusCell;
-  if (order.status === "cancelled") {
-    statusCell = `<span class="badge rounded-pill text-bg-danger">Cancelled</span>`;
+  if (order.status === "closed_unresolved") {
+    statusCell = `<span class="badge rounded-pill text-bg-danger">Closed (Unresolved)</span>`;
   } else if (order.paymentIssue) {
-    // On hold for a payment problem - no status changes are offered here
-    // at all, so staff can't accidentally skip past an unresolved issue.
-    // Resolve it via Payment Verification (after the customer resubmits,
-    // or manually with Release Hold below).
-    const issueLabel = order.paymentIssue.type === "invalid_payment" ? "Invalid Payment" : "Underpayment";
-    const waitingOn = order.paymentIssue.resolvedByCustomerAt ? "Customer resubmitted - awaiting re-review" : "Awaiting customer response";
+    // On hold - no status changes are offered here at all, so staff can't
+    // accidentally skip past an unresolved issue. Resolve it via Payment
+    // Verification (after the customer resubmits, or manually with
+    // Release Hold below).
+    const issueLabel = (PAYMENT_ISSUE_TYPES[order.paymentIssue.type] || {}).label || "Payment Issue";
+    const waitingOn =
+      order.paymentIssue.type === "out_of_stock"
+        ? "Waiting on restock"
+        : order.paymentIssue.resolvedByCustomerAt
+        ? "Customer resubmitted - awaiting re-review"
+        : "Awaiting customer response";
     statusCell = `
       <span class="hold-note" title="${waitingOn}"><i class="bi bi-pause-fill"></i> On Hold: ${issueLabel}</span>
       <p class="text-muted mb-1" style="font-size:0.78rem;">${waitingOn}</p>

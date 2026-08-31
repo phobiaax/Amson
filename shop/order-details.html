@@ -131,7 +131,7 @@
 
       <h2 class="h6 fw-bold mb-3">Order Timeline</h2>
       <div class="order-timeline mb-4" id="orderTimeline"></div>
-      <div class="alert alert-danger d-none mb-4" id="orderCancelledNotice" role="alert"></div>
+      <div class="alert alert-danger d-none mb-4" id="orderClosedNotice" role="alert"></div>
 
       <div class="alert alert-success d-none mb-4" id="issueResubmitSuccess" role="alert">Resubmitted. Our team will review it again shortly.</div>
 
@@ -140,26 +140,28 @@
         <p class="mb-2" id="paymentIssueDetail"></p>
         <p class="mb-3" style="font-size:0.85rem;" id="paymentIssueDeadline"></p>
 
-        <div class="upload-dropzone bg-white" id="issueUploadDropzone">
-          <div id="issueUploadEmptyState">
-            <i class="bi bi-upload"></i>
-            <span>Click to upload a corrected payment screenshot</span>
-            <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
+        <div id="issueActionsContainer">
+          <div class="upload-dropzone bg-white" id="issueUploadDropzone">
+            <div id="issueUploadEmptyState">
+              <i class="bi bi-upload"></i>
+              <span>Click to upload a corrected payment screenshot</span>
+              <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
+            </div>
+            <div id="issueUploadPreviewState" class="d-none">
+              <img id="issueUploadPreviewImage" src="" alt="Corrected proof of payment preview" style="max-width:100%; max-height:180px; border-radius:8px;">
+              <p class="mb-0 mt-2" id="issueUploadPreviewFilename" style="font-size:0.85rem;"></p>
+              <p class="text-muted mb-0" style="font-size:0.75rem;">Click to change</p>
+            </div>
+            <input type="file" id="issueProofInput" accept="image/png,image/jpeg" class="d-none">
           </div>
-          <div id="issueUploadPreviewState" class="d-none">
-            <img id="issueUploadPreviewImage" src="" alt="Corrected proof of payment preview" style="max-width:100%; max-height:180px; border-radius:8px;">
-            <p class="mb-0 mt-2" id="issueUploadPreviewFilename" style="font-size:0.85rem;"></p>
-            <p class="text-muted mb-0" style="font-size:0.75rem;">Click to change</p>
-          </div>
-          <input type="file" id="issueProofInput" accept="image/png,image/jpeg" class="d-none">
+
+          <label for="issueReferenceNumberInput" class="form-label mt-3">Reference Number</label>
+          <input type="text" class="form-control" id="issueReferenceNumberInput" placeholder="e.g. GC1234567890">
+
+          <div class="alert alert-danger d-none mt-3 mb-0" id="issueResubmitError" role="alert"></div>
+
+          <button type="button" class="btn btn-amson w-100 mt-3" id="issueResubmitBtn" disabled>Resubmit for Review</button>
         </div>
-
-        <label for="issueReferenceNumberInput" class="form-label mt-3">Reference Number</label>
-        <input type="text" class="form-control" id="issueReferenceNumberInput" placeholder="e.g. GC1234567890">
-
-        <div class="alert alert-danger d-none mt-3 mb-0" id="issueResubmitError" role="alert"></div>
-
-        <button type="button" class="btn btn-amson w-100 mt-3" id="issueResubmitBtn" disabled>Resubmit for Review</button>
       </div>
 
       <h2 class="h6 fw-bold mb-3"><i class="bi bi-geo-alt text-danger me-1"></i>Shipping Address</h2>
