@@ -95,6 +95,7 @@ const issueReasonGroup = document.getElementById("issueReasonGroup");
 const issueReasonSelect = document.getElementById("issueReasonSelect");
 const issueAmountGroup = document.getElementById("issueAmountGroup");
 const issueAmountReceivedInput = document.getElementById("issueAmountReceivedInput");
+const issueAmountError = document.getElementById("issueAmountError");
 const issueAmountResultLabel = document.getElementById("issueAmountResultLabel");
 const issueAmountResultValue = document.getElementById("issueAmountResultValue");
 const issueNoteInput = document.getElementById("issueNoteInput");
@@ -359,6 +360,9 @@ function openPaymentIssueModal(type) {
   issueReasonGroup.classList.toggle("d-none", type !== "invalid_payment");
   issueAmountGroup.classList.toggle("d-none", type === "invalid_payment");
 
+  issueAmountError.classList.add("d-none");
+  issueAmountReceivedInput.classList.remove("is-invalid");
+
   if (type === "invalid_payment") {
     issueReasonSelect.value = "unclear_screenshot";
     issueNoteInput.value = REJECTION_REASON_NOTES.unclear_screenshot;
@@ -380,6 +384,8 @@ issueReasonSelect.addEventListener("change", () => {
 issueAmountReceivedInput.addEventListener("input", () => {
   const order = allOrders.find((o) => o.id === selectedVerificationId);
   if (order) updateIssueAmountResult(order);
+  issueAmountError.classList.add("d-none");
+  issueAmountReceivedInput.classList.remove("is-invalid");
 });
 
 issueNoteInput.addEventListener("input", () => {
@@ -393,6 +399,23 @@ issueConfirmBtn.addEventListener("click", async () => {
 
   const config = PAYMENT_ISSUE_TYPES[issueType];
   const note = issueNoteInput.value.trim();
+
+  // Underpayment/overpayment both hinge entirely on this figure - the
+  // outstanding balance or the excess credited to the customer is computed
+  // directly from it, so it can't be left blank (which used to silently
+  // fall back to 0 outstanding / the full order total as "received").
+  if (issueType !== "invalid_payment") {
+    const receivedRaw = issueAmountReceivedInput.value.trim();
+    const receivedValid = receivedRaw !== "" && parseFloat(receivedRaw) >= 0;
+    if (!receivedValid) {
+      issueAmountError.classList.remove("d-none");
+      issueAmountReceivedInput.classList.add("is-invalid");
+      issueAmountReceivedInput.focus();
+      return;
+    }
+  }
+  issueAmountError.classList.add("d-none");
+  issueAmountReceivedInput.classList.remove("is-invalid");
 
   issueConfirmBtn.disabled = true;
 
@@ -597,8 +620,8 @@ function renderOrdersTable() {
     ordersTableEmpty.classList.add("d-none");
     ordersTableBody.innerHTML = pageItems.map(renderOrderRow).join("");
 
-    document.querySelectorAll(".order-status-select").forEach((select) => {
-      select.addEventListener("change", () => handleOrderStatusChange(select));
+    document.querySelectorAll(".advance-status-btn").forEach((btn) => {
+      btn.addEventListener("click", () => advanceOrderStatus(btn));
     });
     document.querySelectorAll(".release-hold-btn").forEach((btn) => {
       btn.addEventListener("click", () => releaseOrderHold(btn));
@@ -614,6 +637,28 @@ function renderOrdersTable() {
   renderOrdersPagination(totalPages);
 }
 
+// One consistent visual language for every row's status, instead of the
+// previous mix of plain badges, disabled-but-not-obviously-disabled
+// dropdowns, and text+button holds: always a colored pill for the current
+// state, plus a button underneath ONLY when there's something for staff to
+// actually do next. Advancing "placed" to "payment_confirmed" is
+// deliberately not offered here at all - that step has to go through
+// Payment Verification, where the proof of payment actually gets reviewed,
+// not skipped past from this table.
+const STATUS_BADGE_CLASSES = {
+  placed: "text-bg-light border",
+  payment_confirmed: "text-bg-secondary",
+  dispatched: "text-bg-warning",
+  delivered: "text-bg-success",
+  received: "text-bg-success",
+  closed_unresolved: "text-bg-danger",
+};
+
+const ADVANCE_ACTION_LABELS = {
+  delivered: "Mark as Delivered",
+  payment_confirmed: "Mark as Payment Confirmed",
+};
+
 function renderOrderRow(order) {
   let itemCount = 0;
   for (const item of order.items || []) {
@@ -627,13 +672,17 @@ function renderOrderRow(order) {
   // "received" is confirmed by the customer, never set by staff - once the
   // only remaining step is "received", there's nothing left for staff to
   // do here. Staff can also only ever move forward one step at a time,
-  // never skip ahead and never go back.
-  const staffCanAdvance = order.status !== "closed_unresolved" && !order.paymentIssue && nextStep && nextStep !== "received";
+  // never skip ahead and never go back. Advancing out of "placed" also
+  // isn't offered from here - see comment above.
+  const staffCanAdvance =
+    order.status !== "closed_unresolved" && order.status !== "placed" && !order.paymentIssue && nextStep && nextStep !== "received";
 
-  let statusCell;
-  if (order.status === "closed_unresolved") {
-    statusCell = `<span class="badge rounded-pill text-bg-danger">Closed (Unresolved)</span>`;
-  } else if (order.paymentIssue) {
+  const badgeClass = STATUS_BADGE_CLASSES[order.status] || "text-bg-light border";
+  const badge = `<span class="badge rounded-pill ${badgeClass}">${order.status === "closed_unresolved" ? "Closed (Unresolved)" : labels[order.status]}</span>`;
+
+  let actionHtml = "";
+  let subtextHtml = "";
+  if (order.paymentIssue) {
     // On hold - no status changes are offered here at all, so staff can't
     // accidentally skip past an unresolved issue. Resolve it via Payment
     // Verification (after the customer resubmits, or manually with
@@ -645,27 +694,24 @@ function renderOrderRow(order) {
         : order.paymentIssue.resolvedByCustomerAt
         ? "Customer resubmitted - awaiting re-review"
         : "Awaiting customer response";
-    statusCell = `
-      <span class="hold-note" title="${waitingOn}"><i class="bi bi-pause-fill"></i> On Hold: ${issueLabel}</span>
-      <p class="text-muted mb-1" style="font-size:0.78rem;">${waitingOn}</p>
-      <button type="button" class="btn btn-outline-dark-amson btn-sm release-hold-btn" data-id="${order.id}">Release Hold</button>`;
+    subtextHtml = `<p class="hold-note text-muted mb-1" style="font-size:0.78rem;">On Hold: ${issueLabel} - ${waitingOn}</p>`;
+    actionHtml = `<button type="button" class="btn btn-outline-dark-amson btn-sm release-hold-btn" data-id="${order.id}">Release Hold</button>`;
   } else if (staffCanAdvance && nextStep === "dispatched") {
     // Booking the courier needs the address/Lalamove link/tracking-link
     // form in the approved modal, not a bare status jump - reopen the same
     // modal shown right after approval so that info is never lost.
-    statusCell = `
-      <p class="mb-1"><span class="badge rounded-pill text-bg-secondary">${labels[order.status]}</span></p>
-      <button type="button" class="btn btn-outline-dark-amson btn-sm book-delivery-btn" data-id="${order.id}">Book Delivery</button>`;
+    actionHtml = `<button type="button" class="btn btn-outline-dark-amson btn-sm book-delivery-btn" data-id="${order.id}">Book Delivery</button>`;
   } else if (staffCanAdvance) {
-    statusCell = `<select class="form-select form-select-sm order-status-select status-${order.status}" data-id="${order.id}" aria-label="Order status">
-          <option value="${order.status}" selected>${labels[order.status]}</option>
-          <option value="${nextStep}">${labels[nextStep]}</option>
-        </select>`;
-  } else {
-    statusCell = `<select class="form-select form-select-sm order-status-select status-${order.status}" disabled aria-label="Order status">
-          <option selected>${labels[order.status]}</option>
-        </select>`;
+    const actionLabel = ADVANCE_ACTION_LABELS[nextStep] || `Mark as ${labels[nextStep]}`;
+    actionHtml = `<button type="button" class="btn btn-outline-dark-amson btn-sm advance-status-btn" data-id="${order.id}" data-next="${nextStep}">${actionLabel}</button>`;
   }
+
+  const statusCell = `
+    <div class="d-flex flex-column align-items-start gap-1">
+      ${badge}
+      ${subtextHtml}
+      ${actionHtml}
+    </div>`;
 
   return `
     <tr>
@@ -681,9 +727,9 @@ function renderOrderRow(order) {
   `;
 }
 
-async function handleOrderStatusChange(select) {
-  const orderId = select.dataset.id;
-  const newStatus = select.value;
+async function advanceOrderStatus(btn) {
+  const orderId = btn.dataset.id;
+  const newStatus = btn.dataset.next;
   const order = allOrders.find((o) => o.id === orderId);
   const previousStatus = order.status;
 
@@ -694,29 +740,17 @@ async function handleOrderStatusChange(select) {
   // backward, and never let staff set "received" (that's customer-only).
   const steps = orderStatusSteps(order);
   const expectedNext = steps[steps.indexOf(previousStatus) + 1];
-  if (newStatus !== expectedNext || newStatus === "received") {
-    select.value = previousStatus;
-    return;
-  }
+  if (newStatus !== expectedNext || newStatus === "received") return;
 
   const labels = orderStepLabels(order);
   const confirmed = confirm(
     `Change order ${order.orderNumber}'s status from "${labels[previousStatus] || previousStatus}" to "${labels[newStatus] || newStatus}"?`
   );
-  if (!confirmed) {
-    select.value = previousStatus;
-    return;
-  }
+  if (!confirmed) return;
 
-  select.disabled = true;
+  btn.disabled = true;
 
   try {
-    if (newStatus === "payment_confirmed" && previousStatus === "placed") {
-      for (const item of order.items || []) {
-        await deductStockFEFO(item.id, item.qty);
-      }
-    }
-
     await db
       .collection("orders")
       .doc(orderId)
@@ -729,11 +763,8 @@ async function handleOrderStatusChange(select) {
     renderVerificationQueue();
     renderOrdersTable();
   } catch (error) {
-    order.status = previousStatus;
     alert(error.message || "Something went wrong updating this order's status. Please try again.");
-    renderOrdersTable();
-  } finally {
-    select.disabled = false;
+    btn.disabled = false;
   }
 }
 
