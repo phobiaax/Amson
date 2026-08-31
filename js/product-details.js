@@ -36,7 +36,7 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
           <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
             <p class="stock-badge ${product.inStock ? "in-stock" : "out-of-stock"} mb-0">
               <i class="bi ${product.inStock ? "bi-box-seam" : "bi-x-circle"}"></i>
-              ${product.inStock ? "In Stock" : "Out of Stock"}
+              ${product.inStock ? `In Stock (${product.totalStock} available)` : "Out of Stock"}
             </p>
             ${product.rxRequired ? `<p class="stock-badge out-of-stock mb-0"><i class="bi bi-file-medical"></i> Prescription Required</p>` : ""}
           </div>
@@ -50,7 +50,6 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
             </div>
             <span class="text-muted">Subtotal: <strong id="subtotalText">${formatPeso(product.price)}</strong></span>
           </div>
-          ${product.inStock ? `<p class="text-muted mb-3" style="font-size:0.82rem;" id="stockLimitNote">${product.totalStock} available</p>` : ""}
 
           ${
             product.rxRequired

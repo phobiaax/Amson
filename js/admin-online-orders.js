@@ -131,7 +131,12 @@ function customerName(order) {
 }
 
 function verificationQueue() {
-  let queue = allOrders.filter((order) => order.status === "placed" && !order.paymentIssue);
+  // Include orders the customer has resubmitted a fix for - their
+  // paymentIssue record stays (for staff context) until fully resolved,
+  // marked by resolvedByCustomerAt.
+  let queue = allOrders.filter(
+    (order) => order.status === "placed" && (!order.paymentIssue || order.paymentIssue.resolvedByCustomerAt)
+  );
 
   if (verificationSearchTerm) {
     const term = verificationSearchTerm.toLowerCase();
@@ -167,6 +172,7 @@ function renderVerificationQueue() {
               <p class="fw-bold mb-0">${order.orderNumber}</p>
               <p class="text-muted mb-0" style="font-size:0.85rem;">${customerName(order)}</p>
               <p class="text-muted mb-0" style="font-size:0.78rem;">${formatOrderDate(order.createdAt)}</p>
+              ${order.paymentIssue && order.paymentIssue.resolvedByCustomerAt ? '<span class="badge rounded-pill text-bg-warning mt-1">Customer Resubmitted</span>' : ""}
             </div>
             <span class="fw-bold">${formatPeso(order.total)}</span>
           </button>
@@ -208,6 +214,19 @@ function renderReviewPanel(order) {
   document.getElementById("reviewSubmittedAt").textContent = formatOrderDateTime(order.createdAt);
   reviewReferenceNumber.textContent = order.paymentReferenceNumber || "-";
 
+  const issueNote = document.getElementById("reviewPaymentIssueNote");
+  if (order.paymentIssue && order.paymentIssue.resolvedByCustomerAt) {
+    const issue = order.paymentIssue;
+    const originalIssue =
+      issue.type === "invalid_payment"
+        ? `flagged as invalid (${issue.reasonLabel || "unspecified reason"})`
+        : `flagged as underpaid - received ${formatPeso(issue.amountReceived)} of ${formatPeso(order.total)}, ${formatPeso(issue.outstandingBalance)} short`;
+    issueNote.innerHTML = `<i class="bi bi-arrow-repeat me-1"></i>This order was previously ${originalIssue}. The customer has resubmitted a corrected proof of payment and reference number below - review it like any other submission.`;
+    issueNote.classList.remove("d-none");
+  } else {
+    issueNote.classList.add("d-none");
+  }
+
   const proofUrl = order.proofOfPaymentUrl || "";
   document.getElementById("reviewProofImageLink").href = proofUrl;
   document.getElementById("reviewProofImage").src = proofUrl;
@@ -242,14 +261,18 @@ approvePaymentBtn.addEventListener("click", async () => {
         status: "delivered",
         "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
         "statusTimestamps.delivered": firebase.firestore.FieldValue.serverTimestamp(),
+        paymentIssue: firebase.firestore.FieldValue.delete(),
       });
       order.status = "delivered";
+      delete order.paymentIssue;
     } else {
       await db.collection("orders").doc(orderId).update({
         status: "payment_confirmed",
         "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
+        paymentIssue: firebase.firestore.FieldValue.delete(),
       });
       order.status = "payment_confirmed";
+      delete order.paymentIssue;
     }
 
     selectedVerificationId = null;
@@ -549,11 +572,22 @@ function renderOrderRow(order) {
   // only remaining step is "received", there's nothing left for staff to
   // do here. Staff can also only ever move forward one step at a time,
   // never skip ahead and never go back.
-  const staffCanAdvance = order.status !== "cancelled" && nextStep && nextStep !== "received";
+  const staffCanAdvance = order.status !== "cancelled" && !order.paymentIssue && nextStep && nextStep !== "received";
 
   let statusCell;
   if (order.status === "cancelled") {
     statusCell = `<span class="badge rounded-pill text-bg-danger">Cancelled</span>`;
+  } else if (order.paymentIssue) {
+    // On hold for a payment problem - no status changes are offered here
+    // at all, so staff can't accidentally skip past an unresolved issue.
+    // Resolve it via Payment Verification (after the customer resubmits,
+    // or manually with Release Hold below).
+    const issueLabel = order.paymentIssue.type === "invalid_payment" ? "Invalid Payment" : "Underpayment";
+    const waitingOn = order.paymentIssue.resolvedByCustomerAt ? "Customer resubmitted - awaiting re-review" : "Awaiting customer response";
+    statusCell = `
+      <span class="hold-note" title="${waitingOn}"><i class="bi bi-pause-fill"></i> On Hold: ${issueLabel}</span>
+      <p class="text-muted mb-1" style="font-size:0.78rem;">${waitingOn}</p>
+      <button type="button" class="btn btn-outline-dark-amson btn-sm release-hold-btn" data-id="${order.id}">Release Hold</button>`;
   } else if (staffCanAdvance) {
     statusCell = `<select class="form-select form-select-sm order-status-select status-${order.status}" data-id="${order.id}" aria-label="Order status">
           <option value="${order.status}" selected>${labels[order.status]}</option>
@@ -574,12 +608,6 @@ function renderOrderRow(order) {
       <td class="product-price">${formatPeso(order.total)}</td>
       <td>
         ${statusCell}
-        ${
-          order.paymentIssue
-            ? `<span class="hold-note"><i class="bi bi-pause-fill"></i> On Hold</span>
-               <button type="button" class="btn btn-outline-dark-amson btn-sm release-hold-btn mt-1" data-id="${order.id}">Release Hold</button>`
-            : ""
-        }
       </td>
     </tr>
   `;
@@ -646,7 +674,12 @@ async function releaseOrderHold(btn) {
   const order = allOrders.find((o) => o.id === orderId);
   if (!order) return;
 
-  if (!confirm(`Release the hold on order ${order.orderNumber}? It will return to the Payment Verification queue.`)) return;
+  if (
+    !confirm(
+      `Release the hold on order ${order.orderNumber} without waiting for the customer to fix it themselves? This clears the flagged payment issue and sends the order back to Payment Verification for a normal review.`
+    )
+  )
+    return;
 
   btn.disabled = true;
   try {
