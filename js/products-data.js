@@ -214,6 +214,15 @@ async function logAuditEvent({ action, details, actor }) {
   }
 }
 
+// Shared by every "cart-item-image" thumbnail (cart, checkout, payment
+// summary, order details, My Orders) so they all show the product photo
+// the same way the catalog cards do, instead of an empty placeholder box.
+// Returns bare CSS declarations (no surrounding style="..."), so callers
+// with their own inline sizing can just append this to it.
+function cartItemImageCss(imageUrl) {
+  return imageUrl ? `background-image:url('${imageUrl}'); background-size:cover; background-position:center;` : "";
+}
+
 function renderProductCard(product) {
   return `
     <div class="col">

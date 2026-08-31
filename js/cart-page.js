@@ -38,7 +38,7 @@ function renderCartPage() {
       const atLimit = item.qty >= product.totalStock;
       return `
         <div class="cart-item-row" data-id="${product.id}">
-          <div class="cart-item-image"></div>
+          <div class="cart-item-image" style="${cartItemImageCss(product.imageUrl)}"></div>
           <div class="cart-item-details">
             <h3 class="product-name mb-2">${product.name}</h3>
             <div class="d-flex align-items-center gap-3">

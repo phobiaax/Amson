@@ -9,6 +9,8 @@ const logoutLink = document.getElementById("logoutLink");
 const notifBadge = document.getElementById("notifBadge");
 const notifDropdownList = document.getElementById("notifDropdownList");
 const notifEmptyState = document.getElementById("notifEmptyState");
+const headerCreditItem = document.getElementById("headerCreditItem");
+const headerCreditAmount = document.getElementById("headerCreditAmount");
 
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
@@ -37,9 +39,12 @@ async function loadCustomerNotifications(uid) {
   try {
     const snapshot = await db.collection("orders").where("customerId", "==", uid).get();
     const notifications = [];
+    let totalCredit = 0;
 
     snapshot.docs.forEach((doc) => {
       const order = doc.data();
+      if (order.paymentOverage && order.paymentOverage.excessAmount > 0) totalCredit += order.paymentOverage.excessAmount;
+      if (order.status === "closed_unresolved" && order.unappliedCredit > 0) totalCredit += order.unappliedCredit;
       if (order.paymentIssue) {
         const isStockHold = order.paymentIssue.type === "out_of_stock";
         notifications.push({
@@ -70,10 +75,41 @@ async function loadCustomerNotifications(uid) {
           detail: "Let us know if anything's missing or damaged.",
         });
       }
+
+      // Independent of status - an overpayment credit is worth flagging
+      // on its own, on top of whatever the order's normal status update is.
+      if (order.paymentOverage && order.paymentOverage.excessAmount > 0) {
+        notifications.push({
+          priority: 0,
+          link: `order-details.html?id=${doc.id}`,
+          title: `You have ${formatPeso(order.paymentOverage.excessAmount)} credit from order ${order.orderNumber}`,
+          detail: "Overpayment kept as credit toward a future purchase - reach out via live chat to apply it.",
+        });
+      }
+      // Same for credit left over from a hold that closed unresolved -
+      // orders.js isn't loaded on every page the header appears on, so
+      // this reads the field directly instead of using its helper.
+      if (order.status === "closed_unresolved" && order.unappliedCredit > 0) {
+        notifications.push({
+          priority: 0,
+          link: `order-details.html?id=${doc.id}`,
+          title: `You have ${formatPeso(order.unappliedCredit)} credit from order ${order.orderNumber}`,
+          detail: "Kept as credit toward a future purchase - reach out via live chat to apply it.",
+        });
+      }
     });
 
     notifications.sort((a, b) => a.priority - b.priority);
     renderCustomerNotifications(notifications.slice(0, 5));
+
+    if (headerCreditItem && headerCreditAmount) {
+      if (totalCredit > 0) {
+        headerCreditAmount.textContent = formatPeso(totalCredit);
+        headerCreditItem.classList.remove("d-none");
+      } else {
+        headerCreditItem.classList.add("d-none");
+      }
+    }
   } catch (error) {
     console.error("Failed to load notifications:", error);
   }

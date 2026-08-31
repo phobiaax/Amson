@@ -249,17 +249,21 @@ function renderOrder(order) {
   }
 
   document.getElementById("detailItemsList").innerHTML = order.items
-    .map(
-      (item) => `
+    .map((item) => {
+      // Older orders placed before item photos were stored on the order
+      // itself fall back to whatever the product's current image is.
+      const imageUrl = item.imageUrl || (getProductById(item.id) || {}).imageUrl;
+      return `
         <div class="cart-item-row">
-          <div class="cart-item-image"></div>
+          <div class="cart-item-image" style="${cartItemImageCss(imageUrl)}"></div>
           <div class="cart-item-details">
             <h3 class="product-name mb-1">${item.name}</h3>
             <p class="text-muted mb-0" style="font-size:0.85rem;">Qty: ${item.qty}</p>
           </div>
           <div class="product-price mb-0">${formatPeso(item.price * item.qty)}</div>
         </div>
-      `
+      `;
+    }
     )
     .join("");
 
@@ -275,6 +279,7 @@ async function loadOrder(uid) {
 
   orderLoading.classList.remove("d-none");
   try {
+    await loadCatalogCache();
     const docRef = db.collection("orders").doc(orderId);
     const doc = await docRef.get();
 
