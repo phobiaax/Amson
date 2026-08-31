@@ -145,15 +145,32 @@ function exportBlankPdf(filenamePrefix) {
 async function deductStockFEFO(productId, qty, { includeWholesaleOnly = false } = {}) {
   const allowedStatuses = includeWholesaleOnly ? ["active", "wholesale_only"] : ["active"];
 
-  await db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(
-      db.collection("stockBatches").where("productId", "==", productId).where("status", "in", allowedStatuses)
-    );
+  // The Firestore Web SDK only allows transaction.get() on a single
+  // document reference, not on a query - so the set of candidate batches
+  // (and the FEFO order between them) has to be discovered with a normal,
+  // non-transactional query first. The transaction then re-reads each of
+  // those specific docs (which IS transactional) to get a consistent
+  // quantity right before deducting, so two concurrent orders still can't
+  // both succeed against the same stale numbers.
+  const candidates = await db
+    .collection("stockBatches")
+    .where("productId", "==", productId)
+    .where("status", "in", allowedStatuses)
+    .get();
 
-    const batches = snapshot.docs
-      .map((doc) => ({ id: doc.id, ref: doc.ref, ...doc.data() }))
-      .filter((b) => b.quantity > 0)
-      .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+  const refsInFefoOrder = candidates.docs
+    .map((doc) => ({ ref: doc.ref, expirationDate: doc.data().expirationDate }))
+    .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate))
+    .map((b) => b.ref);
+
+  await db.runTransaction(async (transaction) => {
+    const batches = [];
+    for (const ref of refsInFefoOrder) {
+      const doc = await transaction.get(ref);
+      if (doc.exists && doc.data().quantity > 0) {
+        batches.push({ ref, quantity: doc.data().quantity });
+      }
+    }
 
     let totalAvailable = 0;
     for (const b of batches) {
