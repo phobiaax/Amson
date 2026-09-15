@@ -217,12 +217,16 @@ function renderReviewPanel(order) {
   document.getElementById("reviewOrderNumber").textContent = order.orderNumber;
   document.getElementById("reviewCustomerName").textContent = customerName(order);
   document.getElementById("reviewOrderTotal").textContent = formatPeso(order.total);
-  const reviewCreditNote = document.getElementById("reviewCreditNote");
+  const reviewSubtotalRow = document.getElementById("reviewSubtotalRow");
+  const reviewCreditRow = document.getElementById("reviewCreditRow");
   if (order.creditApplied > 0) {
-    reviewCreditNote.textContent = `${formatPeso(order.creditApplied)} store credit already applied - cart was worth ${formatPeso(order.subtotal)} before credit. Verify payment against the total above, not the cart value.`;
-    reviewCreditNote.classList.remove("d-none");
+    document.getElementById("reviewSubtotal").textContent = formatPeso(order.subtotal);
+    document.getElementById("reviewCreditApplied").textContent = `-${formatPeso(order.creditApplied)}`;
+    reviewSubtotalRow.classList.remove("d-none");
+    reviewCreditRow.classList.remove("d-none");
   } else {
-    reviewCreditNote.classList.add("d-none");
+    reviewSubtotalRow.classList.add("d-none");
+    reviewCreditRow.classList.add("d-none");
   }
   document.getElementById("reviewSubmittedAt").textContent = formatOrderDateTime(order.createdAt);
   reviewReferenceNumber.textContent = order.paymentReferenceNumber || "-";
@@ -362,12 +366,16 @@ function openPaymentIssueModal(type) {
   issueModalBanner.textContent = config.banner;
   issueModalOrderNumber.textContent = order.orderNumber;
   issueModalOrderTotal.textContent = formatPeso(order.total);
-  const issueModalCreditNote = document.getElementById("issueModalCreditNote");
+  const issueModalSubtotalRow = document.getElementById("issueModalSubtotalRow");
+  const issueModalCreditRow = document.getElementById("issueModalCreditRow");
   if (order.creditApplied > 0) {
-    issueModalCreditNote.textContent = `${formatPeso(order.creditApplied)} credit already applied (cart was ${formatPeso(order.subtotal)})`;
-    issueModalCreditNote.classList.remove("d-none");
+    document.getElementById("issueModalSubtotal").textContent = formatPeso(order.subtotal);
+    document.getElementById("issueModalCreditApplied").textContent = `-${formatPeso(order.creditApplied)}`;
+    issueModalSubtotalRow.classList.remove("d-none");
+    issueModalCreditRow.classList.remove("d-none");
   } else {
-    issueModalCreditNote.classList.add("d-none");
+    issueModalSubtotalRow.classList.add("d-none");
+    issueModalCreditRow.classList.add("d-none");
   }
   issueConfirmBtn.textContent = config.confirmLabel;
 

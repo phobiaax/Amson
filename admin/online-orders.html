@@ -101,9 +101,16 @@
                     <p class="detail-value mb-3" id="reviewOrderNumber"></p>
                     <p class="detail-label mb-0">Customer Name</p>
                     <p class="detail-value mb-3" id="reviewCustomerName"></p>
+                    <div class="d-none mb-1" id="reviewSubtotalRow">
+                      <p class="detail-label mb-0">Cart Subtotal</p>
+                      <p class="detail-value mb-0" id="reviewSubtotal"></p>
+                    </div>
+                    <div class="d-none mb-1 text-success" id="reviewCreditRow">
+                      <p class="detail-label mb-0 text-success">Store Credit Applied</p>
+                      <p class="detail-value mb-0" id="reviewCreditApplied"></p>
+                    </div>
                     <p class="detail-label mb-0">Order Total</p>
                     <p class="detail-value product-price mb-3" id="reviewOrderTotal"></p>
-                    <p class="text-success d-none mb-3" id="reviewCreditNote" style="font-size:0.82rem;"></p>
                     <p class="detail-label mb-0">Submitted At</p>
                     <p class="detail-value mb-3" id="reviewSubmittedAt"></p>
                     <p class="detail-label mb-0">Reference Number</p>
@@ -197,9 +204,16 @@
           <p class="detail-value" id="issueModalOrderNumber"></p>
         </div>
         <div class="text-end">
+          <div class="d-none" id="issueModalSubtotalRow">
+            <p class="detail-label mb-0">Cart Subtotal</p>
+            <p class="detail-value mb-1" id="issueModalSubtotal"></p>
+          </div>
+          <div class="d-none text-success" id="issueModalCreditRow">
+            <p class="detail-label mb-0 text-success">Credit Applied</p>
+            <p class="detail-value mb-1" id="issueModalCreditApplied"></p>
+          </div>
           <p class="detail-label mb-0">Order Total</p>
-          <p class="detail-value product-price mb-0" id="issueModalOrderTotal"></p>
-          <p class="text-success d-none mb-0" id="issueModalCreditNote" style="font-size:0.78rem;"></p>
+          <p class="detail-value product-price" id="issueModalOrderTotal"></p>
         </div>
       </div>
 
