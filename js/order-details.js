@@ -207,7 +207,7 @@ function renderOrder(order) {
     // closed, it's kept as credit toward a future purchase instead.
     const creditNote =
       order.unappliedCredit > 0
-        ? ` ${formatPeso(order.unappliedCredit)} of your payment has been retained as credit - our team will apply it to your next order.`
+        ? ` ${formatPeso(order.unappliedCredit)} of your payment has been retained as credit - it'll be applied automatically to your next order.`
         : "";
     closedNotice.textContent = reason + creditNote;
     closedNotice.classList.remove("d-none");
@@ -221,8 +221,8 @@ function renderOrder(order) {
   const overpaymentCredit = order.paymentOverage ? order.paymentOverage.excessAmount || 0 : 0;
   if (overpaymentCredit > 0) {
     overpaymentNotice.textContent =
-      `You paid ${formatPeso(overpaymentCredit)} more than this order's total. That excess has been kept as credit - ` +
-      `our team will apply it to your next order (in line with our no-refund policy).`;
+      `You paid ${formatPeso(overpaymentCredit)} more than this order's total. That excess has been kept as credit and ` +
+      `will be applied automatically to your next order (in line with our no-refund policy).`;
     overpaymentNotice.classList.remove("d-none");
   } else {
     overpaymentNotice.classList.add("d-none");
@@ -266,6 +266,18 @@ function renderOrder(order) {
     }
     )
     .join("");
+
+  const detailSubtotalRow = document.getElementById("detailSubtotalRow");
+  const detailCreditRow = document.getElementById("detailCreditRow");
+  if (order.creditApplied > 0) {
+    document.getElementById("detailSubtotal").textContent = formatPeso(order.subtotal || order.total + order.creditApplied);
+    document.getElementById("detailCreditApplied").textContent = `-${formatPeso(order.creditApplied)}`;
+    detailSubtotalRow.classList.remove("d-none");
+    detailCreditRow.classList.remove("d-none");
+  } else {
+    detailSubtotalRow.classList.add("d-none");
+    detailCreditRow.classList.add("d-none");
+  }
 
   document.getElementById("detailTotal").textContent = formatPeso(order.total);
   updateMarkReceivedButton(order);

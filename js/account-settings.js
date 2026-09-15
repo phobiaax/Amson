@@ -73,26 +73,16 @@ auth.onAuthStateChanged(async (user) => {
       zipCodeInput.value = data.shippingAddress.zipCode || "";
       deliveryNotesInput.value = data.shippingAddress.deliveryNotes || "";
     }
-  } catch (error) {
-    console.error("Failed to load account settings:", error);
-  }
 
-  loadStoreCredit(user.uid);
-});
-
-async function loadStoreCredit(uid) {
-  try {
-    const snapshot = await db.collection("orders").where("customerId", "==", uid).get();
-    const totalCredit = snapshot.docs.reduce((sum, doc) => sum + orderCreditAmount(doc.data()), 0);
-
-    if (totalCredit > 0) {
-      storeCreditAmount.textContent = formatPeso(totalCredit);
+    const creditBalance = data.creditBalance || 0;
+    if (creditBalance > 0) {
+      storeCreditAmount.textContent = formatPeso(creditBalance);
       storeCreditCard.classList.remove("d-none");
     }
   } catch (error) {
-    console.error("Failed to load store credit:", error);
+    console.error("Failed to load account settings:", error);
   }
-}
+});
 
 saveProfileBtn.addEventListener("click", async () => {
   const firstName = firstNameInput.value.trim();

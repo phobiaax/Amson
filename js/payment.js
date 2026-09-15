@@ -21,6 +21,10 @@ const referenceNumberErrorText = document.getElementById("referenceNumberErrorTe
 const submitOrderBtn = document.getElementById("submitOrderBtn");
 const deliveryFeeNoteSummary = document.getElementById("deliveryFeeNoteSummary");
 const pickupNoteSummary = document.getElementById("pickupNoteSummary");
+const paymentSubtotalRow = document.getElementById("paymentSubtotalRow");
+const paymentSubtotalText = document.getElementById("paymentSubtotalText");
+const paymentCreditRow = document.getElementById("paymentCreditRow");
+const paymentCreditText = document.getElementById("paymentCreditText");
 
 const prescriptionUploadBox = document.getElementById("prescriptionUploadBox");
 const rxUploadDropzone = document.getElementById("rxUploadDropzone");
@@ -35,10 +39,37 @@ const pendingOrderRaw = sessionStorage.getItem("amsonPendingOrder");
 const pendingOrder = pendingOrderRaw ? JSON.parse(pendingOrderRaw) : null;
 
 let requiresPrescription = false;
+let cartSubtotal = null;
+let customerCreditBalance = 0;
+
+function renderCreditPreview() {
+  if (cartSubtotal === null) return;
+  const applied = Math.max(0, Math.min(customerCreditBalance, cartSubtotal));
+  const finalTotal = cartSubtotal - applied;
+
+  paymentSubtotalRow.classList.toggle("d-none", applied <= 0);
+  paymentCreditRow.classList.toggle("d-none", applied <= 0);
+  if (applied > 0) {
+    paymentSubtotalText.textContent = formatPeso(cartSubtotal);
+    paymentCreditText.textContent = `-${formatPeso(applied)}`;
+  }
+  paymentTotalText.textContent = formatPeso(finalTotal);
+}
 
 // ---- Require login (in case this page is opened directly) ----
-auth.onAuthStateChanged((user) => {
-  if (!user) window.location.href = "../login.html";
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    window.location.href = "../login.html";
+    return;
+  }
+  try {
+    const doc = await db.collection("users").doc(user.uid).get();
+    customerCreditBalance = doc.exists ? doc.data().creditBalance || 0 : 0;
+    renderCreditPreview();
+  } catch (error) {
+    // Preview only - if it fails to load, checkout still works, the
+    // redemption itself happens authoritatively in the order transaction.
+  }
 });
 
 function updateSubmitButtonState() {
@@ -87,6 +118,8 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
   }
 
   paymentTotalText.textContent = formatPeso(total);
+  cartSubtotal = total;
+  renderCreditPreview();
 
   uploadDropzone.addEventListener("click", () => proofOfPaymentInput.click());
 
@@ -206,7 +239,7 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
         };
       });
 
-      await db.collection("orders").add({
+      await createOrderWithCreditRedemption({
         orderNumber,
         customerId: user ? user.uid : null,
         contact: pendingOrder.contact,

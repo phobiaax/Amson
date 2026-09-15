@@ -25,6 +25,16 @@ auth.onAuthStateChanged(async (user) => {
     accountFirstName.textContent = data.firstName || "Account";
     guestActions.classList.add("d-none");
     accountActions.classList.remove("d-none");
+
+    if (headerCreditItem && headerCreditAmount) {
+      const creditBalance = data.creditBalance || 0;
+      if (creditBalance > 0) {
+        headerCreditAmount.textContent = formatPeso(creditBalance);
+        headerCreditItem.classList.remove("d-none");
+      } else {
+        headerCreditItem.classList.add("d-none");
+      }
+    }
   } catch (error) {
     guestActions.classList.remove("d-none");
     accountActions.classList.add("d-none");
@@ -39,12 +49,9 @@ async function loadCustomerNotifications(uid) {
   try {
     const snapshot = await db.collection("orders").where("customerId", "==", uid).get();
     const notifications = [];
-    let totalCredit = 0;
 
     snapshot.docs.forEach((doc) => {
       const order = doc.data();
-      if (order.paymentOverage && order.paymentOverage.excessAmount > 0) totalCredit += order.paymentOverage.excessAmount;
-      if (order.status === "closed_unresolved" && order.unappliedCredit > 0) totalCredit += order.unappliedCredit;
       if (order.paymentIssue) {
         const isStockHold = order.paymentIssue.type === "out_of_stock";
         notifications.push({
@@ -83,7 +90,7 @@ async function loadCustomerNotifications(uid) {
           priority: 0,
           link: `order-details.html?id=${doc.id}`,
           title: `You have ${formatPeso(order.paymentOverage.excessAmount)} credit from order ${order.orderNumber}`,
-          detail: "Overpayment kept as credit - our team will apply it to your next order.",
+          detail: "Overpayment kept as credit - it'll be applied automatically to your next order.",
         });
       }
       // Same for credit left over from a hold that closed unresolved -
@@ -94,22 +101,13 @@ async function loadCustomerNotifications(uid) {
           priority: 0,
           link: `order-details.html?id=${doc.id}`,
           title: `You have ${formatPeso(order.unappliedCredit)} credit from order ${order.orderNumber}`,
-          detail: "Kept as credit - our team will apply it to your next order.",
+          detail: "Kept as credit - it'll be applied automatically to your next order.",
         });
       }
     });
 
     notifications.sort((a, b) => a.priority - b.priority);
     renderCustomerNotifications(notifications.slice(0, 5));
-
-    if (headerCreditItem && headerCreditAmount) {
-      if (totalCredit > 0) {
-        headerCreditAmount.textContent = formatPeso(totalCredit);
-        headerCreditItem.classList.remove("d-none");
-      } else {
-        headerCreditItem.classList.add("d-none");
-      }
-    }
   } catch (error) {
     console.error("Failed to load notifications:", error);
   }

@@ -34,12 +34,16 @@ service cloud.firestore {
       allow create: if isSignedIn() && myRole() in ["admin", "branch_manager"] &&
         request.resource.data.role in ["admin", "branch_manager", "technical_staff", "sales_staff"];
 
-      // Updating your own doc, as long as role/accountStatus don't change.
-      // .get(key, default) avoids erroring when a field isn't set at all -
-      // a brand-new customer doc has no accountStatus field yet.
+      // Updating your own doc, as long as role/accountStatus don't change,
+      // and store credit (REQ098/100) never goes UP from a customer write -
+      // only staff/admin (below) or the checkout redemption transaction
+      // (which only ever decreases it to pay for the customer's own order)
+      // may increase it. .get(key, default) avoids erroring when a field
+      // isn't set at all - a brand-new customer doc has none of these yet.
       allow update: if isSignedIn() && myUid() == uid &&
         request.resource.data.get("role", null) == resource.data.get("role", null) &&
-        request.resource.data.get("accountStatus", null) == resource.data.get("accountStatus", null);
+        request.resource.data.get("accountStatus", null) == resource.data.get("accountStatus", null) &&
+        request.resource.data.get("creditBalance", 0) <= resource.data.get("creditBalance", 0);
 
       // Staff updating any user's doc (Staff Management, Customer Accounts, etc).
       allow update: if isStaff();
@@ -63,10 +67,35 @@ service cloud.firestore {
       allow read: if isSignedIn() && resource.data.customerId == myUid();
       allow read: if isStaff();
 
+      // creditApplied (checkout redemption - orders.js's
+      // createOrderWithCreditRedemption) can never exceed the balance the
+      // customer had going into this write, so a crafted order can't claim
+      // more discount than they actually have.
       allow create: if isSignedIn() &&
-        request.resource.data.customerId == myUid();
+        request.resource.data.customerId == myUid() &&
+        request.resource.data.get("creditApplied", 0) <=
+          get(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0);
 
-      allow update: if isSignedIn() && resource.data.customerId == myUid();
+      // A signed-in customer may only ever move their own order through
+      // two specific transitions - never edit items/total/status freely:
+      //   1. Confirming receipt (delivered -> received) - the only
+      //      customer-initiated step in the normal lifecycle.
+      //   2. The lazy 7-day hold-expiry close (enforceOrderDeadline in
+      //      orders.js), which can run from the customer's own order page
+      //      and only ever closes a genuinely expired hold. It only ever
+      //      records the credit amount on the order itself - crediting the
+      //      users/{uid} ledger is staff/system-only (see above).
+      allow update: if isSignedIn() && resource.data.customerId == myUid() && (
+        (resource.data.status == "delivered" &&
+         request.resource.data.status == "received" &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "statusTimestamps"]))
+        ||
+        (resource.data.get("paymentIssue", null) != null &&
+         resource.data.paymentIssue.holdUntil < request.time &&
+         request.resource.data.status == "closed_unresolved" &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(["status", "statusTimestamps", "paymentIssue", "closedReason", "unappliedCredit"]))
+      );
       allow update: if isStaff();
 
       allow delete: if false;

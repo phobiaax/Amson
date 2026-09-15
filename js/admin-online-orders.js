@@ -109,7 +109,7 @@ async function loadOrders() {
     allOrders = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
     for (const order of allOrders) {
-      await enforceOrderDeadline(order.id, order);
+      await enforceOrderDeadline(order.id, order, { grantCreditToBalance: true });
     }
 
     renderVerificationQueue();
@@ -453,18 +453,26 @@ issueConfirmBtn.addEventListener("click", async () => {
         await deductStockFEFO(item.id, item.qty);
       }
 
+      const excessAmount = Math.max(0, received - order.total);
       const update = {
         status: order.requiresPrescription ? "delivered" : "payment_confirmed",
         "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
         paymentOverage: {
           amountReceived: received,
-          excessAmount: Math.max(0, received - order.total),
+          excessAmount,
           note,
         },
       };
       if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
 
-      await db.collection("orders").doc(orderId).update(update);
+      const batch = db.batch();
+      batch.update(db.collection("orders").doc(orderId), update);
+      if (excessAmount > 0 && order.customerId) {
+        batch.update(db.collection("users").doc(order.customerId), {
+          creditBalance: firebase.firestore.FieldValue.increment(excessAmount),
+        });
+      }
+      await batch.commit();
 
       order.status = update.status;
       order.paymentOverage = update.paymentOverage;

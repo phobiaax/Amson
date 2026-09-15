@@ -95,20 +95,35 @@ function orderStatusIndex(status, steps = ORDER_STATUS_STEPS) {
 }
 
 // ---- Deadline enforcement (lazy, checked on page load) ----
-async function enforceOrderDeadline(orderId, order) {
+//
+// `grantCreditToBalance` is only ever passed true from staff-authenticated
+// pages (Online Orders). The store-credit ledger lives on users/{uid} and,
+// by design, only staff/admin can increase it (see firestore.rules) - a
+// customer viewing their own order can still close it out of its hold, but
+// the ledger write itself has to wait for a staff page load to happen. That
+// keeps a customer from ever being able to write their own credit balance.
+async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = false } = {}) {
   const now = Date.now();
 
   if (order.paymentIssue && order.paymentIssue.holdUntil && order.paymentIssue.holdUntil.toMillis() < now) {
     const unappliedCredit = computeUnappliedCredit(order);
     const closedReason = `${HOLD_REASON_LABELS[order.paymentIssue.type] || "This order"} was not resolved within 7 days.`;
 
-    await db.collection("orders").doc(orderId).update({
+    const batch = db.batch();
+    batch.update(db.collection("orders").doc(orderId), {
       status: "closed_unresolved",
       "statusTimestamps.closed_unresolved": firebase.firestore.FieldValue.serverTimestamp(),
       paymentIssue: firebase.firestore.FieldValue.delete(),
       closedReason,
       unappliedCredit,
     });
+    if (grantCreditToBalance && unappliedCredit > 0 && order.customerId) {
+      batch.update(db.collection("users").doc(order.customerId), {
+        creditBalance: firebase.firestore.FieldValue.increment(unappliedCredit),
+      });
+    }
+    await batch.commit();
+
     order.status = "closed_unresolved";
     order.closedReason = closedReason;
     order.unappliedCredit = unappliedCredit;
@@ -148,6 +163,37 @@ function formatOrderDateTime(timestamp) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+// Redeems as much of the customer's store credit balance as the order
+// total allows (never more, never cash back) and creates the order with
+// the discounted total in one atomic transaction - the read-then-decrement
+// of users/{uid}.creditBalance and the order creation can't be split apart,
+// or two orders placed back-to-back could both spend the same credit.
+async function createOrderWithCreditRedemption(orderData) {
+  const orderRef = db.collection("orders").doc();
+  const userRef = orderData.customerId ? db.collection("users").doc(orderData.customerId) : null;
+
+  const { appliedCredit, finalTotal } = await db.runTransaction(async (transaction) => {
+    let balance = 0;
+    if (userRef) {
+      const userDoc = await transaction.get(userRef);
+      balance = userDoc.exists ? userDoc.data().creditBalance || 0 : 0;
+    }
+    const appliedCredit = Math.max(0, Math.min(balance, orderData.total));
+    const finalTotal = orderData.total - appliedCredit;
+
+    const orderPayload = { ...orderData, subtotal: orderData.total, total: finalTotal };
+    if (appliedCredit > 0) orderPayload.creditApplied = appliedCredit;
+
+    transaction.set(orderRef, orderPayload);
+    if (appliedCredit > 0) {
+      transaction.update(userRef, { creditBalance: firebase.firestore.FieldValue.increment(-appliedCredit) });
+    }
+    return { appliedCredit, finalTotal };
+  });
+
+  return { orderId: orderRef.id, appliedCredit, finalTotal };
 }
 
 async function generateOrderNumber() {
