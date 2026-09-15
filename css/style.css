@@ -489,6 +489,34 @@ a {
   background-color: #f2f2f4;
   border-radius: 8px;
   margin-bottom: 0.85rem;
+  position: relative;
+}
+
+/* Out-of-stock storefront cards stay visible (never hidden from the
+   catalog) but read as unavailable at a glance and can't be ordered. */
+.product-card.out-of-stock .product-image {
+  filter: grayscale(85%);
+  opacity: 0.55;
+}
+.product-card.out-of-stock .product-name,
+.product-card.out-of-stock .product-desc,
+.product-card.out-of-stock .product-price {
+  opacity: 0.55;
+}
+.product-image-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  text-transform: uppercase;
 }
 .product-image-link,
 .product-name-link {

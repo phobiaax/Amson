@@ -35,6 +35,11 @@ function applyFilters() {
     : storefrontCatalog();
 
   filtered.sort((a, b) => {
+    // Out-of-stock items sink to the bottom no matter what sort is
+    // chosen - they're still browsable, just not what anyone's shopping
+    // for right now.
+    if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
+
     switch (sortBy.value) {
       case "name-desc":
         return b.name.localeCompare(a.name);

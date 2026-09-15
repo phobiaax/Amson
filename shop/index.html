@@ -225,7 +225,10 @@
 <script>
   (async function init() {
     await loadCatalogCache();
-    const storefrontProducts = storefrontCatalog();
+    // Prefer in-stock items for the homepage spotlight - an out-of-stock
+    // product is still browsable in the full catalog, just not what
+    // should greet a first-time visitor here.
+    const storefrontProducts = storefrontCatalog().sort((a, b) => (a.inStock === b.inStock ? 0 : a.inStock ? -1 : 1));
     document.getElementById("featuredProductsGrid").innerHTML =
       storefrontProducts.slice(0, 5).map(renderProductCard).join("");
   })();

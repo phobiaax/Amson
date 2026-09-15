@@ -100,11 +100,13 @@ async function loadCatalogCache() {
   return catalogLoadPromise;
 }
 
-// A product is only ready to sell online once it has real stock received
-// through Inventory Management (Receive Stock) - staff can create a
-// product ahead of time without it appearing to customers yet.
+// A product only appears in the storefront once staff have marked it
+// available online (and it's active) - staff can create a product ahead
+// of time without it showing to customers yet. Once it has appeared,
+// running out of stock doesn't remove it - it stays visible, greyed out
+// and not orderable (see renderProductCard), rather than disappearing.
 function storefrontCatalog() {
-  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore && p.totalStock > 0);
+  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore);
 }
 
 /* ---------- SKU generation (same pattern as order numbers) ---------- */
@@ -226,9 +228,11 @@ function cartItemImageCss(imageUrl) {
 function renderProductCard(product) {
   return `
     <div class="col">
-      <div class="product-card">
+      <div class="product-card ${product.inStock ? "" : "out-of-stock"}">
         <a href="product-details.html?id=${product.id}" class="product-image-link">
-          <div class="product-image" ${product.imageUrl ? `style="background-image:url('${product.imageUrl}'); background-size:cover; background-position:center;"` : ""}></div>
+          <div class="product-image" ${product.imageUrl ? `style="background-image:url('${product.imageUrl}'); background-size:cover; background-position:center;"` : ""}>
+            ${product.inStock ? "" : `<span class="product-image-badge">Out of Stock</span>`}
+          </div>
         </a>
         <a href="product-details.html?id=${product.id}" class="product-name-link">
           <h3 class="product-name">${product.name}</h3>
