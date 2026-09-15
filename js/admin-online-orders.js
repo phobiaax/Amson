@@ -219,7 +219,7 @@ function renderReviewPanel(order) {
   document.getElementById("reviewOrderTotal").textContent = formatPeso(order.total);
   const reviewCreditNote = document.getElementById("reviewCreditNote");
   if (order.creditApplied > 0) {
-    reviewCreditNote.textContent = `${formatPeso(order.subtotal)} before ${formatPeso(order.creditApplied)} credit`;
+    reviewCreditNote.textContent = `${formatPeso(order.creditApplied)} store credit already applied - cart was worth ${formatPeso(order.subtotal)} before credit. Verify payment against the total above, not the cart value.`;
     reviewCreditNote.classList.remove("d-none");
   } else {
     reviewCreditNote.classList.add("d-none");
@@ -364,7 +364,7 @@ function openPaymentIssueModal(type) {
   issueModalOrderTotal.textContent = formatPeso(order.total);
   const issueModalCreditNote = document.getElementById("issueModalCreditNote");
   if (order.creditApplied > 0) {
-    issueModalCreditNote.textContent = `${formatPeso(order.subtotal)} before ${formatPeso(order.creditApplied)} credit`;
+    issueModalCreditNote.textContent = `${formatPeso(order.creditApplied)} credit already applied (cart was ${formatPeso(order.subtotal)})`;
     issueModalCreditNote.classList.remove("d-none");
   } else {
     issueModalCreditNote.classList.add("d-none");
