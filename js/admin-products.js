@@ -443,29 +443,42 @@ deleteProductBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- CSV batch upload ---------- */
+/* ---------- Batch upload (Excel .xlsx/.xls or .csv, via SheetJS) ---------- */
 uploadBatchBtn.addEventListener("click", () => batchFileInput.click());
 
+// SheetJS reads both real Excel workbooks and plain CSV through the same
+// API, so one code path handles either - and it properly handles quoted
+// CSV fields containing commas, which a naive split(",") did not.
 batchFileInput.addEventListener("change", async () => {
   const file = batchFileInput.files[0];
   if (!file) return;
 
   batchUploadStatus.textContent = "Reading file...";
-  const text = await file.text();
-  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
 
-  if (lines.length < 2) {
-    batchUploadStatus.textContent = "That file doesn't have any product rows.";
+  let rows;
+  try {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: "array" });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    // defval keeps every declared column present (as "") even on a row
+    // that leaves it blank, instead of just omitting the key.
+    const sheetRows = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+    rows = sheetRows.map((sheetRow) => {
+      const row = {};
+      Object.entries(sheetRow).forEach(([key, value]) => {
+        row[key.trim().toLowerCase()] = String(value).trim();
+      });
+      return row;
+    });
+  } catch (error) {
+    batchUploadStatus.textContent = "Couldn't read that file - make sure it's a valid .xlsx, .xls, or .csv file.";
     return;
   }
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-  const rows = lines.slice(1).map((line) => {
-    const cells = line.split(",").map((c) => c.trim());
-    const row = {};
-    headers.forEach((h, i) => (row[h] = cells[i] || ""));
-    return row;
-  });
+  if (rows.length === 0) {
+    batchUploadStatus.textContent = "That file doesn't have any product rows.";
+    return;
+  }
 
   let imported = 0;
   let skipped = 0;

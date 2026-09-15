@@ -230,7 +230,13 @@
           <button type="button" class="btn btn-amson" id="saveProductBtn">Add Product</button>
         </div>
       </div>
-      <input type="file" id="batchFileInput" accept=".csv" class="d-none">
+      <input type="file" id="batchFileInput" accept=".csv,.xlsx,.xls" class="d-none">
+      <p class="text-muted mb-0 mt-2" style="font-size:0.78rem;">
+        Excel (.xlsx/.xls) or CSV. First row must be column headers: <code>name</code>, <code>retailPrice</code> (required),
+        plus optional <code>genericName</code>, <code>brand</code>, <code>category</code>, <code>costingPrice</code>,
+        <code>wholesalePrice</code>, <code>description</code>, <code>availableInPOS</code>, <code>availableInOnlineStore</code>,
+        <code>rxRequired</code>, <code>status</code>.
+      </p>
       <p class="text-muted mb-0 mt-2" style="font-size:0.78rem;" id="batchUploadStatus"></p>
     </div>
   </div>
@@ -260,6 +266,9 @@
 
 <!-- Choices.js -->
 <script src="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/scripts/choices.min.js"></script>
+
+<!-- SheetJS (Upload Batch File - reads real .xlsx/.xls workbooks, not just .csv) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <!-- Firebase (compat SDK) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
