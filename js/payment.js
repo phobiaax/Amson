@@ -25,6 +25,8 @@ const paymentSubtotalRow = document.getElementById("paymentSubtotalRow");
 const paymentSubtotalText = document.getElementById("paymentSubtotalText");
 const paymentCreditRow = document.getElementById("paymentCreditRow");
 const paymentCreditText = document.getElementById("paymentCreditText");
+const qrBox = document.getElementById("qrBox");
+const fullyCoveredNotice = document.getElementById("fullyCoveredNotice");
 
 const prescriptionUploadBox = document.getElementById("prescriptionUploadBox");
 const rxUploadDropzone = document.getElementById("rxUploadDropzone");
@@ -41,6 +43,7 @@ const pendingOrder = pendingOrderRaw ? JSON.parse(pendingOrderRaw) : null;
 let requiresPrescription = false;
 let cartSubtotal = null;
 let customerCreditBalance = 0;
+let fullyCoveredByCredit = false;
 
 function renderCreditPreview() {
   if (cartSubtotal === null) return;
@@ -54,6 +57,14 @@ function renderCreditPreview() {
     paymentCreditText.textContent = `-${formatPeso(applied)}`;
   }
   paymentTotalText.textContent = formatPeso(finalTotal);
+
+  // Credit can fully cover the order - there's nothing to pay via QR PH,
+  // so don't ask for a screenshot/reference number for a payment that
+  // never happens.
+  fullyCoveredByCredit = finalTotal <= 0 && cartSubtotal > 0;
+  qrBox.classList.toggle("d-none", fullyCoveredByCredit);
+  fullyCoveredNotice.classList.toggle("d-none", !fullyCoveredByCredit);
+  updateSubmitButtonState();
 }
 
 // ---- Require login (in case this page is opened directly) ----
@@ -73,8 +84,8 @@ auth.onAuthStateChanged(async (user) => {
 });
 
 function updateSubmitButtonState() {
-  const hasProof = !!proofOfPaymentInput.files[0];
-  const hasReferenceNumber = !!referenceNumberInput.value.trim();
+  const hasProof = fullyCoveredByCredit || !!proofOfPaymentInput.files[0];
+  const hasReferenceNumber = fullyCoveredByCredit || !!referenceNumberInput.value.trim();
   const hasPrescription = !requiresPrescription || !!prescriptionPhotoInput.files[0];
   submitOrderBtn.disabled = !(hasProof && hasReferenceNumber && hasPrescription);
 }
@@ -180,13 +191,14 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     const file = proofOfPaymentInput.files[0];
     const prescriptionFile = prescriptionPhotoInput.files[0];
     const referenceNumber = referenceNumberInput.value.trim();
-    if (!file || !referenceNumber || (requiresPrescription && !prescriptionFile)) {
+    if (!fullyCoveredByCredit && (!file || !referenceNumber || (requiresPrescription && !prescriptionFile))) {
       if (!referenceNumber) {
         referenceNumberErrorText.textContent = "Please enter the reference number from your proof of payment.";
         referenceNumberErrorText.classList.remove("d-none");
       }
       return;
     }
+    if (fullyCoveredByCredit && requiresPrescription && !prescriptionFile) return;
 
     uploadErrorText.classList.add("d-none");
     rxUploadErrorText.classList.add("d-none");
@@ -224,7 +236,7 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
 
     try {
       const user = auth.currentUser;
-      const proofOfPaymentUrl = await uploadToCloudinary(file);
+      const proofOfPaymentUrl = file ? await uploadToCloudinary(file) : null;
       const prescriptionPhotoUrl = prescriptionFile ? await uploadToCloudinary(prescriptionFile) : null;
       const orderNumber = await generateOrderNumber();
 
@@ -248,7 +260,7 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
         items,
         total,
         proofOfPaymentUrl,
-        paymentReferenceNumber: referenceNumber,
+        paymentReferenceNumber: referenceNumber || null,
         requiresPrescription,
         prescriptionPhotoUrl,
         status: "placed",

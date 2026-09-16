@@ -252,9 +252,13 @@ function renderReviewPanel(order) {
     previousIssueBreakdown.classList.add("d-none");
   }
 
-  const proofUrl = order.proofOfPaymentUrl || "";
-  document.getElementById("reviewProofImageLink").href = proofUrl;
-  document.getElementById("reviewProofImage").src = proofUrl;
+  const hasProof = !!order.proofOfPaymentUrl;
+  document.getElementById("reviewNoProofNotice").classList.toggle("d-none", hasProof);
+  document.getElementById("reviewProofSection").classList.toggle("d-none", !hasProof);
+  if (hasProof) {
+    document.getElementById("reviewProofImageLink").href = order.proofOfPaymentUrl;
+    document.getElementById("reviewProofImage").src = order.proofOfPaymentUrl;
+  }
 
   const prescriptionSection = document.getElementById("reviewPrescriptionSection");
   if (order.prescriptionPhotoUrl) {
@@ -442,8 +446,21 @@ issueConfirmBtn.addEventListener("click", async () => {
   // fall back to 0 outstanding / the full order total as "received").
   if (issueType !== "invalid_payment") {
     const receivedRaw = issueAmountReceivedInput.value.trim();
-    const receivedValid = receivedRaw !== "" && parseFloat(receivedRaw) >= 0;
-    if (!receivedValid) {
+    const receivedAmount = parseFloat(receivedRaw);
+    const receivedValid = receivedRaw !== "" && receivedAmount >= 0;
+    // Beyond just "is a number" - underpayment only makes sense below the
+    // order total, and overpayment only above it. Letting either through
+    // at the wrong side would flag a hold/credit that doesn't reflect
+    // what actually happened.
+    const relationValid =
+      receivedValid &&
+      (issueType === "underpayment" ? receivedAmount < order.total : receivedAmount > order.total);
+    if (!relationValid) {
+      issueAmountError.textContent = !receivedValid
+        ? "Please enter the amount received."
+        : issueType === "underpayment"
+        ? `Amount received must be less than the order total (${formatPeso(order.total)}) for an underpayment.`
+        : `Amount received must be more than the order total (${formatPeso(order.total)}) for an overpayment.`;
       issueAmountError.classList.remove("d-none");
       issueAmountReceivedInput.classList.add("is-invalid");
       issueAmountReceivedInput.focus();

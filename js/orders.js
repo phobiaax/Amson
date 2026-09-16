@@ -47,7 +47,11 @@ const PICKUP_ORDER_STATUS_BADGE_LABELS = {
 // hold existed: an underpayment's partial amount was real, a screenshot
 // that was never confirmed valid has nothing to carry over, and stock
 // simply running out doesn't call the original payment into question at
-// all - the whole amount carries over.
+// all - the whole amount carries over. Either way, order.creditApplied
+// (store credit already spent redeeming this order at checkout) always
+// gets added back in - it's real value the customer already handed over
+// on top of whatever they paid via QR, and closing the order unresolved
+// can't be allowed to make it vanish.
 const HOLD_REASON_LABELS = {
   invalid_payment: "Payment Issue - Invalid Payment",
   underpayment: "Payment Issue - Underpayment",
@@ -57,8 +61,9 @@ const HOLD_REASON_LABELS = {
 function computeUnappliedCredit(order) {
   const issue = order.paymentIssue;
   if (!issue) return 0;
-  if (issue.type === "underpayment") return issue.amountReceived || 0;
-  if (issue.type === "out_of_stock") return order.total || 0;
+  const creditApplied = order.creditApplied || 0;
+  if (issue.type === "underpayment") return (issue.amountReceived || 0) + creditApplied;
+  if (issue.type === "out_of_stock") return (order.total || 0) + creditApplied;
   return 0;
 }
 
