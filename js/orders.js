@@ -239,7 +239,7 @@ async function generateOrderNumber() {
 
 function downloadOrderReceipt(order) {
   if (typeof window.jspdf === "undefined") {
-    alert("PDF generation isn't available right now. Please try again in a moment.");
+    showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
     return;
   }
 

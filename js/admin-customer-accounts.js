@@ -217,7 +217,7 @@ toggleCustomerStatusBtn.addEventListener("click", async () => {
     nextStatus === "deactivated"
       ? "Deactivate this customer's account? They won't be able to sign in until reactivated."
       : "Reactivate this customer's account?";
-  if (!confirm(confirmMsg)) return;
+  if (!(await showAppConfirm(confirmMsg))) return;
 
   toggleCustomerStatusBtn.disabled = true;
   try {

@@ -563,10 +563,10 @@ issueConfirmBtn.addEventListener("click", async () => {
         bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
         bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
       } catch (holdError) {
-        alert("Not enough stock to approve this order, and it couldn't be placed on hold automatically. Please try again.");
+        await showAppAlert("Not enough stock to approve this order, and it couldn't be placed on hold automatically. Please try again.");
       }
     } else {
-      alert(error.message || "Something went wrong. Please try again.");
+      await showAppAlert(error.message || "Something went wrong. Please try again.");
     }
   } finally {
     issueConfirmBtn.disabled = false;
@@ -632,7 +632,7 @@ markDispatchedBtn.addEventListener("click", async () => {
     bootstrap.Modal.getInstance(approvedModalEl).hide();
     renderOrdersTable();
   } catch (error) {
-    alert("Something went wrong marking this order as dispatched. Please try again.");
+    await showAppAlert("Something went wrong marking this order as dispatched. Please try again.");
   } finally {
     markDispatchedBtn.disabled = false;
   }
@@ -813,7 +813,7 @@ async function advanceOrderStatus(btn) {
   if (newStatus !== expectedNext || newStatus === "received") return;
 
   const labels = orderStepLabels(order);
-  const confirmed = confirm(
+  const confirmed = await showAppConfirm(
     `Change order ${order.orderNumber}'s status from "${labels[previousStatus] || previousStatus}" to "${labels[newStatus] || newStatus}"?`
   );
   if (!confirmed) return;
@@ -833,7 +833,7 @@ async function advanceOrderStatus(btn) {
     renderVerificationQueue();
     renderOrdersTable();
   } catch (error) {
-    alert(error.message || "Something went wrong updating this order's status. Please try again.");
+    await showAppAlert(error.message || "Something went wrong updating this order's status. Please try again.");
     btn.disabled = false;
   }
 }
@@ -843,12 +843,10 @@ async function releaseOrderHold(btn) {
   const order = allOrders.find((o) => o.id === orderId);
   if (!order) return;
 
-  if (
-    !confirm(
-      `Release the hold on order ${order.orderNumber} without waiting for the customer to fix it themselves? This clears the flagged payment issue and sends the order back to Payment Verification for a normal review.`
-    )
-  )
-    return;
+  const confirmed = await showAppConfirm(
+    `Release the hold on order ${order.orderNumber} without waiting for the customer to fix it themselves? This clears the flagged payment issue and sends the order back to Payment Verification for a normal review.`
+  );
+  if (!confirmed) return;
 
   btn.disabled = true;
   try {
@@ -857,7 +855,7 @@ async function releaseOrderHold(btn) {
     renderVerificationQueue();
     renderOrdersTable();
   } catch (error) {
-    alert("Something went wrong releasing this hold. Please try again.");
+    await showAppAlert("Something went wrong releasing this hold. Please try again.");
     btn.disabled = false;
   }
 }

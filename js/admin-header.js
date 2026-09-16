@@ -31,7 +31,7 @@ auth.onAuthStateChanged(async (user) => {
     const admin = doc.data();
 
     if (!roleCanAccessPage(admin.role, currentAdminPageName())) {
-      alert("You don't have access to that page.");
+      await showAppAlert("You don't have access to that page.");
       window.location.href = "dashboard.html";
       return;
     }

@@ -391,7 +391,7 @@ saveProductBtn.addEventListener("click", async () => {
         .filter(([field]) => editingProductOriginal && editingProductOriginal[field] !== productData[field])
         .map(([field, label]) => `${label}: ${formatPeso(editingProductOriginal[field])} → ${formatPeso(productData[field])}`);
 
-      if (priceChanges.length > 0 && !confirm(`Confirm price change for ${productData.name}?\n\n${priceChanges.join("\n")}`)) {
+      if (priceChanges.length > 0 && !(await showAppConfirm(`Confirm price change for ${productData.name}?\n\n${priceChanges.join("\n")}`))) {
         saveProductBtn.disabled = false;
         return;
       }
@@ -432,7 +432,7 @@ deleteProductBtn.addEventListener("click", async () => {
     return;
   }
 
-  if (!confirm("Delete this product? This can't be undone.")) return;
+  if (!(await showAppConfirm("Delete this product? This can't be undone.", { confirmLabel: "Delete" }))) return;
 
   try {
     await db.collection("products").doc(editingProductId).delete();
@@ -440,7 +440,7 @@ deleteProductBtn.addEventListener("click", async () => {
     bootstrap.Modal.getInstance(productModalEl).hide();
     await loadProducts();
   } catch (error) {
-    alert("Something went wrong deleting this product. Please try again.");
+    showAppAlert("Something went wrong deleting this product. Please try again.");
   }
 });
 
@@ -705,7 +705,7 @@ async function deleteCategory(id) {
     categoriesAlert.classList.remove("d-none");
     return;
   }
-  if (!confirm(`Delete the "${CATEGORY_LABELS[id]}" category?`)) return;
+  if (!(await showAppConfirm(`Delete the "${CATEGORY_LABELS[id]}" category?`, { confirmLabel: "Delete" }))) return;
   await db.collection("categories").doc(id).delete();
   delete CATEGORY_LABELS[id];
   renderCategoriesList();

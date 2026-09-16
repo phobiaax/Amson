@@ -2,6 +2,90 @@
  * Product catalog cache.
  */
 
+// ---- Shared dialog UI (replaces native alert()/confirm()) ----
+// Native browser dialogs aren't acceptable UI here - everything routes
+// through one Bootstrap modal, built once per page and reused.
+function ensureAppDialogModal() {
+  if (document.getElementById("appDialogModal")) return;
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = `
+    <div class="modal fade" id="appDialogModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content p-4">
+          <h2 class="h5 fw-bold mb-2" id="appDialogTitle"></h2>
+          <p class="mb-4" id="appDialogMessage" style="white-space:pre-line;"></p>
+          <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-dark-amson d-none" id="appDialogCancelBtn">Cancel</button>
+            <button type="button" class="btn btn-amson" id="appDialogOkBtn">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrapper.firstElementChild);
+}
+
+// Replaces window.alert() - resolves once the user dismisses it.
+function showAppAlert(message, { title = "Notice" } = {}) {
+  ensureAppDialogModal();
+  return new Promise((resolve) => {
+    document.getElementById("appDialogTitle").textContent = title;
+    document.getElementById("appDialogMessage").textContent = message;
+    const cancelBtn = document.getElementById("appDialogCancelBtn");
+    const okBtn = document.getElementById("appDialogOkBtn");
+    cancelBtn.classList.add("d-none");
+    okBtn.textContent = "OK";
+
+    const modalEl = document.getElementById("appDialogModal");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    const onOk = () => modal.hide();
+    const onHidden = () => {
+      okBtn.removeEventListener("click", onOk);
+      modalEl.removeEventListener("hidden.bs.modal", onHidden);
+      resolve();
+    };
+    okBtn.addEventListener("click", onOk);
+    modalEl.addEventListener("hidden.bs.modal", onHidden);
+    modal.show();
+  });
+}
+
+// Replaces window.confirm() - resolves true/false. Dismissing without
+// clicking Confirm (Esc, or clicking Cancel) resolves false.
+function showAppConfirm(message, { title = "Please Confirm", confirmLabel = "Confirm", cancelLabel = "Cancel" } = {}) {
+  ensureAppDialogModal();
+  return new Promise((resolve) => {
+    document.getElementById("appDialogTitle").textContent = title;
+    document.getElementById("appDialogMessage").textContent = message;
+    const cancelBtn = document.getElementById("appDialogCancelBtn");
+    const okBtn = document.getElementById("appDialogOkBtn");
+    cancelBtn.classList.remove("d-none");
+    cancelBtn.textContent = cancelLabel;
+    okBtn.textContent = confirmLabel;
+
+    const modalEl = document.getElementById("appDialogModal");
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    let confirmed = false;
+    const onOk = () => {
+      confirmed = true;
+      modal.hide();
+    };
+    const onCancel = () => modal.hide();
+    const onHidden = () => {
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+      modalEl.removeEventListener("hidden.bs.modal", onHidden);
+      resolve(confirmed);
+    };
+    okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
+    modalEl.addEventListener("hidden.bs.modal", onHidden);
+    modal.show();
+  });
+}
+
 let SAMPLE_PRODUCTS = [];
 let CATEGORY_LABELS = {};
 let catalogLoadPromise = null;
@@ -128,7 +212,7 @@ function getProductById(id) {
 
 function exportBlankPdf(filenamePrefix) {
   if (typeof window.jspdf === "undefined") {
-    alert("PDF generation isn't available right now. Please try again in a moment.");
+    showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
     return;
   }
 

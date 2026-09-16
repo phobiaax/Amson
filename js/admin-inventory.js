@@ -256,12 +256,12 @@ function renderInventoryTable() {
 }
 
 async function deleteOrphanBatch(batchId) {
-  if (!confirm("This batch's product no longer exists. Delete this leftover inventory record? This can't be undone.")) return;
+  if (!(await showAppConfirm("This batch's product no longer exists. Delete this leftover inventory record? This can't be undone.", { confirmLabel: "Delete" }))) return;
   try {
     await db.collection("stockBatches").doc(batchId).delete();
     await loadInventory();
   } catch (error) {
-    alert("Something went wrong deleting this record. Please try again.");
+    showAppAlert("Something went wrong deleting this record. Please try again.");
   }
 }
 
@@ -994,7 +994,7 @@ confirmOpenSessionBtn.addEventListener("click", async () => {
 submitCountBtn.addEventListener("click", async () => {
   const activeSession = findActiveSession();
   if (!activeSession) return;
-  if (!confirm("Submit this count? This finalizes the session and updates stock quantities to match what was counted.")) return;
+  if (!(await showAppConfirm("Submit this count? This finalizes the session and updates stock quantities to match what was counted.", { confirmLabel: "Submit" }))) return;
 
   const rows = Array.from(reconciliationItemsBody.querySelectorAll("tr"));
   const updatedItems = rows.map((row) => {

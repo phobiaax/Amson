@@ -317,24 +317,24 @@ saveWholesaleBtn.addEventListener("click", async () => {
 
 deleteWholesaleBtn.addEventListener("click", async () => {
   if (!editingWholesaleId) return;
-  if (!confirm("Delete this wholesale account? This can't be undone.")) return;
+  if (!(await showAppConfirm("Delete this wholesale account? This can't be undone.", { confirmLabel: "Delete" }))) return;
 
   try {
     await db.collection("wholesaleAccounts").doc(editingWholesaleId).delete();
     bootstrap.Modal.getInstance(wholesaleModalEl).hide();
     await loadWholesaleAccounts();
   } catch (error) {
-    alert("Something went wrong deleting this account. Please try again.");
+    showAppAlert("Something went wrong deleting this account. Please try again.");
   }
 });
 
 async function deleteWholesaleAccount(id) {
-  if (!confirm("Delete this wholesale account? This can't be undone.")) return;
+  if (!(await showAppConfirm("Delete this wholesale account? This can't be undone.", { confirmLabel: "Delete" }))) return;
   try {
     await db.collection("wholesaleAccounts").doc(id).delete();
     await loadWholesaleAccounts();
   } catch (error) {
-    alert("Something went wrong deleting this account. Please try again.");
+    showAppAlert("Something went wrong deleting this account. Please try again.");
   }
 }
 
@@ -532,7 +532,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     });
 
     bootstrap.Modal.getInstance(processOrderModalEl).hide();
-    alert("Wholesale order recorded and stock deducted successfully.");
+    showAppAlert("Wholesale order recorded and stock deducted successfully.");
   } catch (error) {
     processOrderAlert.textContent = error.message || "Something went wrong recording this order. Please try again.";
     processOrderAlert.classList.remove("d-none");

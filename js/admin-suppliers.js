@@ -298,24 +298,24 @@ saveSupplierBtn.addEventListener("click", async () => {
 
 deleteSupplierBtn.addEventListener("click", async () => {
   if (!editingSupplierId) return;
-  if (!confirm("Delete this supplier? This can't be undone.")) return;
+  if (!(await showAppConfirm("Delete this supplier? This can't be undone.", { confirmLabel: "Delete" }))) return;
 
   try {
     await db.collection("suppliers").doc(editingSupplierId).delete();
     bootstrap.Modal.getInstance(supplierModalEl).hide();
     await loadSuppliers();
   } catch (error) {
-    alert("Something went wrong deleting this supplier. Please try again.");
+    showAppAlert("Something went wrong deleting this supplier. Please try again.");
   }
 });
 
 async function deleteSupplier(id) {
-  if (!confirm("Delete this supplier? This can't be undone.")) return;
+  if (!(await showAppConfirm("Delete this supplier? This can't be undone.", { confirmLabel: "Delete" }))) return;
   try {
     await db.collection("suppliers").doc(id).delete();
     await loadSuppliers();
   } catch (error) {
-    alert("Something went wrong deleting this supplier. Please try again.");
+    showAppAlert("Something went wrong deleting this supplier. Please try again.");
   }
 }
 

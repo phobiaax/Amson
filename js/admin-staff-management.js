@@ -261,7 +261,7 @@ async function toggleStaffStatus(id) {
     nextStatus === "deactivated"
       ? "Deactivate this staff account? They won't be able to sign in until reactivated."
       : "Reactivate this staff account?";
-  if (!confirm(confirmMsg)) return;
+  if (!(await showAppConfirm(confirmMsg))) return;
 
   try {
     await db.collection("users").doc(id).update({ accountStatus: nextStatus });
@@ -271,6 +271,6 @@ async function toggleStaffStatus(id) {
     });
     await loadStaff();
   } catch (error) {
-    alert("Something went wrong updating this account. Please try again.");
+    showAppAlert("Something went wrong updating this account. Please try again.");
   }
 }

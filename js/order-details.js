@@ -317,7 +317,7 @@ downloadReceiptBtn.addEventListener("click", () => {
 
 markReceivedBtn.addEventListener("click", async () => {
   if (!currentOrderRef || markReceivedBtn.disabled) return;
-  if (!confirm("Confirm that you've received this order? This can't be undone.")) return;
+  if (!(await showAppConfirm("Confirm that you've received this order? This can't be undone.", { confirmLabel: "Confirm" }))) return;
   markReceivedBtn.disabled = true;
   markReceivedBtn.textContent = "Updating...";
   try {
