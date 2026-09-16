@@ -476,6 +476,10 @@ function batchReviewRowHtml(row = {}) {
   const yes = (v) => /^(yes|true|1)$/i.test(v || "");
   return `
     <tr>
+      <td>
+        <div class="br-image-preview" style="width:40px;height:40px;border-radius:6px;background-color:#f2f2f4;background-size:cover;background-position:center;cursor:pointer;" title="Click to upload an image"></div>
+        <input type="file" class="d-none br-image-input" accept="image/png,image/jpeg">
+      </td>
       <td><input type="text" class="form-control form-control-sm br-name" value="${row.name || ""}"></td>
       <td><input type="text" class="form-control form-control-sm br-genericname" value="${row.genericname || ""}"></td>
       <td><input type="text" class="form-control form-control-sm br-brand" value="${row.brand || ""}"></td>
@@ -516,10 +520,26 @@ batchReviewAddRowBtn.addEventListener("click", () => {
 });
 
 batchReviewTableBody.addEventListener("click", (e) => {
-  const btn = e.target.closest(".br-remove");
-  if (!btn) return;
-  btn.closest("tr").remove();
-  updateBatchReviewCount();
+  const removeBtn = e.target.closest(".br-remove");
+  if (removeBtn) {
+    removeBtn.closest("tr").remove();
+    updateBatchReviewCount();
+    return;
+  }
+
+  const preview = e.target.closest(".br-image-preview");
+  if (preview) {
+    preview.closest("tr").querySelector(".br-image-input").click();
+  }
+});
+
+batchReviewTableBody.addEventListener("change", (e) => {
+  const input = e.target.closest(".br-image-input");
+  if (!input) return;
+  const file = input.files[0];
+  if (!file) return;
+  const preview = input.closest("tr").querySelector(".br-image-preview");
+  preview.style.backgroundImage = `url('${URL.createObjectURL(file)}')`;
 });
 
 batchReviewConfirmBtn.addEventListener("click", async () => {
@@ -542,6 +562,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
     }
     return {
       tr,
+      imageFile: get("br-image-input").files[0] || null,
       name,
       genericName: get("br-genericname").value.trim(),
       brand: get("br-brand").value.trim(),
@@ -573,6 +594,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
     try {
       const categoryId = await resolveCategoryByName(row.category);
       const sku = await generateProductSku();
+      const imageUrl = row.imageFile ? await uploadToCloudinary(row.imageFile) : null;
       await db.collection("products").add({
         sku,
         name: row.name,
@@ -583,7 +605,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
         retailPrice: row.retailPrice,
         wholesalePrice: row.wholesalePrice,
         description: row.description,
-        imageUrl: null,
+        imageUrl,
         availableInPOS: row.availableInPOS,
         availableInOnlineStore: row.availableInOnlineStore,
         rxRequired: row.rxRequired,
