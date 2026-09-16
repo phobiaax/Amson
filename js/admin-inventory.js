@@ -70,6 +70,7 @@ const saveReceiveStockBtn = document.getElementById("saveReceiveStockBtn");
 const receiveUploadBatchBtn = document.getElementById("receiveUploadBatchBtn");
 const receiveBatchFileInput = document.getElementById("receiveBatchFileInput");
 const receiveBatchUploadStatus = document.getElementById("receiveBatchUploadStatus");
+const receiveDownloadTemplateBtn = document.getElementById("receiveDownloadTemplateBtn");
 const receiveNewSupplierBtn = document.getElementById("receiveNewSupplierBtn");
 
 const quickAddSupplierModalEl = document.getElementById("quickAddSupplierModal");
@@ -491,67 +492,179 @@ saveReceiveStockBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Receive Stock: CSV batch upload ---------- */
+/* ---------- Receive Stock: batch upload (Excel .xlsx/.xls or .csv, via SheetJS) ---------- */
+const RECEIVE_BATCH_TEMPLATE_HEADERS = ["sku", "batchNo", "expiryDate", "qtyReceived", "supplierName", "dateReceived"];
+
 receiveUploadBatchBtn.addEventListener("click", () => receiveBatchFileInput.click());
 
-receiveBatchFileInput.addEventListener("change", async () => {
-  const file = receiveBatchFileInput.files[0];
-  if (!file) return;
+receiveDownloadTemplateBtn.addEventListener("click", () => {
+  const exampleRow = {
+    sku: "SKU-0001", batchNo: "B2026-001", expiryDate: "2027-06-30",
+    qtyReceived: 100, supplierName: "Unilab", dateReceived: todayISO(),
+  };
+  const ws = XLSX.utils.json_to_sheet([exampleRow], { header: RECEIVE_BATCH_TEMPLATE_HEADERS });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Stock");
+  XLSX.writeFile(wb, "amson-receive-stock-template.xlsx");
+});
 
-  receiveBatchUploadStatus.textContent = "Reading file...";
-  const text = await file.text();
-  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+const receiveBatchReviewModalEl = document.getElementById("receiveBatchReviewModal");
+const receiveBatchReviewTableBody = document.getElementById("receiveBatchReviewTableBody");
+const receiveBatchReviewAlert = document.getElementById("receiveBatchReviewAlert");
+const receiveBatchReviewCount = document.getElementById("receiveBatchReviewCount");
+const receiveBatchReviewAddRowBtn = document.getElementById("receiveBatchReviewAddRowBtn");
+const receiveBatchReviewConfirmBtn = document.getElementById("receiveBatchReviewConfirmBtn");
 
-  if (lines.length < 2) {
-    receiveBatchUploadStatus.textContent = "That file doesn't have any stock rows.";
+function receiveBatchReviewRowHtml(row = {}) {
+  return `
+    <tr>
+      <td><input type="text" class="form-control form-control-sm rbr-sku" value="${row.sku || ""}" placeholder="e.g. SKU-0001"></td>
+      <td><input type="text" class="form-control form-control-sm rbr-batchno" value="${row.batchno || ""}"></td>
+      <td><input type="date" class="form-control form-control-sm rbr-expirydate" value="${row.expirydate || ""}"></td>
+      <td><input type="number" min="1" step="1" class="form-control form-control-sm rbr-qty" value="${row.qtyreceived || ""}"></td>
+      <td><input type="text" class="form-control form-control-sm rbr-supplier" value="${row.suppliername || ""}"></td>
+      <td><input type="date" class="form-control form-control-sm rbr-datereceived" value="${row.datereceived || todayISO()}"></td>
+      <td><button type="button" class="icon-btn rbr-remove" aria-label="Remove row"><i class="bi bi-trash text-danger"></i></button></td>
+    </tr>
+  `;
+}
+
+function updateReceiveBatchReviewCount() {
+  const count = receiveBatchReviewTableBody.querySelectorAll("tr").length;
+  receiveBatchReviewCount.textContent = `${count} batch${count === 1 ? "" : "es"} ready to receive`;
+}
+
+function openReceiveBatchReviewModal(rows) {
+  receiveBatchReviewAlert.classList.add("d-none");
+  receiveBatchReviewTableBody.innerHTML = rows.map(receiveBatchReviewRowHtml).join("");
+  updateReceiveBatchReviewCount();
+  bootstrap.Modal.getOrCreateInstance(receiveBatchReviewModalEl).show();
+}
+
+receiveBatchReviewAddRowBtn.addEventListener("click", () => {
+  receiveBatchReviewTableBody.insertAdjacentHTML("beforeend", receiveBatchReviewRowHtml());
+  updateReceiveBatchReviewCount();
+});
+
+receiveBatchReviewTableBody.addEventListener("click", (e) => {
+  const btn = e.target.closest(".rbr-remove");
+  if (!btn) return;
+  btn.closest("tr").remove();
+  updateReceiveBatchReviewCount();
+});
+
+receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
+  const rowEls = Array.from(receiveBatchReviewTableBody.querySelectorAll("tr"));
+  if (rowEls.length === 0) {
+    receiveBatchReviewAlert.textContent = "There's nothing to receive - add a row or cancel.";
+    receiveBatchReviewAlert.classList.remove("d-none");
     return;
   }
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
-  const rows = lines.slice(1).map((line) => {
-    const cells = line.split(",").map((c) => c.trim());
-    const row = {};
-    headers.forEach((h, i) => (row[h] = cells[i] || ""));
-    return row;
-  });
+  let hasInvalid = false;
+  rowEls.forEach((tr) => tr.classList.remove("table-danger"));
+  const parsedRows = rowEls.map((tr) => {
+    const get = (cls) => tr.querySelector(`.${cls}`);
+    const sku = get("rbr-sku").value.trim();
+    const batchNo = get("rbr-batchno").value.trim();
+    const expiryDate = get("rbr-expirydate").value;
+    const qty = parseInt(get("rbr-qty").value, 10);
+    const product = SAMPLE_PRODUCTS.find((p) => (p.sku || "").toLowerCase() === sku.toLowerCase());
 
-  let imported = 0;
-  let skipped = 0;
-
-  for (const row of rows) {
-    const product = SAMPLE_PRODUCTS.find((p) => (p.sku || "").toLowerCase() === (row.sku || "").toLowerCase());
-    const qty = parseInt(row.qtyreceived, 10);
-
-    if (!product || !row.batchno || !row.expirydate || !qty || qty <= 0) {
-      skipped += 1;
-      continue;
+    if (!product || !batchNo || !expiryDate || !qty || qty <= 0) {
+      tr.classList.add("table-danger");
+      hasInvalid = true;
     }
 
-    const supplier = allSuppliers.find((s) => s.name.toLowerCase() === (row.suppliername || "").toLowerCase());
+    const supplierName = get("rbr-supplier").value.trim();
+    const supplier = allSuppliers.find((s) => s.name.toLowerCase() === supplierName.toLowerCase());
 
+    return {
+      product,
+      batchNo,
+      expiryDate,
+      qty,
+      supplierId: supplier ? supplier.id : null,
+      dateReceived: get("rbr-datereceived").value || todayISO(),
+    };
+  });
+
+  if (hasInvalid) {
+    receiveBatchReviewAlert.textContent = "Every batch needs a recognized SKU, a batch number, an expiry date, and a quantity greater than 0 - fix the highlighted rows, or remove them.";
+    receiveBatchReviewAlert.classList.remove("d-none");
+    return;
+  }
+
+  receiveBatchReviewAlert.classList.add("d-none");
+  receiveBatchReviewConfirmBtn.disabled = true;
+  receiveBatchReviewConfirmBtn.textContent = "Receiving...";
+
+  let imported = 0;
+  let failed = 0;
+  for (const row of parsedRows) {
     try {
       await db.collection("stockBatches").add({
-        productId: product.id,
-        batchNo: row.batchno,
-        expirationDate: row.expirydate,
-        quantity: qty,
-        initialQuantity: qty,
-        supplierId: supplier ? supplier.id : null,
-        dateReceived: row.datereceived || todayISO(),
+        productId: row.product.id,
+        batchNo: row.batchNo,
+        expirationDate: row.expiryDate,
+        quantity: row.qty,
+        initialQuantity: row.qty,
+        supplierId: row.supplierId,
+        dateReceived: row.dateReceived,
         status: "active",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
       imported += 1;
     } catch (error) {
-      skipped += 1;
+      failed += 1;
     }
   }
 
-  receiveBatchUploadStatus.textContent = `Imported ${imported} batch${imported === 1 ? "" : "es"}.${
-    skipped ? ` Skipped ${skipped} row(s) - check SKU, batch no., expiry date, and quantity.` : ""
-  }`;
+  receiveBatchReviewConfirmBtn.disabled = false;
+  receiveBatchReviewConfirmBtn.textContent = "Confirm Import";
+  bootstrap.Modal.getInstance(receiveBatchReviewModalEl).hide();
+
+  receiveBatchUploadStatus.textContent = `Received ${imported} batch${imported === 1 ? "" : "es"}.${failed ? ` ${failed} failed to save - please try those again.` : ""}`;
   receiveBatchFileInput.value = "";
   await loadInventory();
+});
+
+// SheetJS reads both real Excel workbooks and plain CSV through the same
+// API. cellDates converts an actual Excel date cell into a JS Date
+// instead of a serial number, which gets normalized to YYYY-MM-DD below
+// for the review table's <input type="date"> fields.
+receiveBatchFileInput.addEventListener("change", async () => {
+  const file = receiveBatchFileInput.files[0];
+  if (!file) return;
+
+  receiveBatchUploadStatus.textContent = "Reading file...";
+
+  let rows;
+  try {
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: "array", cellDates: true });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    const sheetRows = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
+    rows = sheetRows.map((sheetRow) => {
+      const row = {};
+      Object.entries(sheetRow).forEach(([key, value]) => {
+        const k = key.trim().toLowerCase();
+        row[k] = value instanceof Date ? value.toISOString().slice(0, 10) : String(value).trim();
+      });
+      return row;
+    });
+  } catch (error) {
+    receiveBatchUploadStatus.textContent = "Couldn't read that file - make sure it's a valid .xlsx, .xls, or .csv file.";
+    return;
+  }
+
+  if (rows.length === 0) {
+    receiveBatchUploadStatus.textContent = "That file doesn't have any stock rows.";
+    return;
+  }
+
+  receiveBatchUploadStatus.textContent = "";
+  openReceiveBatchReviewModal(rows);
 });
 
 /* ---------- Quick Add Supplier / Product (launched from within Receive Stock) ---------- */
