@@ -48,6 +48,7 @@ const productStatusToggle = document.getElementById("productStatusToggle");
 const saveProductBtn = document.getElementById("saveProductBtn");
 const deleteProductBtn = document.getElementById("deleteProductBtn");
 const uploadBatchBtn = document.getElementById("uploadBatchBtn");
+const downloadTemplateBtn = document.getElementById("downloadTemplateBtn");
 const batchFileInput = document.getElementById("batchFileInput");
 const batchUploadStatus = document.getElementById("batchUploadStatus");
 
@@ -444,7 +445,166 @@ deleteProductBtn.addEventListener("click", async () => {
 });
 
 /* ---------- Batch upload (Excel .xlsx/.xls or .csv, via SheetJS) ---------- */
+const BATCH_TEMPLATE_HEADERS = [
+  "name", "genericName", "brand", "category", "costingPrice", "retailPrice",
+  "wholesalePrice", "description", "availableInPOS", "availableInOnlineStore",
+  "rxRequired", "status",
+];
+
 uploadBatchBtn.addEventListener("click", () => batchFileInput.click());
+
+downloadTemplateBtn.addEventListener("click", () => {
+  const exampleRow = {
+    name: "Biogesic 500mg", genericName: "Paracetamol", brand: "Biogesic", category: "Pain Relief",
+    costingPrice: 3.5, retailPrice: 8, wholesalePrice: 6.5, description: "For fever and pain relief",
+    availableInPOS: "yes", availableInOnlineStore: "yes", rxRequired: "no", status: "active",
+  };
+  const ws = XLSX.utils.json_to_sheet([exampleRow], { header: BATCH_TEMPLATE_HEADERS });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Products");
+  XLSX.writeFile(wb, "amson-product-import-template.xlsx");
+});
+
+const batchReviewModalEl = document.getElementById("batchReviewModal");
+const batchReviewTableBody = document.getElementById("batchReviewTableBody");
+const batchReviewAlert = document.getElementById("batchReviewAlert");
+const batchReviewCount = document.getElementById("batchReviewCount");
+const batchReviewAddRowBtn = document.getElementById("batchReviewAddRowBtn");
+const batchReviewConfirmBtn = document.getElementById("batchReviewConfirmBtn");
+
+function batchReviewRowHtml(row = {}) {
+  const yes = (v) => /^(yes|true|1)$/i.test(v || "");
+  return `
+    <tr>
+      <td><input type="text" class="form-control form-control-sm br-name" value="${row.name || ""}"></td>
+      <td><input type="text" class="form-control form-control-sm br-genericname" value="${row.genericname || ""}"></td>
+      <td><input type="text" class="form-control form-control-sm br-brand" value="${row.brand || ""}"></td>
+      <td><input type="text" class="form-control form-control-sm br-category" value="${row.category || ""}"></td>
+      <td><input type="number" min="0" step="0.01" class="form-control form-control-sm br-costingprice" value="${row.costingprice || ""}"></td>
+      <td><input type="number" min="0" step="0.01" class="form-control form-control-sm br-retailprice" value="${row.retailprice || ""}"></td>
+      <td><input type="number" min="0" step="0.01" class="form-control form-control-sm br-wholesaleprice" value="${row.wholesaleprice || ""}"></td>
+      <td><input type="text" class="form-control form-control-sm br-description" value="${row.description || ""}"></td>
+      <td class="text-center"><input type="checkbox" class="form-check-input br-pos" ${!row.availableinpos || yes(row.availableinpos) ? "checked" : ""}></td>
+      <td class="text-center"><input type="checkbox" class="form-check-input br-online" ${!row.availableinonlinestore || yes(row.availableinonlinestore) ? "checked" : ""}></td>
+      <td class="text-center"><input type="checkbox" class="form-check-input br-rx" ${yes(row.rxrequired) ? "checked" : ""}></td>
+      <td>
+        <select class="form-select form-select-sm br-status">
+          <option value="active" ${(row.status || "active").toLowerCase() !== "inactive" ? "selected" : ""}>Active</option>
+          <option value="inactive" ${(row.status || "").toLowerCase() === "inactive" ? "selected" : ""}>Inactive</option>
+        </select>
+      </td>
+      <td><button type="button" class="icon-btn br-remove" aria-label="Remove row"><i class="bi bi-trash text-danger"></i></button></td>
+    </tr>
+  `;
+}
+
+function updateBatchReviewCount() {
+  const count = batchReviewTableBody.querySelectorAll("tr").length;
+  batchReviewCount.textContent = `${count} product${count === 1 ? "" : "s"} ready to import`;
+}
+
+function openBatchReviewModal(rows) {
+  batchReviewAlert.classList.add("d-none");
+  batchReviewTableBody.innerHTML = rows.map(batchReviewRowHtml).join("");
+  updateBatchReviewCount();
+  bootstrap.Modal.getOrCreateInstance(batchReviewModalEl).show();
+}
+
+batchReviewAddRowBtn.addEventListener("click", () => {
+  batchReviewTableBody.insertAdjacentHTML("beforeend", batchReviewRowHtml());
+  updateBatchReviewCount();
+});
+
+batchReviewTableBody.addEventListener("click", (e) => {
+  const btn = e.target.closest(".br-remove");
+  if (!btn) return;
+  btn.closest("tr").remove();
+  updateBatchReviewCount();
+});
+
+batchReviewConfirmBtn.addEventListener("click", async () => {
+  const rowEls = Array.from(batchReviewTableBody.querySelectorAll("tr"));
+  if (rowEls.length === 0) {
+    batchReviewAlert.textContent = "There's nothing to import - add a row or cancel.";
+    batchReviewAlert.classList.remove("d-none");
+    return;
+  }
+
+  let hasInvalid = false;
+  rowEls.forEach((tr) => tr.classList.remove("table-danger"));
+  const parsedRows = rowEls.map((tr) => {
+    const get = (cls) => tr.querySelector(`.${cls}`);
+    const name = get("br-name").value.trim();
+    const retailPrice = get("br-retailprice").value;
+    if (!name || retailPrice === "") {
+      tr.classList.add("table-danger");
+      hasInvalid = true;
+    }
+    return {
+      tr,
+      name,
+      genericName: get("br-genericname").value.trim(),
+      brand: get("br-brand").value.trim(),
+      category: get("br-category").value.trim(),
+      costingPrice: parseFloat(get("br-costingprice").value) || 0,
+      retailPrice: parseFloat(retailPrice) || 0,
+      wholesalePrice: parseFloat(get("br-wholesaleprice").value) || 0,
+      description: get("br-description").value.trim(),
+      availableInPOS: get("br-pos").checked,
+      availableInOnlineStore: get("br-online").checked,
+      rxRequired: get("br-rx").checked,
+      status: get("br-status").value,
+    };
+  });
+
+  if (hasInvalid) {
+    batchReviewAlert.textContent = "Every product needs a Name and a Retail Price - fix the highlighted rows, or remove them.";
+    batchReviewAlert.classList.remove("d-none");
+    return;
+  }
+
+  batchReviewAlert.classList.add("d-none");
+  batchReviewConfirmBtn.disabled = true;
+  batchReviewConfirmBtn.textContent = "Importing...";
+
+  let imported = 0;
+  let failed = 0;
+  for (const row of parsedRows) {
+    try {
+      const categoryId = await resolveCategoryByName(row.category);
+      const sku = await generateProductSku();
+      await db.collection("products").add({
+        sku,
+        name: row.name,
+        genericName: row.genericName,
+        brand: row.brand,
+        category: categoryId,
+        costingPrice: row.costingPrice,
+        retailPrice: row.retailPrice,
+        wholesalePrice: row.wholesalePrice,
+        description: row.description,
+        imageUrl: null,
+        availableInPOS: row.availableInPOS,
+        availableInOnlineStore: row.availableInOnlineStore,
+        rxRequired: row.rxRequired,
+        status: row.status,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      imported += 1;
+    } catch (error) {
+      failed += 1;
+    }
+  }
+
+  batchReviewConfirmBtn.disabled = false;
+  batchReviewConfirmBtn.textContent = "Confirm Import";
+  bootstrap.Modal.getInstance(batchReviewModalEl).hide();
+
+  batchUploadStatus.textContent = `Imported ${imported} product${imported === 1 ? "" : "s"}.${failed ? ` ${failed} failed to save - please try those again.` : ""}`;
+  batchFileInput.value = "";
+  catalogLoadPromise = null;
+  await loadProducts();
+});
 
 // SheetJS reads both real Excel workbooks and plain CSV through the same
 // API, so one code path handles either - and it properly handles quoted
@@ -480,46 +640,8 @@ batchFileInput.addEventListener("change", async () => {
     return;
   }
 
-  let imported = 0;
-  let skipped = 0;
-
-  for (const row of rows) {
-    if (!row.name || !row.retailprice) {
-      skipped += 1;
-      continue;
-    }
-
-    try {
-      const categoryId = await resolveCategoryByName(row.category);
-      const sku = await generateProductSku();
-
-      await db.collection("products").add({
-        sku,
-        name: row.name,
-        genericName: row.genericname || "",
-        brand: row.brand || "",
-        category: categoryId,
-        costingPrice: parseFloat(row.costingprice) || 0,
-        retailPrice: parseFloat(row.retailprice) || 0,
-        wholesalePrice: parseFloat(row.wholesaleprice) || 0,
-        description: row.description || "",
-        imageUrl: null,
-        availableInPOS: /^(yes|true|1)$/i.test(row.availableinpos || "yes"),
-        availableInOnlineStore: /^(yes|true|1)$/i.test(row.availableinonlinestore || "yes"),
-        rxRequired: /^(yes|true|1)$/i.test(row.rxrequired || "no"),
-        status: (row.status || "active").toLowerCase() === "inactive" ? "inactive" : "active",
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      imported += 1;
-    } catch (error) {
-      skipped += 1;
-    }
-  }
-
-  batchUploadStatus.textContent = `Imported ${imported} product${imported === 1 ? "" : "s"}.${skipped ? ` Skipped ${skipped} row(s) missing a name/retail price.` : ""}`;
-  batchFileInput.value = "";
-  catalogLoadPromise = null;
-  await loadProducts();
+  batchUploadStatus.textContent = "";
+  openBatchReviewModal(rows);
 });
 
 async function resolveCategoryByName(name) {
