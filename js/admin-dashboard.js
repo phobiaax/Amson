@@ -37,12 +37,20 @@ async function loadDashboardStats() {
   }
 }
 
+// "Sold" means the payment actually cleared verification - an order
+// still awaiting review (or one that never got resolved and closed
+// unpaid) hasn't actually become revenue yet, so counting it here would
+// overstate real sales.
+function isConfirmedSale(order) {
+  return order.status !== "placed" && order.status !== "closed_unresolved";
+}
+
 function renderSalesChart(orders) {
   const canvas = document.getElementById("salesChart");
   const emptyState = document.getElementById("salesChartEmpty");
   const dailyTotals = {};
 
-  orders.forEach((order) => {
+  orders.filter(isConfirmedSale).forEach((order) => {
     if (!order.createdAt) return;
     const date = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
     const isoKey = date.toISOString().slice(0, 10);
@@ -87,7 +95,7 @@ function renderCategoryChart(orders) {
   const emptyState = document.getElementById("categoryChartEmpty");
   const totals = {};
 
-  orders.forEach((order) => {
+  orders.filter(isConfirmedSale).forEach((order) => {
     order.items.forEach((item) => {
       const product = getProductById(item.id);
       const category = product ? CATEGORY_LABELS[product.category] : "Other";

@@ -280,9 +280,7 @@ approvePaymentBtn.addEventListener("click", async () => {
   reviewAlert.classList.add("d-none");
 
   try {
-    for (const item of order.items || []) {
-      await deductStockFEFO(item.id, item.qty);
-    }
+    await deductStockFEFOMultiple((order.items || []).map((item) => ({ productId: item.id, qty: item.qty })));
 
     if (order.requiresPrescription) {
       // Pick-up orders have no courier leg - go straight to "ready for pick-up".
@@ -510,9 +508,7 @@ issueConfirmBtn.addEventListener("click", async () => {
     } else {
       const received = parseFloat(issueAmountReceivedInput.value) || order.total;
 
-      for (const item of order.items || []) {
-        await deductStockFEFO(item.id, item.qty);
-      }
+      await deductStockFEFOMultiple((order.items || []).map((item) => ({ productId: item.id, qty: item.qty })));
 
       const excessAmount = Math.max(0, received - order.total);
       const update = {

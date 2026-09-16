@@ -929,14 +929,46 @@ saveWriteOffBtn.addEventListener("click", async () => {
   saveWriteOffBtn.disabled = true;
   writeOffModalAlert.classList.add("d-none");
 
+  // Deducting each row against the page's cached allBatches snapshot (as
+  // this used to) has two ways to go wrong: another change to the same
+  // batch elsewhere (a sale, another write-off) between page load and
+  // this click gets silently overwritten instead of compounded, and two
+  // rows here writing off the same batch would each validate against
+  // that same stale number instead of each other's deduction, letting
+  // more be written off in one submission than the batch actually holds.
+  // A single transaction that re-reads each distinct batch fresh and
+  // validates the combined quantity against it closes both.
+  const qtyByBatch = {};
+  for (const item of items) {
+    qtyByBatch[item.batchId] = (qtyByBatch[item.batchId] || 0) + item.qty;
+  }
+
   try {
+    await db.runTransaction(async (transaction) => {
+      const batchIds = Object.keys(qtyByBatch);
+      const batchDocs = await Promise.all(
+        batchIds.map((id) => transaction.get(db.collection("stockBatches").doc(id)))
+      );
+
+      batchDocs.forEach((doc, idx) => {
+        const batchId = batchIds[idx];
+        if (!doc.exists || qtyByBatch[batchId] > doc.data().quantity) {
+          throw new Error("You can't write off more than a batch's current quantity.");
+        }
+      });
+
+      batchDocs.forEach((doc, idx) => {
+        const batchId = batchIds[idx];
+        transaction.update(doc.ref, { quantity: doc.data().quantity - qtyByBatch[batchId] });
+      });
+    });
+
     for (const item of items) {
       const batch = allBatches.find((b) => b.id === item.batchId);
-      await db.collection("stockBatches").doc(item.batchId).update({ quantity: batch.quantity - item.qty });
       await db.collection("writeOffs").add({
         batchId: item.batchId,
         productId: item.productId,
-        batchNo: batch.batchNo,
+        batchNo: batch ? batch.batchNo : "",
         quantity: item.qty,
         reason: item.reason,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -945,14 +977,14 @@ saveWriteOffBtn.addEventListener("click", async () => {
       const product = getProductById(item.productId);
       await logAuditEvent({
         action: "Inventory Write-Off",
-        details: `${product ? product.name : item.productId} - Batch ${batch.batchNo}, Qty ${item.qty}, Reason: ${item.reason}`,
+        details: `${product ? product.name : item.productId} - Batch ${batch ? batch.batchNo : item.batchId}, Qty ${item.qty}, Reason: ${item.reason}`,
       });
     }
 
     bootstrap.Modal.getInstance(writeOffModalEl).hide();
     await loadInventory();
   } catch (error) {
-    writeOffModalAlert.textContent = "Something went wrong recording this write-off. Please try again.";
+    writeOffModalAlert.textContent = error.message || "Something went wrong recording this write-off. Please try again.";
     writeOffModalAlert.classList.remove("d-none");
   } finally {
     saveWriteOffBtn.disabled = false;

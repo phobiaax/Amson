@@ -221,57 +221,81 @@ function exportBlankPdf(filenamePrefix) {
   doc.save(`${filenamePrefix}-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
-// ---- FEFO stock deduction ----
+// ---- FEFO stock deduction for a single product ----
 // Runs as a Firestore transaction so two staff approving two different
 // orders for the same tightly-stocked product at nearly the same time
 // can't both pass the availability check against stale reads and both
 // succeed - Firestore detects the conflicting read and retries the
 // transaction with fresh data, so the second one correctly re-checks
-// against what the first one actually left behind.
-async function deductStockFEFO(productId, qty, { includeWholesaleOnly = false } = {}) {
+// against what the first one actually left behind. A thin wrapper around
+// deductStockFEFOMultiple below - see there for why a multi-item order
+// can't just call this once per item.
+async function deductStockFEFO(productId, qty, opts = {}) {
+  return deductStockFEFOMultiple([{ productId, qty }], opts);
+}
+
+// ---- FEFO stock deduction for a whole multi-item order, atomically ----
+// deductStockFEFO deducts one product per call, each in its own
+// transaction - fine for a single item, but a caller looping it across an
+// order's items has no way to undo the ones that already succeeded if a
+// later item runs out of stock. That left earlier items silently
+// deducted with no order ever actually created/approved to account for
+// it, and retrying the same loop later (once restocked) would deduct
+// those already-decremented items a second time. This does every item in
+// one transaction instead: it reads and validates all of them before
+// writing any of them, so a shortfall on one item aborts the whole thing
+// with nothing changed, exactly like deductStockFEFO does for a single
+// product.
+async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false } = {}) {
   const allowedStatuses = includeWholesaleOnly ? ["active", "wholesale_only"] : ["active"];
 
-  // The Firestore Web SDK only allows transaction.get() on a single
-  // document reference, not on a query - so the set of candidate batches
-  // (and the FEFO order between them) has to be discovered with a normal,
-  // non-transactional query first. The transaction then re-reads each of
-  // those specific docs (which IS transactional) to get a consistent
-  // quantity right before deducting, so two concurrent orders still can't
-  // both succeed against the same stale numbers.
-  const candidates = await db
-    .collection("stockBatches")
-    .where("productId", "==", productId)
-    .where("status", "in", allowedStatuses)
-    .get();
+  const itemsWithCandidates = await Promise.all(
+    items.map(async (item) => {
+      const candidates = await db
+        .collection("stockBatches")
+        .where("productId", "==", item.productId)
+        .where("status", "in", allowedStatuses)
+        .get();
 
-  const refsInFefoOrder = candidates.docs
-    .map((doc) => ({ ref: doc.ref, expirationDate: doc.data().expirationDate }))
-    .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate))
-    .map((b) => b.ref);
+      const refsInFefoOrder = candidates.docs
+        .map((doc) => ({ ref: doc.ref, expirationDate: doc.data().expirationDate }))
+        .sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate))
+        .map((b) => b.ref);
+
+      return { productId: item.productId, qty: item.qty, refsInFefoOrder };
+    })
+  );
 
   await db.runTransaction(async (transaction) => {
-    const batches = [];
-    for (const ref of refsInFefoOrder) {
-      const doc = await transaction.get(ref);
-      if (doc.exists && doc.data().quantity > 0) {
-        batches.push({ ref, quantity: doc.data().quantity });
+    // Read and validate every item first - nothing is written until all
+    // of them are confirmed available, so a shortfall on any one item
+    // leaves every item untouched.
+    const perItemBatches = [];
+    for (const item of itemsWithCandidates) {
+      const batches = [];
+      for (const ref of item.refsInFefoOrder) {
+        const doc = await transaction.get(ref);
+        if (doc.exists && doc.data().quantity > 0) {
+          batches.push({ ref, quantity: doc.data().quantity });
+        }
       }
+
+      const totalAvailable = batches.reduce((sum, b) => sum + b.quantity, 0);
+      if (totalAvailable < item.qty) {
+        throw new Error("Not enough stock available to fulfill this quantity.");
+      }
+
+      perItemBatches.push({ qty: item.qty, batches });
     }
 
-    let totalAvailable = 0;
-    for (const b of batches) {
-      totalAvailable += b.quantity;
-    }
-    if (totalAvailable < qty) {
-      throw new Error("Not enough stock available to fulfill this quantity.");
-    }
-
-    let remaining = qty;
-    for (const batch of batches) {
-      if (remaining <= 0) break;
-      const deduct = Math.min(batch.quantity, remaining);
-      transaction.update(batch.ref, { quantity: batch.quantity - deduct });
-      remaining -= deduct;
+    for (const item of perItemBatches) {
+      let remaining = item.qty;
+      for (const batch of item.batches) {
+        if (remaining <= 0) break;
+        const deduct = Math.min(batch.quantity, remaining);
+        transaction.update(batch.ref, { quantity: batch.quantity - deduct });
+        remaining -= deduct;
+      }
     }
   });
 }

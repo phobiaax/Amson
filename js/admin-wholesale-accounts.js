@@ -491,9 +491,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
   processOrderAlert.classList.add("d-none");
 
   try {
-    for (const item of items) {
-      await deductStockFEFO(item.productId, item.qty, { includeWholesaleOnly: true });
-    }
+    await deductStockFEFOMultiple(items, { includeWholesaleOnly: true });
 
     let poDocumentUrl = null;
     if (selectedPoDocFile) poDocumentUrl = await uploadToCloudinary(selectedPoDocFile);
