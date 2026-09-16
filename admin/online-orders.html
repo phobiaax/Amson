@@ -72,16 +72,16 @@
       <div class="checkout-card p-0" style="overflow:hidden;">
         <!-- Tabs -->
         <div class="d-flex flex-wrap" style="border-bottom:1px solid var(--amson-border);">
-          <button type="button" class="admin-tab-btn" data-tab="verification" id="tabVerificationBtn">
+          <button type="button" class="admin-tab-btn active" data-tab="verification" id="tabVerificationBtn">
             <i class="bi bi-credit-card"></i>Payment Verification
           </button>
-          <button type="button" class="admin-tab-btn active" data-tab="orders" id="tabOrdersBtn">
+          <button type="button" class="admin-tab-btn" data-tab="orders" id="tabOrdersBtn">
             <i class="bi bi-cart3"></i>Online Orders
           </button>
         </div>
 
         <!-- ===== Payment Verification panel ===== -->
-        <div id="verificationPanel" class="p-4 d-none">
+        <div id="verificationPanel" class="p-4">
           <div class="row g-3">
             <div class="col-lg-4">
               <div class="d-flex gap-2 mb-2">
@@ -94,7 +94,13 @@
             <div class="col-lg-8">
               <div id="verificationReviewPanel" class="d-none">
                 <h2 class="h5 fw-bold mb-3">Proof of Payment Review</h2>
-                <div class="alert alert-warning d-none mb-3" id="reviewPaymentIssueNote" role="alert"></div>
+                <div class="alert alert-warning d-none mb-2" id="reviewPaymentIssueNote" role="alert"></div>
+                <div class="d-none mb-3 ps-3 border-start" id="reviewPreviousIssueBreakdown" style="border-color:var(--amson-border) !important;">
+                  <p class="detail-label mb-0">Amount Previously Received</p>
+                  <p class="detail-value mb-2" id="reviewPreviousReceived"></p>
+                  <p class="detail-label mb-0 text-danger">Shortfall</p>
+                  <p class="detail-value mb-0" id="reviewPreviousShortfall"></p>
+                </div>
                 <div class="row g-4">
                   <div class="col-md-7">
                     <p class="detail-label mb-0">Order Number</p>
@@ -153,7 +159,7 @@
         </div>
 
         <!-- ===== Online Orders panel ===== -->
-        <div id="ordersPanel" class="p-4">
+        <div id="ordersPanel" class="p-4 d-none">
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
             <div class="btn-group" role="group">
               <button type="button" class="btn order-filter-btn active" data-filter="all">All Orders (<span id="filterAllCount">0</span>)</button>

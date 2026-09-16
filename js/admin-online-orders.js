@@ -8,19 +8,19 @@ const HOLD_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 const PAYMENT_ISSUE_TYPES = {
   invalid_payment: {
     label: "Invalid payment",
-    banner: "Customer will be notified to re-upload a valid GCash payment screenshot.",
+    banner: "Customer will be notified to re-upload a valid QR PH payment screenshot.",
     confirmLabel: "Confirm & place on hold",
     mode: "hold",
   },
   underpayment: {
     label: "Underpayment",
-    banner: "Customer will be notified to top up the remaining balance via GCash before this order can proceed.",
+    banner: "Customer will be notified to top up the remaining balance via QR PH before this order can proceed.",
     confirmLabel: "Confirm & place on hold",
     mode: "hold",
   },
   overpayment: {
     label: "Overpayment",
-    banner: "Customer will be notified that the excess payment will be applied to their next transaction.",
+    banner: "Customer will be notified that the excess payment will be applied automatically to their next order.",
     confirmLabel: "Confirm & approve payment",
     mode: "approve",
   },
@@ -32,16 +32,16 @@ const PAYMENT_ISSUE_TYPES = {
 };
 
 const REJECTION_REASON_NOTES = {
-  unclear_screenshot: "Please re-upload a clear screenshot showing completed GCash transaction.",
+  unclear_screenshot: "Please re-upload a clear screenshot showing completed QR PH transaction.",
   incomplete_screenshot:
-    "Please re-upload a screenshot showing the complete GCash transaction, including the reference number and amount.",
+    "Please re-upload a screenshot showing the complete QR PH transaction, including the reference number and amount.",
   payment_not_received:
-    "We have not received your payment. Please double-check and re-upload proof of a completed GCash transaction.",
+    "We have not received your payment. Please double-check and re-upload proof of a completed QR PH transaction.",
   other: "",
 };
 
-const UNDERPAYMENT_NOTE = "Please send the remaining balance to our GCash and re-upload your screenshot.";
-const OVERPAYMENT_NOTE = "We've noted an excess payment. This will be applied to your next transaction.";
+const UNDERPAYMENT_NOTE = "Please send the remaining balance to our QR PH and re-upload your screenshot.";
+const OVERPAYMENT_NOTE = "We've noted an excess payment. This will be applied automatically to your next order.";
 
 let allOrders = [];
 let selectedVerificationId = null;
@@ -232,16 +232,24 @@ function renderReviewPanel(order) {
   reviewReferenceNumber.textContent = order.paymentReferenceNumber || "-";
 
   const issueNote = document.getElementById("reviewPaymentIssueNote");
+  const previousIssueBreakdown = document.getElementById("reviewPreviousIssueBreakdown");
   if (order.paymentIssue && order.paymentIssue.resolvedByCustomerAt) {
     const issue = order.paymentIssue;
     const originalIssue =
-      issue.type === "invalid_payment"
-        ? `flagged as invalid (${issue.reasonLabel || "unspecified reason"})`
-        : `flagged as underpaid - received ${formatPeso(issue.amountReceived)} of ${formatPeso(order.total)}, ${formatPeso(issue.outstandingBalance)} short`;
-    issueNote.innerHTML = `<i class="bi bi-arrow-repeat me-1"></i>This order was previously ${originalIssue}. The customer has resubmitted a corrected proof of payment and reference number below - review it like any other submission.`;
+      issue.type === "invalid_payment" ? `flagged as invalid (${issue.reasonLabel || "unspecified reason"})` : "flagged as underpaid";
+    issueNote.innerHTML = `<i class="bi bi-arrow-repeat me-1"></i>This order was previously ${originalIssue}. The customer has resubmitted a corrected proof of payment and reference number below.`;
     issueNote.classList.remove("d-none");
+
+    if (issue.type === "underpayment") {
+      document.getElementById("reviewPreviousReceived").textContent = formatPeso(issue.amountReceived);
+      document.getElementById("reviewPreviousShortfall").textContent = formatPeso(issue.outstandingBalance);
+      previousIssueBreakdown.classList.remove("d-none");
+    } else {
+      previousIssueBreakdown.classList.add("d-none");
+    }
   } else {
     issueNote.classList.add("d-none");
+    previousIssueBreakdown.classList.add("d-none");
   }
 
   const proofUrl = order.proofOfPaymentUrl || "";
