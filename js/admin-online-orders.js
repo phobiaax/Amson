@@ -323,6 +323,12 @@ approvePaymentBtn.addEventListener("click", async () => {
           holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
         };
         await db.collection("orders").doc(orderId).update({ paymentIssue });
+        notifyCustomer(
+          order.customerId,
+          `Order ${order.orderNumber} - item out of stock`,
+          paymentIssue.note,
+          `order-details.html?id=${orderId}`
+        );
         order.paymentIssue = paymentIssue;
         selectedVerificationId = null;
         renderVerificationQueue();
@@ -468,6 +474,14 @@ issueConfirmBtn.addEventListener("click", async () => {
       }
 
       await db.collection("orders").doc(orderId).update({ paymentIssue });
+      notifyCustomer(
+        order.customerId,
+        `Payment issue on order ${order.orderNumber}`,
+        issueType === "invalid_payment"
+          ? REJECTION_REASON_NOTES[paymentIssue.reason] || "Please check your order for details."
+          : UNDERPAYMENT_NOTE,
+        `order-details.html?id=${orderId}`
+      );
 
       order.paymentIssue = paymentIssue;
       selectedVerificationId = null;
@@ -504,6 +518,15 @@ issueConfirmBtn.addEventListener("click", async () => {
       }
       await batch.commit();
 
+      if (excessAmount > 0 && order.customerId) {
+        notifyCustomer(
+          order.customerId,
+          `You have ${formatPeso(excessAmount)} credit from order ${order.orderNumber}`,
+          "Overpayment kept as credit - it'll be applied automatically to your next order.",
+          `order-details.html?id=${orderId}`
+        );
+      }
+
       order.status = update.status;
       order.paymentOverage = update.paymentOverage;
       selectedVerificationId = null;
@@ -527,6 +550,12 @@ issueConfirmBtn.addEventListener("click", async () => {
           holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
         };
         await db.collection("orders").doc(orderId).update({ paymentIssue });
+        notifyCustomer(
+          order.customerId,
+          `Order ${order.orderNumber} - item out of stock`,
+          paymentIssue.note,
+          `order-details.html?id=${orderId}`
+        );
         order.paymentIssue = paymentIssue;
         selectedVerificationId = null;
         renderVerificationQueue();

@@ -113,6 +113,24 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---- customer-facing notifications (payment issue holds, credit
+    // grants, restock flags) ----
+    // Written only by staff-authenticated actions (Payment Verification)
+    // or the hold-expiry sweep, never by the customer - a customer can
+    // read their own and toggle `read`, nothing else.
+    match /customerNotifications/{notifId} {
+      allow read: if isStaff();
+      allow read: if isSignedIn() && resource.data.customerId == myUid();
+
+      allow create: if isStaff();
+
+      allow update: if isSignedIn() && resource.data.customerId == myUid() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);
+      allow update: if isStaff();
+
+      allow delete: if false;
+    }
+
     // ---- staff-only operational data ----
     // stockBatches read is public (like products/categories) because the
     // storefront needs it to compute real available stock per product -

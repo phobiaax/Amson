@@ -94,6 +94,28 @@ function orderStatusIndex(status, steps = ORDER_STATUS_STEPS) {
   return idx === -1 ? 0 : idx;
 }
 
+// Persisted, per-customer notifications (payment issue holds, credit
+// grants) - written only from staff-authenticated actions or the
+// hold-expiry sweep, never by the customer themselves (see
+// firestore.rules). shop-header.js reads these directly instead of trying
+// to re-derive "did something happen" from live order state on every
+// page load.
+async function notifyCustomer(customerId, title, detail, link) {
+  if (!customerId) return;
+  try {
+    await db.collection("customerNotifications").add({
+      customerId,
+      title,
+      detail,
+      link,
+      read: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Failed to write customer notification:", error);
+  }
+}
+
 // ---- Deadline enforcement (lazy, checked on page load) ----
 //
 // `grantCreditToBalance` is only ever passed true from staff-authenticated
@@ -123,6 +145,15 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
       });
     }
     await batch.commit();
+
+    if (grantCreditToBalance && unappliedCredit > 0 && order.customerId) {
+      notifyCustomer(
+        order.customerId,
+        `You have ${formatPeso(unappliedCredit)} credit from order ${order.orderNumber}`,
+        closedReason + " Kept as credit - it'll be applied automatically to your next order.",
+        `order-details.html?id=${orderId}`
+      );
+    }
 
     order.status = "closed_unresolved";
     order.closedReason = closedReason;

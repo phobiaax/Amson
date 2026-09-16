@@ -47,20 +47,28 @@ async function loadCustomerNotifications(uid) {
   if (!notifDropdownList) return;
 
   try {
+    // Payment issue holds and credit grants are written directly to this
+    // collection at the moment they happen (see orders.js's
+    // notifyCustomer, called from admin-online-orders.js and the
+    // hold-expiry sweep) - reading them here instead of re-deriving "did
+    // something happen" from live order state each page load.
+    const notifSnapshot = await db.collection("customerNotifications").where("customerId", "==", uid).get();
+    const notifications = notifSnapshot.docs.map((doc) => {
+      const n = doc.data();
+      return {
+        priority: 0,
+        sortKey: n.createdAt && n.createdAt.toMillis ? n.createdAt.toMillis() : 0,
+        link: n.link || "orders.html",
+        title: n.title,
+        detail: n.detail,
+      };
+    });
+
     const snapshot = await db.collection("orders").where("customerId", "==", uid).get();
-    const notifications = [];
 
     snapshot.docs.forEach((doc) => {
       const order = doc.data();
-      if (order.paymentIssue) {
-        const isStockHold = order.paymentIssue.type === "out_of_stock";
-        notifications.push({
-          priority: 0,
-          link: `order-details.html?id=${doc.id}`,
-          title: isStockHold ? `Order ${order.orderNumber} - item out of stock` : `Payment issue on order ${order.orderNumber}`,
-          detail: "Please check your order for details.",
-        });
-      } else if (order.status === "dispatched") {
+      if (order.status === "dispatched") {
         notifications.push({
           priority: 1,
           link: `order-details.html?id=${doc.id}`,
@@ -82,31 +90,9 @@ async function loadCustomerNotifications(uid) {
           detail: "Let us know if anything's missing or damaged.",
         });
       }
-
-      // Independent of status - an overpayment credit is worth flagging
-      // on its own, on top of whatever the order's normal status update is.
-      if (order.paymentOverage && order.paymentOverage.excessAmount > 0) {
-        notifications.push({
-          priority: 0,
-          link: `order-details.html?id=${doc.id}`,
-          title: `You have ${formatPeso(order.paymentOverage.excessAmount)} credit from order ${order.orderNumber}`,
-          detail: "Overpayment kept as credit - it'll be applied automatically to your next order.",
-        });
-      }
-      // Same for credit left over from a hold that closed unresolved -
-      // orders.js isn't loaded on every page the header appears on, so
-      // this reads the field directly instead of using its helper.
-      if (order.status === "closed_unresolved" && order.unappliedCredit > 0) {
-        notifications.push({
-          priority: 0,
-          link: `order-details.html?id=${doc.id}`,
-          title: `You have ${formatPeso(order.unappliedCredit)} credit from order ${order.orderNumber}`,
-          detail: "Kept as credit - it'll be applied automatically to your next order.",
-        });
-      }
     });
 
-    notifications.sort((a, b) => a.priority - b.priority);
+    notifications.sort((a, b) => a.priority - b.priority || (b.sortKey || 0) - (a.sortKey || 0));
     renderCustomerNotifications(notifications.slice(0, 5));
   } catch (error) {
     console.error("Failed to load notifications:", error);
