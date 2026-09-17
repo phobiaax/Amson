@@ -90,11 +90,36 @@ function updateCartBadge() {
   badge.classList.toggle("d-none", count === 0);
 }
 
+// Centered, self-dismissing modal instead of a corner toast that's easy
+// to miss - no confirm button, it just shows briefly and closes itself.
+let cartToastTimer = null;
+
+function ensureCartToastModal() {
+  if (document.getElementById("cartToastModal")) return;
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = `
+    <div class="modal fade" id="cartToastModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content p-4 text-center">
+          <p class="mb-0" id="cartToastMessage"></p>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(wrapper.firstElementChild);
+}
+
 function showCartToast(message) {
-  const toastEl = document.getElementById("cartToast");
-  if (!toastEl || typeof bootstrap === "undefined") return;
-  toastEl.querySelector(".toast-body").textContent = message;
-  bootstrap.Toast.getOrCreateInstance(toastEl).show();
+  if (typeof bootstrap === "undefined") return;
+  ensureCartToastModal();
+
+  document.getElementById("cartToastMessage").textContent = message;
+  const modalEl = document.getElementById("cartToastModal");
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  clearTimeout(cartToastTimer);
+  modal.show();
+  cartToastTimer = setTimeout(() => modal.hide(), 1400);
 }
 
 // ---- Add to Cart ----
