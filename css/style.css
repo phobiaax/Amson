@@ -1763,3 +1763,8 @@ a {
 .choices__list--single .choices__item {
   padding-right: 1.25rem;
 }
+
+/* ---------- Modal backdrop ---------- */
+.modal-backdrop.show {
+  opacity: 0.75;
+}
