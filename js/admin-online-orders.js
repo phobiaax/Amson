@@ -303,6 +303,13 @@ approvePaymentBtn.addEventListener("click", async () => {
       delete order.paymentIssue;
     }
 
+    notifyCustomer(
+      order.customerId,
+      `Payment confirmed for order ${order.orderNumber}`,
+      "We've verified your payment. Your order is now being prepared.",
+      `order-details.html?id=${orderId}`
+    );
+
     selectedVerificationId = null;
 
     renderVerificationQueue();
