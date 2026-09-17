@@ -111,9 +111,9 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
     addToCartBtn.addEventListener("click", () => {
       const result = addToCart(product.id, currentQty());
       if (result.capped && result.qty === 0) {
-        showCartToast("Sorry, that item is out of stock.");
+        showCartToast("Sorry, that item is out of stock.", "warning");
       } else if (result.capped) {
-        showCartToast(`Only ${result.qty} in stock - your cart is now at the limit.`);
+        showCartToast(`Only ${result.qty} in stock - your cart is now at the limit.`, "warning");
       } else {
         showCartToast(`Added ${currentQty()} × ${product.name} to cart.`);
       }

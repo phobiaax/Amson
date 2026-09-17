@@ -100,8 +100,11 @@ function ensureCartToastModal() {
   wrapper.innerHTML = `
     <div class="modal fade" id="cartToastModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content p-4 text-center">
-          <p class="mb-0" id="cartToastMessage"></p>
+        <div class="modal-content text-center border-0" style="border-radius:18px; padding:2rem 1.5rem;">
+          <div id="cartToastIconWrap" class="mx-auto mb-3 d-flex align-items-center justify-content-center" style="width:60px; height:60px; border-radius:50%;">
+            <i id="cartToastIcon" class="bi" style="font-size:1.9rem;"></i>
+          </div>
+          <p class="mb-0 fw-medium" id="cartToastMessage" style="color:var(--amson-dark); font-size:0.98rem;"></p>
         </div>
       </div>
     </div>
@@ -109,11 +112,23 @@ function ensureCartToastModal() {
   document.body.appendChild(wrapper.firstElementChild);
 }
 
-function showCartToast(message) {
+const CART_TOAST_STYLES = {
+  success: { bg: "#e5f7ec", color: "#1a9c53", icon: "bi-check-lg" },
+  warning: { bg: "#fdf1e0", color: "#d98a12", icon: "bi-exclamation-lg" },
+};
+
+function showCartToast(message, type = "success") {
   if (typeof bootstrap === "undefined") return;
   ensureCartToastModal();
 
+  const style = CART_TOAST_STYLES[type] || CART_TOAST_STYLES.success;
+  const iconWrap = document.getElementById("cartToastIconWrap");
+  const icon = document.getElementById("cartToastIcon");
+  iconWrap.style.backgroundColor = style.bg;
+  icon.style.color = style.color;
+  icon.className = `bi ${style.icon}`;
   document.getElementById("cartToastMessage").textContent = message;
+
   const modalEl = document.getElementById("cartToastModal");
   const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
@@ -128,9 +143,9 @@ document.addEventListener("click", (e) => {
   if (!btn) return;
   const result = addToCart(btn.dataset.id, 1);
   if (result.capped && result.qty === 0) {
-    showCartToast("Sorry, that item is out of stock.");
+    showCartToast("Sorry, that item is out of stock.", "warning");
   } else if (result.capped) {
-    showCartToast(`Only ${result.qty} in stock - your cart is now at the limit.`);
+    showCartToast(`Only ${result.qty} in stock - your cart is now at the limit.`, "warning");
   } else {
     showCartToast("Added to cart.");
   }
