@@ -2,6 +2,25 @@
  * Product catalog cache.
  */
 
+// ---- Stacked modal darkening ----
+// Bootstrap gives every .modal and every .modal-backdrop the same fixed
+// z-index regardless of how many are open, so a second modal's backdrop
+// never actually paints on top of the first modal's box - nothing was
+// ever going to look darker no matter the opacity. This re-numbers both
+// on every open/close so each new modal (and its backdrop) stacks above
+// everything already open, which is what actually makes modal 1 look
+// dimmed once modal 2 is on top of it.
+function restackModals() {
+  document.querySelectorAll(".modal-backdrop").forEach((backdrop, i) => {
+    backdrop.style.zIndex = 1050 + i * 20;
+  });
+  document.querySelectorAll(".modal.show").forEach((modal, i) => {
+    modal.style.zIndex = 1055 + i * 20;
+  });
+}
+document.addEventListener("shown.bs.modal", restackModals);
+document.addEventListener("hidden.bs.modal", restackModals);
+
 // ---- Shared dialog UI (replaces native alert()/confirm()) ----
 // Native browser dialogs aren't acceptable UI here - everything routes
 // through one Bootstrap modal, built once per page and reused.
