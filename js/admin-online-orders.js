@@ -179,6 +179,7 @@ function renderVerificationQueue() {
               <p class="text-muted mb-0" style="font-size:0.85rem;">${customerName(order)}</p>
               <p class="text-muted mb-0" style="font-size:0.78rem;">${formatOrderDate(order.createdAt)}</p>
               ${order.paymentIssue && order.paymentIssue.resolvedByCustomerAt ? '<span class="badge rounded-pill text-bg-warning mt-1">Customer Resubmitted</span>' : ""}
+              ${!order.proofOfPaymentUrl ? '<span class="badge rounded-pill text-bg-danger mt-1">No Payment - Review Closely</span>' : ""}
             </div>
             <span class="fw-bold">${formatPeso(order.total)}</span>
           </button>
