@@ -1765,6 +1765,10 @@ a {
 }
 
 /* ---------- Modal backdrop ---------- */
-.modal-backdrop.show {
+/* Bootstrap stacks a new .modal-backdrop for each open modal - this only
+   darkens the backdrop of a modal opened on top of another one (e.g. a
+   delete confirmation over Add Product), leaving a single modal's own
+   backdrop at Bootstrap's normal 50%. */
+.modal-backdrop.show + .modal-backdrop.show {
   opacity: 0.75;
 }
