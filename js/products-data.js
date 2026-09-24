@@ -138,6 +138,116 @@ function getBatchStatus(batch) {
   return "normal";
 }
 
+// ---- Staff notifications (bell dropdown, sidebar badge, Notifications
+// page) - computed fresh from live data every time, same as before, so an
+// alert can never go stale or get missed. What's new is read/unread: each
+// notification carries a stable `key` (what it's about) and a `signature`
+// (a snapshot of the part that can change, like quantity). A per-staff
+// "read" map records the signature that was current when they last saw it,
+// so if the same batch goes low, gets read, then drops further, it's
+// unread again - marking read never permanently silences a recurring
+// problem. ----
+const STAFF_NOTIF_SEVERITY_RANK = { danger: 0, warning: 1, info: 2 };
+
+async function computeStaffNotifications() {
+  await loadCatalogCache();
+  const [batchSnapshot, orderSnapshot, poSnapshot] = await Promise.all([
+    db.collection("stockBatches").get(),
+    db.collection("orders").get(),
+    db.collection("purchaseOrders").get(),
+  ]);
+
+  const notifications = [];
+
+  batchSnapshot.docs.forEach((doc) => {
+    const b = { id: doc.id, ...doc.data() };
+    if (b.status !== "active") return;
+    const status = getBatchStatus(b);
+    const product = getProductById(b.productId);
+    const productName = product ? product.name : "Unknown product";
+
+    if (status === "out_of_stock") {
+      notifications.push({
+        key: `out_of_stock:${b.id}`,
+        signature: `${b.quantity}`,
+        severity: "danger",
+        icon: "bi-box-seam",
+        message: `${productName} (Batch ${b.batchNo}) is out of stock.`,
+        link: "inventory.html",
+      });
+    } else if (status === "low_stock") {
+      notifications.push({
+        key: `low_stock:${b.id}`,
+        signature: `${b.quantity}`,
+        severity: "warning",
+        icon: "bi-box-seam",
+        message: `${productName} (Batch ${b.batchNo}) is low on stock - ${b.quantity} left.`,
+        link: "inventory.html",
+      });
+    } else if (status === "near_expiry") {
+      notifications.push({
+        key: `near_expiry:${b.id}`,
+        signature: `${b.quantity}:${b.expirationDate}`,
+        severity: "warning",
+        icon: "bi-hourglass-split",
+        message: `${productName} (Batch ${b.batchNo}) is near expiry - ${b.expirationDate}.`,
+        link: "inventory.html",
+      });
+    }
+  });
+
+  orderSnapshot.docs.forEach((doc) => {
+    const o = doc.data();
+    if (o.status !== "placed") return;
+    notifications.push({
+      key: `payment_verification:${doc.id}`,
+      signature: o.status,
+      severity: "info",
+      icon: "bi-credit-card",
+      message: `Order ${o.orderNumber} is awaiting payment verification.`,
+      link: "online-orders.html",
+    });
+  });
+
+  poSnapshot.docs.forEach((doc) => {
+    const po = doc.data();
+    if (po.status !== "discrepancy") return;
+    notifications.push({
+      key: `po_discrepancy:${doc.id}`,
+      signature: po.status,
+      severity: "danger",
+      icon: "bi-exclamation-triangle",
+      message: `Purchase Order ${po.poNumber} has a delivery discrepancy pending acknowledgement.`,
+      link: "inventory.html",
+    });
+  });
+
+  notifications.sort((a, b) => STAFF_NOTIF_SEVERITY_RANK[a.severity] - STAFF_NOTIF_SEVERITY_RANK[b.severity]);
+  return notifications;
+}
+
+async function getStaffNotifReadMap(uid) {
+  const doc = await db.collection("notifications").doc(uid).get();
+  return doc.exists ? doc.data().read || {} : {};
+}
+
+function isStaffNotifRead(readMap, notif) {
+  return readMap[notif.key] === notif.signature;
+}
+
+async function markStaffNotifRead(uid, notif) {
+  await db.collection("notifications").doc(uid).set({ [`read.${notif.key}`]: notif.signature }, { merge: true });
+}
+
+async function markAllStaffNotifsRead(uid, notifications) {
+  const updates = {};
+  notifications.forEach((n) => {
+    updates[`read.${n.key}`] = n.signature;
+  });
+  if (Object.keys(updates).length === 0) return;
+  await db.collection("notifications").doc(uid).set(updates, { merge: true });
+}
+
 // ---- Near-expiry auto-handling (lazy, checked on Inventory page load) ----
 // Stock this close to expiry is flagged wholesale_only so it doesn't get
 // sold retail - quantity is never touched automatically; staff decide
