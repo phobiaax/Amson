@@ -27,3 +27,27 @@ const PH_PHONE_PATTERN = /^(\+63|0)9\d{9}$/;
 function normalizePhPhone(value) {
   return value.trim().replace(/[\s-]/g, "");
 }
+
+// Known disposable/temp-mail domains - real customers (whatever provider or
+// country they're in) don't use these; they exist so someone can dodge the
+// one-account-per-customer rules or spam sign-ups with a throwaway inbox.
+// Not exhaustive - new ones appear constantly - but this blocklist approach
+// only rejects known-fake addresses, unlike an allowlist of "approved"
+// providers, which would also reject real work/school/other legitimate
+// emails that were never on the list.
+const DISPOSABLE_EMAIL_DOMAINS = new Set([
+  "mailinator.com", "tempmail.com", "temp-mail.org", "guerrillamail.com",
+  "guerrillamail.info", "guerrillamail.biz", "guerrillamail.de", "guerrillamail.net",
+  "guerrillamail.org", "guerrillamailblock.com", "sharklasers.com", "throwawaymail.com",
+  "throwaway.email", "yopmail.com", "yopmail.fr", "yopmail.net", "10minutemail.com",
+  "10minutemail.net", "trashmail.com", "trashmail.net", "dispostable.com", "fakeinbox.com",
+  "fakemailgenerator.com", "getairmail.com", "getnada.com", "mailnesia.com", "mintemail.com",
+  "mohmal.com", "spamgourmet.com", "tempail.com", "tempinbox.com", "emailondeck.com",
+  "mailcatch.com", "moakt.com", "mytemp.email", "tempmailo.com", "discard.email",
+  "maildrop.cc", "inboxbear.com", "burnermail.io",
+]);
+
+function isDisposableEmail(email) {
+  const domain = (email.split("@")[1] || "").trim().toLowerCase();
+  return DISPOSABLE_EMAIL_DOMAINS.has(domain);
+}

@@ -248,6 +248,11 @@ async function sendEmailChangeCode() {
     changeEmailStep1Alert.classList.remove("d-none");
     return;
   }
+  if (isDisposableEmail(newEmail)) {
+    changeEmailStep1Alert.textContent = "Please use a permanent email address, not a temporary/disposable one.";
+    changeEmailStep1Alert.classList.remove("d-none");
+    return;
+  }
   if (newEmail.toLowerCase() === (accountEmailInput.value || "").toLowerCase()) {
     changeEmailStep1Alert.textContent = "That's already your current email.";
     changeEmailStep1Alert.classList.remove("d-none");

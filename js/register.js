@@ -58,7 +58,15 @@ function wireLiveHint(input, hint, pattern) {
 
 wireLiveHint(firstNameInput, firstNameHint, NAME_PATTERN);
 wireLiveHint(lastNameInput, lastNameHint, NAME_PATTERN);
-wireLiveHint(emailInput, emailHint, EMAIL_PATTERN);
+
+emailInput.addEventListener("input", () => {
+  const value = emailInput.value.trim();
+  const invalid = value.length > 0 && (!EMAIL_PATTERN.test(value) || isDisposableEmail(value));
+  emailHint.textContent = isDisposableEmail(value)
+    ? "Please use a permanent email address, not a temporary/disposable one."
+    : "Enter a valid email address.";
+  emailHint.classList.toggle("d-none", !invalid);
+});
 
 contactNumberInput.addEventListener("input", () => {
   const invalid =
@@ -145,6 +153,11 @@ registerForm.addEventListener("submit", async (e) => {
 
   if (!EMAIL_PATTERN.test(emailInput.value.trim())) {
     showAlert("Please enter a valid email address.");
+    return;
+  }
+
+  if (isDisposableEmail(emailInput.value.trim())) {
+    showAlert("Please use a permanent email address, not a temporary/disposable one.");
     return;
   }
 
