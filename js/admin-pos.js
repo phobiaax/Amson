@@ -1,11 +1,3 @@
-/**
- * Point of Sale (placeholder) admin page.
- *
- * Deliberately generic - add an item, adjust qty, take cash, complete the
- * sale. No receipts, voids, or exchanges yet; this is a stand-in until the
- * full POS module replaces it.
- */
-
 let posCart = [];
 let posProductChoices = null;
 let currentCashierName = "Staff";
@@ -17,10 +9,24 @@ const posAddItemError = document.getElementById("posAddItemError");
 const posCartBody = document.getElementById("posCartBody");
 const posCartEmpty = document.getElementById("posCartEmpty");
 const posTotalText = document.getElementById("posTotalText");
+const posCashFields = document.getElementById("posCashFields");
 const posCashInput = document.getElementById("posCashInput");
 const posChangeText = document.getElementById("posChangeText");
 const posAlert = document.getElementById("posAlert");
 const posCompleteSaleBtn = document.getElementById("posCompleteSaleBtn");
+const posPaymentMethodInputs = document.querySelectorAll('input[name="posPaymentMethod"]');
+
+function posPaymentMethod() {
+  const checked = document.querySelector('input[name="posPaymentMethod"]:checked');
+  return checked ? checked.value : "cash";
+}
+
+posPaymentMethodInputs.forEach((input) => {
+  input.addEventListener("change", () => {
+    posCashFields.classList.toggle("d-none", posPaymentMethod() !== "cash");
+    updatePosTotals();
+  });
+});
 
 document.addEventListener("admin:ready", async (e) => {
   const admin = e.detail && e.detail.admin;
@@ -144,8 +150,10 @@ posCompleteSaleBtn.addEventListener("click", async () => {
   }
 
   const total = posTotal();
-  const cash = parseFloat(posCashInput.value) || 0;
-  if (cash < total) {
+  const paymentMethod = posPaymentMethod();
+  const isCash = paymentMethod === "cash";
+  const cash = isCash ? parseFloat(posCashInput.value) || 0 : total;
+  if (isCash && cash < total) {
     posAlert.textContent = "Cash received is less than the total.";
     posAlert.classList.remove("d-none");
     return;
@@ -158,13 +166,17 @@ posCompleteSaleBtn.addEventListener("click", async () => {
     await db.collection("posSales").add({
       items: posCart.map((item) => ({ productId: item.productId, name: item.name, price: item.price, qty: item.qty })),
       total,
-      cashReceived: cash,
-      change: cash - total,
+      paymentMethod,
+      cashReceived: isCash ? cash : total,
+      change: isCash ? cash - total : 0,
       cashier: currentCashierName,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
-    await showAppAlert(`Sale complete. Change due: ${formatPeso(cash - total)}`, { title: "Sale Complete" });
+    const confirmMessage = isCash
+      ? `Sale complete. Change due: ${formatPeso(cash - total)}`
+      : `Sale complete. Paid by ${paymentMethod === "card" ? "card" : "e-wallet"}.`;
+    await showAppAlert(confirmMessage, { title: "Sale Complete" });
 
     posCart = [];
     posCashInput.value = "";
