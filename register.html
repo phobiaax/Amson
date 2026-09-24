@@ -77,12 +77,12 @@
         <div class="row">
           <div class="col-sm-6 mb-3">
             <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" id="firstName" placeholder="Juan" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\s\-']+" required>
+            <input type="text" class="form-control" id="firstName" placeholder="Juan" pattern="[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[\s\-'][A-Za-zÀ-ÖØ-öø-ÿ]+)*" maxlength="50" required>
             <p class="form-text text-danger mb-0 d-none" id="firstNameHint">Names can only contain letters.</p>
           </div>
           <div class="col-sm-6 mb-3">
             <label for="lastName" class="form-label">Last Name <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" id="lastName" placeholder="Dela Cruz" pattern="[A-Za-zÀ-ÖØ-öø-ÿ\s\-']+" required>
+            <input type="text" class="form-control" id="lastName" placeholder="Dela Cruz" pattern="[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[\s\-'][A-Za-zÀ-ÖØ-öø-ÿ]+)*" maxlength="50" required>
             <p class="form-text text-danger mb-0 d-none" id="lastNameHint">Names can only contain letters.</p>
           </div>
         </div>
@@ -91,7 +91,7 @@
           <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
           <div class="input-icon-group">
             <i class="bi bi-envelope field-icon"></i>
-            <input type="email" class="form-control" id="email" placeholder="your@email.com" required>
+            <input type="email" class="form-control" id="email" placeholder="your@email.com" maxlength="254" required>
           </div>
           <p class="form-text text-danger mb-0 d-none" id="emailHint">Enter a valid email address.</p>
         </div>
@@ -109,7 +109,7 @@
           <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
           <div class="input-icon-group">
             <i class="bi bi-lock field-icon"></i>
-            <input type="password" class="form-control" id="password" placeholder="••••••••" required minlength="6" pattern="^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$">
+            <input type="password" class="form-control" id="password" placeholder="••••••••" required minlength="6" maxlength="100" pattern="^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$">
             <button type="button" class="toggle-password" data-target="password" aria-label="Show password">
               <i class="bi bi-eye"></i>
             </button>
@@ -121,7 +121,7 @@
           <label for="confirmPassword" class="form-label">Confirm Password <span class="text-danger">*</span></label>
           <div class="input-icon-group">
             <i class="bi bi-lock field-icon"></i>
-            <input type="password" class="form-control" id="confirmPassword" placeholder="••••••••" required minlength="6">
+            <input type="password" class="form-control" id="confirmPassword" placeholder="••••••••" required minlength="6" maxlength="100">
             <button type="button" class="toggle-password" data-target="confirmPassword" aria-label="Show password">
               <i class="bi bi-eye"></i>
             </button>
