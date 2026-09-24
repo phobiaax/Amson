@@ -150,6 +150,7 @@ service cloud.firestore {
     match /writeOffs/{writeOffId}      { allow read, write: if isStaff(); }
     match /wholesaleAccounts/{acctId}  { allow read, write: if isStaff(); }
     match /wholesaleOrders/{orderId}   { allow read, write: if isStaff(); }
+    match /posSales/{saleId}           { allow read, write: if isStaff(); }
 
     // ---- audit log (append-only) ----
     match /auditLog/{entryId} {
