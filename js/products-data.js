@@ -235,8 +235,15 @@ function isStaffNotifRead(readMap, notif) {
   return readMap[notif.key] === notif.signature;
 }
 
+// set(..., {merge:true}) does NOT reliably merge into a nested map via a
+// dotted-string key - only update() does that. update() fails outright if
+// the document doesn't exist yet (true the first time a given staff member
+// ever reads a notification), so ensure it exists first with a harmless
+// empty merge, then do the real nested-field write with update().
 async function markStaffNotifRead(uid, notif) {
-  await db.collection("notifications").doc(uid).set({ [`read.${notif.key}`]: notif.signature }, { merge: true });
+  const ref = db.collection("notifications").doc(uid);
+  await ref.set({}, { merge: true });
+  await ref.update({ [`read.${notif.key}`]: notif.signature });
 }
 
 async function markAllStaffNotifsRead(uid, notifications) {
@@ -245,7 +252,9 @@ async function markAllStaffNotifsRead(uid, notifications) {
     updates[`read.${n.key}`] = n.signature;
   });
   if (Object.keys(updates).length === 0) return;
-  await db.collection("notifications").doc(uid).set(updates, { merge: true });
+  const ref = db.collection("notifications").doc(uid);
+  await ref.set({}, { merge: true });
+  await ref.update(updates);
 }
 
 // ---- Near-expiry auto-handling (lazy, checked on Inventory page load) ----

@@ -119,7 +119,10 @@ async function markCustomerNotifRead(uid, n) {
   if (n.persisted) {
     await db.collection("customerNotifications").doc(n.docId).update({ read: true });
   } else {
-    await db.collection("users").doc(uid).set({ [`notifReadMap.${n.key}`]: n.signature }, { merge: true });
+    // set(..., {merge:true}) does NOT reliably merge into a nested map via a
+    // dotted-string key - only update() does. The user's own doc always
+    // already exists here (they're signed in), so no need to ensure it first.
+    await db.collection("users").doc(uid).update({ [`notifReadMap.${n.key}`]: n.signature });
   }
 }
 
