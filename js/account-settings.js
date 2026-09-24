@@ -96,13 +96,24 @@ saveProfileBtn.addEventListener("click", async () => {
     profileAlert.classList.remove("d-none");
     return;
   }
+  if (!NAME_PATTERN.test(firstName) || !NAME_PATTERN.test(lastName)) {
+    profileAlert.textContent = "Names can only contain letters.";
+    profileAlert.classList.remove("d-none");
+    return;
+  }
+  const contactNumber = normalizePhPhone(contactNumberInput.value);
+  if (contactNumber && !PH_PHONE_PATTERN.test(contactNumber)) {
+    profileAlert.textContent = "Please enter a valid Philippine mobile number (e.g. 0917 123 4567).";
+    profileAlert.classList.remove("d-none");
+    return;
+  }
 
   saveProfileBtn.disabled = true;
   try {
     await db.collection("users").doc(signedInUid).update({
       firstName,
       lastName,
-      contactNumber: contactNumberInput.value.trim(),
+      contactNumber,
     });
     profileSuccess.textContent = "Profile updated.";
     profileSuccess.classList.remove("d-none");
@@ -156,8 +167,8 @@ updatePasswordBtn.addEventListener("click", async () => {
     passwordAlert.classList.remove("d-none");
     return;
   }
-  if (newPassword.length < 6) {
-    passwordAlert.textContent = "New password must be at least 6 characters.";
+  if (!PASSWORD_PATTERN.test(newPassword)) {
+    passwordAlert.textContent = "Password must be at least 6 characters, with letters, numbers, and a special character.";
     passwordAlert.classList.remove("d-none");
     return;
   }
@@ -229,6 +240,11 @@ async function sendEmailChangeCode() {
 
   if (!newEmail || !password) {
     changeEmailStep1Alert.textContent = "Please enter your new email and current password.";
+    changeEmailStep1Alert.classList.remove("d-none");
+    return;
+  }
+  if (!EMAIL_PATTERN.test(newEmail)) {
+    changeEmailStep1Alert.textContent = "Please enter a valid email address.";
     changeEmailStep1Alert.classList.remove("d-none");
     return;
   }

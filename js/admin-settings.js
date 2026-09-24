@@ -40,13 +40,24 @@ saveProfileBtn.addEventListener("click", async () => {
     profileAlert.classList.remove("d-none");
     return;
   }
+  if (!NAME_PATTERN.test(firstName) || !NAME_PATTERN.test(lastName)) {
+    profileAlert.textContent = "Names can only contain letters.";
+    profileAlert.classList.remove("d-none");
+    return;
+  }
+  const contactNumber = normalizePhPhone(settingsContactNumberInput.value);
+  if (contactNumber && !PH_PHONE_PATTERN.test(contactNumber)) {
+    profileAlert.textContent = "Please enter a valid Philippine mobile number (e.g. 0917 123 4567).";
+    profileAlert.classList.remove("d-none");
+    return;
+  }
 
   saveProfileBtn.disabled = true;
   try {
     await db.collection("users").doc(currentAdminUid).update({
       firstName,
       lastName,
-      contactNumber: settingsContactNumberInput.value.trim(),
+      contactNumber,
     });
     profileSuccess.textContent = "Profile updated.";
     profileSuccess.classList.remove("d-none");
@@ -72,8 +83,8 @@ updatePasswordBtn.addEventListener("click", async () => {
     passwordAlert.classList.remove("d-none");
     return;
   }
-  if (newPassword.length < 6) {
-    passwordAlert.textContent = "New password must be at least 6 characters.";
+  if (!PASSWORD_PATTERN.test(newPassword)) {
+    passwordAlert.textContent = "Password must be at least 6 characters, with letters, numbers, and a special character.";
     passwordAlert.classList.remove("d-none");
     return;
   }

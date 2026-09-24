@@ -43,14 +43,10 @@ document.querySelectorAll(".toggle-password").forEach((btn) => {
   });
 });
 
-const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
-const NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ\s\-']+$/;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PH_PHONE_PATTERN = /^(\+63|0)9\d{9}$/;
-
-function normalizePhPhone(value) {
-  return value.trim().replace(/[\s-]/g, "");
-}
+// PASSWORD_PATTERN, NAME_PATTERN, EMAIL_PATTERN, PH_PHONE_PATTERN, and
+// normalizePhPhone come from validators.js, shared with Account Settings
+// and Staff Settings so the same rules apply everywhere these get entered
+// or changed, not just at sign-up.
 
 // ---- Live name / email / phone feedback ----
 function wireLiveHint(input, hint, pattern) {
