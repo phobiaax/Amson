@@ -13,6 +13,7 @@ const STAFF_ROLE_LABELS = {
 
 const ADMIN_PAGE_ACCESS = {
   "dashboard.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
+  "pos.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "products.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "online-orders.html": ["admin", "branch_manager", "technical_staff"],
   "inventory.html": ["admin", "branch_manager", "technical_staff"],
