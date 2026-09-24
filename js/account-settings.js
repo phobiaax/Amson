@@ -233,7 +233,7 @@ openChangeEmailBtn.addEventListener("click", () => {
 });
 
 async function sendEmailChangeCode() {
-  const newEmail = newEmailInput.value.trim();
+  const newEmail = newEmailInput.value.trim().toLowerCase();
   const password = changeEmailPasswordInput.value;
 
   changeEmailStep1Alert.classList.add("d-none");

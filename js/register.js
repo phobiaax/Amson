@@ -190,7 +190,7 @@ registerForm.addEventListener("submit", async (e) => {
 
   setLoading(true);
   try {
-    const email = emailInput.value.trim();
+    const email = emailInput.value.trim().toLowerCase();
     const credential = await auth.createUserWithEmailAndPassword(
       email,
       passwordInput.value

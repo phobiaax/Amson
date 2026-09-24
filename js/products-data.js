@@ -113,7 +113,7 @@ const DEFAULT_REORDER_POINT = 20;
 const NEAR_EXPIRY_MONTHS = 6;
 
 const BATCH_STATUS_LABELS = {
-  normal: "Normal",
+  normal: "In Stock",
   low_stock: "Low Stock",
   out_of_stock: "Out of Stock",
   near_expiry: "Near Expiry",

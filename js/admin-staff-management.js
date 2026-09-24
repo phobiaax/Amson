@@ -207,7 +207,7 @@ saveStaffBtn.addEventListener("click", async () => {
         details: `${firstName} ${lastName} - Role: ${STAFF_ROLE_LABELS[role]}`,
       });
     } else {
-      const email = staffEmailInput.value.trim();
+      const email = staffEmailInput.value.trim().toLowerCase();
       const password = staffPasswordInput.value;
 
       if (!email || password.length < 6) {
