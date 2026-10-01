@@ -240,7 +240,14 @@ function inventorySortMillis(batch) {
 
 /* ---------- Table ---------- */
 function filteredBatches() {
-  let filtered = allBatches.map((b) => ({ ...b, computedStatuses: getBatchStatuses(b) }));
+  // Real total physical stock per product (every batch, any status) - not
+  // SAMPLE_PRODUCTS.totalStock, which is deliberately active-only for the
+  // storefront's sake. A wholesale_only batch's units still exist.
+  const physicalStockByProduct = sumPhysicalStockByProduct(allBatches);
+  let filtered = allBatches.map((b) => ({
+    ...b,
+    computedStatuses: getBatchStatuses(b, physicalStockByProduct[b.productId] || 0),
+  }));
 
   if (inventoryFilter !== "all") {
     filtered = filtered.filter((b) => b.computedStatuses.includes(inventoryFilter));

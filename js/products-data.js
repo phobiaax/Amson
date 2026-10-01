@@ -153,20 +153,18 @@ const SEVERITY_BACKGROUNDS = {
 // reported "near_expiry" - the low-stock condition was silently masked
 // and never showed up on the pill, in notifications, or in the Low Stock
 // count. Keep each axis separate everywhere it matters.
-function getStockLevelStatus(batch) {
-  // Judged on the product's total ACTIVE stock across all its batches, not
-  // this one batch alone - a product split across several batches
-  // shouldn't look low just because any single lot is small. Both
-  // thresholds below must use that same totalStock, not this batch's own
-  // quantity - checking "is this one batch's own qty 0" here while the
-  // low-stock line below checks the aggregate let a non-zero batch that's
-  // wholesale_only (and so excluded from the active aggregate entirely)
-  // show as "Low Stock" when the product's real active stock was 0,
-  // disagreeing with the Low Stock/Out of Stock tiles that already used
-  // the aggregate consistently.
+// totalStockOverride lets a caller that already has every batch in hand
+// (the Inventory table) pass the product's REAL total physical stock
+// (every batch, any status) instead of falling back to
+// SAMPLE_PRODUCTS.totalStock, which is deliberately active-only (that
+// number also drives the storefront's "in stock" check, which must never
+// promise a customer stock that's actually reserved for wholesale). For
+// inventory ALERTING, a wholesale_only batch's units still physically
+// exist and still count - see sumPhysicalStockByProduct.
+function getStockLevelStatus(batch, totalStockOverride) {
   const product = getProductById(batch.productId);
   const reorderPoint = (product && product.reorderPoint) || DEFAULT_REORDER_POINT;
-  const totalStock = product ? product.totalStock : batch.quantity;
+  const totalStock = totalStockOverride !== undefined ? totalStockOverride : product ? product.totalStock : batch.quantity;
   if (totalStock === 0) return "out_of_stock";
   if (totalStock <= reorderPoint) return "low_stock";
 
@@ -189,39 +187,58 @@ function getExpiryStatus(batch) {
 // 2 when both a stock-level and an expiry condition are both true at
 // once. Used wherever something needs to check or display all of them,
 // not just whichever one used to "win."
-function getBatchStatuses(batch) {
-  const statuses = [getStockLevelStatus(batch), getExpiryStatus(batch)].filter((s) => s !== "normal");
+function getBatchStatuses(batch, totalStockOverride) {
+  const statuses = [getStockLevelStatus(batch, totalStockOverride), getExpiryStatus(batch)].filter((s) => s !== "normal");
   return statuses.length > 0 ? statuses : ["normal"];
+}
+
+// Sums every batch's own quantity per product, regardless of status - a
+// wholesale_only batch still physically exists on a shelf, it's just
+// blocked from RETAIL sale. That's a separate, correct restriction
+// (SAMPLE_PRODUCTS.totalStock stays active-only on purpose, so the
+// storefront never promises a customer stock that's actually reserved for
+// wholesale). But for INVENTORY alerting - "how much do we physically
+// have, are we running low" - counting only active stock made a product
+// whose only batch had gone wholesale_only (because it's near expiry)
+// read as having 0 units, even while that unit still sits on the shelf.
+function sumPhysicalStockByProduct(batches) {
+  const map = {};
+  batches.forEach((b) => {
+    map[b.productId] = (map[b.productId] || 0) + (b.quantity || 0);
+  });
+  return map;
 }
 
 // ---- Accurate inventory alert counts (Dashboard's Low Stock/Near-Expiry
 // tiles, Inventory's stat tiles) ----
-// Low stock and out of stock are PRODUCT-level facts (defined above in
-// terms of a product's combined stock across all its batches) - counting
+// Low stock and out of stock are PRODUCT-level facts (judged on a
+// product's combined physical stock across all its batches) - counting
 // every batch that reports them, as the two pages used to do separately,
-// double-counts a product split across several lots and was the source of
-// "the dashboard numbers don't look right." Near-expiry/expired stay
-// per-batch, since each physical lot has its own expiry and needs its own
-// decision. Only active batches/products count - a batch already pulled
-// to wholesale_only has already been handled, it's not an open alert.
+// double-counts a product split across several lots. Near-expiry/expired
+// stay per-batch, since each physical lot has its own expiry and needs
+// its own decision - these counts simply mirror whatever the Inventory
+// table itself labels a batch, so the tile and the row never disagree.
 async function computeInventoryAlertCounts() {
   await loadCatalogCache();
-  const batchSnapshot = await db.collection("stockBatches").where("status", "==", "active").get();
+  const batchSnapshot = await db.collection("stockBatches").get();
   const batches = batchSnapshot.docs.map((doc) => doc.data());
+  const physicalStockByProduct = sumPhysicalStockByProduct(batches);
 
   let nearExpiry = 0;
   let expired = 0;
   batches.forEach((b) => {
+    if (b.quantity === 0) return; // an already-empty lot isn't a live expiry concern
     const status = getExpiryStatus(b);
     if (status === "near_expiry") nearExpiry += 1;
     if (status === "expired") expired += 1;
   });
 
   const activeProducts = SAMPLE_PRODUCTS.filter((p) => p.status === "active");
-  const outOfStock = activeProducts.filter((p) => p.totalStock === 0).length;
-  const lowStock = activeProducts.filter(
-    (p) => p.totalStock > 0 && p.totalStock <= (p.reorderPoint || DEFAULT_REORDER_POINT)
-  ).length;
+  const outOfStock = activeProducts.filter((p) => (physicalStockByProduct[p.id] || 0) === 0).length;
+  const lowStock = activeProducts.filter((p) => {
+    const stock = physicalStockByProduct[p.id] || 0;
+    return stock > 0 && stock <= (p.reorderPoint || DEFAULT_REORDER_POINT);
+  }).length;
 
   return { lowStock, outOfStock, nearExpiry, expired };
 }
