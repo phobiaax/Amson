@@ -154,14 +154,20 @@ const SEVERITY_BACKGROUNDS = {
 // and never showed up on the pill, in notifications, or in the Low Stock
 // count. Keep each axis separate everywhere it matters.
 function getStockLevelStatus(batch) {
-  if (batch.quantity === 0) return "out_of_stock";
-
-  // Judged on the product's total stock across all its batches, not this
-  // one batch alone - a product split across several batches shouldn't
-  // look low just because any single lot is small.
+  // Judged on the product's total ACTIVE stock across all its batches, not
+  // this one batch alone - a product split across several batches
+  // shouldn't look low just because any single lot is small. Both
+  // thresholds below must use that same totalStock, not this batch's own
+  // quantity - checking "is this one batch's own qty 0" here while the
+  // low-stock line below checks the aggregate let a non-zero batch that's
+  // wholesale_only (and so excluded from the active aggregate entirely)
+  // show as "Low Stock" when the product's real active stock was 0,
+  // disagreeing with the Low Stock/Out of Stock tiles that already used
+  // the aggregate consistently.
   const product = getProductById(batch.productId);
   const reorderPoint = (product && product.reorderPoint) || DEFAULT_REORDER_POINT;
   const totalStock = product ? product.totalStock : batch.quantity;
+  if (totalStock === 0) return "out_of_stock";
   if (totalStock <= reorderPoint) return "low_stock";
 
   return "normal";
