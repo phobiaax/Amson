@@ -74,26 +74,42 @@
         </button>
       </div>
 
-      <!-- Stat cards -->
+      <!-- Today's sales, by channel -->
       <div class="row g-3 mb-4">
-        <div class="col-sm-6 col-lg-3">
-          <div class="stat-card">
-            <div class="stat-card-header">
-              <p class="stat-card-label">Today's Total Sales (POS)</p>
-              <i class="bi bi-currency-dollar stat-card-icon" style="color:#1a9c4b;"></i>
+        <div class="col-lg-6">
+          <div class="checkout-card p-0" style="overflow:hidden;">
+            <div class="d-flex flex-wrap" style="border-bottom:1px solid var(--amson-border);">
+              <button type="button" class="admin-tab-btn active" data-tab="online" id="tabTodayOnlineBtn">
+                <i class="bi bi-globe"></i>Online Orders
+              </button>
+              <button type="button" class="admin-tab-btn" data-tab="walkin" id="tabTodayWalkinBtn">
+                <i class="bi bi-shop"></i>Walk-in Orders
+              </button>
             </div>
-            <p class="stat-card-value mb-0" id="posTodaySalesValue">-</p>
-            <a href="pos.html" class="stat-card-link">Open POS →</a>
-          </div>
-        </div>
-        <div class="col-sm-6 col-lg-3">
-          <div class="stat-card">
-            <div class="stat-card-header">
-              <p class="stat-card-label">Transactions Today (POS)</p>
-              <i class="bi bi-cart3 stat-card-icon" style="color:#4A90D9;"></i>
+            <div id="todayOnlinePanel" class="p-3">
+              <div class="row g-3">
+                <div class="col-6">
+                  <p class="stat-card-label mb-1">Today's Transactions</p>
+                  <p class="stat-card-value mb-0" id="onlineTodayTransactionsValue">-</p>
+                </div>
+                <div class="col-6">
+                  <p class="stat-card-label mb-1">Today's Total Sales</p>
+                  <p class="stat-card-value mb-0" id="onlineTodaySalesValue">-</p>
+                </div>
+              </div>
             </div>
-            <p class="stat-card-value mb-0" id="posTodayTransactionsValue">-</p>
-            <a href="pos.html" class="stat-card-link">Open POS →</a>
+            <div id="todayWalkinPanel" class="p-3 d-none">
+              <div class="row g-3">
+                <div class="col-6">
+                  <p class="stat-card-label mb-1">Today's Transactions</p>
+                  <p class="stat-card-value mb-0" id="posTodayTransactionsValue">-</p>
+                </div>
+                <div class="col-6">
+                  <p class="stat-card-label mb-1">Today's Total Sales</p>
+                  <p class="stat-card-value mb-0" id="posTodaySalesValue">-</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div class="col-sm-6 col-lg-3">

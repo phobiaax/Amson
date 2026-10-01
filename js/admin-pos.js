@@ -6,6 +6,8 @@ let currentCashierName = "Staff";
 
 const posProductSelect = document.getElementById("posProductSelect");
 const posQtyInput = document.getElementById("posQtyInput");
+const posQtyDecrementBtn = document.getElementById("posQtyDecrementBtn");
+const posQtyIncrementBtn = document.getElementById("posQtyIncrementBtn");
 const posAddItemBtn = document.getElementById("posAddItemBtn");
 const posAddItemError = document.getElementById("posAddItemError");
 const posCartBody = document.getElementById("posCartBody");
@@ -28,6 +30,16 @@ posPaymentMethodInputs.forEach((input) => {
     posCashFields.classList.toggle("d-none", posPaymentMethod() !== "cash");
     updatePosTotals();
   });
+});
+
+posQtyDecrementBtn.addEventListener("click", () => {
+  const current = parseInt(posQtyInput.value, 10) || 1;
+  posQtyInput.value = Math.max(1, current - 1);
+});
+
+posQtyIncrementBtn.addEventListener("click", () => {
+  const current = parseInt(posQtyInput.value, 10) || 0;
+  posQtyInput.value = current + 1;
 });
 
 document.addEventListener("admin:ready", async (e) => {
@@ -102,6 +114,24 @@ posAddItemBtn.addEventListener("click", () => {
   renderPosCart();
 });
 
+function adjustCartItemQty(idx, delta) {
+  const item = posCart[idx];
+  if (!item) return;
+
+  if (delta > 0 && posAvailableQty(item.productId) <= 0) {
+    posAddItemError.textContent = `No more ${item.name} left to add.`;
+    posAddItemError.classList.remove("d-none");
+    return;
+  }
+
+  posAddItemError.classList.add("d-none");
+  item.qty += delta;
+  if (item.qty <= 0) {
+    posCart.splice(idx, 1);
+  }
+  renderPosCart();
+}
+
 function renderPosCart() {
   posCartEmpty.classList.toggle("d-none", posCart.length > 0);
 
@@ -110,7 +140,13 @@ function renderPosCart() {
       (item, idx) => `
         <tr>
           <td>${item.name}</td>
-          <td>${item.qty}</td>
+          <td>
+            <div class="input-group input-group-sm" style="width:110px;">
+              <button type="button" class="btn btn-outline-secondary pos-qty-decrement-btn" data-idx="${idx}" aria-label="Decrease quantity"><i class="bi bi-dash-lg"></i></button>
+              <span class="form-control text-center">${item.qty}</span>
+              <button type="button" class="btn btn-outline-secondary pos-qty-increment-btn" data-idx="${idx}" aria-label="Increase quantity"><i class="bi bi-plus-lg"></i></button>
+            </div>
+          </td>
           <td>${formatPeso(item.price)}</td>
           <td>${formatPeso(item.price * item.qty)}</td>
           <td><button type="button" class="icon-btn pos-remove-item-btn" data-idx="${idx}" aria-label="Remove"><i class="bi bi-trash text-danger"></i></button></td>
@@ -124,6 +160,14 @@ function renderPosCart() {
       posCart.splice(Number(btn.dataset.idx), 1);
       renderPosCart();
     });
+  });
+
+  document.querySelectorAll(".pos-qty-decrement-btn").forEach((btn) => {
+    btn.addEventListener("click", () => adjustCartItemQty(Number(btn.dataset.idx), -1));
+  });
+
+  document.querySelectorAll(".pos-qty-increment-btn").forEach((btn) => {
+    btn.addEventListener("click", () => adjustCartItemQty(Number(btn.dataset.idx), 1));
   });
 
   updatePosTotals();

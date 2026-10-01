@@ -51,6 +51,7 @@ let issueNoteManuallyEdited = false;
 let ordersFilter = "all";
 let ordersSearchTerm = "";
 let ordersSortDesc = true;
+let ordersSortField = "createdAt";
 let ordersCurrentPage = 1;
 let verificationSearchTerm = "";
 let verificationSortDesc = true;
@@ -81,6 +82,7 @@ const filterAllCount = document.getElementById("filterAllCount");
 const ordersExportBtn = document.getElementById("ordersExportBtn");
 const ordersSearchInput = document.getElementById("ordersSearchInput");
 const ordersSortBtn = document.getElementById("ordersSortBtn");
+const ordersSortFieldSelect = document.getElementById("ordersSortFieldSelect");
 const ordersTableBody = document.getElementById("ordersTableBody");
 const ordersTableEmpty = document.getElementById("ordersTableEmpty");
 const ordersPagination = document.getElementById("ordersPagination");
@@ -753,12 +755,27 @@ function filteredOrders() {
   }
 
   filtered.sort((a, b) => {
-    const aTime = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
-    const bTime = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+    const aTime = ordersSortField === "lastUpdated" ? orderLastUpdatedMillis(a) : orderCreatedMillis(a);
+    const bTime = ordersSortField === "lastUpdated" ? orderLastUpdatedMillis(b) : orderCreatedMillis(b);
     return ordersSortDesc ? bTime - aTime : aTime - bTime;
   });
 
   return filtered;
+}
+
+function orderCreatedMillis(order) {
+  return order.createdAt && order.createdAt.toMillis ? order.createdAt.toMillis() : 0;
+}
+
+// The most recent of this order's own status transitions - falls back to
+// its creation time for an order that's never moved past "placed".
+function orderLastUpdatedMillis(order) {
+  let latest = orderCreatedMillis(order);
+  const timestamps = order.statusTimestamps || {};
+  Object.values(timestamps).forEach((ts) => {
+    if (ts && ts.toMillis && ts.toMillis() > latest) latest = ts.toMillis();
+  });
+  return latest;
 }
 
 function renderOrdersTable() {
@@ -995,6 +1012,11 @@ ordersSearchInput.addEventListener("input", () => {
 
 ordersSortBtn.addEventListener("click", () => {
   ordersSortDesc = !ordersSortDesc;
+  renderOrdersTable();
+});
+
+ordersSortFieldSelect.addEventListener("change", () => {
+  ordersSortField = ordersSortFieldSelect.value;
   renderOrdersTable();
 });
 

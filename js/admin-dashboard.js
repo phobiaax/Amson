@@ -9,6 +9,25 @@ document.addEventListener("admin:ready", (e) => {
   loadDashboardStats();
 });
 
+const tabTodayOnlineBtn = document.getElementById("tabTodayOnlineBtn");
+const tabTodayWalkinBtn = document.getElementById("tabTodayWalkinBtn");
+const todayOnlinePanel = document.getElementById("todayOnlinePanel");
+const todayWalkinPanel = document.getElementById("todayWalkinPanel");
+
+tabTodayOnlineBtn.addEventListener("click", () => {
+  tabTodayOnlineBtn.classList.add("active");
+  tabTodayWalkinBtn.classList.remove("active");
+  todayOnlinePanel.classList.remove("d-none");
+  todayWalkinPanel.classList.add("d-none");
+});
+
+tabTodayWalkinBtn.addEventListener("click", () => {
+  tabTodayWalkinBtn.classList.add("active");
+  tabTodayOnlineBtn.classList.remove("active");
+  todayWalkinPanel.classList.remove("d-none");
+  todayOnlinePanel.classList.add("d-none");
+});
+
 // Local-calendar-day match (not UTC) - a POS sale at 11pm Manila time
 // shouldn't get counted as "yesterday" just because UTC has already
 // rolled over.
@@ -48,6 +67,16 @@ async function loadDashboardStats() {
     const posTodayTotal = posSalesToday.reduce((sum, s) => sum + (s.total || 0), 0);
     document.getElementById("posTodaySalesValue").textContent = formatPeso(posTodayTotal);
     document.getElementById("posTodayTransactionsValue").textContent = posSalesToday.length;
+
+    // Online, same "confirmed sale" definition used by the charts below -
+    // an order still awaiting verification hasn't actually become
+    // revenue yet, so it shouldn't count as a transaction here either.
+    const onlineOrdersToday = orders.filter(
+      (o) => isConfirmedSale(o) && o.createdAt && isToday(o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt))
+    );
+    const onlineTodayTotal = onlineOrdersToday.reduce((sum, o) => sum + (o.total || 0), 0);
+    document.getElementById("onlineTodaySalesValue").textContent = formatPeso(onlineTodayTotal);
+    document.getElementById("onlineTodayTransactionsValue").textContent = onlineOrdersToday.length;
 
     lastLoadedStats = { pendingVerification, activeOrders, lowStock, nearExpiry };
 

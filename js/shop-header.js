@@ -154,7 +154,7 @@ function renderCustomerNotifications(uid, notifications) {
       .map(
         (n, idx) => `
           <li>
-            <a class="dropdown-item customer-notif-item" href="${n.link}" data-idx="${idx}" style="white-space:normal; border-left:3px solid ${SEVERITY_COLORS[n.severity] || SEVERITY_COLORS.info}; ${n.isRead ? "opacity:0.6;" : "font-weight:600;"}">
+            <a class="dropdown-item customer-notif-item" href="${n.link}" data-idx="${idx}" style="white-space:normal; border-left:5px solid ${SEVERITY_COLORS[n.severity] || SEVERITY_COLORS.info}; background-color:${SEVERITY_BACKGROUNDS[n.severity] || SEVERITY_BACKGROUNDS.info}; ${n.isRead ? "opacity:0.6;" : "font-weight:600;"}">
               <div class="d-flex align-items-start gap-2">
                 ${n.isRead ? "" : '<span class="rounded-circle bg-primary flex-shrink-0 mt-1" style="width:6px; height:6px; display:inline-block;"></span>'}
                 <div>

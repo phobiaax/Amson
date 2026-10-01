@@ -83,7 +83,11 @@
               </div>
               <div class="col-md-3">
                 <label class="form-label">Qty</label>
-                <input type="number" min="1" value="1" class="form-control" id="posQtyInput">
+                <div class="input-group">
+                  <button type="button" class="btn btn-outline-secondary" id="posQtyDecrementBtn" aria-label="Decrease quantity"><i class="bi bi-dash-lg"></i></button>
+                  <input type="number" min="1" value="1" class="form-control text-center" id="posQtyInput">
+                  <button type="button" class="btn btn-outline-secondary" id="posQtyIncrementBtn" aria-label="Increase quantity"><i class="bi bi-plus-lg"></i></button>
+                </div>
               </div>
               <div class="col-md-2">
                 <button type="button" class="btn btn-amson w-100" id="posAddItemBtn">Add</button>

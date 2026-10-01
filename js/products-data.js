@@ -134,6 +134,16 @@ const SEVERITY_COLORS = {
   success: "#1a9c4b",
 };
 
+// A visible background tint to go with the border above - a thin colored
+// edge alone was easy to miss in a quick glance at the notification
+// dropdowns, so each row now gets a light wash of its severity color too.
+const SEVERITY_BACKGROUNDS = {
+  danger: "rgba(238, 49, 55, 0.12)",
+  warning: "rgba(184, 134, 11, 0.12)",
+  info: "rgba(74, 144, 217, 0.12)",
+  success: "rgba(26, 156, 75, 0.12)",
+};
+
 function getBatchStatus(batch) {
   if (batch.quantity === 0) return "out_of_stock";
 
