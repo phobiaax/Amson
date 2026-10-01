@@ -105,7 +105,7 @@ function orderStatusIndex(status, steps = ORDER_STATUS_STEPS) {
 // firestore.rules). shop-header.js reads these directly instead of trying
 // to re-derive "did something happen" from live order state on every
 // page load.
-async function notifyCustomer(customerId, title, detail, link) {
+async function notifyCustomer(customerId, title, detail, link, severity = "info") {
   if (!customerId) return;
   try {
     await db.collection("customerNotifications").add({
@@ -113,6 +113,7 @@ async function notifyCustomer(customerId, title, detail, link) {
       title,
       detail,
       link,
+      severity,
       read: false,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
@@ -156,7 +157,8 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
         order.customerId,
         `You have ${formatPeso(unappliedCredit)} credit from order ${order.orderNumber}`,
         closedReason + " Kept as credit - it'll be applied automatically to your next order.",
-        `order-details.html?id=${orderId}`
+        `order-details.html?id=${orderId}`,
+        "success"
       );
     }
 

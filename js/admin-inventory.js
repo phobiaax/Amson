@@ -200,6 +200,18 @@ function formatDateAdded(timestamp) {
   return date.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function formatDateTime(timestamp) {
+  if (!timestamp) return "-";
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  return date.toLocaleString("en-PH", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 /* ---------- Table ---------- */
 function filteredBatches() {
   let filtered = allBatches.map((b) => ({ ...b, computedStatus: getBatchStatus(b) }));
@@ -234,6 +246,7 @@ function renderInventoryTable() {
   const allWithStatus = allBatches.map((b) => getBatchStatus(b));
   document.getElementById("lowStockCount").textContent = allWithStatus.filter((s) => s === "low_stock").length;
   document.getElementById("nearExpiryCount").textContent = allWithStatus.filter((s) => s === "near_expiry").length;
+  document.getElementById("expiredCount").textContent = allWithStatus.filter((s) => s === "expired").length;
 
   const filtered = filteredBatches();
   const totalPages = Math.max(1, Math.ceil(filtered.length / INVENTORY_PAGE_SIZE));
@@ -282,6 +295,7 @@ function renderBatchRow(batch) {
         <span class="batch-status-pill ${batch.computedStatus}">${BATCH_STATUS_LABELS[batch.computedStatus]}</span>
         ${batch.status === "wholesale_only" ? '<span class="badge rounded-pill text-bg-secondary ms-1">Wholesale Only</span>' : ""}
       </td>
+      <td>${formatDateTime(batch.lastAdjustedAt || batch.createdAt)}</td>
       <td>
         ${product ? "" : `<button type="button" class="icon-btn delete-orphan-batch-btn" data-id="${batch.id}" aria-label="Delete orphaned batch" title="This batch's product was deleted - remove this leftover record"><i class="bi bi-trash text-danger"></i></button>`}
       </td>
@@ -479,6 +493,7 @@ saveReceiveStockBtn.addEventListener("click", async () => {
         dateReceived,
         status: "active",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
     }
 
@@ -613,6 +628,7 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
         dateReceived: row.dateReceived,
         status: "active",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
       imported += 1;
     } catch (error) {
@@ -959,7 +975,10 @@ saveWriteOffBtn.addEventListener("click", async () => {
 
       batchDocs.forEach((doc, idx) => {
         const batchId = batchIds[idx];
-        transaction.update(doc.ref, { quantity: doc.data().quantity - qtyByBatch[batchId] });
+        transaction.update(doc.ref, {
+          quantity: doc.data().quantity - qtyByBatch[batchId],
+          lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
       });
     });
 
@@ -1155,7 +1174,10 @@ submitCountBtn.addEventListener("click", async () => {
   try {
     for (const item of updatedItems) {
       if (item.variance !== 0) {
-        await db.collection("stockBatches").doc(item.batchId).update({ quantity: item.countedQty });
+        await db.collection("stockBatches").doc(item.batchId).update({
+          quantity: item.countedQty,
+          lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
       }
     }
 
@@ -1488,6 +1510,7 @@ async function submitPoReceiving(po) {
         status: "active",
         poId: po.id,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
     }
 

@@ -117,12 +117,30 @@ const BATCH_STATUS_LABELS = {
   low_stock: "Low Stock",
   out_of_stock: "Out of Stock",
   near_expiry: "Near Expiry",
+  expired: "Expired",
+};
+
+// Shared severity -> color so the inventory status pills, both
+// notification dropdowns, and the Notifications page all agree on what
+// each urgency level looks like. Backed by research (see conversation):
+// green = good stock, amber = needs attention (low stock or near expiry -
+// same color, told apart by icon/label per WCAG 1.4.1), charcoal = out of
+// stock (neutral/unavailable, not "dangerous"), red = reserved for the
+// genuinely hazardous case - expired medication.
+const SEVERITY_COLORS = {
+  danger: "#EE3137",
+  warning: "#b8860b",
+  info: "#4A90D9",
+  success: "#1a9c4b",
 };
 
 function getBatchStatus(batch) {
   if (batch.quantity === 0) return "out_of_stock";
 
   const expiry = new Date(batch.expirationDate);
+  const now = new Date();
+  if (expiry < now) return "expired";
+
   const nearExpiryThreshold = new Date();
   nearExpiryThreshold.setMonth(nearExpiryThreshold.getMonth() + NEAR_EXPIRY_MONTHS);
   if (expiry <= nearExpiryThreshold) return "near_expiry";
@@ -182,6 +200,15 @@ async function computeStaffNotifications() {
         severity: "warning",
         icon: "bi-box-seam",
         message: `${productName} (Batch ${b.batchNo}) is low on stock - ${b.quantity} left.`,
+        link: "inventory.html",
+      });
+    } else if (status === "expired") {
+      notifications.push({
+        key: `expired:${b.id}`,
+        signature: `${b.quantity}`,
+        severity: "danger",
+        icon: "bi-calendar-x",
+        message: `${productName} (Batch ${b.batchNo}) has expired - ${b.expirationDate}.`,
         link: "inventory.html",
       });
     } else if (status === "near_expiry") {
@@ -431,7 +458,10 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false } =
       for (const batch of item.batches) {
         if (remaining <= 0) break;
         const deduct = Math.min(batch.quantity, remaining);
-        transaction.update(batch.ref, { quantity: batch.quantity - deduct });
+        transaction.update(batch.ref, {
+          quantity: batch.quantity - deduct,
+          lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
         remaining -= deduct;
       }
     }

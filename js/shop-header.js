@@ -64,6 +64,7 @@ async function loadCustomerNotifications(uid, readMap) {
         link: n.link || "orders.html",
         title: n.title,
         detail: n.detail,
+        severity: n.severity || "info",
         persisted: true,
         docId: doc.id,
         isRead: n.read === true,
@@ -82,6 +83,7 @@ async function loadCustomerNotifications(uid, readMap) {
           title: `Order ${order.orderNumber} is on its way`,
           detail: "Your order has been dispatched for delivery.",
           key: `dispatched:${doc.id}`,
+          severity: "info",
         };
       } else if (order.status === "delivered" && order.requiresPrescription) {
         entry = {
@@ -90,6 +92,7 @@ async function loadCustomerNotifications(uid, readMap) {
           title: `Order ${order.orderNumber} is ready for pick-up`,
           detail: "Please bring a valid ID (and the original prescription, if applicable) when you collect it.",
           key: `ready_for_pickup:${doc.id}`,
+          severity: "warning",
         };
       } else if (order.status === "delivered") {
         entry = {
@@ -98,6 +101,7 @@ async function loadCustomerNotifications(uid, readMap) {
           title: `Order ${order.orderNumber} has been delivered`,
           detail: "Let us know if anything's missing or damaged.",
           key: `delivered:${doc.id}`,
+          severity: "success",
         };
       }
       if (entry) {
@@ -150,7 +154,7 @@ function renderCustomerNotifications(uid, notifications) {
       .map(
         (n, idx) => `
           <li>
-            <a class="dropdown-item customer-notif-item" href="${n.link}" data-idx="${idx}" style="white-space:normal; ${n.isRead ? "opacity:0.6;" : "font-weight:600;"}">
+            <a class="dropdown-item customer-notif-item" href="${n.link}" data-idx="${idx}" style="white-space:normal; border-left:3px solid ${SEVERITY_COLORS[n.severity] || SEVERITY_COLORS.info}; ${n.isRead ? "opacity:0.6;" : "font-weight:600;"}">
               <div class="d-flex align-items-start gap-2">
                 ${n.isRead ? "" : '<span class="rounded-circle bg-primary flex-shrink-0 mt-1" style="width:6px; height:6px; display:inline-block;"></span>'}
                 <div>

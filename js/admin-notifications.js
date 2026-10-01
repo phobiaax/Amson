@@ -47,8 +47,9 @@ function renderNotifications(notifications, readMap) {
   notificationsList.innerHTML = notifications
     .map((n) => {
       const isRead = isStaffNotifRead(readMap, n);
+      const severityColor = SEVERITY_COLORS[n.severity] || SEVERITY_COLORS.info;
       return `
-        <a href="${n.link}" class="d-flex justify-content-between align-items-center gap-3 p-3 admin-notif-row" data-key="${n.key}" data-signature="${n.signature}" style="text-decoration:none; color:inherit; border:1px solid var(--amson-border); border-radius:10px; ${isRead ? "opacity:0.65;" : "background-color:rgba(13,110,253,0.06);"}">
+        <a href="${n.link}" class="d-flex justify-content-between align-items-center gap-3 p-3 admin-notif-row" data-key="${n.key}" data-signature="${n.signature}" style="text-decoration:none; color:inherit; border:1px solid var(--amson-border); border-left:4px solid ${severityColor}; border-radius:10px; ${isRead ? "opacity:0.6;" : ""}">
           <div class="d-flex align-items-center gap-3">
             ${isRead ? "" : '<span class="rounded-circle bg-primary flex-shrink-0" style="width:8px; height:8px; display:inline-block;"></span>'}
             <i class="bi ${n.icon}" style="font-size:1.2rem;"></i>

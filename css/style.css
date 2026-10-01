@@ -1704,15 +1704,16 @@ a {
   background-color: rgba(26, 156, 75, 0.12);
   color: #1a9c4b;
 }
-.batch-status-pill.low_stock {
+.batch-status-pill.low_stock,
+.batch-status-pill.near_expiry {
   background-color: rgba(184, 134, 11, 0.12);
   color: #b8860b;
 }
 .batch-status-pill.out_of_stock {
-  background-color: rgba(155, 155, 163, 0.15);
-  color: #6e6e78;
+  background-color: rgba(52, 58, 64, 0.12);
+  color: #343a40;
 }
-.batch-status-pill.near_expiry {
+.batch-status-pill.expired {
   background-color: rgba(238, 49, 55, 0.12);
   color: var(--amson-red);
 }

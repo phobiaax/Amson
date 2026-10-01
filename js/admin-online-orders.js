@@ -307,7 +307,8 @@ approvePaymentBtn.addEventListener("click", async () => {
       order.customerId,
       `Payment confirmed for order ${order.orderNumber}`,
       "We've verified your payment. Your order is now being prepared.",
-      `order-details.html?id=${orderId}`
+      `order-details.html?id=${orderId}`,
+      "success"
     );
 
     selectedVerificationId = null;
@@ -337,7 +338,8 @@ approvePaymentBtn.addEventListener("click", async () => {
           order.customerId,
           `Order ${order.orderNumber} - item out of stock`,
           paymentIssue.note,
-          `order-details.html?id=${orderId}`
+          `order-details.html?id=${orderId}`,
+          "danger"
         );
         order.paymentIssue = paymentIssue;
         selectedVerificationId = null;
@@ -503,7 +505,8 @@ issueConfirmBtn.addEventListener("click", async () => {
         issueType === "invalid_payment"
           ? REJECTION_REASON_NOTES[paymentIssue.reason] || "Please check your order for details."
           : UNDERPAYMENT_NOTE,
-        `order-details.html?id=${orderId}`
+        `order-details.html?id=${orderId}`,
+        "danger"
       );
 
       order.paymentIssue = paymentIssue;
@@ -544,7 +547,8 @@ issueConfirmBtn.addEventListener("click", async () => {
           order.customerId,
           `You have ${formatPeso(excessAmount)} credit from order ${order.orderNumber}`,
           "Overpayment kept as credit - it'll be applied automatically to your next order.",
-          `order-details.html?id=${orderId}`
+          `order-details.html?id=${orderId}`,
+          "success"
         );
       }
 
@@ -575,7 +579,8 @@ issueConfirmBtn.addEventListener("click", async () => {
           order.customerId,
           `Order ${order.orderNumber} - item out of stock`,
           paymentIssue.note,
-          `order-details.html?id=${orderId}`
+          `order-details.html?id=${orderId}`,
+          "danger"
         );
         order.paymentIssue = paymentIssue;
         selectedVerificationId = null;
