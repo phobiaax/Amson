@@ -44,17 +44,13 @@ async function loadDashboardStats() {
   try {
     await loadCatalogCache();
     const ordersSnapshot = await db.collection("orders").get();
-    const batchesSnapshot = await db.collection("stockBatches").get();
     const posSalesSnapshot = await db.collection("posSales").get();
     const orders = ordersSnapshot.docs.map((doc) => doc.data());
-    const batches = batchesSnapshot.docs.map((doc) => doc.data());
     const posSales = posSalesSnapshot.docs.map((doc) => doc.data());
 
     const pendingVerification = orders.filter((o) => o.status === "placed").length;
     const activeOrders = orders.filter((o) => o.status !== "received").length;
-    const batchStatuses = batches.map((b) => getBatchStatus(b));
-    const lowStock = batchStatuses.filter((s) => s === "low_stock").length;
-    const nearExpiry = batchStatuses.filter((s) => s === "near_expiry").length;
+    const { lowStock, nearExpiry } = await computeInventoryAlertCounts();
 
     document.getElementById("pendingVerificationCount").textContent = pendingVerification;
     document.getElementById("activeOrdersCount").textContent = activeOrders;

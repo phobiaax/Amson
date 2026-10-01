@@ -179,7 +179,7 @@ function renderWalkinTable() {
     .map((sale) => {
       const itemsSummary = (sale.items || []).map((item) => `${item.name} (x${item.qty})`).join(", ");
       return `
-        <tr>
+        <tr class="walkin-sale-row" data-id="${sale.id}" style="cursor:pointer;">
           <td>${formatOrderDateTime(sale.createdAt)}</td>
           <td>${itemsSummary}</td>
           <td>${formatPeso(sale.total)}</td>
@@ -189,6 +189,26 @@ function renderWalkinTable() {
       `;
     })
     .join("");
+
+  document.querySelectorAll(".walkin-sale-row").forEach((row) => {
+    row.addEventListener("click", () => {
+      const sale = allPosSales.find((s) => s.id === row.dataset.id);
+      if (!sale) return;
+      const isCash = sale.paymentMethod === "cash";
+      showSaleReceipt({
+        items: sale.items || [],
+        total: sale.total,
+        paymentMethod: sale.paymentMethod,
+        isCash,
+        amountPaid: sale.cashReceived,
+        change: sale.change || 0,
+        cashier: sale.cashier || "-",
+        branch: sale.branch || POS_BRANCH_NAME,
+        completedAt: sale.createdAt && sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(),
+        title: "Sale Receipt",
+      });
+    });
+  });
 }
 
 if (walkinSearchInput) {

@@ -134,6 +134,10 @@
             </div>
             <div class="d-flex gap-2 flex-wrap">
               <input type="text" class="form-control form-control-sm" id="inventorySearchInput" placeholder="Search by product name, batch, or category" style="width:260px;">
+              <select class="form-select form-select-sm" id="inventorySortFieldSelect" style="width:170px;">
+                <option value="expirationDate">Sort: Expiration Date</option>
+                <option value="lastAdjustedAt">Sort: Last Updated</option>
+              </select>
               <button type="button" class="btn btn-outline-dark-amson btn-sm" id="inventorySortBtn" aria-label="Toggle sort order"><i class="bi bi-arrow-down-up"></i></button>
             </div>
           </div>

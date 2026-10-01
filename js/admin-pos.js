@@ -1,5 +1,3 @@
-const POS_BRANCH_NAME = "Amson Pharmaceuticals";
-
 let posCart = [];
 let posProductChoices = null;
 let currentCashierName = "Staff";
@@ -186,52 +184,6 @@ function updatePosTotals() {
 
 posCashInput.addEventListener("input", updatePosTotals);
 
-const PAYMENT_METHOD_LABELS = { cash: "Cash", card: "Card", ewallet: "E-Wallet" };
-
-function showPosReceipt({ items, total, paymentMethod, isCash, cash, change, cashier, completedAt }) {
-  document.getElementById("posReceiptBranch").textContent = POS_BRANCH_NAME;
-  document.getElementById("posReceiptDate").textContent = completedAt.toLocaleDateString("en-PH", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-  document.getElementById("posReceiptTime").textContent = completedAt.toLocaleTimeString("en-PH", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  // No payment gateway behind walk-in sales yet, so there's no real
-  // reference number to show here - placeholder until that's wired up.
-  document.getElementById("posReceiptRef").textContent = "-";
-  document.getElementById("posReceiptCashier").textContent = cashier;
-
-  document.getElementById("posReceiptItemsBody").innerHTML = items
-    .map(
-      (item) => `
-        <tr>
-          <td>${item.name}</td>
-          <td class="text-end">${item.qty}</td>
-          <td class="text-end">${formatPeso(item.price)}</td>
-          <td class="text-end">${formatPeso(item.price * item.qty)}</td>
-        </tr>
-      `
-    )
-    .join("");
-
-  document.getElementById("posReceiptGrandTotal").textContent = formatPeso(total);
-  document.getElementById("posReceiptPaymentMode").textContent = PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod;
-  document.getElementById("posReceiptAmountPaid").textContent = formatPeso(isCash ? cash : total);
-
-  const changeRow = document.getElementById("posReceiptChangeRow");
-  if (isCash) {
-    changeRow.classList.remove("d-none");
-    document.getElementById("posReceiptChange").textContent = formatPeso(change);
-  } else {
-    changeRow.classList.add("d-none");
-  }
-
-  bootstrap.Modal.getOrCreateInstance(document.getElementById("posReceiptModal")).show();
-}
-
 posCompleteSaleBtn.addEventListener("click", async () => {
   posAlert.classList.add("d-none");
 
@@ -267,15 +219,17 @@ posCompleteSaleBtn.addEventListener("click", async () => {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
-    showPosReceipt({
+    showSaleReceipt({
       items,
       total,
       paymentMethod,
       isCash,
-      cash,
+      amountPaid: isCash ? cash : total,
       change: cash - total,
       cashier: currentCashierName,
+      branch: POS_BRANCH_NAME,
       completedAt: new Date(),
+      title: "Sale Complete",
     });
 
     posCart = [];

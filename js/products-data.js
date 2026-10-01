@@ -166,6 +166,38 @@ function getBatchStatus(batch) {
   return "normal";
 }
 
+// ---- Accurate inventory alert counts (Dashboard's Low Stock/Near-Expiry
+// tiles, Inventory's stat tiles) ----
+// Low stock and out of stock are PRODUCT-level facts (defined above in
+// terms of a product's combined stock across all its batches) - counting
+// every batch that reports them, as the two pages used to do separately,
+// double-counts a product split across several lots and was the source of
+// "the dashboard numbers don't look right." Near-expiry/expired stay
+// per-batch, since each physical lot has its own expiry and needs its own
+// decision. Only active batches/products count - a batch already pulled
+// to wholesale_only has already been handled, it's not an open alert.
+async function computeInventoryAlertCounts() {
+  await loadCatalogCache();
+  const batchSnapshot = await db.collection("stockBatches").where("status", "==", "active").get();
+  const batches = batchSnapshot.docs.map((doc) => doc.data());
+
+  let nearExpiry = 0;
+  let expired = 0;
+  batches.forEach((b) => {
+    const status = getBatchStatus(b);
+    if (status === "near_expiry") nearExpiry += 1;
+    if (status === "expired") expired += 1;
+  });
+
+  const activeProducts = SAMPLE_PRODUCTS.filter((p) => p.status === "active");
+  const outOfStock = activeProducts.filter((p) => p.totalStock === 0).length;
+  const lowStock = activeProducts.filter(
+    (p) => p.totalStock > 0 && p.totalStock <= (p.reorderPoint || DEFAULT_REORDER_POINT)
+  ).length;
+
+  return { lowStock, outOfStock, nearExpiry, expired };
+}
+
 // ---- Staff notifications (bell dropdown, sidebar badge, Notifications
 // page) - computed fresh from live data every time, same as before, so an
 // alert can never go stale or get missed. What's new is read/unread: each
@@ -383,6 +415,71 @@ function formatPeso(amount) {
 
 function getProductById(id) {
   return SAMPLE_PRODUCTS.find((p) => String(p.id) === String(id));
+}
+
+// ---- Shared walk-in sale receipt - used both right after a POS checkout
+// (admin-pos.js) and when staff reopen a past sale from the Walk-in
+// Orders tab (admin-online-orders.js). Both pages include the same
+// #posReceiptModal markup so this one renderer works for either. ----
+const SALE_RECEIPT_PAYMENT_METHOD_LABELS = { cash: "Cash", card: "Card", ewallet: "E-Wallet" };
+const POS_BRANCH_NAME = "Amson Pharmaceuticals";
+
+function showSaleReceipt({
+  items,
+  total,
+  paymentMethod,
+  isCash,
+  amountPaid,
+  change,
+  cashier,
+  branch,
+  completedAt,
+  title = "Sale Receipt",
+}) {
+  const titleEl = document.getElementById("posReceiptModalTitle");
+  if (titleEl) titleEl.textContent = title;
+  document.getElementById("posReceiptBranch").textContent = branch;
+  document.getElementById("posReceiptDate").textContent = completedAt.toLocaleDateString("en-PH", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  document.getElementById("posReceiptTime").textContent = completedAt.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  // No payment gateway behind walk-in sales yet, so there's no real
+  // reference number to show here - placeholder until that's wired up.
+  document.getElementById("posReceiptRef").textContent = "-";
+  document.getElementById("posReceiptCashier").textContent = cashier;
+
+  document.getElementById("posReceiptItemsBody").innerHTML = items
+    .map(
+      (item) => `
+        <tr>
+          <td>${item.name}</td>
+          <td class="text-end">${item.qty}</td>
+          <td class="text-end">${formatPeso(item.price)}</td>
+          <td class="text-end">${formatPeso(item.price * item.qty)}</td>
+        </tr>
+      `
+    )
+    .join("");
+
+  document.getElementById("posReceiptGrandTotal").textContent = formatPeso(total);
+  document.getElementById("posReceiptPaymentMode").textContent =
+    SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod;
+  document.getElementById("posReceiptAmountPaid").textContent = formatPeso(amountPaid);
+
+  const changeRow = document.getElementById("posReceiptChangeRow");
+  if (isCash) {
+    changeRow.classList.remove("d-none");
+    document.getElementById("posReceiptChange").textContent = formatPeso(change);
+  } else {
+    changeRow.classList.add("d-none");
+  }
+
+  bootstrap.Modal.getOrCreateInstance(document.getElementById("posReceiptModal")).show();
 }
 
 function exportBlankPdf(filenamePrefix) {

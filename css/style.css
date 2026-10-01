@@ -1750,6 +1750,9 @@ a {
 .choices__list[aria-expanded] {
   border-color: var(--amson-border);
   border-radius: 6px;
+  /* Bootstrap's input-group children (e.g. the POS qty +/- buttons) get
+     their own stacking context and otherwise render on top of this. */
+  z-index: 50;
 }
 
 .choices__list--dropdown .choices__input {

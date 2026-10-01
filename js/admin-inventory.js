@@ -21,6 +21,7 @@ let allReconciliations = [];
 let inventoryFilter = "all";
 let inventorySearchTerm = "";
 let inventorySortDesc = false;
+let inventorySortField = "expirationDate";
 let inventoryCurrentPage = 1;
 let receiveItemCount = 0;
 let writeOffItemCount = 0;
@@ -33,6 +34,7 @@ const filterButtons = Array.from(document.querySelectorAll("#stockPanel .order-f
 const poFilterButtons = Array.from(document.querySelectorAll("#purchaseOrdersPanel .order-filter-btn"));
 const inventorySearchInput = document.getElementById("inventorySearchInput");
 const inventorySortBtn = document.getElementById("inventorySortBtn");
+const inventorySortFieldSelect = document.getElementById("inventorySortFieldSelect");
 const inventoryTableBody = document.getElementById("inventoryTableBody");
 const inventoryTableEmpty = document.getElementById("inventoryTableEmpty");
 const inventoryPagination = document.getElementById("inventoryPagination");
@@ -145,6 +147,15 @@ async function loadInventory() {
     allPurchaseOrders = poSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allReconciliations = reconciliationSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
+    // Product-level counts (not per-batch - see computeInventoryAlertCounts)
+    // only need recomputing when the underlying data changes, not on every
+    // filter/search/page click, so this stays separate from the table
+    // re-render below.
+    const alertCounts = await computeInventoryAlertCounts();
+    document.getElementById("lowStockCount").textContent = alertCounts.lowStock;
+    document.getElementById("nearExpiryCount").textContent = alertCounts.nearExpiry;
+    document.getElementById("expiredCount").textContent = alertCounts.expired;
+
     renderInventoryTable();
     renderPoTable();
     renderReconciliationTab();
@@ -212,6 +223,14 @@ function formatDateTime(timestamp) {
   });
 }
 
+function inventorySortMillis(batch) {
+  if (inventorySortField === "lastAdjustedAt") {
+    const ts = batch.lastAdjustedAt || batch.createdAt;
+    return ts && ts.toMillis ? ts.toMillis() : 0;
+  }
+  return new Date(batch.expirationDate).getTime();
+}
+
 /* ---------- Table ---------- */
 function filteredBatches() {
   let filtered = allBatches.map((b) => ({ ...b, computedStatus: getBatchStatus(b) }));
@@ -234,8 +253,8 @@ function filteredBatches() {
   }
 
   filtered.sort((a, b) => {
-    const aTime = new Date(a.expirationDate).getTime();
-    const bTime = new Date(b.expirationDate).getTime();
+    const aTime = inventorySortMillis(a);
+    const bTime = inventorySortMillis(b);
     return inventorySortDesc ? bTime - aTime : aTime - bTime;
   });
 
@@ -243,11 +262,6 @@ function filteredBatches() {
 }
 
 function renderInventoryTable() {
-  const allWithStatus = allBatches.map((b) => getBatchStatus(b));
-  document.getElementById("lowStockCount").textContent = allWithStatus.filter((s) => s === "low_stock").length;
-  document.getElementById("nearExpiryCount").textContent = allWithStatus.filter((s) => s === "near_expiry").length;
-  document.getElementById("expiredCount").textContent = allWithStatus.filter((s) => s === "expired").length;
-
   const filtered = filteredBatches();
   const totalPages = Math.max(1, Math.ceil(filtered.length / INVENTORY_PAGE_SIZE));
   inventoryCurrentPage = Math.min(inventoryCurrentPage, totalPages);
@@ -345,6 +359,11 @@ inventorySearchInput.addEventListener("input", () => {
 
 inventorySortBtn.addEventListener("click", () => {
   inventorySortDesc = !inventorySortDesc;
+  renderInventoryTable();
+});
+
+inventorySortFieldSelect.addEventListener("change", () => {
+  inventorySortField = inventorySortFieldSelect.value;
   renderInventoryTable();
 });
 
