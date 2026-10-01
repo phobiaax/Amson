@@ -57,8 +57,13 @@ let verificationSortDesc = true;
 
 const tabVerificationBtn = document.getElementById("tabVerificationBtn");
 const tabOrdersBtn = document.getElementById("tabOrdersBtn");
+const tabWalkinBtn = document.getElementById("tabWalkinBtn");
 const verificationPanel = document.getElementById("verificationPanel");
 const ordersPanel = document.getElementById("ordersPanel");
+const walkinPanel = document.getElementById("walkinPanel");
+
+let allPosSales = [];
+let walkinSearchTerm = "";
 
 const verificationQueueList = document.getElementById("verificationQueueList");
 const verificationQueueEmpty = document.getElementById("verificationQueueEmpty");
@@ -114,6 +119,10 @@ async function loadOrders() {
 
     renderVerificationQueue();
     renderOrdersTable();
+
+    const posSnapshot = await db.collection("posSales").get();
+    allPosSales = posSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    renderWalkinTable();
   } catch (error) {
     console.error("Failed to load orders:", error);
   }
@@ -121,15 +130,71 @@ async function loadOrders() {
 
 /* ---------- Tabs ---------- */
 function setActiveTab(tab) {
-  const isVerification = tab === "verification";
-  tabVerificationBtn.classList.toggle("active", isVerification);
-  tabOrdersBtn.classList.toggle("active", !isVerification);
-  verificationPanel.classList.toggle("d-none", !isVerification);
-  ordersPanel.classList.toggle("d-none", isVerification);
+  tabVerificationBtn.classList.toggle("active", tab === "verification");
+  tabOrdersBtn.classList.toggle("active", tab === "orders");
+  tabWalkinBtn.classList.toggle("active", tab === "walkin");
+  verificationPanel.classList.toggle("d-none", tab !== "verification");
+  ordersPanel.classList.toggle("d-none", tab !== "orders");
+  walkinPanel.classList.toggle("d-none", tab !== "walkin");
 }
 
 tabVerificationBtn.addEventListener("click", () => setActiveTab("verification"));
 tabOrdersBtn.addEventListener("click", () => setActiveTab("orders"));
+tabWalkinBtn.addEventListener("click", () => setActiveTab("walkin"));
+
+/* ---------- Walk-in Orders (read-only POS sales log) ---------- */
+const walkinSearchInput = document.getElementById("walkinSearchInput");
+const walkinTableBody = document.getElementById("walkinTableBody");
+const walkinTableEmpty = document.getElementById("walkinTableEmpty");
+const PAYMENT_METHOD_LABELS_ORDERS = { cash: "Cash", card: "Card", ewallet: "E-Wallet" };
+
+function renderWalkinTable() {
+  let sales = [...allPosSales];
+
+  if (walkinSearchTerm) {
+    const term = walkinSearchTerm.toLowerCase();
+    sales = sales.filter(
+      (sale) =>
+        (sale.cashier || "").toLowerCase().includes(term) ||
+        (sale.items || []).some((item) => (item.name || "").toLowerCase().includes(term))
+    );
+  }
+
+  sales.sort((a, b) => {
+    const aTime = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+    const bTime = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+    return bTime - aTime;
+  });
+
+  if (sales.length === 0) {
+    walkinTableBody.innerHTML = "";
+    walkinTableEmpty.classList.remove("d-none");
+    return;
+  }
+
+  walkinTableEmpty.classList.add("d-none");
+  walkinTableBody.innerHTML = sales
+    .map((sale) => {
+      const itemsSummary = (sale.items || []).map((item) => `${item.name} (x${item.qty})`).join(", ");
+      return `
+        <tr>
+          <td>${formatOrderDateTime(sale.createdAt)}</td>
+          <td>${itemsSummary}</td>
+          <td>${formatPeso(sale.total)}</td>
+          <td>${PAYMENT_METHOD_LABELS_ORDERS[sale.paymentMethod] || sale.paymentMethod || "-"}</td>
+          <td>${sale.cashier || "-"}</td>
+        </tr>
+      `;
+    })
+    .join("");
+}
+
+if (walkinSearchInput) {
+  walkinSearchInput.addEventListener("input", () => {
+    walkinSearchTerm = walkinSearchInput.value.trim();
+    renderWalkinTable();
+  });
+}
 
 /* ---------- Payment Verification queue ---------- */
 function customerName(order) {

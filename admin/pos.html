@@ -155,6 +155,74 @@
   </main>
 </div>
 
+<!-- POS transaction summary (shown right after a sale completes) -->
+<div class="modal fade" id="posReceiptModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Sale Complete</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Branch</span>
+          <span class="fw-medium" id="posReceiptBranch">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Date</span>
+          <span class="fw-medium" id="posReceiptDate">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Time</span>
+          <span class="fw-medium" id="posReceiptTime">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Reference No.</span>
+          <span class="fw-medium" id="posReceiptRef">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-3">
+          <span class="text-muted">Cashier</span>
+          <span class="fw-medium" id="posReceiptCashier">-</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm mb-3">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th class="text-end">Qty</th>
+                <th class="text-end">Cost</th>
+                <th class="text-end">Total</th>
+              </tr>
+            </thead>
+            <tbody id="posReceiptItemsBody"></tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-between mb-1">
+          <span class="fw-bold">Grand Total</span>
+          <strong id="posReceiptGrandTotal">₱0</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Mode of Payment</span>
+          <span class="fw-medium" id="posReceiptPaymentMode">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Amount</span>
+          <span class="fw-medium" id="posReceiptAmountPaid">-</span>
+        </div>
+        <div class="d-flex justify-content-between" id="posReceiptChangeRow">
+          <span class="text-muted">Change</span>
+          <span class="fw-medium" id="posReceiptChange">-</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-amson w-100" data-bs-dismiss="modal">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 

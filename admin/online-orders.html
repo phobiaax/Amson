@@ -78,6 +78,9 @@
           <button type="button" class="admin-tab-btn" data-tab="orders" id="tabOrdersBtn">
             <i class="bi bi-cart3"></i>Online Orders
           </button>
+          <button type="button" class="admin-tab-btn" data-tab="walkin" id="tabWalkinBtn">
+            <i class="bi bi-shop"></i>Walk-in Orders
+          </button>
         </div>
 
         <!-- ===== Payment Verification panel ===== -->
@@ -197,6 +200,29 @@
           <p class="text-muted text-center py-4 d-none" id="ordersTableEmpty">No orders found.</p>
 
           <div class="catalog-pagination" id="ordersPagination"></div>
+        </div>
+
+        <!-- ===== Walk-in Orders panel (read-only POS sales log) ===== -->
+        <div id="walkinPanel" class="p-4 d-none">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <input type="text" class="form-control form-control-sm" id="walkinSearchInput" placeholder="Search by cashier or product" style="width:240px;">
+          </div>
+
+          <div class="table-responsive">
+            <table class="table admin-orders-table align-middle">
+              <thead>
+                <tr>
+                  <th>Date &amp; Time</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Payment Method</th>
+                  <th>Cashier</th>
+                </tr>
+              </thead>
+              <tbody id="walkinTableBody"></tbody>
+            </table>
+          </div>
+          <p class="text-muted text-center py-4 d-none" id="walkinTableEmpty">No walk-in sales found.</p>
         </div>
       </div>
     </div>
