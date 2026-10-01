@@ -1699,6 +1699,7 @@ a {
   font-size: 0.82rem;
   font-weight: 600;
   white-space: nowrap;
+  margin: 2px;
 }
 .batch-status-pill.normal {
   background-color: rgba(26, 156, 75, 0.12);

@@ -179,35 +179,41 @@ function renderWalkinTable() {
     .map((sale) => {
       const itemsSummary = (sale.items || []).map((item) => `${item.name} (x${item.qty})`).join(", ");
       return `
-        <tr class="walkin-sale-row" data-id="${sale.id}" style="cursor:pointer;">
+        <tr class="walkin-sale-row" data-id="${sale.id}">
           <td>${formatOrderDateTime(sale.createdAt)}</td>
           <td>${itemsSummary}</td>
           <td>${formatPeso(sale.total)}</td>
           <td>${PAYMENT_METHOD_LABELS_ORDERS[sale.paymentMethod] || sale.paymentMethod || "-"}</td>
           <td>${sale.cashier || "-"}</td>
+          <td><button type="button" class="btn btn-outline-dark-amson btn-sm walkin-view-btn" data-id="${sale.id}">View</button></td>
         </tr>
       `;
     })
     .join("");
 
-  document.querySelectorAll(".walkin-sale-row").forEach((row) => {
-    row.addEventListener("click", () => {
-      const sale = allPosSales.find((s) => s.id === row.dataset.id);
-      if (!sale) return;
-      const isCash = sale.paymentMethod === "cash";
-      showSaleReceipt({
-        items: sale.items || [],
-        total: sale.total,
-        paymentMethod: sale.paymentMethod,
-        isCash,
-        amountPaid: sale.cashReceived,
-        change: sale.change || 0,
-        cashier: sale.cashier || "-",
-        branch: sale.branch || POS_BRANCH_NAME,
-        completedAt: sale.createdAt && sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(),
-        title: "Sale Receipt",
-      });
+  document.querySelectorAll(".walkin-view-btn").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      openWalkinSaleReceipt(btn.dataset.id);
     });
+  });
+}
+
+function openWalkinSaleReceipt(saleId) {
+  const sale = allPosSales.find((s) => s.id === saleId);
+  if (!sale) return;
+  const isCash = sale.paymentMethod === "cash";
+  showSaleReceipt({
+    items: sale.items || [],
+    total: sale.total,
+    paymentMethod: sale.paymentMethod,
+    isCash,
+    amountPaid: sale.cashReceived,
+    change: sale.change || 0,
+    cashier: sale.cashier || "-",
+    branch: sale.branch || POS_BRANCH_NAME,
+    completedAt: sale.createdAt && sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(),
+    title: "Sale Receipt",
   });
 }
 

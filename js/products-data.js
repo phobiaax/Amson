@@ -144,9 +144,30 @@ const SEVERITY_BACKGROUNDS = {
   success: "rgba(26, 156, 75, 0.12)",
 };
 
-function getBatchStatus(batch) {
+// Stock level and expiry are two INDEPENDENT dimensions, not one
+// mutually-exclusive status - a batch can be both low on stock and near
+// expiry at the same time (e.g. 1 unit left, expiring tomorrow), and both
+// need their own flag. These used to be collapsed into a single
+// getBatchStatus() with a fixed priority order (expired > near_expiry >
+// low_stock), so a near-expiry batch that was ALSO low on stock only ever
+// reported "near_expiry" - the low-stock condition was silently masked
+// and never showed up on the pill, in notifications, or in the Low Stock
+// count. Keep each axis separate everywhere it matters.
+function getStockLevelStatus(batch) {
   if (batch.quantity === 0) return "out_of_stock";
 
+  // Judged on the product's total stock across all its batches, not this
+  // one batch alone - a product split across several batches shouldn't
+  // look low just because any single lot is small.
+  const product = getProductById(batch.productId);
+  const reorderPoint = (product && product.reorderPoint) || DEFAULT_REORDER_POINT;
+  const totalStock = product ? product.totalStock : batch.quantity;
+  if (totalStock <= reorderPoint) return "low_stock";
+
+  return "normal";
+}
+
+function getExpiryStatus(batch) {
   const expiry = new Date(batch.expirationDate);
   const now = new Date();
   if (expiry < now) return "expired";
@@ -155,15 +176,16 @@ function getBatchStatus(batch) {
   nearExpiryThreshold.setMonth(nearExpiryThreshold.getMonth() + NEAR_EXPIRY_MONTHS);
   if (expiry <= nearExpiryThreshold) return "near_expiry";
 
-  // Low Stock is judged on the product's total stock across all its
-  // batches, not this one batch alone - a product split across several
-  // batches shouldn't look low just because any single lot is small.
-  const product = getProductById(batch.productId);
-  const reorderPoint = (product && product.reorderPoint) || DEFAULT_REORDER_POINT;
-  const totalStock = product ? product.totalStock : batch.quantity;
-  if (totalStock <= reorderPoint) return "low_stock";
-
   return "normal";
+}
+
+// Every status that currently applies to this batch - 1 entry normally,
+// 2 when both a stock-level and an expiry condition are both true at
+// once. Used wherever something needs to check or display all of them,
+// not just whichever one used to "win."
+function getBatchStatuses(batch) {
+  const statuses = [getStockLevelStatus(batch), getExpiryStatus(batch)].filter((s) => s !== "normal");
+  return statuses.length > 0 ? statuses : ["normal"];
 }
 
 // ---- Accurate inventory alert counts (Dashboard's Low Stock/Near-Expiry
@@ -184,7 +206,7 @@ async function computeInventoryAlertCounts() {
   let nearExpiry = 0;
   let expired = 0;
   batches.forEach((b) => {
-    const status = getBatchStatus(b);
+    const status = getExpiryStatus(b);
     if (status === "near_expiry") nearExpiry += 1;
     if (status === "expired") expired += 1;
   });
@@ -222,11 +244,14 @@ async function computeStaffNotifications() {
   batchSnapshot.docs.forEach((doc) => {
     const b = { id: doc.id, ...doc.data() };
     if (b.status !== "active") return;
-    const status = getBatchStatus(b);
     const product = getProductById(b.productId);
     const productName = product ? product.name : "Unknown product";
 
-    if (status === "out_of_stock") {
+    // Checked independently, not as an either/or - a batch can be both
+    // low on stock and near expiry at once, and both deserve their own
+    // notification rather than one masking the other.
+    const stockStatus = getStockLevelStatus(b);
+    if (stockStatus === "out_of_stock") {
       notifications.push({
         key: `out_of_stock:${b.id}`,
         signature: `${b.quantity}`,
@@ -235,7 +260,7 @@ async function computeStaffNotifications() {
         message: `${productName} (Batch ${b.batchNo}) is out of stock.`,
         link: "inventory.html",
       });
-    } else if (status === "low_stock") {
+    } else if (stockStatus === "low_stock") {
       notifications.push({
         key: `low_stock:${b.id}`,
         signature: `${b.quantity}`,
@@ -244,7 +269,10 @@ async function computeStaffNotifications() {
         message: `${productName} (Batch ${b.batchNo}) is low on stock - ${b.quantity} left.`,
         link: "inventory.html",
       });
-    } else if (status === "expired") {
+    }
+
+    const expiryStatus = getExpiryStatus(b);
+    if (expiryStatus === "expired") {
       notifications.push({
         key: `expired:${b.id}`,
         signature: `${b.quantity}`,
@@ -253,7 +281,7 @@ async function computeStaffNotifications() {
         message: `${productName} (Batch ${b.batchNo}) has expired - ${b.expirationDate}.`,
         link: "inventory.html",
       });
-    } else if (status === "near_expiry") {
+    } else if (expiryStatus === "near_expiry") {
       notifications.push({
         key: `near_expiry:${b.id}`,
         signature: `${b.quantity}:${b.expirationDate}`,

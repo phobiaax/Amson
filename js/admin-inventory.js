@@ -133,6 +133,13 @@ function todayISO() {
 /* ---------- Load ---------- */
 async function loadInventory() {
   try {
+    // loadInventory() is this page's "refresh everything" entry point -
+    // called after every mutation (receive stock, write-off, reconciliation,
+    // PO receiving), none of which used to invalidate the cached product
+    // totals. That meant the just-received batch's unit never showed up in
+    // a product's totalStock until a full page reload, so a product that
+    // had just gone low/out of stock didn't get flagged until then.
+    catalogLoadPromise = null;
     await loadCatalogCache();
     await enforceExpiryStatus();
     const batchSnapshot = await db.collection("stockBatches").get();
@@ -233,10 +240,10 @@ function inventorySortMillis(batch) {
 
 /* ---------- Table ---------- */
 function filteredBatches() {
-  let filtered = allBatches.map((b) => ({ ...b, computedStatus: getBatchStatus(b) }));
+  let filtered = allBatches.map((b) => ({ ...b, computedStatuses: getBatchStatuses(b) }));
 
   if (inventoryFilter !== "all") {
-    filtered = filtered.filter((b) => b.computedStatus === inventoryFilter);
+    filtered = filtered.filter((b) => b.computedStatuses.includes(inventoryFilter));
   }
 
   if (inventorySearchTerm) {
@@ -306,7 +313,7 @@ function renderBatchRow(batch) {
       <td>${batch.quantity}</td>
       <td>${reorderPoint}</td>
       <td>
-        <span class="batch-status-pill ${batch.computedStatus}">${BATCH_STATUS_LABELS[batch.computedStatus]}</span>
+        ${batch.computedStatuses.map((s) => `<span class="batch-status-pill ${s}">${BATCH_STATUS_LABELS[s]}</span>`).join(" ")}
         ${batch.status === "wholesale_only" ? '<span class="badge rounded-pill text-bg-secondary ms-1">Wholesale Only</span>' : ""}
       </td>
       <td>${formatDateTime(batch.lastAdjustedAt || batch.createdAt)}</td>
