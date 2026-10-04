@@ -274,8 +274,9 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
 
-      clearCart();
+      removeItemsFromCart(pendingOrder.cart.map((item) => item.id));
       sessionStorage.removeItem("amsonPendingOrder");
+      sessionStorage.removeItem("amsonCheckoutSelectedIds");
       document.getElementById("confirmedOrderNumber").textContent = `Order Number: ${orderNumber}`;
       if (user) {
         document.getElementById("viewOrdersLink").classList.remove("d-none");

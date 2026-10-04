@@ -827,6 +827,16 @@ a {
   border-bottom: none;
   padding-bottom: 0;
 }
+.cart-item-row.unselected {
+  opacity: 0.55;
+}
+.cart-item-checkbox,
+.cart-select-all-checkbox {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  cursor: pointer;
+}
 .cart-item-image {
   width: 80px;
   height: 80px;

@@ -31,7 +31,25 @@ const TIME_SLOT_LABELS = {
 let deliverySchedule = null;
 let requiresPrescription = false;
 
-const cart = getCart();
+// Only the items the customer actually checked off on the Cart page should
+// be ordered here - the rest stay in the cart for later. Falls back to the
+// whole cart if there's no selection marker (e.g. a direct/bookmarked visit
+// to this page), so checkout still works the old way in that case.
+function getCheckoutCart() {
+  const fullCart = getCart();
+  try {
+    const raw = sessionStorage.getItem("amsonCheckoutSelectedIds");
+    const selectedIds = raw ? JSON.parse(raw) : null;
+    if (Array.isArray(selectedIds) && selectedIds.length > 0) {
+      const idSet = new Set(selectedIds);
+      const filtered = fullCart.filter((item) => idSet.has(item.id));
+      if (filtered.length > 0) return filtered;
+    }
+  } catch (error) {}
+  return fullCart;
+}
+
+const cart = getCheckoutCart();
 
 (async function init() {
   if (cart.length === 0) {
@@ -135,7 +153,7 @@ proceedToPaymentBtn.addEventListener("click", async () => {
     },
     shipping,
     deliverySchedule: requiresPrescription ? null : deliverySchedule,
-    cart: getCart(),
+    cart,
   };
 
   sessionStorage.setItem("amsonPendingOrder", JSON.stringify(order));

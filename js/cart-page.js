@@ -7,9 +7,39 @@ const cartItemsContainer = document.getElementById("cartItemsContainer");
 const cartTotalText = document.getElementById("cartTotalText");
 const clearCartLink = document.getElementById("clearCartLink");
 const checkoutBtn = document.getElementById("checkoutBtn");
+const selectAllRow = document.getElementById("selectAllRow");
+const selectAllCartCheckbox = document.getElementById("selectAllCartCheckbox");
+const selectedCountText = document.getElementById("selectedCountText");
+const noSelectionNotice = document.getElementById("noSelectionNotice");
+
+// ---- Item selection (checkout only what's checked, not the whole cart) ----
+// Tracked in memory for this page load only - every item defaults to
+// selected, same as "Proceed to Checkout" used to behave before this
+// existed, so a customer who never touches a checkbox sees no change.
+let selectedIds = new Set();
+let knownIds = new Set();
+
+function syncSelection(cart) {
+  const cartIdSet = new Set(cart.map((item) => item.id));
+
+  knownIds.forEach((id) => {
+    if (!cartIdSet.has(id)) {
+      knownIds.delete(id);
+      selectedIds.delete(id);
+    }
+  });
+
+  cartIdSet.forEach((id) => {
+    if (!knownIds.has(id)) {
+      knownIds.add(id);
+      selectedIds.add(id);
+    }
+  });
+}
 
 function renderCartPage() {
   const cart = getCart();
+  syncSelection(cart);
   const count = cartCount(cart);
   cartHeading.textContent = `Shopping Cart (${count})`;
 
@@ -21,6 +51,9 @@ function renderCartPage() {
       </div>
     `;
     cartTotalText.textContent = formatPeso(0);
+    selectedCountText.textContent = "0 of 0 items selected";
+    noSelectionNotice.classList.add("d-none");
+    selectAllRow.classList.add("d-none");
     checkoutBtn.classList.add("disabled");
     checkoutBtn.setAttribute("aria-disabled", "true");
     clearCartLink.classList.add("d-none");
@@ -28,16 +61,17 @@ function renderCartPage() {
   }
 
   clearCartLink.classList.remove("d-none");
-  checkoutBtn.classList.remove("disabled");
-  checkoutBtn.removeAttribute("aria-disabled");
+  selectAllRow.classList.remove("d-none");
 
   cartItemsContainer.innerHTML = cart
     .map((item) => {
       const product = getProductById(item.id);
       if (!product) return "";
       const atLimit = item.qty >= product.totalStock;
+      const isSelected = selectedIds.has(item.id);
       return `
-        <div class="cart-item-row" data-id="${product.id}">
+        <div class="cart-item-row ${isSelected ? "" : "unselected"}" data-id="${product.id}">
+          <input type="checkbox" class="cart-item-checkbox" data-id="${product.id}" ${isSelected ? "checked" : ""} aria-label="Select ${product.name} for checkout">
           <div class="cart-item-image" style="${cartItemImageCss(product.imageUrl)}"></div>
           <div class="cart-item-details">
             <h3 class="product-name mb-2">${product.name}</h3>
@@ -57,10 +91,19 @@ function renderCartPage() {
     })
     .join("");
 
-  cartTotalText.textContent = formatPeso(cartTotal(cart));
+  updateSelectionSummary(cart);
 
   cartItemsContainer.querySelectorAll(".cart-item-row").forEach((row) => {
     const productId = row.dataset.id;
+
+    row.querySelector(".cart-item-checkbox").addEventListener("change", (e) => {
+      if (e.target.checked) {
+        selectedIds.add(productId);
+      } else {
+        selectedIds.delete(productId);
+      }
+      renderCartPage();
+    });
 
     row.querySelector(".cart-qty-plus").addEventListener("click", () => {
       const item = getCart().find((i) => i.id === productId);
@@ -85,10 +128,46 @@ function renderCartPage() {
   });
 }
 
+function updateSelectionSummary(cart) {
+  const selectedCart = cart.filter((item) => selectedIds.has(item.id));
+  selectedCountText.textContent = `${selectedCart.length} of ${cart.length} items selected`;
+  cartTotalText.textContent = formatPeso(cartTotal(selectedCart));
+
+  const allSelected = selectedCart.length === cart.length;
+  selectAllCartCheckbox.checked = selectedCart.length > 0 && allSelected;
+  selectAllCartCheckbox.indeterminate = selectedCart.length > 0 && !allSelected;
+
+  const hasSelection = selectedCart.length > 0;
+  noSelectionNotice.classList.toggle("d-none", hasSelection);
+  checkoutBtn.classList.toggle("disabled", !hasSelection);
+  if (hasSelection) {
+    checkoutBtn.removeAttribute("aria-disabled");
+  } else {
+    checkoutBtn.setAttribute("aria-disabled", "true");
+  }
+}
+
+selectAllCartCheckbox.addEventListener("change", () => {
+  const cart = getCart();
+  if (selectAllCartCheckbox.checked) {
+    cart.forEach((item) => selectedIds.add(item.id));
+  } else {
+    selectedIds.clear();
+  }
+  renderCartPage();
+});
+
 clearCartLink.addEventListener("click", (e) => {
   e.preventDefault();
   clearCart();
   renderCartPage();
+});
+
+checkoutBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  if (checkoutBtn.classList.contains("disabled")) return;
+  sessionStorage.setItem("amsonCheckoutSelectedIds", JSON.stringify([...selectedIds]));
+  window.location.href = "checkout.html";
 });
 
 (async function init() {

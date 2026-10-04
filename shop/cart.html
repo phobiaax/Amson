@@ -103,6 +103,10 @@
             <h2 class="h5 fw-bold mb-0" id="cartHeading">Shopping Cart (0)</h2>
             <a href="#" class="link-red" id="clearCartLink" style="font-size:0.9rem;">Clear All</a>
           </div>
+          <div class="d-flex align-items-center gap-2 pb-2 mb-1 border-bottom" id="selectAllRow">
+            <input type="checkbox" class="cart-select-all-checkbox" id="selectAllCartCheckbox">
+            <label for="selectAllCartCheckbox" class="mb-0" style="cursor:pointer;">Select All</label>
+          </div>
           <div id="cartItemsContainer"></div>
         </div>
       </div>
@@ -110,6 +114,7 @@
       <div class="col-lg-4">
         <div class="summary-card" id="orderSummaryCard">
           <h2 class="mb-3">Order Summary</h2>
+          <p class="text-muted mb-2" id="selectedCountText" style="font-size:0.88rem;">0 of 0 items selected</p>
           <div class="d-flex justify-content-between mb-2">
             <span>Total</span>
             <strong id="cartTotalText">₱0</strong>
@@ -117,6 +122,7 @@
           <div class="summary-note">
             <strong>Note:</strong> Delivery fee is excluded from this total. Please settle the shipping cost directly with the rider upon delivery.
           </div>
+          <p class="text-danger mb-2 d-none" id="noSelectionNotice" style="font-size:0.85rem;">Select at least one item to check out.</p>
           <a href="checkout.html" class="btn btn-amson w-100 py-2" id="checkoutBtn">Proceed to Checkout</a>
         </div>
       </div>

@@ -61,6 +61,15 @@ function removeFromCart(productId) {
   saveCart(getCart().filter((i) => i.id !== productId));
 }
 
+// Removes just the given products from the cart - used after an order is
+// placed for only a selected subset of the cart, so items the customer left
+// unchecked stay put instead of getting wiped along with the ones they
+// actually bought.
+function removeItemsFromCart(productIds) {
+  const idSet = new Set(productIds);
+  saveCart(getCart().filter((i) => !idSet.has(i.id)));
+}
+
 function clearCart() {
   saveCart([]);
 }
