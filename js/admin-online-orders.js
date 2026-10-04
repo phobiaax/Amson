@@ -98,8 +98,25 @@ const ordersPagination = document.getElementById("ordersPagination");
 const holdModalEl = document.getElementById("holdModal");
 const approvedModalEl = document.getElementById("approvedModal");
 const trackingLinkInput = document.getElementById("trackingLinkInput");
+const trackingLinkError = document.getElementById("trackingLinkError");
 const markDispatchedBtn = document.getElementById("markDispatchedBtn");
 const pickupReadyModalEl = document.getElementById("pickupReadyModal");
+
+// A real Lalamove share-tracking link (from the app/web portal's "Share"
+// button) always looks like https://share.lalamove.com/?<order-id>&... -
+// anchored to that exact scheme+host so a lookalike domain (e.g.
+// share.lalamove.com.evil.com, or evil.com/share.lalamove.com) can't slip
+// through, and requiring something after the slash so the bare domain
+// alone isn't accepted as "a tracking link."
+const LALAMOVE_TRACKING_LINK_REGEX = /^https:\/\/share\.lalamove\.com\/\S+$/i;
+
+function trackingLinkValidationError(link) {
+  if (!link) return "Please paste the Lalamove tracking link.";
+  if (!LALAMOVE_TRACKING_LINK_REGEX.test(link)) {
+    return "That doesn't look like a valid Lalamove tracking link. It should look like https://share.lalamove.com/...";
+  }
+  return null;
+}
 
 const paymentIssueModalEl = document.getElementById("paymentIssueModal");
 const issueModalTitle = document.getElementById("issueModalTitle");
@@ -712,6 +729,7 @@ function openApprovedModal(order) {
   document.getElementById("approvedDeliveryNotes").textContent = shipping.deliveryNotes || "None";
   trackingLinkInput.value = order.trackingLink || "";
   trackingLinkInput.classList.remove("is-invalid");
+  trackingLinkError.textContent = "";
 
   bootstrap.Modal.getOrCreateInstance(approvedModalEl).show();
 }
@@ -734,7 +752,9 @@ markDispatchedBtn.addEventListener("click", async () => {
   if (!approvedModalOrderId) return;
   const trackingLink = trackingLinkInput.value.trim();
 
-  if (!trackingLink) {
+  const validationError = trackingLinkValidationError(trackingLink);
+  if (validationError) {
+    trackingLinkError.textContent = validationError;
     trackingLinkInput.classList.add("is-invalid");
     return;
   }

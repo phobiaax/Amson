@@ -334,8 +334,11 @@
         <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedDeliveryNotes"><i class="bi bi-clipboard"></i> Copy</button>
       </div>
 
-      <label for="trackingLinkInput" class="form-label">Tracking Link</label>
-      <input type="text" class="form-control mb-3" id="trackingLinkInput" placeholder="[ Paste Courier Tracking URL Here ]">
+      <div class="mb-3">
+        <label for="trackingLinkInput" class="form-label">Tracking Link</label>
+        <input type="text" class="form-control" id="trackingLinkInput" placeholder="[ Paste Courier Tracking URL Here ]">
+        <div class="invalid-feedback" id="trackingLinkError"></div>
+      </div>
 
       <div class="d-flex gap-2">
         <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Back</button>
