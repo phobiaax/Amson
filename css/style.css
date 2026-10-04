@@ -1673,6 +1673,14 @@ a {
   color: var(--amson-red);
 }
 
+.inventory-stat-box.dark {
+  border: 1px solid #343a40;
+}
+.inventory-stat-box.dark .label,
+.inventory-stat-box.dark .count {
+  color: #343a40;
+}
+
 /* ---------- Repeater rows (Receive Stock / Write Off items) ---------- */
 .repeater-item {
   border: 1px solid var(--amson-border);

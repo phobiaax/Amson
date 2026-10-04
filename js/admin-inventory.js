@@ -160,6 +160,7 @@ async function loadInventory() {
     // re-render below.
     const alertCounts = await computeInventoryAlertCounts();
     document.getElementById("lowStockCount").textContent = alertCounts.lowStock;
+    document.getElementById("outOfStockCount").textContent = alertCounts.outOfStock;
     document.getElementById("nearExpiryCount").textContent = alertCounts.nearExpiry;
     document.getElementById("expiredCount").textContent = alertCounts.expired;
 
@@ -231,11 +232,31 @@ function formatDateTime(timestamp) {
 }
 
 function inventorySortMillis(batch) {
+  if (batch.isVirtual) return 0;
   if (inventorySortField === "lastAdjustedAt") {
     const ts = batch.lastAdjustedAt || batch.createdAt;
     return ts && ts.toMillis ? ts.toMillis() : 0;
   }
   return new Date(batch.expirationDate).getTime();
+}
+
+// Products the Dashboard/this page's own "Out of Stock" count flags (any
+// active product with zero physical stock) that have never had a single
+// stockBatches document - e.g. created but never received via Receive
+// Stock. The batch table is otherwise a list of batches, so a product like
+// that would be counted in outOfStockCount but never actually appear as a
+// row anywhere, leaving staff unable to see which products make up that
+// number. These synthetic rows close that gap.
+function neverStockedProductRows() {
+  const stockedProductIds = new Set(allBatches.map((b) => b.productId));
+  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && !stockedProductIds.has(p.id)).map((p) => ({
+    id: `virtual-${p.id}`,
+    productId: p.id,
+    batchNo: "-",
+    quantity: 0,
+    isVirtual: true,
+    computedStatuses: ["out_of_stock"],
+  }));
 }
 
 /* ---------- Table ---------- */
@@ -244,10 +265,12 @@ function filteredBatches() {
   // SAMPLE_PRODUCTS.totalStock, which is deliberately active-only for the
   // storefront's sake. A wholesale_only batch's units still exist.
   const physicalStockByProduct = sumPhysicalStockByProduct(allBatches);
-  let filtered = allBatches.map((b) => ({
-    ...b,
-    computedStatuses: getBatchStatuses(b, physicalStockByProduct[b.productId] || 0),
-  }));
+  let filtered = allBatches
+    .map((b) => ({
+      ...b,
+      computedStatuses: getBatchStatuses(b, physicalStockByProduct[b.productId] || 0),
+    }))
+    .concat(neverStockedProductRows());
 
   if (inventoryFilter !== "all") {
     filtered = filtered.filter((b) => b.computedStatuses.includes(inventoryFilter));
@@ -310,6 +333,25 @@ async function deleteOrphanBatch(batchId) {
 function renderBatchRow(batch) {
   const product = getProductById(batch.productId);
   const reorderPoint = (product && product.reorderPoint) || DEFAULT_REORDER_POINT;
+
+  if (batch.isVirtual) {
+    return `
+      <tr class="text-muted">
+        <td colspan="2" class="fst-italic">Never received</td>
+        <td>-</td>
+        <td>${product ? product.name : "Unknown product"}</td>
+        <td>${product ? CATEGORY_LABELS[product.category] || "-" : "-"}</td>
+        <td>0</td>
+        <td>${reorderPoint}</td>
+        <td>
+          ${batch.computedStatuses.map((s) => `<span class="batch-status-pill ${s}">${BATCH_STATUS_LABELS[s]}</span>`).join(" ")}
+        </td>
+        <td>-</td>
+        <td></td>
+      </tr>
+    `;
+  }
+
   return `
     <tr>
       <td class="fw-medium">${batch.batchNo}</td>
