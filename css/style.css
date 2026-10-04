@@ -738,6 +738,16 @@ a {
   border-radius: 10px;
   width: 100%;
 }
+/* Bootstrap's .btn-close carries a negative margin sized to cancel out
+   the modal header's own padding so it sits flush in the corner - but
+   #productQuickViewModal's header uses pb-0/border-0 (no bottom padding
+   to cancel against), so that negative margin pulled the button down far
+   enough to visually sit on top of the modal body's content, which (being
+   later in paint order) actually caught the click instead of the button. */
+#productQuickViewModal .modal-header .btn-close {
+  position: relative;
+  z-index: 2;
+}
 .product-detail-price {
   color: var(--amson-red);
   font-weight: 700;
@@ -1338,6 +1348,10 @@ a {
 
 .inventory-alert-box.danger {
   border-color: var(--amson-red);
+}
+
+.inventory-alert-box.dark {
+  border-color: #343a40;
 }
 
 .inventory-alert-box h3 {

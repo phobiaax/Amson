@@ -135,11 +135,19 @@
       <!-- Charts -->
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <h2 class="h5 fw-bold mb-0">Sales Analytics</h2>
-        <div class="btn-group" role="group" aria-label="Analytics period" id="dashboardPeriodGroup">
-          <button type="button" class="btn order-filter-btn dashboard-period-btn" data-period="today">Today</button>
-          <button type="button" class="btn order-filter-btn dashboard-period-btn" data-period="week">Week</button>
-          <button type="button" class="btn order-filter-btn dashboard-period-btn active" data-period="month">Month</button>
-          <button type="button" class="btn order-filter-btn dashboard-period-btn" data-period="year">Year</button>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+          <div class="btn-group" role="group" aria-label="Analytics period" id="dashboardPeriodGroup">
+            <button type="button" class="btn order-filter-btn dashboard-period-btn" data-period="today">Today</button>
+            <button type="button" class="btn order-filter-btn dashboard-period-btn" data-period="week">Week</button>
+            <button type="button" class="btn order-filter-btn dashboard-period-btn active" data-period="month">Month</button>
+            <button type="button" class="btn order-filter-btn dashboard-period-btn" data-period="year">Year</button>
+          </div>
+          <button type="button" class="btn btn-outline-dark-amson btn-sm" id="exportAnalyticsPdfBtn">
+            <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+          </button>
+          <button type="button" class="btn btn-outline-dark-amson btn-sm" id="exportAnalyticsExcelBtn">
+            <i class="bi bi-file-earmark-excel me-1"></i>Excel
+          </button>
         </div>
       </div>
       <div class="row g-3 mb-4">
@@ -170,7 +178,7 @@
 
       <!-- Inventory alerts -->
       <div class="row g-3">
-        <div class="col-md-6">
+        <div class="col-md-4">
           <div class="inventory-alert-box warning">
             <div>
               <h3>Low Stock</h3>
@@ -179,11 +187,20 @@
             <a href="inventory.html" class="stat-card-link">View Inventory →</a>
           </div>
         </div>
-        <div class="col-md-6">
+        <div class="col-md-4">
           <div class="inventory-alert-box danger">
             <div>
               <h3>Near-Expiry</h3>
               <p class="count mb-0" id="nearExpiryCount">-</p>
+            </div>
+            <a href="inventory.html" class="stat-card-link">View Inventory →</a>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="inventory-alert-box dark">
+            <div>
+              <h3>Out of Stock</h3>
+              <p class="count mb-0" id="outOfStockCount">-</p>
             </div>
             <a href="inventory.html" class="stat-card-link">View Inventory →</a>
           </div>
@@ -199,8 +216,11 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 
-<!-- jsPDF (Export Report) -->
+<!-- jsPDF (Export Report / Sales Analytics PDF) -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<!-- SheetJS (Sales Analytics Excel export) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <!-- Firebase (compat SDK) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>

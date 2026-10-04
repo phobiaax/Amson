@@ -50,11 +50,19 @@ let issueType = null;
 let issueNoteManuallyEdited = false;
 let ordersFilter = "all";
 let ordersSearchTerm = "";
+// Defaults to "most recently acted on first" - once an order is verified/
+// updated it's the one staff were just working on, so it should surface at
+// the top of the history list rather than staying buried under its
+// original placement date.
 let ordersSortDesc = true;
-let ordersSortField = "createdAt";
+let ordersSortField = "lastUpdated";
 let ordersCurrentPage = 1;
 let verificationSearchTerm = "";
-let verificationSortDesc = true;
+// First come, first served: the Payment Verification queue defaults to
+// oldest-placed-first, so the order staff see at the top is always the one
+// that's been waiting longest - not whichever order happened to come in
+// most recently.
+let verificationSortDesc = false;
 
 const tabVerificationBtn = document.getElementById("tabVerificationBtn");
 const tabOrdersBtn = document.getElementById("tabOrdersBtn");
