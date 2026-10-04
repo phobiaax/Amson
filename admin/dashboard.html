@@ -133,23 +133,37 @@
       </div>
 
       <!-- Charts -->
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <h2 class="h5 fw-bold mb-0">Sales Analytics</h2>
+        <div class="btn-group" role="group" aria-label="Analytics period" id="dashboardPeriodGroup">
+          <button type="button" class="btn btn-outline-dark-amson btn-sm" data-period="today">Today</button>
+          <button type="button" class="btn btn-outline-dark-amson btn-sm" data-period="week">Week</button>
+          <button type="button" class="btn btn-outline-dark-amson btn-sm active" data-period="month">Month</button>
+          <button type="button" class="btn btn-outline-dark-amson btn-sm" data-period="year">Year</button>
+        </div>
+      </div>
       <div class="row g-3 mb-4">
         <div class="col-lg-7">
           <div class="chart-card">
-            <h2>Monthly Sales Performance</h2>
+            <h2>Sales Performance</h2>
             <div class="chart-canvas-wrap">
               <canvas id="salesChart"></canvas>
-              <p class="chart-empty-note d-none" id="salesChartEmpty">No online sales yet.</p>
+              <p class="chart-empty-note d-none" id="salesChartEmpty">No sales yet.</p>
             </div>
           </div>
         </div>
-        <div class="col-lg-5">
+        <div class="col-lg-5 d-flex flex-column gap-3">
           <div class="chart-card">
             <h2>Revenue by Category</h2>
-            <div class="chart-canvas-wrap">
+            <div class="chart-canvas-wrap" style="height:180px;">
               <canvas id="categoryChart"></canvas>
               <p class="chart-empty-note d-none" id="categoryChartEmpty">No sales data yet.</p>
             </div>
+          </div>
+          <div class="chart-card">
+            <h2>Most Bought Items</h2>
+            <div id="mostBoughtList" class="d-flex flex-column gap-2"></div>
+            <p class="chart-empty-note d-none mb-0" id="mostBoughtEmpty">No sales data yet.</p>
           </div>
         </div>
       </div>

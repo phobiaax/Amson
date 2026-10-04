@@ -486,6 +486,8 @@ function showSaleReceipt({
   branch,
   completedAt,
   title = "Sale Receipt",
+  onConfirm = null,
+  onEdit = null,
 }) {
   const titleEl = document.getElementById("posReceiptModalTitle");
   if (titleEl) titleEl.textContent = title;
@@ -530,7 +532,39 @@ function showSaleReceipt({
     changeRow.classList.add("d-none");
   }
 
-  bootstrap.Modal.getOrCreateInstance(document.getElementById("posReceiptModal")).show();
+  const modalEl = document.getElementById("posReceiptModal");
+  const footer = document.getElementById("posReceiptModalFooter");
+  if (footer) {
+    if (onConfirm) {
+      // Preview mode (POS, before the sale is actually committed) - give
+      // the cashier a chance to catch a mistake before stock gets deducted
+      // and the sale gets written, rather than after.
+      footer.innerHTML = `
+        <button type="button" class="btn btn-outline-dark-amson flex-fill" id="posReceiptEditBtn">Edit Transaction</button>
+        <button type="button" class="btn btn-amson flex-fill" id="posReceiptConfirmBtn">Confirm Transaction</button>
+      `;
+      document.getElementById("posReceiptEditBtn").addEventListener("click", () => {
+        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        if (onEdit) onEdit();
+      });
+      document.getElementById("posReceiptConfirmBtn").addEventListener("click", async (ev) => {
+        const btn = ev.currentTarget;
+        btn.disabled = true;
+        try {
+          await onConfirm();
+          bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    } else {
+      // View mode (Walk-in Orders, or after a sale's already been
+      // confirmed) - just a historical record, nothing left to decide.
+      footer.innerHTML = `<button type="button" class="btn btn-amson w-100" data-bs-dismiss="modal">Close</button>`;
+    }
+  }
+
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }
 
 function exportBlankPdf(filenamePrefix) {
@@ -663,12 +697,12 @@ function renderProductCard(product) {
   return `
     <div class="col">
       <div class="product-card ${product.inStock ? "" : "out-of-stock"}">
-        <a href="product-details.html?id=${product.id}" class="product-image-link">
+        <a href="product-details.html?id=${product.id}" class="product-image-link product-quickview-trigger" data-product-id="${product.id}">
           <div class="product-image" ${product.imageUrl ? `style="background-image:url('${product.imageUrl}'); background-size:cover; background-position:center;"` : ""}>
             ${product.inStock ? "" : `<span class="product-image-badge">Out of Stock</span>`}
           </div>
         </a>
-        <a href="product-details.html?id=${product.id}" class="product-name-link">
+        <a href="product-details.html?id=${product.id}" class="product-name-link product-quickview-trigger" data-product-id="${product.id}">
           <h3 class="product-name">${product.name}</h3>
         </a>
         <p class="product-desc">${product.description || ""}</p>
@@ -680,4 +714,142 @@ function renderProductCard(product) {
       </div>
     </div>
   `;
+}
+
+// ---- Product quick-view (popup instead of a full page navigation) ----
+// Clicking a product card's image/name used to be a full page load to
+// product-details.html - jarring for just glancing at a product. Cards
+// still carry that href (so middle-click/ctrl-click/right-click "open in
+// new tab" and no-JS access keep working), but a plain left-click is
+// intercepted here and opens this shared modal instead. Pages that don't
+// include #productQuickViewModal (like product-details.html itself) just
+// fall through to the normal link, so that page still works as a direct,
+// shareable, bookmarkable URL.
+document.addEventListener("click", (e) => {
+  const trigger = e.target.closest(".product-quickview-trigger");
+  if (!trigger) return;
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+  const modalEl = document.getElementById("productQuickViewModal");
+  if (!modalEl) return;
+
+  e.preventDefault();
+  showProductQuickView(trigger.dataset.productId);
+});
+
+async function showProductQuickView(productId) {
+  const modalEl = document.getElementById("productQuickViewModal");
+  if (!modalEl) return;
+
+  await loadCatalogCache();
+  const product = getProductById(productId);
+  const bodyEl = document.getElementById("productQuickViewBody");
+
+  if (!product) {
+    bodyEl.innerHTML = `<p class="text-center mb-0 py-4">This product could not be found.</p>`;
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    return;
+  }
+
+  bodyEl.innerHTML = `
+    <div class="row g-4">
+      <div class="col-md-5">
+        <div class="product-detail-image" ${product.imageUrl ? `style="background-image:url('${product.imageUrl}'); background-size:cover; background-position:center;"` : ""}></div>
+      </div>
+      <div class="col-md-7">
+        <h2 class="h4 fw-bold mb-1">${product.name}</h2>
+        ${product.genericName ? `<p class="text-muted mb-3">Generic Name: ${product.genericName}</p>` : ""}
+        <p class="product-detail-price mb-2">${formatPeso(product.price)}</p>
+        <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
+          <p class="stock-badge ${product.inStock ? "in-stock" : "out-of-stock"} mb-0">
+            <i class="bi ${product.inStock ? "bi-box-seam" : "bi-x-circle"}"></i>
+            ${product.inStock ? `In Stock (${product.totalStock} available)` : "Out of Stock"}
+          </p>
+          ${product.rxRequired ? `<p class="stock-badge out-of-stock mb-0"><i class="bi bi-file-medical"></i> Prescription Required</p>` : ""}
+        </div>
+
+        <label class="form-label d-block">Quantity</label>
+        <div class="d-flex align-items-center gap-3 mb-4">
+          <div class="qty-stepper">
+            <button type="button" id="quickViewQtyMinus" aria-label="Decrease quantity">&minus;</button>
+            <input type="text" id="quickViewQtyInput" value="1" inputmode="numeric">
+            <button type="button" id="quickViewQtyPlus" aria-label="Increase quantity">+</button>
+          </div>
+          <span class="text-muted">Subtotal: <strong id="quickViewSubtotalText">${formatPeso(product.price)}</strong></span>
+        </div>
+
+        ${
+          product.rxRequired
+            ? `<p class="text-muted mb-3" style="font-size:0.85rem;">This medicine requires a valid prescription. You'll be asked to upload it at checkout.</p>`
+            : ""
+        }
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-amson flex-fill py-2" id="quickViewAddToCartBtn" ${product.inStock ? "" : "disabled"}>
+            <i class="bi bi-cart3 me-2"></i>${product.inStock ? "Add to Cart" : "Out of Stock"}
+          </button>
+          <a href="product-details.html?id=${product.id}" class="btn btn-outline-dark-amson py-2" title="Open full page">
+            <i class="bi bi-arrows-fullscreen"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="product-about mt-4">
+      <h3 class="h6 fw-bold">About the Product</h3>
+      <p class="mb-0">${product.description || "No description available yet."}</p>
+    </div>
+  `;
+
+  const qtyInput = document.getElementById("quickViewQtyInput");
+  const subtotalText = document.getElementById("quickViewSubtotalText");
+  const maxQty = Math.max(product.totalStock || 0, 0);
+
+  function currentQty() {
+    const val = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+    return maxQty > 0 ? Math.min(val, maxQty) : val;
+  }
+
+  function updateSubtotal() {
+    subtotalText.textContent = formatPeso(product.price * currentQty());
+  }
+
+  document.getElementById("quickViewQtyMinus").addEventListener("click", () => {
+    qtyInput.value = Math.max(1, currentQty() - 1);
+    updateSubtotal();
+  });
+
+  document.getElementById("quickViewQtyPlus").addEventListener("click", () => {
+    if (maxQty > 0 && currentQty() >= maxQty) {
+      qtyInput.value = maxQty;
+    } else {
+      qtyInput.value = currentQty() + 1;
+    }
+    updateSubtotal();
+  });
+
+  qtyInput.addEventListener("input", () => {
+    qtyInput.value = qtyInput.value.replace(/[^0-9]/g, "");
+    updateSubtotal();
+  });
+
+  qtyInput.addEventListener("blur", () => {
+    qtyInput.value = currentQty();
+    updateSubtotal();
+  });
+
+  const addToCartBtn = document.getElementById("quickViewAddToCartBtn");
+  if (addToCartBtn) {
+    addToCartBtn.addEventListener("click", () => {
+      const result = addToCart(product.id, currentQty());
+      if (result.capped && result.qty === 0) {
+        showCartToast("Sorry, that item is out of stock.", "warning");
+      } else if (result.capped) {
+        showCartToast(`Only ${result.qty} in stock - your cart is now at the limit.`, "warning");
+      } else {
+        showCartToast(`Added ${currentQty()} × ${product.name} to cart.`);
+      }
+    });
+  }
+
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }

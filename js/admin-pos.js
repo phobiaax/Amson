@@ -184,7 +184,7 @@ function updatePosTotals() {
 
 posCashInput.addEventListener("input", updatePosTotals);
 
-posCompleteSaleBtn.addEventListener("click", async () => {
+posCompleteSaleBtn.addEventListener("click", () => {
   posAlert.classList.add("d-none");
 
   if (posCart.length === 0) {
@@ -203,45 +203,49 @@ posCompleteSaleBtn.addEventListener("click", async () => {
     return;
   }
 
-  posCompleteSaleBtn.disabled = true;
-  try {
-    await deductStockFEFOMultiple(posCart.map((item) => ({ productId: item.productId, qty: item.qty })));
+  const items = posCart.map((item) => ({ productId: item.productId, name: item.name, price: item.price, qty: item.qty }));
 
-    const items = posCart.map((item) => ({ productId: item.productId, name: item.name, price: item.price, qty: item.qty }));
-    await db.collection("posSales").add({
-      items,
-      total,
-      paymentMethod,
-      cashReceived: isCash ? cash : total,
-      change: isCash ? cash - total : 0,
-      cashier: currentCashierName,
-      branch: POS_BRANCH_NAME,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
+  // Nothing is committed yet - this is a preview. Stock only gets deducted
+  // and the sale only gets written once the cashier hits Confirm below, so
+  // Edit Transaction has nothing to undo: the cart's exactly as they left it.
+  showSaleReceipt({
+    items,
+    total,
+    paymentMethod,
+    isCash,
+    amountPaid: isCash ? cash : total,
+    change: cash - total,
+    cashier: currentCashierName,
+    branch: POS_BRANCH_NAME,
+    completedAt: new Date(),
+    title: "Review Transaction",
+    onConfirm: async () => {
+      try {
+        await deductStockFEFOMultiple(items.map((item) => ({ productId: item.productId, qty: item.qty })));
 
-    showSaleReceipt({
-      items,
-      total,
-      paymentMethod,
-      isCash,
-      amountPaid: isCash ? cash : total,
-      change: cash - total,
-      cashier: currentCashierName,
-      branch: POS_BRANCH_NAME,
-      completedAt: new Date(),
-      title: "Sale Complete",
-    });
+        await db.collection("posSales").add({
+          items,
+          total,
+          paymentMethod,
+          cashReceived: isCash ? cash : total,
+          change: isCash ? cash - total : 0,
+          cashier: currentCashierName,
+          branch: POS_BRANCH_NAME,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
 
-    posCart = [];
-    posCashInput.value = "";
-    renderPosCart();
-    catalogLoadPromise = null;
-    await loadCatalogCache();
-    populatePosProductSelect();
-  } catch (error) {
-    posAlert.textContent = error.message || "Something went wrong completing this sale. Please try again.";
-    posAlert.classList.remove("d-none");
-  } finally {
-    posCompleteSaleBtn.disabled = false;
-  }
+        posCart = [];
+        posCashInput.value = "";
+        renderPosCart();
+        catalogLoadPromise = null;
+        await loadCatalogCache();
+        populatePosProductSelect();
+
+        await showAppAlert("The sale has been completed successfully.", { title: "Sale Complete" });
+      } catch (error) {
+        posAlert.textContent = error.message || "Something went wrong completing this sale. Please try again.";
+        posAlert.classList.remove("d-none");
+      }
+    },
+  });
 });

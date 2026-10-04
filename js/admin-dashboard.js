@@ -40,6 +40,92 @@ function isToday(date) {
   );
 }
 
+// ---- Analytics period filter (Today / Week / Month / Year) ----
+// All local-calendar-based, not rolling 24h/UTC windows, so "Today"
+// matches the same definition as the Today's Total Sales tiles above.
+let dashboardPeriod = "month";
+let lastLoadedOrders = [];
+let lastLoadedPosSales = [];
+
+function periodStartDate(period) {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period === "today") return start;
+  if (period === "week") {
+    start.setDate(start.getDate() - 6);
+    return start;
+  }
+  if (period === "year") return new Date(now.getFullYear(), 0, 1);
+  return new Date(now.getFullYear(), now.getMonth(), 1); // month
+}
+
+function localDayKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+// The bucket a given date falls into for the current period's chart -
+// hourly for Today (a single day has nothing to group by otherwise),
+// daily for Week/Month, monthly for Year (365 daily points would be
+// unreadable).
+function dashboardBucketKey(date, period) {
+  if (period === "today") return String(date.getHours()).padStart(2, "0");
+  if (period === "year") return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  return localDayKey(date);
+}
+
+function dashboardBucketLabel(key, period) {
+  if (period === "today") {
+    const d = new Date();
+    d.setHours(parseInt(key, 10), 0, 0, 0);
+    return d.toLocaleTimeString("en-PH", { hour: "numeric" });
+  }
+  if (period === "year") {
+    const [y, m] = key.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString("en-PH", { month: "short" });
+  }
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+}
+
+// Every bucket key that should appear on the chart for this period, in
+// order, even if a given hour/day/month had zero sales - so the x-axis
+// doesn't just skip around based on whichever days happened to have data.
+function dashboardAllBucketKeys(period) {
+  const now = new Date();
+  if (period === "today") {
+    const keys = [];
+    for (let h = 0; h <= now.getHours(); h++) keys.push(String(h).padStart(2, "0"));
+    return keys;
+  }
+  if (period === "year") {
+    const keys = [];
+    for (let m = 0; m <= now.getMonth(); m++) keys.push(`${now.getFullYear()}-${String(m + 1).padStart(2, "0")}`);
+    return keys;
+  }
+  const keys = [];
+  const cursor = new Date(periodStartDate(period));
+  while (cursor <= now) {
+    keys.push(localDayKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return keys;
+}
+
+function inPeriod(date, period) {
+  return date >= periodStartDate(period);
+}
+
+document.querySelectorAll("#dashboardPeriodGroup .dashboard-period-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#dashboardPeriodGroup .dashboard-period-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    dashboardPeriod = btn.dataset.period;
+    renderSalesChart(lastLoadedOrders, lastLoadedPosSales);
+    renderCategoryChart(lastLoadedOrders, lastLoadedPosSales);
+    renderMostBoughtItems(lastLoadedOrders, lastLoadedPosSales);
+  });
+});
+
 async function loadDashboardStats() {
   try {
     await loadCatalogCache();
@@ -75,9 +161,12 @@ async function loadDashboardStats() {
     document.getElementById("onlineTodayTransactionsValue").textContent = onlineOrdersToday.length;
 
     lastLoadedStats = { pendingVerification, activeOrders, lowStock, nearExpiry };
+    lastLoadedOrders = orders;
+    lastLoadedPosSales = posSales;
 
     renderSalesChart(orders, posSales);
     renderCategoryChart(orders, posSales);
+    renderMostBoughtItems(orders, posSales);
   } catch (error) {
     console.error("Failed to load dashboard stats:", error);
   }
@@ -91,45 +180,55 @@ function isConfirmedSale(order) {
   return order.status !== "placed" && order.status !== "closed_unresolved";
 }
 
+let salesChartInstance = null;
+
 function renderSalesChart(orders, posSales) {
   const canvas = document.getElementById("salesChart");
   const emptyState = document.getElementById("salesChartEmpty");
-  const onlineDailyTotals = {};
-  const posDailyTotals = {};
+  const period = dashboardPeriod;
+  const onlineTotals = {};
+  const posTotals = {};
 
   orders.filter(isConfirmedSale).forEach((order) => {
     if (!order.createdAt) return;
     const date = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
-    const isoKey = date.toISOString().slice(0, 10);
-    onlineDailyTotals[isoKey] = (onlineDailyTotals[isoKey] || 0) + (order.total || 0);
+    if (!inPeriod(date, period)) return;
+    const key = dashboardBucketKey(date, period);
+    onlineTotals[key] = (onlineTotals[key] || 0) + (order.total || 0);
   });
 
   (posSales || []).forEach((sale) => {
     if (!sale.createdAt) return;
     const date = sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(sale.createdAt);
-    const isoKey = date.toISOString().slice(0, 10);
-    posDailyTotals[isoKey] = (posDailyTotals[isoKey] || 0) + (sale.total || 0);
+    if (!inPeriod(date, period)) return;
+    const key = dashboardBucketKey(date, period);
+    posTotals[key] = (posTotals[key] || 0) + (sale.total || 0);
   });
 
-  const sortedKeys = Array.from(new Set([...Object.keys(onlineDailyTotals), ...Object.keys(posDailyTotals)])).sort();
-  if (sortedKeys.length === 0) {
+  if (salesChartInstance) {
+    salesChartInstance.destroy();
+    salesChartInstance = null;
+  }
+
+  const keys = dashboardAllBucketKeys(period);
+  if (Object.keys(onlineTotals).length === 0 && Object.keys(posTotals).length === 0) {
     canvas.classList.add("d-none");
     emptyState.classList.remove("d-none");
     return;
   }
 
-  const labels = sortedKeys.map((isoKey) =>
-    new Date(isoKey).toLocaleDateString("en-PH", { month: "short", day: "numeric" })
-  );
+  canvas.classList.remove("d-none");
+  emptyState.classList.add("d-none");
+  const labels = keys.map((key) => dashboardBucketLabel(key, period));
 
-  new Chart(canvas, {
+  salesChartInstance = new Chart(canvas, {
     type: "line",
     data: {
       labels,
       datasets: [
         {
           label: "Online Sales (₱)",
-          data: sortedKeys.map((key) => onlineDailyTotals[key] || 0),
+          data: keys.map((key) => onlineTotals[key] || 0),
           borderColor: "#EE3137",
           backgroundColor: "rgba(238, 49, 55, 0.08)",
           fill: true,
@@ -137,7 +236,7 @@ function renderSalesChart(orders, posSales) {
         },
         {
           label: "POS Sales (₱)",
-          data: sortedKeys.map((key) => posDailyTotals[key] || 0),
+          data: keys.map((key) => posTotals[key] || 0),
           borderColor: "#4A90D9",
           backgroundColor: "rgba(74, 144, 217, 0.08)",
           fill: true,
@@ -154,12 +253,18 @@ function renderSalesChart(orders, posSales) {
   });
 }
 
+let categoryChartInstance = null;
+
 function renderCategoryChart(orders, posSales) {
   const canvas = document.getElementById("categoryChart");
   const emptyState = document.getElementById("categoryChartEmpty");
+  const period = dashboardPeriod;
   const totals = {};
 
   orders.filter(isConfirmedSale).forEach((order) => {
+    if (!order.createdAt) return;
+    const date = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
+    if (!inPeriod(date, period)) return;
     order.items.forEach((item) => {
       const product = getProductById(item.id);
       const category = product ? CATEGORY_LABELS[product.category] : "Other";
@@ -171,12 +276,20 @@ function renderCategoryChart(orders, posSales) {
   // pie chart the way it does to the line chart above, so walk-in and
   // online revenue are combined here by category.
   (posSales || []).forEach((sale) => {
+    if (!sale.createdAt) return;
+    const date = sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(sale.createdAt);
+    if (!inPeriod(date, period)) return;
     (sale.items || []).forEach((item) => {
       const product = getProductById(item.productId);
       const category = product ? CATEGORY_LABELS[product.category] : "Other";
       totals[category] = (totals[category] || 0) + item.price * item.qty;
     });
   });
+
+  if (categoryChartInstance) {
+    categoryChartInstance.destroy();
+    categoryChartInstance = null;
+  }
 
   const labels = Object.keys(totals);
   if (labels.length === 0) {
@@ -185,7 +298,9 @@ function renderCategoryChart(orders, posSales) {
     return;
   }
 
-  new Chart(canvas, {
+  canvas.classList.remove("d-none");
+  emptyState.classList.add("d-none");
+  categoryChartInstance = new Chart(canvas, {
     type: "pie",
     data: {
       labels,
@@ -201,6 +316,60 @@ function renderCategoryChart(orders, posSales) {
       maintainAspectRatio: false,
     },
   });
+}
+
+// ---- Most Bought Items (by quantity, within the selected period) ----
+function renderMostBoughtItems(orders, posSales) {
+  const listEl = document.getElementById("mostBoughtList");
+  const emptyEl = document.getElementById("mostBoughtEmpty");
+  const period = dashboardPeriod;
+  const qtyByProduct = {};
+  const nameByProduct = {};
+
+  orders.filter(isConfirmedSale).forEach((order) => {
+    if (!order.createdAt) return;
+    const date = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
+    if (!inPeriod(date, period)) return;
+    order.items.forEach((item) => {
+      qtyByProduct[item.id] = (qtyByProduct[item.id] || 0) + item.qty;
+      const product = getProductById(item.id);
+      nameByProduct[item.id] = product ? product.name : item.name || "Unknown product";
+    });
+  });
+
+  (posSales || []).forEach((sale) => {
+    if (!sale.createdAt) return;
+    const date = sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(sale.createdAt);
+    if (!inPeriod(date, period)) return;
+    (sale.items || []).forEach((item) => {
+      qtyByProduct[item.productId] = (qtyByProduct[item.productId] || 0) + item.qty;
+      const product = getProductById(item.productId);
+      nameByProduct[item.productId] = product ? product.name : item.name || "Unknown product";
+    });
+  });
+
+  const ranked = Object.keys(qtyByProduct)
+    .map((id) => ({ id, name: nameByProduct[id], qty: qtyByProduct[id] }))
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 5);
+
+  if (ranked.length === 0) {
+    listEl.innerHTML = "";
+    emptyEl.classList.remove("d-none");
+    return;
+  }
+
+  emptyEl.classList.add("d-none");
+  listEl.innerHTML = ranked
+    .map(
+      (item, idx) => `
+        <div class="d-flex justify-content-between align-items-center">
+          <span><strong>#${idx + 1}</strong> ${item.name}</span>
+          <span class="text-muted">${item.qty} sold</span>
+        </div>
+      `
+    )
+    .join("");
 }
 
 document.getElementById("exportReportBtn").addEventListener("click", () => {
