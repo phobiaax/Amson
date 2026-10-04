@@ -146,6 +146,8 @@ function renderSalesChart(orders, posSales) {
       ],
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: { legend: { display: true } },
       scales: { y: { beginAtZero: true } },
     },
@@ -193,6 +195,10 @@ function renderCategoryChart(orders, posSales) {
           backgroundColor: ["#EE3137", "#F5A623", "#4A90D9", "#7ED957", "#9B59B6", "#2ECC71"],
         },
       ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
     },
   });
 }
