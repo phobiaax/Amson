@@ -86,10 +86,6 @@
     <div class="container">
       <ul class="nav flex-nowrap flex-md-wrap justify-content-md-center">
         <li class="nav-item"><a class="nav-link" href="products.html">All Products</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=otc">OTC Medicines</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=vitamins">Vitamins &amp; Supplements</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=personal-care">Personal Care</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=health-wellness">Health &amp; Wellness</a></li>
       </ul>
     </div>
   </nav>
@@ -111,22 +107,7 @@
             <input class="form-check-input" type="checkbox" id="catAll" value="all" checked>
             <label class="form-check-label" for="catAll">All Products</label>
           </div>
-          <div class="form-check">
-            <input class="form-check-input category-filter" type="checkbox" id="catOtc" value="otc">
-            <label class="form-check-label" for="catOtc">OTC Medicines</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input category-filter" type="checkbox" id="catVitamins" value="vitamins">
-            <label class="form-check-label" for="catVitamins">Vitamins &amp; Supplements</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input category-filter" type="checkbox" id="catPersonalCare" value="personal-care">
-            <label class="form-check-label" for="catPersonalCare">Personal Care</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input category-filter" type="checkbox" id="catHealthWellness" value="health-wellness">
-            <label class="form-check-label" for="catHealthWellness">Health &amp; Wellness</label>
-          </div>
+          <div id="categoryFilterList"></div>
 
           <label for="sortBy" class="form-label mt-3">Sort By</label>
           <select class="form-select mb-3" id="sortBy">

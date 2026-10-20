@@ -10,7 +10,10 @@ const productsGrid = document.getElementById("productsGrid");
 const pagination = document.getElementById("pagination");
 const paginationSummary = document.getElementById("paginationSummary");
 const catAll = document.getElementById("catAll");
-const categoryFilters = Array.from(document.querySelectorAll(".category-filter"));
+const categoryFilterList = document.getElementById("categoryFilterList");
+// Filled from the categories collection once the catalog loads (see
+// renderCategoryFilters), so it always matches Manage Categories.
+let categoryFilters = [];
 const sortBy = document.getElementById("sortBy");
 const applyFiltersBtn = document.getElementById("applyFiltersBtn");
 
@@ -20,13 +23,26 @@ catAll.addEventListener("change", () => {
   }
 });
 
-categoryFilters.forEach((cb) => {
-  cb.addEventListener("change", () => {
-    if (cb.checked) catAll.checked = false;
-    const anyChecked = categoryFilters.some((c) => c.checked);
-    if (!anyChecked) catAll.checked = true;
+function renderCategoryFilters() {
+  categoryFilterList.innerHTML = Object.entries(CATEGORY_LABELS)
+    .map(
+      ([id, name], idx) => `
+        <div class="form-check">
+          <input class="form-check-input category-filter" type="checkbox" id="catFilter${idx}" value="${escapeHtml(id)}">
+          <label class="form-check-label" for="catFilter${idx}">${escapeHtml(name)}</label>
+        </div>
+      `
+    )
+    .join("");
+  categoryFilters = Array.from(categoryFilterList.querySelectorAll(".category-filter"));
+  categoryFilters.forEach((cb) => {
+    cb.addEventListener("change", () => {
+      if (cb.checked) catAll.checked = false;
+      const anyChecked = categoryFilters.some((c) => c.checked);
+      if (!anyChecked) catAll.checked = true;
+    });
   });
-});
+}
 
 function applyFilters() {
   const selected = categoryFilters.filter((cb) => cb.checked).map((cb) => cb.value);
@@ -107,6 +123,7 @@ applyFiltersBtn.addEventListener("click", applyFilters);
 
 (async function init() {
   await loadCatalogCache();
+  renderCategoryFilters();
   currentFiltered = storefrontCatalog();
 
   // ---- Pre-select category from query param ----

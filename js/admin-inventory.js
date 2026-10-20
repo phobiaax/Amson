@@ -65,6 +65,7 @@ const receiveStockBtn = document.getElementById("receiveStockBtn");
 const receiveStockModalEl = document.getElementById("receiveStockModal");
 const receiveSupplierSelect = document.getElementById("receiveSupplierSelect");
 const receiveDateInput = document.getElementById("receiveDateInput");
+const receiveReceiptNoInput = document.getElementById("receiveReceiptNoInput");
 const receiveItemsContainer = document.getElementById("receiveItemsContainer");
 const receiveAddItemBtn = document.getElementById("receiveAddItemBtn");
 const receiveModalAlert = document.getElementById("receiveModalAlert");
@@ -498,6 +499,10 @@ function addReceiveItemRow() {
         <label class="form-label">Expiry Date</label>
         <input type="date" class="form-control receive-expiry-input">
       </div>
+      <div class="col-md-6">
+        <label class="form-label">Unit Cost (&#8369;) <span class="text-muted fw-normal">(optional)</span></label>
+        <input type="number" min="0" step="0.01" class="form-control receive-unitcost-input">
+      </div>
     </div>
   `;
   receiveItemsContainer.appendChild(row);
@@ -528,6 +533,7 @@ receiveStockBtn.addEventListener("click", () => {
   receiveItemCount = 0;
   addReceiveItemRow();
   receiveDateInput.value = todayISO();
+  receiveReceiptNoInput.value = "";
   receiveModalAlert.classList.add("d-none");
   receiveBatchUploadStatus.textContent = "";
   populateSupplierSelect(receiveSupplierSelect);
@@ -537,6 +543,7 @@ receiveStockBtn.addEventListener("click", () => {
 saveReceiveStockBtn.addEventListener("click", async () => {
   const supplierId = receiveSupplierSelect.value;
   const dateReceived = receiveDateInput.value || todayISO();
+  const supplierReceiptNo = receiveReceiptNoInput.value.trim();
   const rows = Array.from(receiveItemsContainer.querySelectorAll(".repeater-item"));
 
   const items = rows.map((row) => ({
@@ -544,6 +551,7 @@ saveReceiveStockBtn.addEventListener("click", async () => {
     qty: parseInt(row.querySelector(".receive-qty-input").value, 10),
     batchNo: row.querySelector(".receive-batchno-input").value.trim(),
     expirationDate: row.querySelector(".receive-expiry-input").value,
+    unitCost: parseFloat(row.querySelector(".receive-unitcost-input").value),
   }));
 
   const invalid = items.some((it) => !it.productId || !it.qty || it.qty <= 0 || !it.batchNo || !it.expirationDate);
@@ -565,12 +573,22 @@ saveReceiveStockBtn.addEventListener("click", async () => {
         quantity: item.qty,
         initialQuantity: item.qty,
         supplierId: supplierId || null,
+        supplierReceiptNo: supplierReceiptNo || null,
+        unitCost: isNaN(item.unitCost) ? null : item.unitCost,
         dateReceived,
         status: "active",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
     }
+
+    const supplier = allSuppliers.find((sup) => sup.id === supplierId);
+    await logAuditEvent({
+      action: "Stock Received",
+      details: `${items.length} batch${items.length === 1 ? "" : "es"} from ${supplier ? supplier.name : "unspecified supplier"}${supplierReceiptNo ? `, Receipt/DR ${supplierReceiptNo}` : ""}: ${items
+        .map((it) => `${(getProductById(it.productId) || {}).name || it.productId} x${it.qty} (Batch ${it.batchNo})`)
+        .join("; ")}`,
+    });
 
     bootstrap.Modal.getInstance(receiveStockModalEl).hide();
     await loadInventory();
@@ -583,14 +601,14 @@ saveReceiveStockBtn.addEventListener("click", async () => {
 });
 
 /* ---------- Receive Stock: batch upload (Excel .xlsx/.xls or .csv, via SheetJS) ---------- */
-const RECEIVE_BATCH_TEMPLATE_HEADERS = ["sku", "batchNo", "expiryDate", "qtyReceived", "supplierName", "dateReceived"];
+const RECEIVE_BATCH_TEMPLATE_HEADERS = ["sku", "batchNo", "expiryDate", "qtyReceived", "unitCost", "supplierName", "receiptNo", "dateReceived"];
 
 receiveUploadBatchBtn.addEventListener("click", () => receiveBatchFileInput.click());
 
 receiveDownloadTemplateBtn.addEventListener("click", () => {
   const exampleRow = {
     sku: "SKU-0001", batchNo: "B2026-001", expiryDate: "2027-06-30",
-    qtyReceived: 100, supplierName: "Unilab", dateReceived: todayISO(),
+    qtyReceived: 100, unitCost: 3.5, supplierName: "Unilab", receiptNo: "DR-0001", dateReceived: todayISO(),
   };
   const ws = XLSX.utils.json_to_sheet([exampleRow], { header: RECEIVE_BATCH_TEMPLATE_HEADERS });
   const wb = XLSX.utils.book_new();
@@ -612,7 +630,9 @@ function receiveBatchReviewRowHtml(row = {}) {
       <td><input type="text" class="form-control form-control-sm rbr-batchno" value="${row.batchno || ""}"></td>
       <td><input type="date" class="form-control form-control-sm rbr-expirydate" value="${row.expirydate || ""}"></td>
       <td><input type="number" min="1" step="1" class="form-control form-control-sm rbr-qty" value="${row.qtyreceived || ""}"></td>
+      <td><input type="number" min="0" step="0.01" class="form-control form-control-sm rbr-unitcost" value="${row.unitcost || ""}"></td>
       <td><input type="text" class="form-control form-control-sm rbr-supplier" value="${row.suppliername || ""}"></td>
+      <td><input type="text" class="form-control form-control-sm rbr-receiptno" value="${row.receiptno || ""}"></td>
       <td><input type="date" class="form-control form-control-sm rbr-datereceived" value="${row.datereceived || todayISO()}"></td>
       <td><button type="button" class="icon-btn rbr-remove" aria-label="Remove row"><i class="bi bi-trash text-danger"></i></button></td>
     </tr>
@@ -675,6 +695,8 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
       expiryDate,
       qty,
       supplierId: supplier ? supplier.id : null,
+      supplierReceiptNo: get("rbr-receiptno").value.trim() || null,
+      unitCost: get("rbr-unitcost").value === "" ? null : parseFloat(get("rbr-unitcost").value),
       dateReceived: get("rbr-datereceived").value || todayISO(),
     };
   });
@@ -700,6 +722,8 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
         quantity: row.qty,
         initialQuantity: row.qty,
         supplierId: row.supplierId,
+        supplierReceiptNo: row.supplierReceiptNo,
+        unitCost: row.unitCost,
         dateReceived: row.dateReceived,
         status: "active",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -716,6 +740,9 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   bootstrap.Modal.getInstance(receiveBatchReviewModalEl).hide();
 
   receiveBatchUploadStatus.textContent = `Received ${imported} batch${imported === 1 ? "" : "es"}.${failed ? ` ${failed} failed to save - please try those again.` : ""}`;
+  if (imported > 0) {
+    await logAuditEvent({ action: "Stock Received (Batch Upload)", details: `${imported} batch${imported === 1 ? "" : "es"} imported from file` });
+  }
   receiveBatchFileInput.value = "";
   await loadInventory();
 });
@@ -1514,9 +1541,13 @@ function renderPoReceivingForm(po) {
   const content = document.getElementById("viewPoContent");
   content.innerHTML = `
     <p class="text-muted mb-3">Enter what was actually received for each item. Partial deliveries are fine - stock gets added either way, and any mismatch gets flagged as a discrepancy.</p>
+    <div class="mb-3" style="max-width:320px;">
+      <label class="form-label" for="poReceiptNoInput">Supplier Receipt / DR No.</label>
+      <input type="text" class="form-control form-control-sm" id="poReceiptNoInput">
+    </div>
     <table class="table admin-orders-table align-middle mb-0">
       <thead>
-        <tr><th>Product</th><th>Expected Qty</th><th>Received Qty</th><th>Batch No.</th><th>Expiry Date</th></tr>
+        <tr><th>Product</th><th>Expected Qty</th><th>Received Qty</th><th>Batch No.</th><th>Expiry Date</th><th>Unit Cost</th></tr>
       </thead>
       <tbody>
         ${po.items
@@ -1529,6 +1560,7 @@ function renderPoReceivingForm(po) {
                 <td><input type="number" min="0" class="form-control form-control-sm po-received-qty-input" style="max-width:100px;" value="${item.expectedQty}"></td>
                 <td><input type="text" class="form-control form-control-sm po-received-batchno-input" placeholder="e.g. BIO-500-100"></td>
                 <td><input type="date" class="form-control form-control-sm po-received-expiry-input"></td>
+                <td><input type="number" min="0" step="0.01" class="form-control form-control-sm po-received-unitcost-input" style="max-width:110px;"></td>
               </tr>
             `;
           })
@@ -1556,8 +1588,10 @@ async function submitPoReceiving(po) {
       receivedQty: parseInt(row.querySelector(".po-received-qty-input").value, 10) || 0,
       batchNo: row.querySelector(".po-received-batchno-input").value.trim(),
       expirationDate: row.querySelector(".po-received-expiry-input").value,
+      unitCost: row.querySelector(".po-received-unitcost-input").value === "" ? null : parseFloat(row.querySelector(".po-received-unitcost-input").value),
     };
   });
+  const supplierReceiptNo = document.getElementById("poReceiptNoInput").value.trim() || null;
 
   const alertEl = document.getElementById("viewPoAlert");
   const missingBatchInfo = receivedItems.some((it) => it.receivedQty > 0 && (!it.batchNo || !it.expirationDate));
@@ -1581,6 +1615,8 @@ async function submitPoReceiving(po) {
         quantity: item.receivedQty,
         initialQuantity: item.receivedQty,
         supplierId: po.supplierId,
+        supplierReceiptNo,
+        unitCost: item.unitCost,
         dateReceived: todayISO(),
         status: "active",
         poId: po.id,
@@ -1599,10 +1635,14 @@ async function submitPoReceiving(po) {
       }));
 
     const newStatus = discrepancies.length > 0 ? "discrepancy" : "received";
+    await logAuditEvent({
+      action: "Purchase Order Received",
+      details: `${po.poNumber}${supplierReceiptNo ? `, Receipt/DR ${supplierReceiptNo}` : ""} - ${discrepancies.length ? `${discrepancies.length} discrepanc${discrepancies.length === 1 ? "y" : "ies"}` : "all quantities matched"}`,
+    });
 
     await db.collection("purchaseOrders").doc(po.id).update({
       status: newStatus,
-      receivingRecord: { items: receivedItems, discrepancies },
+      receivingRecord: { items: receivedItems, discrepancies, supplierReceiptNo },
       receivedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 

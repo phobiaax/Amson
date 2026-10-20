@@ -112,6 +112,27 @@ let catalogLoadPromise = null;
 const DEFAULT_REORDER_POINT = 20;
 const NEAR_EXPIRY_MONTHS = 6;
 
+function nearExpiryCutoff() {
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() + NEAR_EXPIRY_MONTHS);
+  return cutoff;
+}
+
+// Retail (online + POS) can only ever sell a batch that's active and more
+// than NEAR_EXPIRY_MONTHS from expiring (REQ066). Wholesale may also take
+// near-expiry and wholesale_only stock, but nobody may sell an expired batch.
+function isRetailSellableBatch(batch) {
+  return batch.status === "active" && (batch.quantity || 0) > 0 && new Date(batch.expirationDate) > nearExpiryCutoff();
+}
+
+function isWholesaleSellableBatch(batch) {
+  return (
+    (batch.status === "active" || batch.status === "wholesale_only") &&
+    (batch.quantity || 0) > 0 &&
+    new Date(batch.expirationDate) > new Date()
+  );
+}
+
 const BATCH_STATUS_LABELS = {
   normal: "In Stock",
   low_stock: "Low Stock",
@@ -398,11 +419,15 @@ async function enforceExpiryStatus() {
   }
 }
 
+// The branch's own groupings (one sheet each in its month-end inventory
+// report). Only used to seed a brand-new project - after that, categories
+// are whatever staff manage under Products > Manage Categories.
 const DEFAULT_CATEGORIES = {
-  otc: "OTC Medicines",
-  vitamins: "Vitamins & Supplements",
-  "personal-care": "Personal Care",
-  "health-wellness": "Health & Wellness",
+  generics: "Generics",
+  branded: "Branded",
+  drugstore: "Drugstore (Per Piece)",
+  "medical-supplies": "Medical Supplies",
+  grocery: "Grocery",
 };
 
 async function loadCatalogCache() {
@@ -418,9 +443,14 @@ async function loadCatalogCache() {
       CATEGORY_LABELS[doc.id] = doc.data().name;
     });
 
+    // Sellable retail stock is judged by expiry date right here, not only by
+    // the wholesale_only flag - that flag is only applied when someone opens
+    // the Inventory page (enforceExpiryStatus), so relying on it alone left
+    // near-expiry batches buyable online and at the POS until then.
     const stockByProduct = {};
     batchSnapshot.docs.forEach((doc) => {
       const batch = doc.data();
+      if (!isRetailSellableBatch(batch)) return;
       stockByProduct[batch.productId] = (stockByProduct[batch.productId] || 0) + (batch.quantity || 0);
     });
 
@@ -440,6 +470,51 @@ async function loadCatalogCache() {
   })();
 
   return catalogLoadPromise;
+}
+
+// ---- Storefront category links ----
+// Built from the categories collection, so a category staff add or rename
+// in Manage Categories shows up in the shop header (and on the home page)
+// without editing every page's HTML.
+function escapeHtml(text) {
+  return String(text == null ? "" : text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+function renderStorefrontCategoryNav() {
+  const nav = document.querySelector(".category-nav .nav");
+  if (!nav) return;
+  const links = Object.entries(CATEGORY_LABELS)
+    .map(([id, name]) => `<li class="nav-item"><a class="nav-link" href="products.html?category=${encodeURIComponent(id)}">${escapeHtml(name)}</a></li>`)
+    .join("");
+  nav.innerHTML = `<li class="nav-item"><a class="nav-link" href="products.html">All Products</a></li>${links}`;
+}
+
+function renderHomeCategoryCards() {
+  const row = document.getElementById("homeCategoryCards");
+  if (!row) return;
+  row.innerHTML = Object.entries(CATEGORY_LABELS)
+    .map(([id, name]) => {
+      const count = storefrontCatalog().filter((p) => p.category === id).length;
+      return `
+        <div class="col">
+          <a href="products.html?category=${encodeURIComponent(id)}" class="category-card">
+            <span class="category-icon"><i class="bi bi-star-fill"></i></span>
+            <h3>${escapeHtml(name)}</h3>
+            <p>${count} product${count === 1 ? "" : "s"}</p>
+          </a>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+if (document.querySelector(".category-nav") || document.getElementById("homeCategoryCards")) {
+  loadCatalogCache()
+    .then(() => {
+      renderStorefrontCategoryNav();
+      renderHomeCategoryCards();
+    })
+    .catch((error) => console.error("Failed to load categories:", error));
 }
 
 // A product only appears in the storefront once staff have marked it
@@ -472,7 +547,17 @@ function getProductById(id) {
 // (admin-pos.js) and when staff reopen a past sale from the Walk-in
 // Orders tab (admin-online-orders.js). Both pages include the same
 // #posReceiptModal markup so this one renderer works for either. ----
-const SALE_RECEIPT_PAYMENT_METHOD_LABELS = { cash: "Cash", card: "Card", ewallet: "E-Wallet" };
+// "card" and "ewallet" are the older POS values, kept so past sales still
+// display correctly.
+const SALE_RECEIPT_PAYMENT_METHOD_LABELS = {
+  cash: "Cash",
+  gcash: "G-Cash / QR Ph",
+  bank_transfer: "Bank Transfer",
+  terminal: "Terminal (Card)",
+  credit: "Credit",
+  card: "Card",
+  ewallet: "E-Wallet",
+};
 const POS_BRANCH_NAME = "Amson Pharmaceuticals";
 
 function showSaleReceipt({
@@ -485,6 +570,8 @@ function showSaleReceipt({
   cashier,
   branch,
   completedAt,
+  invoiceNo = null,
+  customerName = "",
   title = "Sale Receipt",
   onConfirm = null,
   onEdit = null,
@@ -501,9 +588,11 @@ function showSaleReceipt({
     hour: "numeric",
     minute: "2-digit",
   });
-  // No payment gateway behind walk-in sales yet, so there's no real
-  // reference number to show here - placeholder until that's wired up.
-  document.getElementById("posReceiptRef").textContent = "-";
+  // The SI# is only assigned when the sale is actually confirmed, so the
+  // pre-confirm review can't show it yet.
+  document.getElementById("posReceiptRef").textContent = invoiceNo || (onConfirm ? "Assigned on confirm" : "-");
+  const customerEl = document.getElementById("posReceiptCustomer");
+  if (customerEl) customerEl.textContent = customerName || "Walk-in";
   document.getElementById("posReceiptCashier").textContent = cashier;
 
   document.getElementById("posReceiptItemsBody").innerHTML = items
@@ -522,7 +611,8 @@ function showSaleReceipt({
   document.getElementById("posReceiptGrandTotal").textContent = formatPeso(total);
   document.getElementById("posReceiptPaymentMode").textContent =
     SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod;
-  document.getElementById("posReceiptAmountPaid").textContent = formatPeso(amountPaid);
+  document.getElementById("posReceiptAmountPaid").textContent =
+    paymentMethod === "credit" ? "Charged on credit" : formatPeso(amountPaid);
 
   const changeRow = document.getElementById("posReceiptChangeRow");
   if (isCash) {
@@ -603,8 +693,21 @@ async function deductStockFEFO(productId, qty, opts = {}) {
 // writing any of them, so a shortfall on one item aborts the whole thing
 // with nothing changed, exactly like deductStockFEFO does for a single
 // product.
-async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false } = {}) {
+//
+// Returns { allocations, invoiceNo }. allocations lists, per input item
+// (same order), the batches it was actually taken from - [{ batchId,
+// batchNo, expirationDate, qty }] - so every sale can record batch numbers
+// and expiry dates for the daily reports.
+//
+// Pass `record` to write the sale itself in the same transaction:
+// { ref, mode: "set" | "update", build(allocations, invoiceNo) => data,
+//   alsoWrite?(transaction, invoiceNo) }.
+// A record also gets the next Sales Invoice number (SI#), allocated inside
+// the same transaction so a failed sale never burns a number and two sales
+// can never share one.
+async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, record = null } = {}) {
   const allowedStatuses = includeWholesaleOnly ? ["active", "wholesale_only"] : ["active"];
+  const isSellable = includeWholesaleOnly ? isWholesaleSellableBatch : isRetailSellableBatch;
 
   const itemsWithCandidates = await Promise.all(
     items.map(async (item) => {
@@ -623,7 +726,7 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false } =
     })
   );
 
-  await db.runTransaction(async (transaction) => {
+  return db.runTransaction(async (transaction) => {
     // Read and validate every item first - nothing is written until all
     // of them are confirmed available, so a shortfall on any one item
     // leaves every item untouched.
@@ -632,8 +735,9 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false } =
       const batches = [];
       for (const ref of item.refsInFefoOrder) {
         const doc = await transaction.get(ref);
-        if (doc.exists && doc.data().quantity > 0) {
-          batches.push({ ref, quantity: doc.data().quantity });
+        if (doc.exists && isSellable(doc.data())) {
+          const data = doc.data();
+          batches.push({ ref, quantity: data.quantity, batchNo: data.batchNo || "", expirationDate: data.expirationDate || "" });
         }
       }
 
@@ -645,8 +749,19 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false } =
       perItemBatches.push({ qty: item.qty, batches });
     }
 
+    // Firestore transactions need every read before any write.
+    let invoiceNo = null;
+    if (record) {
+      const counterDoc = await transaction.get(SALES_INVOICE_COUNTER_REF());
+      const next = (counterDoc.exists ? counterDoc.data().count || 0 : 0) + 1;
+      transaction.set(SALES_INVOICE_COUNTER_REF(), { count: next }, { merge: true });
+      invoiceNo = formatInvoiceNo(next);
+    }
+
+    const allocations = [];
     for (const item of perItemBatches) {
       let remaining = item.qty;
+      const used = [];
       for (const batch of item.batches) {
         if (remaining <= 0) break;
         const deduct = Math.min(batch.quantity, remaining);
@@ -654,10 +769,44 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false } =
           quantity: batch.quantity - deduct,
           lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
+        used.push({ batchId: batch.ref.id, batchNo: batch.batchNo, expirationDate: batch.expirationDate, qty: deduct });
         remaining -= deduct;
       }
+      allocations.push(used);
     }
+
+    if (record) {
+      const data = record.build(allocations, invoiceNo);
+      if (record.mode === "update") transaction.update(record.ref, data);
+      else transaction.set(record.ref, data);
+      // Any other writes that must succeed or fail together with the sale
+      // (e.g. crediting an overpayment to the customer's balance).
+      if (record.alsoWrite) record.alsoWrite(transaction, invoiceNo);
+    }
+    return { allocations, invoiceNo };
   });
+}
+
+// ---- Sales Invoice numbers ----
+// One running number across walk-in, online and wholesale sales, matching
+// the branch's existing SI# sequence (e.g. 00008247). To continue from the
+// current paper booklet, set counters/salesInvoices.count to the last used
+// number once.
+function SALES_INVOICE_COUNTER_REF() {
+  return db.collection("counters").doc("salesInvoices");
+}
+
+function formatInvoiceNo(n) {
+  return String(n).padStart(8, "0");
+}
+
+// Flattens an allocation list into the line-level fields stored on a sale.
+function batchFieldsFromAllocation(used) {
+  return {
+    batches: used,
+    batchNo: used.map((b) => b.batchNo).filter(Boolean).join(", "),
+    expirationDate: used.length ? used[0].expirationDate : "",
+  };
 }
 
 // ---- Audit log helper ----

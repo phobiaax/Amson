@@ -57,6 +57,7 @@ const processOrderPoDocInput = document.getElementById("processOrderPoDocInput")
 const processOrderItemsContainer = document.getElementById("processOrderItemsContainer");
 const processOrderAddItemBtn = document.getElementById("processOrderAddItemBtn");
 const processOrderNotesInput = document.getElementById("processOrderNotesInput");
+const processOrderPaymentSelect = document.getElementById("processOrderPaymentSelect");
 const processOrderTotal = document.getElementById("processOrderTotal");
 const confirmProcessOrderBtn = document.getElementById("confirmProcessOrderBtn");
 
@@ -456,6 +457,7 @@ function openProcessOrderModal(account) {
   processOrderPoDocInput.value = "";
   selectedPoDocFile = null;
   processOrderNotesInput.value = "";
+  processOrderPaymentSelect.value = "cash";
 
   destroyChoicesIn(processOrderItemsContainer);
   processOrderItemsContainer.innerHTML = "";
@@ -491,8 +493,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
   processOrderAlert.classList.add("d-none");
 
   try {
-    await deductStockFEFOMultiple(items, { includeWholesaleOnly: true });
-
+    // Upload first: a failed upload shouldn't leave stock already deducted.
     let poDocumentUrl = null;
     if (selectedPoDocFile) poDocumentUrl = await uploadToCloudinary(selectedPoDocFile);
 
@@ -501,6 +502,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
       total += it.qty * it.unitPrice;
     }
     const account = allWholesaleAccounts.find((w) => w.id === processingAccountId);
+    const paymentMethod = processOrderPaymentSelect.value;
 
     const orderItems = items.map((it) => {
       const product = getProductById(it.productId);
@@ -513,24 +515,34 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
       };
     });
 
-    await db.collection("wholesaleOrders").add({
-      wholesaleAccountId: processingAccountId,
-      buyerName: account ? account.name : "",
-      items: orderItems,
-      total,
-      poRefNumber: processOrderPoRefInput.value.trim(),
-      poDocumentUrl,
-      notes: processOrderNotesInput.value.trim(),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    // Stock deduction, SI# and the order record in one transaction.
+    const { invoiceNo } = await deductStockFEFOMultiple(items, {
+      includeWholesaleOnly: true,
+      record: {
+        ref: db.collection("wholesaleOrders").doc(),
+        mode: "set",
+        build: (allocations, invoiceNo) => ({
+          invoiceNo,
+          wholesaleAccountId: processingAccountId,
+          buyerName: account ? account.name : "",
+          items: orderItems.map((item, idx) => ({ ...item, ...batchFieldsFromAllocation(allocations[idx]) })),
+          total,
+          paymentMethod,
+          poRefNumber: processOrderPoRefInput.value.trim(),
+          poDocumentUrl,
+          notes: processOrderNotesInput.value.trim(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        }),
+      },
     });
 
     await logAuditEvent({
       action: "Wholesale Order Recorded",
-      details: `${account ? account.name : ""} - ${orderItems.length} item(s), Total ${formatPeso(total)}`,
+      details: `SI ${invoiceNo} - ${account ? account.name : ""} - ${orderItems.length} item(s), Total ${formatPeso(total)}, ${SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod}`,
     });
 
     bootstrap.Modal.getInstance(processOrderModalEl).hide();
-    showAppAlert("Wholesale order recorded and stock deducted successfully.");
+    showAppAlert(`Wholesale order recorded (SI No. ${invoiceNo}) and stock deducted.`);
   } catch (error) {
     processOrderAlert.textContent = error.message || "Something went wrong recording this order. Please try again.";
     processOrderAlert.classList.remove("d-none");

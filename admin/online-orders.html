@@ -209,14 +209,16 @@
         <!-- ===== Walk-in Orders panel (read-only POS sales log) ===== -->
         <div id="walkinPanel" class="p-4 d-none">
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-            <input type="text" class="form-control form-control-sm" id="walkinSearchInput" placeholder="Search by cashier or product" style="width:240px;">
+            <input type="text" class="form-control form-control-sm" id="walkinSearchInput" placeholder="Search SI no., customer, cashier or product" style="width:280px;">
           </div>
 
           <div class="table-responsive">
             <table class="table admin-orders-table align-middle">
               <thead>
                 <tr>
+                  <th>SI No.</th>
                   <th>Date &amp; Time</th>
+                  <th>Customer</th>
                   <th>Items</th>
                   <th>Total</th>
                   <th>Payment Method</th>
@@ -382,8 +384,12 @@
           <span class="fw-medium" id="posReceiptTime">-</span>
         </div>
         <div class="d-flex justify-content-between mb-1">
-          <span class="text-muted">Reference No.</span>
+          <span class="text-muted">SI No.</span>
           <span class="fw-medium" id="posReceiptRef">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Customer</span>
+          <span class="fw-medium" id="posReceiptCustomer">Walk-in</span>
         </div>
         <div class="d-flex justify-content-between mb-3">
           <span class="text-muted">Cashier</span>
@@ -396,7 +402,7 @@
               <tr>
                 <th>Product</th>
                 <th class="text-end">Qty</th>
-                <th class="text-end">Cost</th>
+                <th class="text-end">Price</th>
                 <th class="text-end">Total</th>
               </tr>
             </thead>
@@ -420,6 +426,7 @@
           <span class="text-muted">Change</span>
           <span class="fw-medium" id="posReceiptChange">-</span>
         </div>
+        <p class="text-muted text-center mt-3 mb-0" style="font-size:0.75rem;">This is not an official receipt.</p>
       </div>
       <div class="modal-footer" id="posReceiptModalFooter">
         <button type="button" class="btn btn-amson w-100" data-bs-dismiss="modal">Close</button>

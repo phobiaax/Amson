@@ -16,18 +16,16 @@ const posCashInput = document.getElementById("posCashInput");
 const posChangeText = document.getElementById("posChangeText");
 const posAlert = document.getElementById("posAlert");
 const posCompleteSaleBtn = document.getElementById("posCompleteSaleBtn");
-const posPaymentMethodInputs = document.querySelectorAll('input[name="posPaymentMethod"]');
+const posPaymentMethodSelect = document.getElementById("posPaymentMethodSelect");
+const posCustomerNameInput = document.getElementById("posCustomerNameInput");
 
 function posPaymentMethod() {
-  const checked = document.querySelector('input[name="posPaymentMethod"]:checked');
-  return checked ? checked.value : "cash";
+  return posPaymentMethodSelect.value || "cash";
 }
 
-posPaymentMethodInputs.forEach((input) => {
-  input.addEventListener("change", () => {
-    posCashFields.classList.toggle("d-none", posPaymentMethod() !== "cash");
-    updatePosTotals();
-  });
+posPaymentMethodSelect.addEventListener("change", () => {
+  posCashFields.classList.toggle("d-none", posPaymentMethod() !== "cash");
+  updatePosTotals();
 });
 
 posQtyDecrementBtn.addEventListener("click", () => {
@@ -204,6 +202,9 @@ posCompleteSaleBtn.addEventListener("click", () => {
   }
 
   const items = posCart.map((item) => ({ productId: item.productId, name: item.name, price: item.price, qty: item.qty }));
+  // Walk-in buyers stay generic unless the cashier types a name (the
+  // branch's Customer File groups sales by name, e.g. regulars, EMPLOYEE).
+  const customerName = posCustomerNameInput.value.trim() || "Walk-in";
 
   // Nothing is committed yet - this is a preview. Stock only gets deducted
   // and the sale only gets written once the cashier hits Confirm below, so
@@ -218,30 +219,44 @@ posCompleteSaleBtn.addEventListener("click", () => {
     cashier: currentCashierName,
     branch: POS_BRANCH_NAME,
     completedAt: new Date(),
+    customerName,
     title: "Review Transaction",
     onConfirm: async () => {
       try {
-        await deductStockFEFOMultiple(items.map((item) => ({ productId: item.productId, qty: item.qty })));
-
-        await db.collection("posSales").add({
-          items,
-          total,
-          paymentMethod,
-          cashReceived: isCash ? cash : total,
-          change: isCash ? cash - total : 0,
-          cashier: currentCashierName,
-          branch: POS_BRANCH_NAME,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
+        // Stock deduction, the SI# and the sale record are one transaction:
+        // a sale can't be saved without its stock leaving, or vice versa.
+        const saleRef = db.collection("posSales").doc();
+        const { invoiceNo } = await deductStockFEFOMultiple(
+          items.map((item) => ({ productId: item.productId, qty: item.qty })),
+          {
+            record: {
+              ref: saleRef,
+              mode: "set",
+              build: (allocations, invoiceNo) => ({
+                invoiceNo,
+                customerName,
+                items: items.map((item, idx) => ({ ...item, ...batchFieldsFromAllocation(allocations[idx]) })),
+                total,
+                paymentMethod,
+                cashReceived: isCash ? cash : paymentMethod === "credit" ? 0 : total,
+                change: isCash ? cash - total : 0,
+                cashier: currentCashierName,
+                branch: POS_BRANCH_NAME,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              }),
+            },
+          }
+        );
 
         posCart = [];
         posCashInput.value = "";
+        posCustomerNameInput.value = "";
         renderPosCart();
         catalogLoadPromise = null;
         await loadCatalogCache();
         populatePosProductSelect();
 
-        await showAppAlert("The sale has been completed successfully.", { title: "Sale Complete" });
+        await showAppAlert(`Sale completed. SI No. ${invoiceNo}.`, { title: "Sale Complete" });
       } catch (error) {
         posAlert.textContent = error.message || "Something went wrong completing this sale. Please try again.";
         posAlert.classList.remove("d-none");

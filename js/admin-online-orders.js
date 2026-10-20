@@ -173,7 +173,6 @@ tabWalkinBtn.addEventListener("click", () => setActiveTab("walkin"));
 const walkinSearchInput = document.getElementById("walkinSearchInput");
 const walkinTableBody = document.getElementById("walkinTableBody");
 const walkinTableEmpty = document.getElementById("walkinTableEmpty");
-const PAYMENT_METHOD_LABELS_ORDERS = { cash: "Cash", card: "Card", ewallet: "E-Wallet" };
 
 function renderWalkinTable() {
   let sales = [...allPosSales];
@@ -183,6 +182,8 @@ function renderWalkinTable() {
     sales = sales.filter(
       (sale) =>
         (sale.cashier || "").toLowerCase().includes(term) ||
+        (sale.invoiceNo || "").includes(term) ||
+        (sale.customerName || "").toLowerCase().includes(term) ||
         (sale.items || []).some((item) => (item.name || "").toLowerCase().includes(term))
     );
   }
@@ -205,10 +206,12 @@ function renderWalkinTable() {
       const itemsSummary = (sale.items || []).map((item) => `${item.name} (x${item.qty})`).join(", ");
       return `
         <tr class="walkin-sale-row" data-id="${sale.id}">
+          <td class="fw-medium">${sale.invoiceNo || "-"}</td>
           <td>${formatOrderDateTime(sale.createdAt)}</td>
+          <td>${sale.customerName || "Walk-in"}</td>
           <td>${itemsSummary}</td>
           <td>${formatPeso(sale.total)}</td>
-          <td>${PAYMENT_METHOD_LABELS_ORDERS[sale.paymentMethod] || sale.paymentMethod || "-"}</td>
+          <td>${SALE_RECEIPT_PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod || "-"}</td>
           <td>${sale.cashier || "-"}</td>
           <td><button type="button" class="btn btn-outline-dark-amson btn-sm walkin-view-btn" data-id="${sale.id}">View</button></td>
         </tr>
@@ -238,6 +241,8 @@ function openWalkinSaleReceipt(saleId) {
     cashier: sale.cashier || "-",
     branch: sale.branch || POS_BRANCH_NAME,
     completedAt: sale.createdAt && sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(),
+    invoiceNo: sale.invoiceNo || null,
+    customerName: sale.customerName || "Walk-in",
     title: "Sale Receipt",
   });
 }
@@ -389,6 +394,29 @@ function renderReviewPanel(order) {
   }
 }
 
+// Deducts an online order's stock (FEFO), assigns its SI#, records which
+// batch each item came from, and applies buildUpdate's status change - all
+// in one transaction.
+async function confirmOrderSale(order, buildUpdate, alsoWrite = null) {
+  const lineItems = order.items || [];
+  let itemsWithBatches = lineItems;
+  const { invoiceNo } = await deductStockFEFOMultiple(
+    lineItems.map((item) => ({ productId: item.id, qty: item.qty })),
+    {
+      record: {
+        ref: db.collection("orders").doc(order.id),
+        mode: "update",
+        build: (allocations, invoiceNo) => {
+          itemsWithBatches = lineItems.map((item, idx) => ({ ...item, ...batchFieldsFromAllocation(allocations[idx]) }));
+          return buildUpdate(allocations, invoiceNo, itemsWithBatches);
+        },
+        alsoWrite,
+      },
+    }
+  );
+  return { invoiceNo, itemsWithBatches };
+}
+
 approvePaymentBtn.addEventListener("click", async () => {
   if (!selectedVerificationId) return;
 
@@ -399,27 +427,25 @@ approvePaymentBtn.addEventListener("click", async () => {
   reviewAlert.classList.add("d-none");
 
   try {
-    await deductStockFEFOMultiple((order.items || []).map((item) => ({ productId: item.id, qty: item.qty })));
-
-    if (order.requiresPrescription) {
-      // Pick-up orders have no courier leg - go straight to "ready for pick-up".
-      await db.collection("orders").doc(orderId).update({
-        status: "delivered",
-        "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
-        "statusTimestamps.delivered": firebase.firestore.FieldValue.serverTimestamp(),
-        paymentIssue: firebase.firestore.FieldValue.delete(),
-      });
-      order.status = "delivered";
-      delete order.paymentIssue;
-    } else {
-      await db.collection("orders").doc(orderId).update({
-        status: "payment_confirmed",
+    // Pick-up (prescription) orders have no courier leg - go straight to
+    // "ready for pick-up". The stock deduction, SI# and status change are
+    // one transaction.
+    const newStatus = order.requiresPrescription ? "delivered" : "payment_confirmed";
+    const { invoiceNo, itemsWithBatches } = await confirmOrderSale(order, (allocations, invoiceNo, itemsWithBatches) => {
+      const update = {
+        status: newStatus,
+        invoiceNo,
+        items: itemsWithBatches,
         "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
         paymentIssue: firebase.firestore.FieldValue.delete(),
-      });
-      order.status = "payment_confirmed";
-      delete order.paymentIssue;
-    }
+      };
+      if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
+      return update;
+    });
+    order.status = newStatus;
+    order.invoiceNo = invoiceNo;
+    order.items = itemsWithBatches;
+    delete order.paymentIssue;
 
     notifyCustomer(
       order.customerId,
@@ -636,29 +662,43 @@ issueConfirmBtn.addEventListener("click", async () => {
       bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
     } else {
       const received = parseFloat(issueAmountReceivedInput.value) || order.total;
-
-      await deductStockFEFOMultiple((order.items || []).map((item) => ({ productId: item.id, qty: item.qty })));
-
       const excessAmount = Math.max(0, received - order.total);
-      const update = {
-        status: order.requiresPrescription ? "delivered" : "payment_confirmed",
-        "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
-        paymentOverage: {
-          amountReceived: received,
-          excessAmount,
-          note,
-        },
-      };
-      if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
+      const newStatus = order.requiresPrescription ? "delivered" : "payment_confirmed";
+      const paymentOverage = { amountReceived: received, excessAmount, note };
 
-      const batch = db.batch();
-      batch.update(db.collection("orders").doc(orderId), update);
-      if (excessAmount > 0 && order.customerId) {
-        batch.update(db.collection("users").doc(order.customerId), {
-          creditBalance: firebase.firestore.FieldValue.increment(excessAmount),
-        });
-      }
-      await batch.commit();
+      // Clearing paymentIssue matters here too: an order the customer
+      // resubmitted still carries its old hold record, and leaving it behind
+      // kept the approved order stuck "On Hold" in the Online Orders table.
+      const { invoiceNo, itemsWithBatches } = await confirmOrderSale(
+        order,
+        (allocations, invoiceNo, itemsWithBatches) => {
+          const update = {
+            status: newStatus,
+            invoiceNo,
+            items: itemsWithBatches,
+            "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
+            paymentOverage,
+            paymentIssue: firebase.firestore.FieldValue.delete(),
+          };
+          if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
+          return update;
+        },
+        (transaction) => {
+          if (excessAmount > 0 && order.customerId) {
+            transaction.update(db.collection("users").doc(order.customerId), {
+              creditBalance: firebase.firestore.FieldValue.increment(excessAmount),
+            });
+          }
+        }
+      );
+
+      notifyCustomer(
+        order.customerId,
+        `Payment confirmed for order ${order.orderNumber}`,
+        "We've verified your payment. Your order is now being prepared.",
+        `order-details.html?id=${orderId}`,
+        "success"
+      );
 
       if (excessAmount > 0 && order.customerId) {
         notifyCustomer(
@@ -670,8 +710,11 @@ issueConfirmBtn.addEventListener("click", async () => {
         );
       }
 
-      order.status = update.status;
-      order.paymentOverage = update.paymentOverage;
+      order.status = newStatus;
+      order.paymentOverage = paymentOverage;
+      order.invoiceNo = invoiceNo;
+      order.items = itemsWithBatches;
+      delete order.paymentIssue;
       selectedVerificationId = null;
 
       renderVerificationQueue();

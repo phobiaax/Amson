@@ -260,11 +260,17 @@ function downloadOrderReceipt(order) {
   doc.setFontSize(10);
   doc.setFont(undefined, "normal");
   y += 6;
-  doc.text("Official Receipt", 14, y);
+  // Not a BIR-registered official receipt - the branch issues those by hand
+  // on request, so the system's own document must never claim to be one.
+  doc.text("Order Receipt", 14, y);
 
   y += 10;
   doc.setFontSize(11);
   doc.text(`Order Number: ${order.orderNumber}`, 14, y);
+  if (order.invoiceNo) {
+    y += 6;
+    doc.text(`SI No.: ${order.invoiceNo}`, 14, y);
+  }
   y += 6;
   doc.text(`Date: ${formatOrderDate(order.createdAt)}`, 14, y);
   y += 6;
@@ -320,7 +326,7 @@ function downloadOrderReceipt(order) {
   doc.setFontSize(9);
   doc.setFont(undefined, "normal");
   doc.setTextColor(120, 120, 120);
-  doc.text("This receipt was generated electronically and is valid without a signature.", 14, y);
+  doc.text("THIS IS NOT AN OFFICIAL RECEIPT. Generated electronically for your records.", 14, y);
 
   doc.save(`${order.orderNumber}-receipt.pdf`);
 }
