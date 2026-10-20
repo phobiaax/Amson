@@ -711,7 +711,7 @@ function renderCategoriesList() {
 }
 
 async function renameCategory(id) {
-  const newName = prompt("Rename category to:", CATEGORY_LABELS[id]);
+  const newName = await showAppPrompt("Rename category to:", { title: "Rename Category", defaultValue: CATEGORY_LABELS[id] });
   if (!newName || !newName.trim()) return;
   await db.collection("categories").doc(id).update({ name: newName.trim() });
   CATEGORY_LABELS[id] = newName.trim();
@@ -720,19 +720,79 @@ async function renameCategory(id) {
   renderProductsTable();
 }
 
+// A category that still has products can be deleted by moving those
+// products into another category first, in the same step - that's how the
+// old default categories get replaced by the branch's own.
 async function deleteCategory(id) {
-  const inUse = allProducts.some((p) => p.category === id);
-  if (inUse) {
-    categoriesAlert.textContent = "This category is still used by at least one product. Reassign those products first.";
+  categoriesAlert.classList.add("d-none");
+  const productsInCategory = allProducts.filter((p) => p.category === id);
+  const others = Object.entries(CATEGORY_LABELS).filter(([otherId]) => otherId !== id);
+
+  let moveTo = null;
+  if (productsInCategory.length > 0) {
+    if (others.length === 0) {
+      categoriesAlert.textContent = "Add another category first, so this category's products have somewhere to go.";
+      categoriesAlert.classList.remove("d-none");
+      return;
+    }
+    moveTo = await showAppSelect(
+      `"${CATEGORY_LABELS[id]}" has ${productsInCategory.length} product${productsInCategory.length === 1 ? "" : "s"}. Move them to:`,
+      others.map(([otherId, name]) => ({ value: otherId, label: name })),
+      { title: "Delete Category", confirmLabel: "Move and Delete" }
+    );
+    if (!moveTo) return;
+  } else if (!(await showAppConfirm(`Delete the "${CATEGORY_LABELS[id]}" category?`, { confirmLabel: "Delete" }))) {
+    return;
+  }
+
+  try {
+    // Firestore batches cap at 500 writes.
+    for (let i = 0; i < productsInCategory.length; i += 400) {
+      const batch = db.batch();
+      productsInCategory.slice(i, i + 400).forEach((p) => batch.update(db.collection("products").doc(p.id), { category: moveTo }));
+      await batch.commit();
+    }
+    await db.collection("categories").doc(id).delete();
+    if (productsInCategory.length > 0) {
+      await logAuditEvent({
+        action: "Category Deleted",
+        details: `${CATEGORY_LABELS[id]} - ${productsInCategory.length} product(s) moved to ${CATEGORY_LABELS[moveTo]}`,
+      });
+    }
+    productsInCategory.forEach((p) => (p.category = moveTo));
+    delete CATEGORY_LABELS[id];
+    catalogLoadPromise = null;
+    renderCategoriesList();
+    renderCategorySelect();
+    renderProductsTable();
+  } catch (error) {
+    categoriesAlert.textContent = "Something went wrong deleting this category. Please try again.";
+    categoriesAlert.classList.remove("d-none");
+  }
+}
+
+document.getElementById("addBranchCategoriesBtn").addEventListener("click", async () => {
+  categoriesAlert.classList.add("d-none");
+  const existingNames = new Set(Object.values(CATEGORY_LABELS).map((n) => n.toLowerCase()));
+  const missing = Object.entries(DEFAULT_CATEGORIES).filter(([id, name]) => !CATEGORY_LABELS[id] && !existingNames.has(name.toLowerCase()));
+  if (missing.length === 0) {
+    categoriesAlert.textContent = "The branch's categories are already added.";
     categoriesAlert.classList.remove("d-none");
     return;
   }
-  if (!(await showAppConfirm(`Delete the "${CATEGORY_LABELS[id]}" category?`, { confirmLabel: "Delete" }))) return;
-  await db.collection("categories").doc(id).delete();
-  delete CATEGORY_LABELS[id];
-  renderCategoriesList();
-  renderCategorySelect();
-}
+  try {
+    const batch = db.batch();
+    missing.forEach(([id, name]) => batch.set(db.collection("categories").doc(id), { name }));
+    await batch.commit();
+    missing.forEach(([id, name]) => (CATEGORY_LABELS[id] = name));
+    catalogLoadPromise = null;
+    renderCategoriesList();
+    renderCategorySelect();
+  } catch (error) {
+    categoriesAlert.textContent = "Something went wrong adding the categories. Please try again.";
+    categoriesAlert.classList.remove("d-none");
+  }
+});
 
 addCategoryBtn.addEventListener("click", async () => {
   const name = newCategoryNameInput.value.trim();

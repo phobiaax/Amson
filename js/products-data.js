@@ -32,7 +32,8 @@ function ensureAppDialogModal() {
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content p-4">
           <h2 class="h5 fw-bold mb-2" id="appDialogTitle"></h2>
-          <p class="mb-4" id="appDialogMessage" style="white-space:pre-line;"></p>
+          <p class="mb-3" id="appDialogMessage" style="white-space:pre-line;"></p>
+          <div class="mb-4 d-none" id="appDialogField"></div>
           <div class="d-flex justify-content-end gap-2">
             <button type="button" class="btn btn-outline-dark-amson d-none" id="appDialogCancelBtn">Cancel</button>
             <button type="button" class="btn btn-amson" id="appDialogOkBtn">OK</button>
@@ -50,6 +51,7 @@ function showAppAlert(message, { title = "Notice" } = {}) {
   return new Promise((resolve) => {
     document.getElementById("appDialogTitle").textContent = title;
     document.getElementById("appDialogMessage").textContent = message;
+    setAppDialogField(null);
     const cancelBtn = document.getElementById("appDialogCancelBtn");
     const okBtn = document.getElementById("appDialogOkBtn");
     cancelBtn.classList.add("d-none");
@@ -70,13 +72,22 @@ function showAppAlert(message, { title = "Notice" } = {}) {
   });
 }
 
+// Optional input shown inside the shared dialog (for prompt/select);
+// null hides it.
+function setAppDialogField(html) {
+  const field = document.getElementById("appDialogField");
+  field.innerHTML = html || "";
+  field.classList.toggle("d-none", !html);
+}
+
 // Replaces window.confirm() - resolves true/false. Dismissing without
 // clicking Confirm (Esc, or clicking Cancel) resolves false.
-function showAppConfirm(message, { title = "Please Confirm", confirmLabel = "Confirm", cancelLabel = "Cancel" } = {}) {
+function showAppConfirm(message, { title = "Please Confirm", confirmLabel = "Confirm", cancelLabel = "Cancel", fieldHtml = null } = {}) {
   ensureAppDialogModal();
   return new Promise((resolve) => {
     document.getElementById("appDialogTitle").textContent = title;
     document.getElementById("appDialogMessage").textContent = message;
+    setAppDialogField(fieldHtml);
     const cancelBtn = document.getElementById("appDialogCancelBtn");
     const okBtn = document.getElementById("appDialogOkBtn");
     cancelBtn.classList.remove("d-none");
@@ -103,6 +114,27 @@ function showAppConfirm(message, { title = "Please Confirm", confirmLabel = "Con
     modalEl.addEventListener("hidden.bs.modal", onHidden);
     modal.show();
   });
+}
+
+// Replaces window.prompt() - resolves the entered text, or null if cancelled.
+async function showAppPrompt(message, { title = "Enter a value", defaultValue = "", confirmLabel = "Save" } = {}) {
+  const ok = await showAppConfirm(message, {
+    title,
+    confirmLabel,
+    fieldHtml: `<input type="text" class="form-control" id="appDialogInput" value="${escapeHtml(defaultValue)}">`,
+  });
+  return ok ? document.getElementById("appDialogInput").value : null;
+}
+
+// Pick one of several options - resolves the chosen value, or null.
+async function showAppSelect(message, options, { title = "Choose", confirmLabel = "Continue" } = {}) {
+  const optionsHtml = options.map((o) => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join("");
+  const ok = await showAppConfirm(message, {
+    title,
+    confirmLabel,
+    fieldHtml: `<select class="form-select" id="appDialogSelect">${optionsHtml}</select>`,
+  });
+  return ok ? document.getElementById("appDialogSelect").value : null;
 }
 
 let SAMPLE_PRODUCTS = [];
