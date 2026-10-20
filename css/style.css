@@ -1800,3 +1800,12 @@ a {
 .choices__list--single .choices__item {
   padding-right: 1.25rem;
 }
+
+/* ---------- Public legal page (legal.html) ---------- */
+.legal-page-body h6 {
+  font-weight: 700;
+  margin-top: 1.25rem;
+}
+.legal-page-body p {
+  line-height: 1.65;
+}
