@@ -121,9 +121,11 @@ const openReconciliationAlert = document.getElementById("openReconciliationAlert
 const confirmOpenSessionBtn = document.getElementById("confirmOpenSessionBtn");
 
 let currentAdminName = "Admin";
+let currentAdminRole = null;
 document.addEventListener("admin:ready", (e) => {
   const admin = e.detail && e.detail.admin;
   if (admin) currentAdminName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Admin";
+  if (admin) currentAdminRole = admin.role;
   loadInventory();
 });
 
@@ -838,6 +840,9 @@ function openQuickAddProductModal(targetSelect) {
   quickAddProductTargetSelect = targetSelect;
   quickProductNameInput.value = "";
   quickProductPriceInput.value = "";
+  const pricesAllowed = currentAdminRole === "admin" || currentAdminRole === "branch_manager";
+  quickProductPriceInput.disabled = !pricesAllowed;
+  quickProductPriceInput.placeholder = pricesAllowed ? "0.00" : "Set by the Branch Manager";
   quickAddProductAlert.classList.add("d-none");
   populateQuickProductCategorySelect();
   bootstrap.Modal.getInstance(receiveStockModalEl).hide();
@@ -895,7 +900,10 @@ quickAddSupplierSaveBtn.addEventListener("click", async () => {
 quickAddProductSaveBtn.addEventListener("click", async () => {
   const name = quickProductNameInput.value.trim();
   const category = quickProductCategorySelect.value;
-  const retailPrice = parseFloat(quickProductPriceInput.value);
+  // Only a Branch Manager sets prices (REQ071); anyone else's quick-add
+  // product is saved Inactive with prices pending.
+  const pricesAllowed = currentAdminRole === "admin" || currentAdminRole === "branch_manager";
+  const retailPrice = pricesAllowed ? parseFloat(quickProductPriceInput.value) : 0;
 
   if (!name || !category || isNaN(retailPrice)) {
     quickAddProductAlert.textContent = "Product name, category, and retail price are required.";
@@ -922,7 +930,8 @@ quickAddProductSaveBtn.addEventListener("click", async () => {
       availableInPOS: true,
       availableInOnlineStore: true,
       rxRequired: false,
-      status: "active",
+      status: pricesAllowed ? "active" : "inactive",
+      pricePending: !pricesAllowed,
       sku,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });

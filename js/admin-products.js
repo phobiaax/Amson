@@ -59,6 +59,13 @@ const addCategoryBtn = document.getElementById("addCategoryBtn");
 const categoriesAlert = document.getElementById("categoriesAlert");
 
 const priceRestrictedNote = document.getElementById("priceRestrictedNote");
+const priceRestrictedText = document.getElementById("priceRestrictedText");
+const priceLockToggleBtn = document.getElementById("priceLockToggleBtn");
+
+// Price lock state for the product open in the modal (REQ071-073 +
+// Modules "price locking"): only a Branch Manager sets prices; a locked
+// product's prices can't be edited until the Branch Manager unlocks them.
+let priceLockedInForm = false;
 
 let currentAdminRole = "admin";
 document.addEventListener("admin:ready", (e) => {
@@ -187,7 +194,11 @@ function renderProductRow(product) {
       <td>${CATEGORY_LABELS[product.category] || "-"}</td>
       <td class="product-price">${formatPeso(product.retailPrice)}</td>
       <td>${product.rxRequired ? '<span class="badge rounded-pill text-bg-danger">Yes</span>' : '<span class="badge rounded-pill text-bg-light text-dark">No</span>'}</td>
-      <td>${product.status === "active" ? '<span class="badge rounded-pill text-bg-success">Active</span>' : '<span class="badge rounded-pill text-bg-secondary">Inactive</span>'}</td>
+      <td>
+        ${product.status === "active" ? '<span class="badge rounded-pill text-bg-success">Active</span>' : '<span class="badge rounded-pill text-bg-secondary">Inactive</span>'}
+        ${product.pricePending ? '<span class="badge rounded-pill text-bg-warning ms-1">Price pending</span>' : ""}
+        ${product.priceLocked ? '<i class="bi bi-lock-fill text-muted ms-1" title="Prices locked"></i>' : ""}
+      </td>
       <td><button type="button" class="icon-btn view-product-btn" data-id="${product.id}" aria-label="View / edit"><i class="bi bi-eye"></i></button></td>
     </tr>
   `;
@@ -283,12 +294,37 @@ function resetProductForm() {
   productModalAlert.classList.add("d-none");
   batchUploadStatus.textContent = "";
 
-  const priceLocked = !!editingProductId && !canEditPrices();
-  productCostingInput.disabled = priceLocked;
-  productRetailPriceInput.disabled = priceLocked;
-  productWholesalePriceInput.disabled = priceLocked;
-  priceRestrictedNote.classList.toggle("d-none", !priceLocked);
+  priceLockedInForm = false;
+  applyPriceFieldState();
 }
+
+function applyPriceFieldState() {
+  const canEdit = canEditPrices();
+  const disabled = !canEdit || priceLockedInForm;
+  [productCostingInput, productRetailPriceInput, productWholesalePriceInput].forEach((input) => (input.disabled = disabled));
+
+  let note = "";
+  if (!canEdit) {
+    note = editingProductId
+      ? "Only a Branch Manager can change prices."
+      : "Only a Branch Manager can set prices. This product will be saved as Inactive until a Branch Manager adds its prices.";
+  } else if (priceLockedInForm) {
+    note = "Prices are locked. Unlock them to make a change.";
+  }
+  priceRestrictedText.textContent = note;
+  priceRestrictedNote.classList.toggle("d-none", !note);
+
+  // Only a Branch Manager editing an existing product gets the lock switch.
+  priceLockToggleBtn.classList.toggle("d-none", !(canEdit && editingProductId));
+  priceLockToggleBtn.innerHTML = priceLockedInForm
+    ? '<i class="bi bi-unlock me-1"></i>Unlock prices'
+    : '<i class="bi bi-lock me-1"></i>Lock prices';
+}
+
+priceLockToggleBtn.addEventListener("click", () => {
+  priceLockedInForm = !priceLockedInForm;
+  applyPriceFieldState();
+});
 
 addProductBtn.addEventListener("click", () => {
   editingProductId = null;
@@ -318,6 +354,8 @@ function openEditModal(product) {
   productAvailableOnline.checked = !!product.availableInOnlineStore;
   setToggleValue(productRxToggle, product.rxRequired ? "yes" : "no");
   setToggleValue(productStatusToggle, product.status || "active");
+  priceLockedInForm = !!product.priceLocked;
+  applyPriceFieldState();
 
   if (product.imageUrl) {
     existingImageUrl = product.imageUrl;
@@ -349,8 +387,10 @@ saveProductBtn.addEventListener("click", async () => {
   const category = productCategorySelect.value;
   const retailPrice = parseFloat(productRetailPriceInput.value);
 
-  if (!name || !category || isNaN(retailPrice)) {
-    productModalAlert.textContent = "Product name, category, and retail price are required.";
+  if (!name || !category || (canEditPrices() && isNaN(retailPrice))) {
+    productModalAlert.textContent = canEditPrices()
+      ? "Product name, category, and retail price are required."
+      : "Product name and category are required.";
     productModalAlert.classList.remove("d-none");
     return;
   }
@@ -381,6 +421,28 @@ saveProductBtn.addEventListener("click", async () => {
       status: getToggleValue(productStatusToggle),
     };
 
+    if (!canEditPrices()) {
+      if (editingProductId) {
+        // Keep whatever prices the Branch Manager set - never write them.
+        delete productData.costingPrice;
+        delete productData.retailPrice;
+        delete productData.wholesalePrice;
+        if (editingProductOriginal && editingProductOriginal.pricePending && productData.status === "active") {
+          productData.status = "inactive";
+          await showAppAlert("This product can't be made Active until a Branch Manager adds its prices. It was saved as Inactive.");
+        }
+      } else {
+        productData.costingPrice = 0;
+        productData.retailPrice = 0;
+        productData.wholesalePrice = 0;
+        productData.status = "inactive";
+        productData.pricePending = true;
+      }
+    } else {
+      productData.priceLocked = priceLockedInForm;
+      productData.pricePending = false;
+    }
+
     if (editingProductId) {
       const priceFields = [
         ["costingPrice", "Costing price"],
@@ -388,12 +450,24 @@ saveProductBtn.addEventListener("click", async () => {
         ["wholesalePrice", "Wholesale price"],
       ];
       const priceChanges = priceFields
-        .filter(([field]) => editingProductOriginal && editingProductOriginal[field] !== productData[field])
+        .filter(([field]) => editingProductOriginal && field in productData && editingProductOriginal[field] !== productData[field])
         .map(([field, label]) => `${label}: ${formatPeso(editingProductOriginal[field])} → ${formatPeso(productData[field])}`);
 
-      if (priceChanges.length > 0 && !(await showAppConfirm(`Confirm price change for ${productData.name}?\n\n${priceChanges.join("\n")}`))) {
-        saveProductBtn.disabled = false;
-        return;
+      let priceChangeReason = "";
+      if (priceChanges.length > 0) {
+        // The client asked for a reason with every price change (Interview 2).
+        priceChangeReason = (
+          (await showAppPrompt(`Price change for ${productData.name}:\n${priceChanges.join("\n")}\n\nReason for the change:`, {
+            title: "Confirm Price Change",
+            confirmLabel: "Confirm Change",
+          })) || ""
+        ).trim();
+        if (!priceChangeReason) {
+          productModalAlert.textContent = "A reason is required to change a price. Nothing was saved.";
+          productModalAlert.classList.remove("d-none");
+          saveProductBtn.disabled = false;
+          return;
+        }
       }
 
       await db.collection("products").doc(editingProductId).update(productData);
@@ -401,7 +475,7 @@ saveProductBtn.addEventListener("click", async () => {
       if (priceChanges.length > 0) {
         await logAuditEvent({
           action: "Price Change",
-          details: `${productData.name} (${editingProductOriginal.sku || ""}) - ${priceChanges.join("; ")}`,
+          details: `${productData.name} (${editingProductOriginal.sku || ""}) - ${priceChanges.join("; ")} - Reason: ${priceChangeReason}`,
         });
       }
     } else {
@@ -556,7 +630,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
     const get = (cls) => tr.querySelector(`.${cls}`);
     const name = get("br-name").value.trim();
     const retailPrice = get("br-retailprice").value;
-    if (!name || retailPrice === "") {
+    if (!name || (canEditPrices() && retailPrice === "")) {
       tr.classList.add("table-danger");
       hasInvalid = true;
     }
@@ -579,7 +653,9 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
   });
 
   if (hasInvalid) {
-    batchReviewAlert.textContent = "Every product needs a Name and a Retail Price - fix the highlighted rows, or remove them.";
+    batchReviewAlert.textContent = canEditPrices()
+      ? "Every product needs a Name and a Retail Price - fix the highlighted rows, or remove them."
+      : "Every product needs a Name - fix the highlighted rows, or remove them.";
     batchReviewAlert.classList.remove("d-none");
     return;
   }
@@ -595,21 +671,24 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
       const categoryId = await resolveCategoryByName(row.category);
       const sku = await generateProductSku();
       const imageUrl = row.imageFile ? await uploadToCloudinary(row.imageFile) : null;
+      // Same price rule as the form: only a Branch Manager's import sets prices.
+      const pricesAllowed = canEditPrices();
       await db.collection("products").add({
         sku,
         name: row.name,
         genericName: row.genericName,
         brand: row.brand,
         category: categoryId,
-        costingPrice: row.costingPrice,
-        retailPrice: row.retailPrice,
-        wholesalePrice: row.wholesalePrice,
+        costingPrice: pricesAllowed ? row.costingPrice : 0,
+        retailPrice: pricesAllowed ? row.retailPrice : 0,
+        wholesalePrice: pricesAllowed ? row.wholesalePrice : 0,
+        pricePending: !pricesAllowed,
         description: row.description,
         imageUrl,
         availableInPOS: row.availableInPOS,
         availableInOnlineStore: row.availableInOnlineStore,
         rxRequired: row.rxRequired,
-        status: row.status,
+        status: pricesAllowed ? row.status : "inactive",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
       imported += 1;

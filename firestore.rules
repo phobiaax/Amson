@@ -52,9 +52,40 @@ service cloud.firestore {
     }
 
     // ---- catalog ----
+    // Prices (and the price lock / pending flags) are Branch Manager-only
+    // (REQ071, REQ120). Other staff may create a product only without
+    // prices, saved Inactive with pricePending, and may edit products as
+    // long as no price field changes and a price-pending product isn't
+    // made Active.
+    function isPriceManager() {
+      return isSignedIn() && myRole() in ["admin", "branch_manager"];
+    }
+
+    function priceFieldsUnchanged() {
+      return request.resource.data.get("costingPrice", 0) == resource.data.get("costingPrice", 0) &&
+        request.resource.data.get("retailPrice", 0) == resource.data.get("retailPrice", 0) &&
+        request.resource.data.get("wholesalePrice", 0) == resource.data.get("wholesalePrice", 0) &&
+        request.resource.data.get("priceLocked", false) == resource.data.get("priceLocked", false) &&
+        request.resource.data.get("pricePending", false) == resource.data.get("pricePending", false);
+    }
+
     match /products/{productId} {
       allow read: if true;
-      allow write: if isStaff();
+
+      allow create: if isPriceManager();
+      allow create: if isStaff() &&
+        request.resource.data.get("costingPrice", 0) == 0 &&
+        request.resource.data.get("retailPrice", 0) == 0 &&
+        request.resource.data.get("wholesalePrice", 0) == 0 &&
+        request.resource.data.get("pricePending", false) == true &&
+        request.resource.data.get("status", "") == "inactive";
+
+      allow update: if isPriceManager();
+      allow update: if isStaff() && priceFieldsUnchanged() &&
+        !(request.resource.data.get("pricePending", false) == true &&
+          request.resource.data.get("status", "") == "active");
+
+      allow delete: if isStaff();
     }
 
     match /categories/{categoryId} {

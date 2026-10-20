@@ -395,6 +395,20 @@ async function computeStaffNotifications() {
     });
   });
 
+  // Products other staff added without prices stay Inactive until the
+  // Branch Manager prices them - make sure that's visible.
+  const pricePending = SAMPLE_PRODUCTS.filter((p) => p.pricePending);
+  if (pricePending.length > 0) {
+    notifications.push({
+      key: "price_pending",
+      signature: pricePending.map((p) => p.id).sort().join(","),
+      severity: "info",
+      icon: "bi-tag",
+      message: `${pricePending.length} product${pricePending.length === 1 ? " is" : "s are"} waiting for a Branch Manager to set prices.`,
+      link: "products.html",
+    });
+  }
+
   notifications.sort((a, b) => STAFF_NOTIF_SEVERITY_RANK[a.severity] - STAFF_NOTIF_SEVERITY_RANK[b.severity]);
   return notifications;
 }
