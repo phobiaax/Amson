@@ -228,6 +228,17 @@ function renderOrder(order) {
     overpaymentNotice.classList.add("d-none");
   }
 
+  // Staff paste the Lalamove share link when they mark the order
+  // Dispatched (validated as https://share.lalamove.com/... there). Only
+  // render it if it still matches that shape.
+  const trackingCard = document.getElementById("detailTrackingCard");
+  const showTracking =
+    !!order.trackingLink &&
+    /^https:\/\/share\.lalamove\.com\/\S+$/i.test(order.trackingLink) &&
+    ["dispatched", "delivered", "received"].includes(order.status);
+  trackingCard.classList.toggle("d-none", !showTracking);
+  if (showTracking) document.getElementById("detailTrackingLink").href = order.trackingLink;
+
   if (order.shipping) {
     document.getElementById("detailAddress").textContent =
       `${order.shipping.streetAddress}, ${order.shipping.city}, ${order.shipping.province} ${order.shipping.zipCode}`;

@@ -16,6 +16,24 @@ const categoryFilterList = document.getElementById("categoryFilterList");
 let categoryFilters = [];
 const sortBy = document.getElementById("sortBy");
 const applyFiltersBtn = document.getElementById("applyFiltersBtn");
+const priceMinInput = document.getElementById("priceMinInput");
+const priceMaxInput = document.getElementById("priceMaxInput");
+const stockFilterSelect = document.getElementById("stockFilterSelect");
+const productsHeading = document.getElementById("productsHeading");
+const searchSummary = document.getElementById("searchSummary");
+
+// Keyword from the header search box (?q=). Matches name, generic name,
+// brand and description, ignoring case and extra spaces.
+const searchTerm = (new URLSearchParams(window.location.search).get("q") || "").trim();
+
+function matchesSearch(product) {
+  if (!searchTerm) return true;
+  const haystack = [product.name, product.genericName, product.brand, product.description].join(" ").toLowerCase();
+  return searchTerm
+    .toLowerCase()
+    .split(/\s+/)
+    .every((word) => haystack.includes(word));
+}
 
 catAll.addEventListener("change", () => {
   if (catAll.checked) {
@@ -50,6 +68,16 @@ function applyFilters() {
     ? storefrontCatalog().filter((p) => selected.includes(p.category))
     : storefrontCatalog();
 
+  const minPrice = parseFloat(priceMinInput.value);
+  const maxPrice = parseFloat(priceMaxInput.value);
+  filtered = filtered.filter(
+    (p) =>
+      matchesSearch(p) &&
+      (isNaN(minPrice) || p.price >= minPrice) &&
+      (isNaN(maxPrice) || p.price <= maxPrice) &&
+      (stockFilterSelect.value === "all" || (stockFilterSelect.value === "in" ? p.inStock : !p.inStock))
+  );
+
   filtered.sort((a, b) => {
     // Out-of-stock items sink to the bottom no matter what sort is
     // chosen - they're still browsable, just not what anyone's shopping
@@ -83,7 +111,7 @@ function renderPage() {
 
   productsGrid.innerHTML = pageItems.length
     ? pageItems.map(renderProductCard).join("")
-    : '<p class="text-muted">No products match your filters.</p>';
+    : `<p class="text-muted">${searchTerm ? `No products found for "${escapeHtml(searchTerm)}".` : "No products match your filters."}</p>`;
 
   renderPagination(totalPages);
 
@@ -125,6 +153,12 @@ applyFiltersBtn.addEventListener("click", applyFilters);
   await loadCatalogCache();
   renderCategoryFilters();
   currentFiltered = storefrontCatalog();
+
+  if (searchTerm) {
+    productsHeading.textContent = "Search Results";
+    searchSummary.innerHTML = `Showing results for "<strong>${escapeHtml(searchTerm)}</strong>" &middot; <a href="products.html" class="link-red">Clear search</a>`;
+    searchSummary.classList.remove("d-none");
+  }
 
   // ---- Pre-select category from query param ----
   const initialCategory = new URLSearchParams(window.location.search).get("category");

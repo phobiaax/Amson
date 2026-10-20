@@ -504,6 +504,22 @@ async function loadCatalogCache() {
   return catalogLoadPromise;
 }
 
+// ---- Header search (every storefront page) ----
+// Sends the term to the catalog page, which does the actual matching.
+document.querySelectorAll(".site-header .search-input").forEach((input) => {
+  const go = () => {
+    const term = input.value.trim();
+    window.location.href = term ? `products.html?q=${encodeURIComponent(term)}` : "products.html";
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") go();
+  });
+  const btn = input.parentElement && input.parentElement.querySelector(".search-btn");
+  if (btn) btn.addEventListener("click", go);
+  const current = new URLSearchParams(window.location.search).get("q");
+  if (current) input.value = current;
+});
+
 // ---- Storefront category links ----
 // Built from the categories collection, so a category staff add or rename
 // in Manage Categories shows up in the shop header (and on the home page)
