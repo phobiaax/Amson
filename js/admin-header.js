@@ -32,7 +32,7 @@ auth.onAuthStateChanged(async (user) => {
 
     if (!roleCanAccessPage(admin.role, currentAdminPageName())) {
       await showAppAlert("You don't have access to that page.");
-      window.location.href = "dashboard.html";
+      window.location.href = homePageForRole(admin.role);
       return;
     }
 
@@ -52,7 +52,8 @@ auth.onAuthStateChanged(async (user) => {
     });
 
     document.dispatchEvent(new CustomEvent("admin:ready", { detail: { uid: user.uid, admin } }));
-    refreshAdminNotifBell(user.uid);
+    // Staff alerts (orders, stock, expiry) aren't part of Sales Staff's job.
+    if (roleCanAccessPage(admin.role, "notifications.html")) refreshAdminNotifBell(user.uid);
   } catch (error) {
     window.location.href = "../login.html";
   }

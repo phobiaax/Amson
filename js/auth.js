@@ -93,7 +93,7 @@ async function clearLoginAttempts(email) {
 
 function redirectByRole(userData) {
   if (STAFF_ROLES.includes(userData.role)) {
-    window.location.href = "admin/dashboard.html";
+    window.location.href = `admin/${homePageForRole(userData.role)}`;
     return;
   }
   if (!userData.emailVerified) {

@@ -132,7 +132,8 @@ async function loadDashboardStats() {
     const ordersSnapshot = await db.collection("orders").get();
     const posSalesSnapshot = await db.collection("posSales").get();
     const orders = ordersSnapshot.docs.map((doc) => doc.data());
-    const posSales = posSalesSnapshot.docs.map((doc) => doc.data());
+    // A voided walk-in sale was reversed - it isn't revenue.
+    const posSales = posSalesSnapshot.docs.map((doc) => doc.data()).filter((s) => !s.voided);
 
     const pendingVerification = orders.filter((o) => o.status === "placed").length;
     const activeOrders = orders.filter((o) => o.status !== "received").length;

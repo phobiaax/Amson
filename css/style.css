@@ -1809,3 +1809,35 @@ a {
 .legal-page-body p {
   line-height: 1.65;
 }
+
+/* ---------- Printing a sale receipt (58mm thermal paper) ---------- */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #posReceiptModal,
+  #posReceiptModal * {
+    visibility: visible !important;
+  }
+  #posReceiptModal {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    overflow: visible !important;
+  }
+  #posReceiptModal .modal-dialog {
+    margin: 0 !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
+    transform: none !important;
+  }
+  #posReceiptModal .modal-content {
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 9pt;
+  }
+  #posReceiptModal .modal-footer,
+  #posReceiptModal .btn-close,
+  .modal-backdrop {
+    display: none !important;
+  }
+}

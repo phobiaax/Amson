@@ -61,6 +61,11 @@ service cloud.firestore {
       return isSignedIn() && myRole() in ["admin", "branch_manager"];
     }
 
+    // Sales Staff only view the catalog (REQ121).
+    function isProductEditor() {
+      return isStaff() && myRole() != "sales_staff";
+    }
+
     function priceFieldsUnchanged() {
       return request.resource.data.get("costingPrice", 0) == resource.data.get("costingPrice", 0) &&
         request.resource.data.get("retailPrice", 0) == resource.data.get("retailPrice", 0) &&
@@ -73,7 +78,7 @@ service cloud.firestore {
       allow read: if true;
 
       allow create: if isPriceManager();
-      allow create: if isStaff() &&
+      allow create: if isProductEditor() &&
         request.resource.data.get("costingPrice", 0) == 0 &&
         request.resource.data.get("retailPrice", 0) == 0 &&
         request.resource.data.get("wholesalePrice", 0) == 0 &&
@@ -81,11 +86,11 @@ service cloud.firestore {
         request.resource.data.get("status", "") == "inactive";
 
       allow update: if isPriceManager();
-      allow update: if isStaff() && priceFieldsUnchanged() &&
+      allow update: if isProductEditor() && priceFieldsUnchanged() &&
         !(request.resource.data.get("pricePending", false) == true &&
           request.resource.data.get("status", "") == "active");
 
-      allow delete: if isStaff();
+      allow delete: if isProductEditor();
     }
 
     match /categories/{categoryId} {

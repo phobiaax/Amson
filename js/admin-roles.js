@@ -12,20 +12,33 @@ const STAFF_ROLE_LABELS = {
 };
 
 const ADMIN_PAGE_ACCESS = {
-  "dashboard.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
+  // Sales Staff: walk-in sales (POS, incl. today's sales) and catalog
+  // viewing only (REQ121; client: "POS lang").
+  "dashboard.html": ["admin", "branch_manager", "technical_staff"],
   "pos.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "products.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
-  "online-orders.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
+  "online-orders.html": ["admin", "branch_manager", "technical_staff"],
   "inventory.html": ["admin", "branch_manager", "technical_staff"],
   "suppliers.html": ["admin", "branch_manager", "technical_staff"],
   "customer-accounts.html": ["admin", "branch_manager", "technical_staff"],
   "wholesale-accounts.html": ["admin", "branch_manager", "technical_staff"],
   "audit-log.html": ["admin", "branch_manager", "technical_staff"],
-  "notifications.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
+  "notifications.html": ["admin", "branch_manager", "technical_staff"],
   "settings.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "staff-management.html": ["admin", "branch_manager"],
   "migrate-credit.html": ["admin", "branch_manager"],
 };
+
+// Where each role lands after login (and when sent away from a page it
+// can't open).
+function homePageForRole(role) {
+  return role === "sales_staff" ? "pos.html" : "dashboard.html";
+}
+
+// Product catalog is view-only for Sales Staff.
+function roleCanEditProducts(role) {
+  return role !== "sales_staff";
+}
 
 function currentAdminPageName() {
   return window.location.pathname.split("/").pop();

@@ -621,6 +621,8 @@ function showSaleReceipt({
   title = "Sale Receipt",
   onConfirm = null,
   onEdit = null,
+  onVoid = null,
+  voidInfo = null,
 }) {
   const titleEl = document.getElementById("posReceiptModalTitle");
   if (titleEl) titleEl.textContent = title;
@@ -687,20 +689,153 @@ function showSaleReceipt({
         const btn = ev.currentTarget;
         btn.disabled = true;
         try {
-          await onConfirm();
-          bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+          // onConfirm returns true when it has already replaced this
+          // preview with the finished receipt (which must stay open).
+          const keepOpen = await onConfirm();
+          if (!keepOpen) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
         } finally {
           btn.disabled = false;
         }
       });
     } else {
-      // View mode (Walk-in Orders, or after a sale's already been
-      // confirmed) - just a historical record, nothing left to decide.
-      footer.innerHTML = `<button type="button" class="btn btn-amson w-100" data-bs-dismiss="modal">Close</button>`;
+      // View mode (Walk-in Orders, Today's Sales, or right after a sale is
+      // confirmed): print it, and - for authorized roles - void it.
+      footer.innerHTML = `
+        ${onVoid ? `<button type="button" class="btn btn-outline-dark-amson" id="posReceiptVoidBtn" style="border-color:var(--amson-red); color:var(--amson-red);">Void Sale</button>` : ""}
+        <button type="button" class="btn btn-outline-dark-amson flex-fill" id="posReceiptPrintBtn"><i class="bi bi-printer me-1"></i>Print</button>
+        <button type="button" class="btn btn-amson flex-fill" data-bs-dismiss="modal">Close</button>
+      `;
+      document.getElementById("posReceiptPrintBtn").addEventListener("click", () => window.print());
+      if (onVoid) {
+        document.getElementById("posReceiptVoidBtn").addEventListener("click", () => {
+          bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+          onVoid();
+        });
+      }
     }
   }
 
+  // A voided sale still opens (it's a record), clearly marked.
+  let voidBanner = document.getElementById("posReceiptVoidBanner");
+  if (!voidBanner) {
+    voidBanner = document.createElement("div");
+    voidBanner.id = "posReceiptVoidBanner";
+    voidBanner.className = "alert alert-danger py-2 mb-3 d-none";
+    modalEl.querySelector(".modal-body").prepend(voidBanner);
+  }
+  voidBanner.classList.toggle("d-none", !voidInfo);
+  voidBanner.textContent = voidInfo ? `VOIDED - ${voidInfo}` : "";
+
   bootstrap.Modal.getOrCreateInstance(modalEl).show();
+}
+
+// ---- Walk-in sale void (REQ083, Fig 2.6/2.14) ----
+// Only roles with void authorization (Branch Manager, Technical Staff)
+// can void - never Sales Staff alone, per the client.
+function roleCanVoidSales(role) {
+  return ["admin", "branch_manager", "technical_staff"].includes(role);
+}
+
+// Asks for the reason (required) and, if the customer is exchanging,
+// what they're taking instead and the price difference. Resolves the
+// details or null if cancelled.
+async function promptVoidDetails(sale) {
+  const ok = await showAppConfirm(`Void SI No. ${sale.invoiceNo || "-"} (${formatPeso(sale.total)})? The items go back into stock.`, {
+    title: "Void Walk-in Sale",
+    confirmLabel: "Void Sale",
+    fieldHtml: `
+      <label class="form-label" for="voidReasonInput">Reason for void *</label>
+      <textarea class="form-control mb-3" id="voidReasonInput" rows="2" placeholder="e.g. Customer changed their mind"></textarea>
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="voidExchangeCheck">
+        <label class="form-check-label" for="voidExchangeCheck">Customer is exchanging for other items</label>
+      </div>
+      <input type="text" class="form-control mb-2" id="voidExchangeItemsInput" placeholder="Replacement item(s), e.g. Biogesic 500mg x10">
+      <input type="number" step="0.01" class="form-control" id="voidExchangeDiffInput" placeholder="Price difference paid by customer (₱)">
+      <p class="text-muted mt-2 mb-0" style="font-size:0.78rem;">Ring up the replacement as a new sale in the POS.</p>
+    `,
+  });
+  if (!ok) return null;
+  const reason = document.getElementById("voidReasonInput").value.trim();
+  if (!reason) {
+    await showAppAlert("A reason is required to void a sale. Nothing was changed.");
+    return null;
+  }
+  const exchanging = document.getElementById("voidExchangeCheck").checked;
+  const diff = parseFloat(document.getElementById("voidExchangeDiffInput").value);
+  return {
+    reason,
+    exchange: exchanging
+      ? {
+          replacementItems: document.getElementById("voidExchangeItemsInput").value.trim(),
+          priceDifference: isNaN(diff) ? 0 : diff,
+        }
+      : null,
+  };
+}
+
+// Restores every item to the exact batch it was taken from (recorded at
+// sale time) and marks the sale voided, in one transaction; then logs it.
+async function voidPosSale(sale, { reason, exchange }, voidedBy) {
+  const saleRef = db.collection("posSales").doc(sale.id);
+
+  // Sales made before batches were recorded: put the units back on the
+  // product's latest-expiring active batch.
+  const fallbackRefs = {};
+  for (const item of sale.items || []) {
+    if (item.batches && item.batches.length) continue;
+    const snap = await db.collection("stockBatches").where("productId", "==", item.productId).where("status", "==", "active").get();
+    const latest = snap.docs.sort((a, b) => new Date(b.data().expirationDate) - new Date(a.data().expirationDate))[0];
+    if (!latest) throw new Error(`No active batch of ${item.name} to return the stock to. Receive stock first, then void.`);
+    fallbackRefs[item.productId] = latest.ref;
+  }
+
+  await db.runTransaction(async (transaction) => {
+    const saleDoc = await transaction.get(saleRef);
+    if (!saleDoc.exists) throw new Error("This sale no longer exists.");
+    if (saleDoc.data().voided) throw new Error("This sale was already voided.");
+
+    // Total quantity to return per batch.
+    const returns = new Map();
+    for (const item of saleDoc.data().items || []) {
+      const parts = item.batches && item.batches.length ? item.batches.map((b) => [b.batchId, b.qty]) : [[fallbackRefs[item.productId].id, item.qty]];
+      parts.forEach(([batchId, qty]) => returns.set(batchId, (returns.get(batchId) || 0) + qty));
+    }
+
+    const batchDocs = [];
+    for (const batchId of returns.keys()) {
+      batchDocs.push(await transaction.get(db.collection("stockBatches").doc(batchId)));
+    }
+    batchDocs.forEach((doc) => {
+      if (!doc.exists) throw new Error("A batch from this sale no longer exists; the stock can't be returned automatically.");
+      transaction.update(doc.ref, {
+        quantity: (doc.data().quantity || 0) + returns.get(doc.id),
+        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    transaction.update(saleRef, {
+      voided: true,
+      voidReason: reason,
+      voidExchange: exchange,
+      voidedBy,
+      voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  });
+
+  await logAuditEvent({
+    action: "Walk-in Sale Voided",
+    details:
+      `SI ${sale.invoiceNo || sale.id} (${formatPeso(sale.total)}) - Reason: ${reason}` +
+      (exchange ? ` - Exchange: ${exchange.replacementItems || "unspecified"}, price difference ${formatPeso(exchange.priceDifference)}` : "") +
+      ` - Items returned to stock: ${(sale.items || []).map((i) => `${i.name} x${i.qty}`).join(", ")}`,
+  });
+}
+
+function voidSummary(sale) {
+  if (!sale.voided) return null;
+  const when = sale.voidedAt && sale.voidedAt.toDate ? sale.voidedAt.toDate().toLocaleString("en-PH") : "";
+  return `${sale.voidReason || ""}${sale.voidedBy ? ` (by ${sale.voidedBy}${when ? `, ${when}` : ""})` : ""}`;
 }
 
 function exportBlankPdf(filenamePrefix) {

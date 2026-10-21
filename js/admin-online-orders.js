@@ -212,7 +212,7 @@ function renderWalkinTable() {
           <td>${itemsSummary}</td>
           <td>${formatPeso(sale.total)}</td>
           <td>${SALE_RECEIPT_PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod || "-"}</td>
-          <td>${sale.cashier || "-"}</td>
+          <td>${sale.cashier || "-"}${sale.voided ? ' <span class="badge rounded-pill text-bg-danger ms-1">Voided</span>' : ""}</td>
           <td><button type="button" class="btn btn-outline-dark-amson btn-sm walkin-view-btn" data-id="${sale.id}">View</button></td>
         </tr>
       `;
@@ -226,6 +226,15 @@ function renderWalkinTable() {
     });
   });
 }
+
+let currentStaffRole = null;
+let currentStaffName = "Staff";
+document.addEventListener("admin:ready", (e) => {
+  const admin = e.detail && e.detail.admin;
+  if (!admin) return;
+  currentStaffRole = admin.role;
+  currentStaffName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
+});
 
 function openWalkinSaleReceipt(saleId) {
   const sale = allPosSales.find((s) => s.id === saleId);
@@ -244,6 +253,22 @@ function openWalkinSaleReceipt(saleId) {
     invoiceNo: sale.invoiceNo || null,
     customerName: sale.customerName || "Walk-in",
     title: "Sale Receipt",
+    voidInfo: voidSummary(sale),
+    onVoid:
+      !sale.voided && roleCanVoidSales(currentStaffRole)
+        ? async () => {
+            const details = await promptVoidDetails(sale);
+            if (!details) return;
+            try {
+              await voidPosSale(sale, details, currentStaffName);
+              Object.assign(sale, { voided: true, voidReason: details.reason, voidExchange: details.exchange, voidedBy: currentStaffName });
+              renderWalkinTable();
+              await showAppAlert(`SI No. ${sale.invoiceNo || "-"} was voided and its items returned to stock.`, { title: "Sale Voided" });
+            } catch (error) {
+              await showAppAlert(error.message || "Something went wrong voiding this sale. Please try again.");
+            }
+          }
+        : null,
   });
 }
 

@@ -70,6 +70,9 @@ let priceLockedInForm = false;
 let currentAdminRole = "admin";
 document.addEventListener("admin:ready", (e) => {
   currentAdminRole = (e.detail && e.detail.admin && e.detail.admin.role) || "admin";
+  if (!roleCanEditProducts(currentAdminRole)) {
+    [manageCategoriesBtn, addProductBtn, uploadBatchBtn, downloadTemplateBtn].forEach((btn) => btn.classList.add("d-none"));
+  }
 });
 document.addEventListener("admin:ready", loadProducts);
 
@@ -294,6 +297,10 @@ function resetProductForm() {
   productModalAlert.classList.add("d-none");
   batchUploadStatus.textContent = "";
 
+  productModalEl.querySelectorAll("input, textarea, select, .segmented-toggle-btn").forEach((el) => (el.disabled = false));
+  if (categorySelectChoices) categorySelectChoices.enable();
+  productImageDropzone.style.pointerEvents = "";
+  saveProductBtn.classList.remove("d-none");
   priceLockedInForm = false;
   applyPriceFieldState();
 }
@@ -368,6 +375,18 @@ function openEditModal(product) {
   productModalSubtitle.textContent = `SKU ${product.sku}`;
   saveProductBtn.textContent = "Save Changes";
   deleteProductBtn.style.display = "inline-block";
+
+  // Sales Staff can look up product details but not change them.
+  const readOnly = !roleCanEditProducts(currentAdminRole);
+  productModalEl.querySelectorAll("input, textarea, select, .segmented-toggle-btn").forEach((el) => (el.disabled = readOnly || el.disabled));
+  if (categorySelectChoices) readOnly ? categorySelectChoices.disable() : categorySelectChoices.enable();
+  productImageDropzone.style.pointerEvents = readOnly ? "none" : "";
+  saveProductBtn.classList.toggle("d-none", readOnly);
+  if (readOnly) {
+    deleteProductBtn.style.display = "none";
+    priceLockToggleBtn.classList.add("d-none");
+    productModalTitle.textContent = "Product Details";
+  }
   bootstrap.Modal.getOrCreateInstance(productModalEl).show();
 }
 
