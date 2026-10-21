@@ -103,6 +103,15 @@ async function verifyCode(enteredCode) {
     } catch (error) {
       console.warn("Couldn't save this device:", error);
     }
+    // Just registered: sign out and log in with the new account.
+    if (sessionStorage.getItem("amsonFromRegistration")) {
+      sessionStorage.removeItem("amsonFromRegistration");
+      sessionStorage.setItem("amsonLoginSuccess", "Your account is verified. Please log in to continue.");
+      sessionStorage.setItem("amsonLoginEmail", user.email || pendingEmail);
+      await auth.signOut();
+      window.location.href = "login.html";
+      return;
+    }
     window.location.href = "shop/index.html";
   } catch (error) {
     showAlert(error.message || "Something went wrong. Please try again.");
@@ -152,6 +161,7 @@ resendCodeLink.addEventListener("click", async (e) => {
 // ---- Wrong email: back to registration ----
 backToRegisterBtn.addEventListener("click", async () => {
   sessionStorage.removeItem("amsonPendingVerificationEmail");
+  sessionStorage.removeItem("amsonFromRegistration");
   try {
     await auth.signOut();
   } catch (error) {}

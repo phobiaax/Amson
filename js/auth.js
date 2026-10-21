@@ -23,6 +23,7 @@ togglePasswordBtn.addEventListener("click", () => {
 
 // ---- Helpers ----
 function showAlert(message) {
+  loginAlert.classList.replace("alert-success", "alert-danger");
   loginAlert.textContent = message;
   loginAlert.classList.remove("d-none");
 }
@@ -299,6 +300,18 @@ try {
   if (notice) {
     sessionStorage.removeItem("amsonLoginNotice");
     showAlert(notice);
+  }
+  // Just finished registering (verify-email.js).
+  const success = sessionStorage.getItem("amsonLoginSuccess");
+  if (success) {
+    sessionStorage.removeItem("amsonLoginSuccess");
+    showAlert(success);
+    loginAlert.classList.replace("alert-danger", "alert-success");
+  }
+  const registeredEmail = sessionStorage.getItem("amsonLoginEmail");
+  if (registeredEmail) {
+    sessionStorage.removeItem("amsonLoginEmail");
+    emailInput.value = registeredEmail;
   }
 } catch (error) {}
 

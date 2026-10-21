@@ -213,6 +213,8 @@ registerForm.addEventListener("submit", async (e) => {
 
     await sendOtpEmail(email, otpCode, firstNameInput.value.trim());
     sessionStorage.setItem("amsonPendingVerificationEmail", email);
+    // After the code, new accounts go to the login page (not straight in).
+    sessionStorage.setItem("amsonFromRegistration", "1");
     window.location.href = "verify-email.html";
   } catch (error) {
     showAlert(mapAuthError(error));
