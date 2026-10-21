@@ -267,7 +267,8 @@ async function chatAiReply(history, question) {
       <button type="button" data-q="How do I pay?">How do I pay?</button>
       <button type="button" data-q="How much is the delivery fee?">Delivery fee</button>
       <button type="button" data-q="How do prescription orders work?">Prescription orders</button>
-      <button type="button" data-q="I want to talk to staff">Talk to staff</button>
+      <button type="button" data-q="I want to talk to staff" id="chatTalkToStaffBtn">Talk to staff</button>
+      <button type="button" class="d-none" id="chatBackToAssistantBtn">Back to assistant</button>
     </div>
     <form class="chat-input-row" id="chatForm">
       <input type="text" class="form-control" id="chatInput" maxlength="${CHAT_MAX_LENGTH}" placeholder="Type your question..." autocomplete="off" aria-label="Message">
@@ -341,7 +342,12 @@ async function chatAiReply(history, question) {
     unsubscribeThread = threadRef.onSnapshot(
       (doc) => {
         thread = doc.exists ? doc.data() : null;
-        statusText.textContent = STATUS_TEXT[thread ? thread.status : "ai"] || "Assistant";
+        const status = thread ? thread.status : "ai";
+        statusText.textContent = STATUS_TEXT[status] || "Assistant";
+        // While waiting, the customer can change their mind and go back to
+        // the assistant. Once staff have replied, only staff hand it back.
+        panel.querySelector("#chatBackToAssistantBtn").classList.toggle("d-none", status !== "waiting_staff");
+        panel.querySelector("#chatTalkToStaffBtn").classList.toggle("d-none", status === "waiting_staff" || status === "staff");
       },
       (error) => console.warn("Chat thread listener:", error)
     );
@@ -523,5 +529,19 @@ async function chatAiReply(history, question) {
     e.preventDefault();
     send(input.value);
   });
-  panel.querySelectorAll("#chatQuick button").forEach((btn) => btn.addEventListener("click", () => send(btn.dataset.q)));
+  panel.querySelectorAll("#chatQuick button[data-q]").forEach((btn) => btn.addEventListener("click", () => send(btn.dataset.q)));
+  panel.querySelector("#chatBackToAssistantBtn").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    if (!thread || thread.status !== "waiting_staff") return;
+    btn.disabled = true;
+    try {
+      await threadRef.update({ status: "ai", unreadByStaff: false });
+      thread.status = "ai";
+      await addMessage("system", "You're back with the assistant. Tap \"Talk to staff\" anytime to reach our team.");
+    } catch (error) {
+      console.error("Chat: couldn't switch back to the assistant:", error);
+    } finally {
+      btn.disabled = false;
+    }
+  });
 })();
