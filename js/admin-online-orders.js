@@ -272,7 +272,7 @@ function renderWalkinTable() {
           <td>${itemsSummary}</td>
           <td>${formatPeso(sale.total)}</td>
           <td>${SALE_RECEIPT_PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod || "-"}</td>
-          <td>${sale.cashier || "-"}${sale.voided ? ' <span class="badge rounded-pill text-bg-danger ms-1">Voided</span>' : ""}</td>
+          <td>${sale.cashier || "-"}${sale.voided ? ' <span class="badge rounded-pill text-bg-danger ms-1">Voided</span>' : sale.partialVoids && sale.partialVoids.length ? ' <span class="badge rounded-pill text-bg-warning ms-1">Items Voided</span>' : ""}</td>
           <td><button type="button" class="btn btn-outline-dark-amson btn-sm walkin-view-btn" data-id="${sale.id}">View</button></td>
         </tr>
       `;
@@ -314,16 +314,24 @@ function openWalkinSaleReceipt(saleId) {
     customerName: sale.customerName || "Walk-in",
     title: "Sale Receipt",
     voidInfo: voidSummary(sale),
+    partialVoidInfo: partialVoidSummary(sale),
     onVoid:
       !sale.voided && roleCanVoidSales(currentStaffRole)
         ? async () => {
             const details = await promptVoidDetails(sale);
             if (!details) return;
             try {
-              await voidPosSale(sale, details, currentStaffName);
-              Object.assign(sale, { voided: true, voidReason: details.reason, voidExchange: details.exchange, voidedBy: currentStaffName });
+              const result = await voidPosSale(sale, details, currentStaffName);
+              // Re-read the sale so the table shows its new total/items.
+              const fresh = await db.collection("posSales").doc(sale.id).get();
+              if (fresh.exists) Object.assign(sale, fresh.data());
               renderWalkinTable();
-              await showAppAlert(`SI No. ${sale.invoiceNo || "-"} was voided and its items returned to stock.`, { title: "Sale Voided" });
+              await showAppAlert(
+                result.fullVoid
+                  ? `SI No. ${sale.invoiceNo || "-"} was voided and its items returned to stock.`
+                  : `${formatPeso(result.voidedAmount)} of SI No. ${sale.invoiceNo || "-"} was voided (${result.voidedLines.map((l) => `${l.name} x${l.qty}`).join(", ")}) and returned to stock.`,
+                { title: result.fullVoid ? "Sale Voided" : "Items Voided" }
+              );
             } catch (error) {
               await showAppAlert(error.message || "Something went wrong voiding this sale. Please try again.");
             }

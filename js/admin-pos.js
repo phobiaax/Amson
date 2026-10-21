@@ -352,7 +352,7 @@ function renderTodaySales() {
           <td>${formatPeso(sale.total)}</td>
           <td>${escapeHtml(SALE_RECEIPT_PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod || "-")}</td>
           <td>
-            ${sale.voided ? '<span class="badge rounded-pill text-bg-danger me-1">Voided</span>' : ""}
+            ${sale.voided ? '<span class="badge rounded-pill text-bg-danger me-1">Voided</span>' : sale.partialVoids && sale.partialVoids.length ? '<span class="badge rounded-pill text-bg-warning me-1">Items Voided</span>' : ""}
             <button type="button" class="btn btn-outline-dark-amson btn-sm pos-today-view-btn" data-id="${sale.id}">View</button>
           </td>
         </tr>
@@ -384,17 +384,23 @@ function openPosSaleReceipt(sale, afterVoid) {
     customerName: sale.customerName || "Walk-in",
     title: "Sale Receipt",
     voidInfo: voidSummary(sale),
+    partialVoidInfo: partialVoidSummary(sale),
     onVoid:
       !sale.voided && roleCanVoidSales(currentStaffRole)
         ? async () => {
             const details = await promptVoidDetails(sale);
             if (!details) return;
             try {
-              await voidPosSale(sale, details, currentCashierName);
+              const result = await voidPosSale(sale, details, currentCashierName);
               catalogLoadPromise = null;
               await loadCatalogCache();
               populatePosProductSelect();
-              await showAppAlert(`SI No. ${sale.invoiceNo || "-"} was voided and its items returned to stock.`, { title: "Sale Voided" });
+              await showAppAlert(
+                result.fullVoid
+                  ? `SI No. ${sale.invoiceNo || "-"} was voided and its items returned to stock.`
+                  : `${formatPeso(result.voidedAmount)} of SI No. ${sale.invoiceNo || "-"} was voided (${result.voidedLines.map((l) => `${l.name} x${l.qty}`).join(", ")}) and returned to stock.`,
+                { title: result.fullVoid ? "Sale Voided" : "Items Voided" }
+              );
               if (afterVoid) afterVoid();
             } catch (error) {
               await showAppAlert(error.message || "Something went wrong voiding this sale. Please try again.");

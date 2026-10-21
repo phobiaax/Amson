@@ -625,6 +625,7 @@ function showSaleReceipt({
   onEdit = null,
   onVoid = null,
   voidInfo = null,
+  partialVoidInfo = null,
 }) {
   const titleEl = document.getElementById("posReceiptModalTitle");
   if (titleEl) titleEl.textContent = title;
@@ -645,7 +646,7 @@ function showSaleReceipt({
     .map(
       (item) => `
         <tr>
-          <td>${item.name}</td>
+          <td>${item.name}${item.voidedQty ? `<div class="text-danger" style="font-size:0.75rem;">${item.voidedQty} voided</div>` : ""}</td>
           <td class="text-end">${item.qty}</td>
           <td class="text-end">${formatPeso(item.price)}</td>
           <td class="text-end">${formatPeso(item.price * item.qty)}</td>
@@ -699,7 +700,7 @@ function showSaleReceipt({
       // View mode (Walk-in Orders, Today's Sales, or right after a sale is
       // confirmed): print it, and - for authorized roles - void it.
       footer.innerHTML = `
-        ${onVoid ? `<button type="button" class="btn btn-outline-dark-amson" id="posReceiptVoidBtn" style="border-color:var(--amson-red); color:var(--amson-red);">Void Sale</button>` : ""}
+        ${onVoid ? `<button type="button" class="btn btn-outline-dark-amson" id="posReceiptVoidBtn" style="border-color:var(--amson-red); color:var(--amson-red);">Void</button>` : ""}
         <button type="button" class="btn btn-outline-dark-amson flex-fill" id="posReceiptPrintBtn"><i class="bi bi-printer me-1"></i>Print</button>
         <button type="button" class="btn btn-amson flex-fill" data-bs-dismiss="modal">Close</button>
       `;
@@ -721,8 +722,11 @@ function showSaleReceipt({
     voidBanner.className = "alert alert-danger py-2 mb-3 d-none";
     modalEl.querySelector(".modal-body").prepend(voidBanner);
   }
-  voidBanner.classList.toggle("d-none", !voidInfo);
-  voidBanner.textContent = voidInfo ? `VOIDED - ${voidInfo}` : "";
+  const bannerLines = [];
+  if (voidInfo) bannerLines.push(`VOIDED - ${voidInfo}`);
+  if (partialVoidInfo) bannerLines.push(`ITEMS VOIDED - ${partialVoidInfo}`);
+  voidBanner.classList.toggle("d-none", bannerLines.length === 0);
+  voidBanner.textContent = bannerLines.join(" | ");
 
   bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }
@@ -734,16 +738,33 @@ function roleCanVoidSales(role) {
   return ["admin", "branch_manager", "technical_staff"].includes(role);
 }
 
-// Asks for the reason (required) and, if the customer is exchanging,
-// what they're taking instead and the price difference. Resolves the
-// details or null if cancelled.
+// Asks which items (and how many of each) to void, the reason (required)
+// and, if the customer is exchanging, what they're taking instead and the
+// price difference. Resolves the details or null if cancelled. Leaving every
+// item at its full quantity voids the whole sale.
 async function promptVoidDetails(sale) {
-  const ok = await showAppConfirm(`Void SI No. ${sale.invoiceNo || "-"} (${formatPeso(sale.total)})? The items go back into stock.`, {
+  const items = sale.items || [];
+  const rows = items
+    .map((item, idx) =>
+      item.qty > 0
+        ? `
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <input class="form-check-input mt-0 void-line-check" type="checkbox" data-idx="${idx}" checked aria-label="Void ${escapeHtml(item.name)}">
+          <span class="flex-fill" style="font-size:0.88rem;">${escapeHtml(item.name)} <span class="text-muted">(${formatPeso(item.price)} each)</span></span>
+          <input type="number" class="form-control form-control-sm void-line-qty" data-idx="${idx}" min="1" max="${item.qty}" step="1" value="${item.qty}" style="width:80px;" aria-label="Quantity to void">
+          <span class="text-muted" style="font-size:0.8rem;">of ${item.qty}</span>
+        </div>`
+        : ""
+    )
+    .join("");
+  const ok = await showAppConfirm(`Void items from SI No. ${sale.invoiceNo || "-"} (${formatPeso(sale.total)})? Voided items go back into stock.`, {
     title: "Void Walk-in Sale",
-    confirmLabel: "Void Sale",
+    confirmLabel: "Void Selected",
     fieldHtml: `
-      <label class="form-label" for="voidReasonInput">Reason for void *</label>
-      <textarea class="form-control mb-3" id="voidReasonInput" rows="2" placeholder="e.g. Customer changed their mind"></textarea>
+      <p class="detail-label mb-2">Items to void (untick or lower the quantity to keep an item)</p>
+      ${rows}
+      <label class="form-label mt-2" for="voidReasonInput">Reason for void *</label>
+      <textarea class="form-control mb-3" id="voidReasonInput" rows="2" placeholder="e.g. Wrong item rung up"></textarea>
       <div class="form-check mb-2">
         <input class="form-check-input" type="checkbox" id="voidExchangeCheck">
         <label class="form-check-label" for="voidExchangeCheck">Customer is exchanging for other items</label>
@@ -754,6 +775,25 @@ async function promptVoidDetails(sale) {
     `,
   });
   if (!ok) return null;
+
+  const lines = [];
+  let invalidQty = false;
+  document.querySelectorAll(".void-line-check").forEach((check) => {
+    if (!check.checked) return;
+    const idx = Number(check.dataset.idx);
+    const qtyInput = document.querySelector(`.void-line-qty[data-idx="${idx}"]`);
+    const qty = parseInt(qtyInput.value, 10);
+    if (!qty || qty < 1 || qty > items[idx].qty) invalidQty = true;
+    else lines.push({ index: idx, qty });
+  });
+  if (invalidQty) {
+    await showAppAlert("Each quantity to void must be between 1 and the quantity sold. Nothing was changed.");
+    return null;
+  }
+  if (lines.length === 0) {
+    await showAppAlert("Select at least one item to void. Nothing was changed.");
+    return null;
+  }
   const reason = document.getElementById("voidReasonInput").value.trim();
   if (!reason) {
     await showAppAlert("A reason is required to void a sale. Nothing was changed.");
@@ -763,6 +803,7 @@ async function promptVoidDetails(sale) {
   const diff = parseFloat(document.getElementById("voidExchangeDiffInput").value);
   return {
     reason,
+    lines,
     exchange: exchanging
       ? {
           replacementItems: document.getElementById("voidExchangeItemsInput").value.trim(),
@@ -772,33 +813,68 @@ async function promptVoidDetails(sale) {
   };
 }
 
-// Restores every item to the exact batch it was taken from (recorded at
-// sale time) and marks the sale voided, in one transaction; then logs it.
-async function voidPosSale(sale, { reason, exchange }, voidedBy) {
+// Voids the given lines ([{ index, qty }], or every remaining unit when
+// omitted), all in one transaction. Units go back to the exact batches
+// they were taken from, latest-expiring first. Voiding everything left
+// marks the whole sale voided; anything less is a partial void: the item
+// quantities and the sale total drop by what was voided (so every report
+// counts only what was really sold) and the void is kept in partialVoids.
+async function voidPosSale(sale, { reason, exchange, lines = null }, voidedBy) {
   const saleRef = db.collection("posSales").doc(sale.id);
+  const requested = lines || (sale.items || []).map((item, index) => ({ index, qty: item.qty }));
 
   // Sales made before batches were recorded: put the units back on the
   // product's latest-expiring active batch.
   const fallbackRefs = {};
-  for (const item of sale.items || []) {
-    if (item.batches && item.batches.length) continue;
+  for (const { index } of requested) {
+    const item = (sale.items || [])[index];
+    if (!item || (item.batches && item.batches.length) || fallbackRefs[item.productId]) continue;
     const snap = await db.collection("stockBatches").where("productId", "==", item.productId).where("status", "==", "active").get();
     const latest = snap.docs.sort((a, b) => new Date(b.data().expirationDate) - new Date(a.data().expirationDate))[0];
     if (!latest) throw new Error(`No active batch of ${item.name} to return the stock to. Receive stock first, then void.`);
     fallbackRefs[item.productId] = latest.ref;
   }
 
+  let voidedLines = [];
+  let fullVoid = false;
+  let voidedAmount = 0;
+
   await db.runTransaction(async (transaction) => {
     const saleDoc = await transaction.get(saleRef);
     if (!saleDoc.exists) throw new Error("This sale no longer exists.");
-    if (saleDoc.data().voided) throw new Error("This sale was already voided.");
+    const data = saleDoc.data();
+    if (data.voided) throw new Error("This sale was already voided.");
 
-    // Total quantity to return per batch.
-    const returns = new Map();
-    for (const item of saleDoc.data().items || []) {
-      const parts = item.batches && item.batches.length ? item.batches.map((b) => [b.batchId, b.qty]) : [[fallbackRefs[item.productId].id, item.qty]];
-      parts.forEach(([batchId, qty]) => returns.set(batchId, (returns.get(batchId) || 0) + qty));
+    const items = JSON.parse(JSON.stringify(data.items || []));
+    const returns = new Map(); // batchId -> units to put back
+    voidedLines = [];
+    voidedAmount = 0;
+    for (const { index, qty } of requested) {
+      const item = items[index];
+      if (!item) throw new Error("An item in this void is no longer on the sale. Reopen the sale and try again.");
+      if (qty > item.qty) throw new Error(`Only ${item.qty} of ${item.name} is left on this sale to void.`);
+      if (qty <= 0) continue;
+      let need = qty;
+      if (item.batches && item.batches.length) {
+        for (let i = item.batches.length - 1; i >= 0 && need > 0; i--) {
+          const take = Math.min(item.batches[i].qty, need);
+          if (take <= 0) continue;
+          returns.set(item.batches[i].batchId, (returns.get(item.batches[i].batchId) || 0) + take);
+          item.batches[i].qty -= take;
+          need -= take;
+        }
+        if (need > 0) throw new Error(`The batch record for ${item.name} doesn't cover this quantity; void the whole sale instead.`);
+      } else {
+        const fallback = fallbackRefs[item.productId];
+        returns.set(fallback.id, (returns.get(fallback.id) || 0) + qty);
+      }
+      item.qty -= qty;
+      item.voidedQty = (item.voidedQty || 0) + qty;
+      voidedAmount += qty * (item.price || 0);
+      voidedLines.push({ name: item.name, qty, amount: qty * (item.price || 0) });
     }
+    if (voidedLines.length === 0) throw new Error("Nothing was selected to void.");
+    fullVoid = items.every((item) => item.qty === 0);
 
     const batchDocs = [];
     for (const batchId of returns.keys()) {
@@ -812,22 +888,49 @@ async function voidPosSale(sale, { reason, exchange }, voidedBy) {
       });
     });
 
-    transaction.update(saleRef, {
-      voided: true,
-      voidReason: reason,
-      voidExchange: exchange,
-      voidedBy,
-      voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
+    if (fullVoid) {
+      // The record keeps the quantities as sold; voided: true takes the
+      // whole sale out of every total.
+      transaction.update(saleRef, {
+        voided: true,
+        voidReason: reason,
+        voidExchange: exchange,
+        voidedBy,
+        voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    } else {
+      transaction.update(saleRef, {
+        items,
+        total: Math.round(((data.total || 0) - voidedAmount) * 100) / 100,
+        originalTotal: data.originalTotal != null ? data.originalTotal : data.total || 0,
+        voidedAmount: Math.round(((data.voidedAmount || 0) + voidedAmount) * 100) / 100,
+        partialVoids: (data.partialVoids || []).concat([
+          { lines: voidedLines, amount: voidedAmount, reason, exchange, voidedBy, voidedAt: new Date() },
+        ]),
+      });
+    }
   });
 
   await logAuditEvent({
-    action: "Walk-in Sale Voided",
+    action: fullVoid ? "Walk-in Sale Voided" : "Walk-in Sale Items Voided",
     details:
-      `SI ${sale.invoiceNo || sale.id} (${formatPeso(sale.total)}) - Reason: ${reason}` +
+      `SI ${sale.invoiceNo || sale.id} - ${formatPeso(voidedAmount)} voided - Reason: ${reason}` +
       (exchange ? ` - Exchange: ${exchange.replacementItems || "unspecified"}, price difference ${formatPeso(exchange.priceDifference)}` : "") +
-      ` - Items returned to stock: ${(sale.items || []).map((i) => `${i.name} x${i.qty}`).join(", ")}`,
+      ` - Items returned to stock: ${voidedLines.map((l) => `${l.name} x${l.qty}`).join(", ")}`,
   });
+
+  return { fullVoid, voidedAmount, voidedLines };
+}
+
+// Receipt banner text for a voided or partly voided sale, or null.
+function partialVoidSummary(sale) {
+  if (!sale.partialVoids || !sale.partialVoids.length) return null;
+  return sale.partialVoids
+    .map((v) => {
+      const when = v.voidedAt ? formatDateMDY(v.voidedAt, true) : "";
+      return `${v.lines.map((l) => `${l.name} x${l.qty}`).join(", ")} (${formatPeso(v.amount)}) - ${v.reason}${v.voidedBy ? ` (by ${v.voidedBy}${when ? `, ${when}` : ""})` : ""}`;
+    })
+    .join("; ");
 }
 
 function voidSummary(sale) {
