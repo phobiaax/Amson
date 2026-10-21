@@ -300,7 +300,9 @@ function formatOrderDateTime(timestamp) {
 // the discounted total in one atomic transaction - the read-then-decrement
 // of users/{uid}.creditBalance and the order creation can't be split apart,
 // or two orders placed back-to-back could both spend the same credit.
-async function createOrderWithCreditRedemption(orderData) {
+// expectFullCredit: the customer was told credit covers the whole order
+// (so no payment proof was asked for); stop if that's no longer true.
+async function createOrderWithCreditRedemption(orderData, { expectFullCredit = false } = {}) {
   const orderRef = db.collection("orders").doc();
   const userRef = orderData.customerId ? db.collection("users").doc(orderData.customerId) : null;
 
@@ -312,6 +314,9 @@ async function createOrderWithCreditRedemption(orderData) {
     }
     const appliedCredit = Math.max(0, Math.min(balance, orderData.total));
     const finalTotal = orderData.total - appliedCredit;
+    if (expectFullCredit && finalTotal > 0) {
+      throw new Error("Your store credit balance changed, so it no longer covers this order. Please reload the page to pay the rest.");
+    }
 
     const orderPayload = { ...orderData, subtotal: orderData.total, total: finalTotal };
     if (appliedCredit > 0) orderPayload.creditApplied = appliedCredit;

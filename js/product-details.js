@@ -8,7 +8,8 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
 
 (async function init() {
   await loadCatalogCache();
-  const product = getProductById(productId);
+  // Only products shown in the online store (not inactive or in-store only).
+  const product = storefrontCatalog().find((p) => p.id === productId) || null;
 
   if (!product) {
     contentEl.innerHTML = `

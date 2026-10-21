@@ -47,7 +47,7 @@ function filteredAuditEntries() {
   }
 
   if (auditDateFrom) {
-    const from = new Date(auditDateFrom);
+    const from = new Date(`${auditDateFrom}T00:00:00`); // local midnight, not UTC
     filtered = filtered.filter((e) => e.createdAt && e.createdAt.toDate() >= from);
   }
 

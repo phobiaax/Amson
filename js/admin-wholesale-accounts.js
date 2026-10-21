@@ -450,7 +450,10 @@ function destroyChoicesIn(container) {
 }
 
 function populateOrderProductSelect(selectEl) {
-  selectEl.innerHTML = SAMPLE_PRODUCTS.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+  // Only products that can be sold: active and already priced.
+  selectEl.innerHTML = SAMPLE_PRODUCTS.filter((p) => p.status === "active" && !p.pricePending)
+    .map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+    .join("");
   selectEl._choices = makeSearchableSelect(selectEl);
 }
 
@@ -875,14 +878,17 @@ async function openExchangeDialog(order, account) {
       const setDefaults = () => {
         prodSel.value = line().productId;
         const p = getProductById(prodSel.value);
-        repPrice.value = p ? p.wholesalePrice || line().unitPrice || 0 : line().unitPrice || 0;
+        // Same product: the price this buyer actually paid on the order.
+        repPrice.value = line().unitPrice || (p ? p.wholesalePrice || 0 : 0);
         retQty.max = String(order.items[Number(lineSel.value)].qty - (order.items[Number(lineSel.value)].returnedQty || 0));
         update();
       };
       lineSel.addEventListener("change", setDefaults);
       prodSel.addEventListener("change", () => {
         const p = getProductById(prodSel.value);
-        repPrice.value = p ? p.wholesalePrice || 0 : 0;
+        const agreed = account && account.agreedPrices ? account.agreedPrices[prodSel.value] : null;
+        repPrice.value =
+          prodSel.value === line().productId ? line().unitPrice || 0 : agreed != null ? agreed : p ? p.wholesalePrice || 0 : 0;
         update();
       });
       [retQty, repQty, repPrice].forEach((el) => el.addEventListener("input", update));
@@ -1031,15 +1037,16 @@ function downloadWholesaleInvoice(order) {
     doc.text(doc.splitTextToSize(String(it.batchNo || "-"), 28)[0], cols[1], y);
     doc.text(it.expirationDate ? formatDateMDY(it.expirationDate) : "-", cols[2], y);
     doc.text(String(it.qty), cols[3], y);
-    doc.text(formatPeso(it.unitPrice), cols[4], y);
-    doc.text(formatPeso(it.subtotal), 196, y, { align: "right" });
+    // jsPDF's built-in font has no peso sign.
+    doc.text(reportSafeNumber(it.unitPrice), cols[4], y);
+    doc.text(reportSafeNumber(it.subtotal), 196, y, { align: "right" });
   });
   y += 3;
   doc.line(14, y, 196, y);
   y += 7;
   doc.setFont(undefined, "bold");
   doc.text("Total", 14, y);
-  doc.text(formatPeso(order.total || 0), 196, y, { align: "right" });
+  doc.text(`PHP ${reportSafeNumber(order.total || 0)}`, 196, y, { align: "right" });
   doc.setFont(undefined, "normal");
   if (order.freeOfCost && order.freeOfCostReason) {
     y += 7;

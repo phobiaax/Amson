@@ -113,7 +113,7 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
         <div class="checkout-summary-item">
           <div class="cart-item-image" style="width:56px;height:56px;flex-shrink:0;${cartItemImageCss(product.imageUrl)}"></div>
           <div class="flex-grow-1">
-            <p class="mb-0 fw-medium">${product.name}</p>
+            <p class="mb-0 fw-medium">${escapeHtml(product.name)}</p>
             <p class="text-muted mb-0" style="font-size:0.85rem;">Qty: ${item.qty}</p>
             <p class="product-price mb-0" style="font-size:1rem;">${formatPeso(product.price * item.qty)}</p>
           </div>
@@ -213,8 +213,11 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     catalogLoadPromise = null;
     await loadCatalogCache();
 
+    // A product taken off the online store since it was added to the cart
+    // counts as unavailable too.
+    const onlineProduct = (id) => storefrontCatalog().find((p) => p.id === id) || null;
     const outOfStockItems = pendingOrder.cart
-      .map((item) => ({ item, product: getProductById(item.id) }))
+      .map((item) => ({ item, product: onlineProduct(item.id) }))
       .filter(({ item, product }) => item.qty > (product ? product.totalStock : 0));
 
     if (outOfStockItems.length > 0) {
@@ -222,13 +225,38 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
         .map(({ item, product }) =>
           product
             ? `${product.name} (only ${product.totalStock} left, ${item.qty} in your cart)`
-            : "an item that's no longer available"
+            : "an item that's no longer available online"
         )
         .join("; ");
       uploadErrorText.textContent = `Some items in your cart exceed what's currently in stock: ${details}. Please go back to your cart and adjust the quantity.`;
       uploadErrorText.classList.remove("d-none");
       submitOrderBtn.disabled = false;
       submitOrderBtn.textContent = "Submit Order";
+      return;
+    }
+
+    // Prices may have changed too: charge what the catalog says now, and
+    // show the new total before submitting.
+    let freshTotal = 0;
+    pendingOrder.cart.forEach((item) => (freshTotal += getProductById(item.id).price * item.qty));
+    if (Math.abs(freshTotal - total) > 0.001) {
+      total = freshTotal;
+      cartSubtotal = total;
+      renderCreditPreview();
+      uploadErrorText.textContent = `Some prices changed since you opened this page. Your new total is ${formatPeso(total)}. Please check it and tap Submit Order again.`;
+      uploadErrorText.classList.remove("d-none");
+      submitOrderBtn.textContent = "Submit Order";
+      updateSubmitButtonState();
+      return;
+    }
+    // Prescription pre-orders are always picked up at the store.
+    requiresPrescription = pendingOrder.cart.some((item) => getProductById(item.id).rxRequired);
+    if (requiresPrescription && !prescriptionFile) {
+      prescriptionUploadBox.classList.remove("d-none");
+      rxUploadErrorText.textContent = "This order has a prescription item. Please upload a photo of your prescription.";
+      rxUploadErrorText.classList.remove("d-none");
+      submitOrderBtn.textContent = "Submit Order";
+      updateSubmitButtonState();
       return;
     }
 
@@ -255,8 +283,8 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
         orderNumber,
         customerId: user ? user.uid : null,
         contact: pendingOrder.contact,
-        shipping: pendingOrder.shipping,
-        deliverySchedule: pendingOrder.deliverySchedule,
+        shipping: requiresPrescription ? null : pendingOrder.shipping,
+        deliverySchedule: requiresPrescription ? null : pendingOrder.deliverySchedule,
         items,
         total,
         proofOfPaymentUrl,
@@ -272,7 +300,7 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
           received: null,
         },
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
+      }, { expectFullCredit: fullyCoveredByCredit });
 
       // Order submission notification (Fig 2.10).
       if (user) {

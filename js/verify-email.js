@@ -151,7 +151,8 @@ resendCodeLink.addEventListener("click", async (e) => {
     });
     const userDoc = await userDocRef.get();
     const firstName = userDoc.exists ? userDoc.data().firstName : "";
-    await sendOtpEmail(pendingEmail || user.email, code, firstName);
+    const sent = await sendOtpEmail(pendingEmail || user.email, code, firstName);
+    if (!sent) throw new Error("We couldn't send the code right now. Please try again in a moment.");
     showAlert("A new code has been sent.", "success");
   } catch (error) {
     showAlert(error.message || "Could not resend the code.");
@@ -167,3 +168,9 @@ backToRegisterBtn.addEventListener("click", async () => {
   } catch (error) {}
   window.location.href = "register.html";
 });
+
+// Sign-up couldn't send the first code.
+if (sessionStorage.getItem("amsonOtpSendFailed")) {
+  sessionStorage.removeItem("amsonOtpSendFailed");
+  showAlert("We couldn't send your code. Tap \"Resend\" below to try again.");
+}

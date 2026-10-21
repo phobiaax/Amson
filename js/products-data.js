@@ -317,35 +317,38 @@ async function computeStaffNotifications() {
 
   const notifications = [];
 
-  batchSnapshot.docs.forEach((doc) => {
-    const b = { id: doc.id, ...doc.data() };
-    if (b.status !== "active") return;
-    const product = getProductById(b.productId);
-    const productName = product ? product.name : "Unknown product";
-
-    // Checked independently, not as an either/or - a batch can be both
-    // low on stock and near expiry at once, and both deserve their own
-    // notification rather than one masking the other.
-    const stockStatus = getStockLevelStatus(b);
-    if (stockStatus === "out_of_stock") {
+  // Low / out of stock per product, on its physical stock across all
+  // batches - the same rule as the Inventory and Dashboard tiles.
+  const physicalStockByProduct = sumPhysicalStockByProduct(batchSnapshot.docs.map((doc) => doc.data()));
+  SAMPLE_PRODUCTS.filter((p) => p.status === "active").forEach((p) => {
+    const stock = physicalStockByProduct[p.id] || 0;
+    if (stock === 0) {
       notifications.push({
-        key: `out_of_stock:${b.id}`,
-        signature: `${b.quantity}`,
+        key: `out_of_stock:${p.id}`,
+        signature: "0",
         severity: "danger",
         icon: "bi-box-seam",
-        message: `${productName} (Batch ${b.batchNo}) is out of stock.`,
+        message: `${p.name} is out of stock.`,
         link: "inventory.html",
       });
-    } else if (stockStatus === "low_stock") {
+    } else if (stock <= (p.reorderPoint || DEFAULT_REORDER_POINT)) {
       notifications.push({
-        key: `low_stock:${b.id}`,
-        signature: `${b.quantity}`,
+        key: `low_stock:${p.id}`,
+        signature: `${stock}`,
         severity: "warning",
         icon: "bi-box-seam",
-        message: `${productName} (Batch ${b.batchNo}) is low on stock - ${b.quantity} left.`,
+        message: `${p.name} is low on stock - ${stock} left.`,
         link: "inventory.html",
       });
     }
+  });
+
+  batchSnapshot.docs.forEach((doc) => {
+    const b = { id: doc.id, ...doc.data() };
+    // An empty lot isn't an expiry concern any more.
+    if (b.status !== "active" || !(b.quantity > 0)) return;
+    const product = getProductById(b.productId);
+    const productName = product ? product.name : "Unknown product";
 
     const expiryStatus = getExpiryStatus(b);
     if (expiryStatus === "expired") {
@@ -655,6 +658,12 @@ async function loadCatalogCache() {
 // (e.g. a "javascript:" address written straight to the database) isn't.
 function safeUrl(url) {
   return typeof url === "string" && /^https?:\/\//i.test(url) ? url : "#";
+}
+
+// The day a write-off happened: the date staff picked, else when it was saved.
+function writeOffEffectiveDate(w) {
+  if (w.writeOffDate) return new Date(`${w.writeOffDate}T12:00:00`);
+  return w.createdAt && w.createdAt.toDate ? w.createdAt.toDate() : null;
 }
 
 function escapeHtml(text) {
@@ -1570,7 +1579,7 @@ async function showProductQuickView(productId) {
   if (!modalEl) return;
 
   await loadCatalogCache();
-  const product = getProductById(productId);
+  const product = storefrontCatalog().find((p) => p.id === productId) || null;
   const bodyEl = document.getElementById("productQuickViewBody");
 
   if (!product) {

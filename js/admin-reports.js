@@ -34,6 +34,7 @@ const REPORT_PAYMENT_LABELS = {
   free_of_cost: "Free of Cost",
   card: "Card",
   ewallet: "E-Wallet",
+  exchange: "Exchange (price difference)",
 };
 
 function reportNumber(n, decimals = 2) {
@@ -63,10 +64,11 @@ function productName(id, fallback) {
 async function loadSalesInRange(start, end) {
   const from = firebase.firestore.Timestamp.fromDate(start);
   const to = firebase.firestore.Timestamp.fromDate(end);
-  const [posSnap, orderSnap, wholesaleSnap] = await Promise.all([
+  const [posSnap, orderSnap, wholesaleSnap, exchangeSnap] = await Promise.all([
     db.collection("posSales").where("createdAt", ">=", from).where("createdAt", "<", to).get(),
     db.collection("orders").where("statusTimestamps.payment_confirmed", ">=", from).where("statusTimestamps.payment_confirmed", "<", to).get(),
     db.collection("wholesaleOrders").where("createdAt", ">=", from).where("createdAt", "<", to).get(),
+    db.collection("wholesaleExchanges").where("createdAt", ">=", from).where("createdAt", "<", to).get(),
   ]);
 
   const sales = [];
@@ -112,6 +114,27 @@ async function loadSalesInRange(start, end) {
       lines: (w.items || []).map((i) => ({ productId: i.productId, name: i.productName, qty: i.qty, price: i.unitPrice || 0, amount: i.subtotal || 0, batches: i.batches, batchNo: i.batchNo, expirationDate: i.expirationDate })),
     });
   });
+  // A wholesale exchange counts on its own day: the returned units come off
+  // (negative), the replacement goes out, and the total is the difference
+  // the buyer paid. The original sale stays as it was on its day.
+  exchangeSnap.docs.forEach((doc) => {
+    const ex = doc.data();
+    const ret = ex.returned || {};
+    const rep = ex.replacement || {};
+    sales.push({
+      channel: "wholesale",
+      isExchange: true,
+      date: tsToDate(ex.createdAt),
+      invoiceNo: ex.exchangeNo || "",
+      customer: ex.buyerName || "Wholesale buyer",
+      paymentMethod: "exchange",
+      total: ex.priceDifference || 0,
+      lines: [
+        { productId: ret.productId, name: ret.productName, qty: -(ret.qty || 0), price: ret.unitPrice || 0, amount: -(ret.value || 0), batches: (ret.batches || []).map((b) => ({ ...b, qty: -(b.qty || 0) })) },
+        { productId: rep.productId, name: rep.productName, qty: rep.qty || 0, price: rep.unitPrice || 0, amount: rep.value || 0, batches: rep.batches || [] },
+      ],
+    });
+  });
   return sales.filter((s) => s.date).sort((a, b) => a.date - b.date);
 }
 
@@ -146,7 +169,7 @@ async function buildDailySalesReport(start, end) {
   sales.forEach((s) => {
     const day = ensureDay(reportDateKey(s.date));
     const qty = s.lines.reduce((n, l) => n + l.qty, 0);
-    day.orders += 1;
+    if (!s.isExchange) day.orders += 1;
     day.total += s.total;
     if (s.channel === "wholesale") {
       day.wholesaleItems += qty;
@@ -156,7 +179,7 @@ async function buildDailySalesReport(start, end) {
       day.retailTotal += s.total;
     }
     const m = day.methods.get(s.paymentMethod) || { orders: 0, amount: 0 };
-    m.orders += 1;
+    m.orders += s.isExchange ? 0 : 1;
     m.amount += s.total;
     day.methods.set(s.paymentMethod, m);
     s.lines.forEach((l) => {
@@ -167,7 +190,7 @@ async function buildDailySalesReport(start, end) {
       items.set(key, it);
 
       // Batch, expiry, date received and supplier per item sold.
-      const parts = l.batches && l.batches.length ? l.batches.filter((b) => b.qty > 0) : [{ batchNo: l.batchNo, expirationDate: l.expirationDate, qty: l.qty }];
+      const parts = l.batches && l.batches.length ? l.batches.filter((b) => b.qty !== 0) : [{ batchNo: l.batchNo, expirationDate: l.expirationDate, qty: l.qty }];
       parts.forEach((b) => {
         const batch = findBatch(l.productId, b);
         const bKey = `${key}|${batch ? batch.id : b.batchNo || ""}`;
@@ -227,6 +250,7 @@ async function buildDailySalesReport(start, end) {
     notes: [
       "All sales are shown as VAT-exempt, as in the branch's current report. Discounts and pay-in/pay-out are not recorded in the system.",
       "Retail = walk-in (POS) and online orders; online orders count on the day their payment was confirmed. Voided sales are excluded.",
+      "Wholesale exchanges count on the day of the exchange: the returned items come off, the replacement is added, and the total is the price difference paid.",
     ],
     sheets: [
       {
@@ -289,7 +313,7 @@ async function buildCustomerFileReport(start, end) {
       byCustomer.get(customer).forEach((s) => {
         s.lines.forEach((l) => {
           // One row per batch the line came from, like the branch's file.
-          const parts = l.batches && l.batches.length ? l.batches.filter((b) => b.qty > 0) : [{ batchNo: l.batchNo, expirationDate: l.expirationDate, qty: l.qty }];
+          const parts = l.batches && l.batches.length ? l.batches.filter((b) => b.qty !== 0) : [{ batchNo: l.batchNo, expirationDate: l.expirationDate, qty: l.qty }];
           parts.forEach((b) => {
             rows.push([
               s.customer,
@@ -461,26 +485,27 @@ async function buildSupplierPurchasesReport(year, month) {
 }
 
 async function buildPullOutReport(start, end) {
-  const from = firebase.firestore.Timestamp.fromDate(start);
-  const to = firebase.firestore.Timestamp.fromDate(end);
-  const [woSnap, batchSnap] = await Promise.all([
-    db.collection("writeOffs").where("createdAt", ">=", from).where("createdAt", "<", to).get(),
-    db.collection("stockBatches").get(),
-  ]);
+  // By the write-off date staff picked (which may be earlier than when it
+  // was saved), so every write-off is read and filtered here.
+  const [woSnap, batchSnap] = await Promise.all([db.collection("writeOffs").get(), db.collection("stockBatches").get()]);
   const batches = {};
   batchSnap.docs.forEach((d) => (batches[d.id] = d.data()));
   let totalQty = 0;
   let totalCost = 0;
   const rows = woSnap.docs
     .map((d) => d.data())
-    .sort((a, b) => (tsToDate(a.createdAt) || 0) - (tsToDate(b.createdAt) || 0))
+    .filter((w) => {
+      const when = writeOffEffectiveDate(w);
+      return when && when >= start && when < end;
+    })
+    .sort((a, b) => (writeOffEffectiveDate(a) || 0) - (writeOffEffectiveDate(b) || 0))
     .map((w) => {
       const b = batches[w.batchId] || {};
       const p = getProductById(w.productId) || {};
       const unit = b.unitCost != null ? b.unitCost : p.costingPrice || 0;
       totalQty += w.quantity || 0;
       totalCost += unit * (w.quantity || 0);
-      return [formatDateMDY(w.createdAt, true), p.name || w.productId, w.batchNo || b.batchNo || "", b.expirationDate ? formatDateMDY(b.expirationDate) : "", reportNumber(w.quantity, 0), reportNumber(unit), reportNumber(unit * (w.quantity || 0)), w.reason || ""];
+      return [w.writeOffDate ? formatDateMDY(`${w.writeOffDate}T12:00:00`) : formatDateMDY(w.createdAt, true), p.name || w.productId, w.batchNo || b.batchNo || "", b.expirationDate ? formatDateMDY(b.expirationDate) : "", reportNumber(w.quantity, 0), reportNumber(unit), reportNumber(unit * (w.quantity || 0)), w.reason || ""];
     });
   return {
     title: "AMSON PHARMACEUTICALS - Pull-Out Report",

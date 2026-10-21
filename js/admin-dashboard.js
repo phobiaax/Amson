@@ -206,7 +206,7 @@ function renderInventoryChart() {
     const when = b.dateReceived ? new Date(`${b.dateReceived}T12:00:00`) : toDate(b.createdAt);
     add(stockIn, when, b.initialQuantity != null ? b.initialQuantity : b.quantity || 0);
   });
-  inventoryMovementData.writeOffs.forEach((w) => add(stockOut, toDate(w.createdAt), w.quantity || 0));
+  inventoryMovementData.writeOffs.forEach((w) => add(stockOut, writeOffEffectiveDate(w), w.quantity || 0));
   inventoryMovementData.wholesale.forEach((w) => add(stockOut, toDate(w.createdAt), (w.items || []).reduce((n, i) => n + (i.qty || 0), 0)));
   (lastLoadedPosSales || []).forEach((s) => add(stockOut, toDate(s.createdAt), (s.items || []).reduce((n, i) => n + (i.qty || 0), 0)));
   (lastLoadedOrders || [])

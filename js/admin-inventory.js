@@ -638,8 +638,10 @@ saveReceiveStockBtn.addEventListener("click", async () => {
   receiveModalAlert.classList.add("d-none");
 
   try {
+    // All batches or none, so a retry after an error can't add stock twice.
+    const writeBatch = db.batch();
     for (const item of items) {
-      await db.collection("stockBatches").add({
+      writeBatch.set(db.collection("stockBatches").doc(), {
         productId: item.productId,
         batchNo: item.batchNo,
         expirationDate: item.expirationDate,
@@ -654,6 +656,7 @@ saveReceiveStockBtn.addEventListener("click", async () => {
         lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
     }
+    await writeBatch.commit();
 
     const supplier = allSuppliers.find((sup) => sup.id === supplierId);
     await logAuditEvent({
@@ -784,11 +787,15 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   receiveBatchReviewConfirmBtn.disabled = true;
   receiveBatchReviewConfirmBtn.textContent = "Receiving...";
 
+  // Saved in groups of up to 400 rows, each group all-or-nothing, so a
+  // failed group can be retried without duplicating the ones before it.
   let imported = 0;
   let failed = 0;
-  for (const row of parsedRows) {
-    try {
-      await db.collection("stockBatches").add({
+  for (let start = 0; start < parsedRows.length; start += 400) {
+    const chunk = parsedRows.slice(start, start + 400);
+    const writeBatch = db.batch();
+    chunk.forEach((row) => {
+      writeBatch.set(db.collection("stockBatches").doc(), {
         productId: row.product.id,
         batchNo: row.batchNo,
         expirationDate: row.expiryDate,
@@ -802,9 +809,13 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
-      imported += 1;
+    });
+    try {
+      await writeBatch.commit();
+      imported += chunk.length;
     } catch (error) {
-      failed += 1;
+      failed = parsedRows.length - imported;
+      break;
     }
   }
 
@@ -812,7 +823,7 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   receiveBatchReviewConfirmBtn.textContent = "Confirm Import";
   bootstrap.Modal.getInstance(receiveBatchReviewModalEl).hide();
 
-  receiveBatchUploadStatus.textContent = `Received ${imported} batch${imported === 1 ? "" : "es"}.${failed ? ` ${failed} failed to save - please try those again.` : ""}`;
+  receiveBatchUploadStatus.textContent = `Received ${imported} batch${imported === 1 ? "" : "es"}.${failed ? ` The last ${failed} row${failed === 1 ? "" : "s"} (from row ${imported + 1}) didn't save - upload just those rows again.` : ""}`;
   if (imported > 0) {
     await logAuditEvent({ action: "Stock Received (Batch Upload)", details: `${imported} batch${imported === 1 ? "" : "es"} imported from file` });
   }
@@ -1162,19 +1173,25 @@ saveWriteOffBtn.addEventListener("click", async () => {
           lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
       });
+
+      // The write-off records go in the same transaction, so a retry can't
+      // deduct the stock a second time.
+      for (const item of items) {
+        const batch = allBatches.find((b) => b.id === item.batchId);
+        transaction.set(db.collection("writeOffs").doc(), {
+          batchId: item.batchId,
+          productId: item.productId,
+          batchNo: batch ? batch.batchNo : "",
+          quantity: item.qty,
+          reason: item.reason,
+          writeOffDate: writeOffDateInput.value || todayISO(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      }
     });
 
     for (const item of items) {
       const batch = allBatches.find((b) => b.id === item.batchId);
-      await db.collection("writeOffs").add({
-        batchId: item.batchId,
-        productId: item.productId,
-        batchNo: batch ? batch.batchNo : "",
-        quantity: item.qty,
-        reason: item.reason,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-
       const product = getProductById(item.productId);
       await logAuditEvent({
         action: "Inventory Write-Off",
@@ -1229,7 +1246,7 @@ function renderReconciliationItemsBody(session) {
           <td>${escapeHtml(item.batchNo)}</td>
           <td>${formatExpiryLabel(item.expirationDate)}</td>
           <td>${item.systemQty}</td>
-          <td><input type="number" min="0" class="form-control form-control-sm reconciliation-counted-input" style="max-width:100px;" value="${item.countedQty || 0}"></td>
+          <td><input type="number" min="0" class="form-control form-control-sm reconciliation-counted-input" style="max-width:100px;" value="${item.countedQty == null ? "" : item.countedQty}" placeholder="Count"></td>
           <td class="reconciliation-variance-cell">-</td>
         </tr>
       `;
@@ -1312,7 +1329,7 @@ confirmOpenSessionBtn.addEventListener("click", async () => {
       batchNo: b.batchNo,
       expirationDate: b.expirationDate,
       systemQty: b.quantity,
-      countedQty: 0,
+      countedQty: null, // filled in by the count
     }));
 
     await db.collection("reconciliations").add({
@@ -1341,6 +1358,12 @@ submitCountBtn.addEventListener("click", async () => {
   const activeSession = findActiveSession();
   if (!activeSession) return;
   const rows = Array.from(reconciliationItemsBody.querySelectorAll("tr"));
+  // A batch left blank would otherwise be saved as 0 on hand.
+  const blank = rows.filter((row) => row.querySelector(".reconciliation-counted-input").value.trim() === "").length;
+  if (blank > 0) {
+    await showAppAlert(`Enter a count for every batch (${blank} left blank). Type 0 if none are on hand.`, { title: "Count Incomplete" });
+    return;
+  }
   const updatedItems = rows.map((row) => {
     const idx = Number(row.dataset.idx);
     const item = activeSession.items[idx];
@@ -1388,14 +1411,22 @@ submitCountBtn.addEventListener("click", async () => {
   reconciliationAlert.classList.add("d-none");
 
   try {
-    for (const item of updatedItems) {
-      if (item.variance !== 0) {
-        await db.collection("stockBatches").doc(item.batchId).update({
-          quantity: item.countedQty,
+    // Apply each batch's variance to its current quantity in one
+    // transaction, so a sale made while counting isn't wiped out (with no
+    // sales in between, this is exactly the counted quantity).
+    const changed = updatedItems.filter((i) => i.variance !== 0);
+    await db.runTransaction(async (transaction) => {
+      const refs = changed.map((i) => db.collection("stockBatches").doc(i.batchId));
+      const docs = [];
+      for (const ref of refs) docs.push(await transaction.get(ref));
+      docs.forEach((doc, idx) => {
+        if (!doc.exists) return;
+        transaction.update(refs[idx], {
+          quantity: Math.max(0, (doc.data().quantity || 0) + changed[idx].variance),
           lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
-      }
-    }
+      });
+    });
 
     await db.collection("reconciliations").doc(activeSession.id).update({
       items: updatedItems,
@@ -1746,25 +1777,6 @@ async function submitPoReceiving(po) {
   alertEl.classList.add("d-none");
 
   try {
-    for (const item of receivedItems) {
-      if (item.receivedQty <= 0) continue;
-      await db.collection("stockBatches").add({
-        productId: item.productId,
-        batchNo: item.batchNo,
-        expirationDate: item.expirationDate,
-        quantity: item.receivedQty,
-        initialQuantity: item.receivedQty,
-        supplierId: po.supplierId,
-        supplierReceiptNo,
-        unitCost: item.unitCost,
-        dateReceived: todayISO(),
-        status: "active",
-        poId: po.id,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-    }
-
     const discrepancies = receivedItems
       .filter((it) => it.receivedQty !== it.expectedQty)
       .map((it) => ({
@@ -1773,23 +1785,50 @@ async function submitPoReceiving(po) {
         receivedQty: it.receivedQty,
         diff: it.receivedQty - it.expectedQty,
       }));
-
     const newStatus = discrepancies.length > 0 ? "discrepancy" : "received";
+
+    // Stock and PO status together, and only once: if someone else already
+    // recorded this delivery, nothing is added.
+    const poRef = db.collection("purchaseOrders").doc(po.id);
+    await db.runTransaction(async (transaction) => {
+      const fresh = await transaction.get(poRef);
+      if (!fresh.exists || fresh.data().status !== "pending") {
+        throw new Error("This delivery was already recorded. Refresh the page to see it.");
+      }
+      for (const item of receivedItems) {
+        if (item.receivedQty <= 0) continue;
+        transaction.set(db.collection("stockBatches").doc(), {
+          productId: item.productId,
+          batchNo: item.batchNo,
+          expirationDate: item.expirationDate,
+          quantity: item.receivedQty,
+          initialQuantity: item.receivedQty,
+          supplierId: po.supplierId,
+          supplierReceiptNo,
+          unitCost: item.unitCost,
+          dateReceived: todayISO(),
+          status: "active",
+          poId: po.id,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+      transaction.update(poRef, {
+        status: newStatus,
+        receivingRecord: { items: receivedItems, discrepancies, supplierReceiptNo },
+        receivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
     await logAuditEvent({
       action: "Purchase Order Received",
       details: `${po.poNumber}${supplierReceiptNo ? `, Receipt/DR ${supplierReceiptNo}` : ""} - ${discrepancies.length ? `${discrepancies.length} discrepanc${discrepancies.length === 1 ? "y" : "ies"}` : "all quantities matched"}`,
     });
 
-    await db.collection("purchaseOrders").doc(po.id).update({
-      status: newStatus,
-      receivingRecord: { items: receivedItems, discrepancies, supplierReceiptNo },
-      receivedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-
     bootstrap.Modal.getInstance(viewPoModalEl).hide();
     await loadInventory();
   } catch (error) {
-    alertEl.textContent = "Something went wrong recording this delivery. Please try again.";
+    alertEl.textContent = error.message && error.message.startsWith("This delivery") ? error.message : "Something went wrong recording this delivery. Please try again.";
     alertEl.classList.remove("d-none");
   } finally {
     submitBtn.disabled = false;
