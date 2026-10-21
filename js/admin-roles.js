@@ -25,6 +25,7 @@ const ADMIN_PAGE_ACCESS = {
   "audit-log.html": ["admin", "branch_manager", "technical_staff"],
   "notifications.html": ["admin", "branch_manager", "technical_staff"],
   "live-chat.html": ["admin", "branch_manager", "technical_staff"],
+  "reports.html": ["admin", "branch_manager", "technical_staff"],
   "settings.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "staff-management.html": ["admin", "branch_manager"],
   "migrate-credit.html": ["admin", "branch_manager"],

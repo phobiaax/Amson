@@ -1970,3 +1970,19 @@ a {
     height: calc(100vh - 32px);
   }
 }
+
+/* ---------- Reports ---------- */
+.report-table {
+  font-size: 0.82rem;
+}
+.report-table thead th {
+  background-color: var(--amson-gray-bg);
+  white-space: nowrap;
+}
+.report-total-row td {
+  border-top: 2px solid var(--amson-dark);
+}
+.report-blank-row td {
+  padding: 0.25rem;
+  border: 0;
+}
