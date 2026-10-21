@@ -347,22 +347,33 @@ async function buildCustomerFileReport(start, end) {
 
 async function buildMonthlyInventoryReport(year, month) {
   const period = `${year}-${String(month + 1).padStart(2, "0")}`;
-  const [batchSnap, reconSnap] = await Promise.all([
+  const [batchSnap, reconSnap, supplierSnap] = await Promise.all([
     db.collection("stockBatches").get(),
     db.collection("reconciliations").where("period", "==", period).get(),
+    db.collection("suppliers").get(),
   ]);
+  const suppliers = {};
+  supplierSnap.docs.forEach((d) => (suppliers[d.id] = d.data().name || ""));
+  const batchesById = {};
+  batchSnap.docs.forEach((d) => (batchesById[d.id] = d.data()));
+  // Every supplier a batch came from (a topped-up batch can have several).
+  const supplierOf = (b) => {
+    if (!b) return "";
+    const ids = b.deliveries && b.deliveries.length ? b.deliveries.map((dl) => dl.supplierId) : [b.supplierId];
+    return [...new Set(ids.filter(Boolean).map((id) => suppliers[id]).filter(Boolean))].join(", ");
+  };
   const recon = reconSnap.docs.map((d) => d.data()).filter((r) => r.status === "finalized").sort((a, b) => (tsToDate(b.finalizedAt) || 0) - (tsToDate(a.finalizedAt) || 0))[0];
 
   // Lines: from the finalized count for that month when there is one (its
   // system qty is the POS stock at count time), else today's batches.
   let lines;
   if (recon) {
-    lines = (recon.items || []).map((i) => ({ productId: i.productId, batchNo: i.batchNo, expirationDate: i.expirationDate, posQty: i.systemQty, physical: i.countedQty }));
+    lines = (recon.items || []).map((i) => ({ productId: i.productId, batchNo: i.batchNo, expirationDate: i.expirationDate, posQty: i.systemQty, physical: i.countedQty, supplier: supplierOf(batchesById[i.batchId]) }));
   } else {
     lines = batchSnap.docs
       .map((d) => d.data())
       .filter((b) => b.status === "active" || b.status === "wholesale_only")
-      .map((b) => ({ productId: b.productId, batchNo: b.batchNo, expirationDate: b.expirationDate, posQty: b.quantity || 0, physical: "" }));
+      .map((b) => ({ productId: b.productId, batchNo: b.batchNo, expirationDate: b.expirationDate, posQty: b.quantity || 0, physical: "", supplier: supplierOf(b) }));
   }
   const withLines = new Set(lines.map((l) => l.productId));
   SAMPLE_PRODUCTS.filter((p) => p.status === "active" && !withLines.has(p.id)).forEach((p) =>
@@ -388,7 +399,7 @@ async function buildMonthlyInventoryReport(year, month) {
           columns: [
             { label: catName.toUpperCase(), width: 4 }, { label: "POS Stock", align: "right" }, { label: "Physical", align: "right" },
             { label: "Costing", align: "right" }, { label: "Retail", align: "right" }, { label: "Wholesale", align: "right" },
-            { label: "Batch #", width: 1.3 }, { label: "Expiry Date", width: 1.1 },
+            { label: "Batch #", width: 1.3 }, { label: "Expiry Date", width: 1.1 }, { label: "Supplier", width: 1.6 },
           ],
           rows: catLines.map((l) => {
             const p = getProductById(l.productId) || {};
@@ -401,6 +412,7 @@ async function buildMonthlyInventoryReport(year, month) {
               reportNumber(p.wholesalePrice),
               l.batchNo || "",
               l.expirationDate ? formatDateMDY(l.expirationDate) : "",
+              l.supplier || "",
             ];
           }),
           totals: [],
@@ -410,13 +422,55 @@ async function buildMonthlyInventoryReport(year, month) {
   });
 
   const monthName = new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
+  // Batches whose expiry date falls in this month, whatever happened to
+  // them (written off as Bad Order beforehand, still on hand, or sold out).
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 1);
+  const expired = batchSnap.docs
+    .map((d) => d.data())
+    .filter((b) => {
+      const exp = b.expirationDate ? new Date(`${b.expirationDate}T12:00:00`) : null;
+      return exp && exp >= monthStart && exp < monthEnd;
+    })
+    .sort((a, b) => String(a.expirationDate).localeCompare(String(b.expirationDate)) || productName(a.productId).localeCompare(productName(b.productId)));
+  const expiredUnits = (b) => (b.status === "bad_order" ? b.badOrderQty || 0 : b.quantity || 0);
+  const expiredStatus = (b) =>
+    b.status === "bad_order" ? (b.disposedAt ? "Written off (Bad Order), disposed" : "Written off (Bad Order)") : (b.quantity || 0) > 0 ? "Still in stock" : "Sold out before expiry";
+  const expiredProducts = new Set(expired.map((b) => b.productId)).size;
+  const expiredTotal = expired.reduce((n, b) => n + expiredUnits(b), 0);
+  if (expired.length) {
+    sheets.push({
+      name: "EXPIRED",
+      sections: [
+        {
+          heading: `EXPIRED IN ${monthName.toUpperCase()}`,
+          columns: [
+            { label: "Product", width: 3 }, { label: "Category", width: 1.4 }, { label: "Batch #", width: 1.2 }, { label: "Expiry Date", width: 1.1 },
+            { label: "Supplier", width: 1.6 }, { label: "Units", align: "right", width: 0.8 }, { label: "Status", width: 2 },
+          ],
+          rows: expired.map((b) => {
+            const p = getProductById(b.productId) || {};
+            return [p.name || b.productId, CATEGORY_LABELS[p.category] || "", b.batchNo || "", formatDateMDY(`${b.expirationDate}T12:00:00`), supplierOf(b), reportNumber(expiredUnits(b), 0), expiredStatus(b)];
+          }),
+          totals: [[`TOTAL: ${expired.length} batch${expired.length === 1 ? "" : "es"}, ${expiredProducts} product${expiredProducts === 1 ? "" : "s"}`, "", "", "", "", reportNumber(expiredTotal, 0), ""]],
+        },
+      ],
+    });
+  }
+
   return {
     title: `${monthName.toUpperCase()} END INVENTORY`,
     subtitle: recon
       ? `From stock count ${recon.rcnNumber || ""} finalized ${formatDateMDY(recon.finalizedAt, true)} by ${recon.finalizedBy || "-"}`
       : `No finalized stock count for ${monthName}: POS stock is as of ${formatDateMDY(new Date(), true)} and the Physical column is blank`,
     filename: `monthly-inventory-${period}`,
-    notes: ["One sheet per category, one row per batch. Prices are the current product prices."],
+    notes: [
+      "One sheet per category, one row per batch. Prices are the current product prices.",
+      expired.length
+        ? `${expired.length} batch${expired.length === 1 ? "" : "es"} of ${expiredProducts} product${expiredProducts === 1 ? "" : "s"} expired in ${monthName} (${reportNumber(expiredTotal, 0)} units) - see the EXPIRED sheet. Units are what was written off as Bad Order, or what is still in stock.`
+        : `No batches expired in ${monthName}.`,
+    ],
     sheets,
   };
 }
