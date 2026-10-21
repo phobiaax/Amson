@@ -451,6 +451,23 @@ async function computeStaffNotifications() {
     console.warn("Wholesale document alerts unavailable:", error);
   }
 
+  // Wholesale orders recorded but not yet picked up or delivered.
+  try {
+    const pending = await db.collection("wholesaleOrders").where("releaseStatus", "==", "pending").get();
+    if (!pending.empty) {
+      notifications.push({
+        key: "wholesale_pending_release",
+        signature: pending.docs.map((d) => d.id).sort().join(","),
+        severity: "info",
+        icon: "bi-truck",
+        message: `${pending.size} wholesale order${pending.size === 1 ? " is" : "s are"} waiting to be picked up or delivered.`,
+        link: "wholesale-accounts.html",
+      });
+    }
+  } catch (error) {
+    console.warn("Wholesale order alerts unavailable:", error);
+  }
+
   // Chats the assistant handed to staff (REQ038). Never blocks the other
   // alerts if chat isn't set up yet.
   try {

@@ -90,11 +90,28 @@ function documentBadges(account) {
 document.addEventListener("admin:ready", loadWholesaleAccounts);
 
 /* ---------- Load ---------- */
+// Orders recorded but not yet picked up / delivered, per buyer. Orders
+// saved before this existed have no releaseStatus and count as released.
+let pendingReleaseByAccount = {};
+async function loadPendingReleaseCounts() {
+  pendingReleaseByAccount = {};
+  try {
+    const pending = await db.collection("wholesaleOrders").where("releaseStatus", "==", "pending").get();
+    pending.docs.forEach((d) => {
+      const id = d.data().wholesaleAccountId;
+      pendingReleaseByAccount[id] = (pendingReleaseByAccount[id] || 0) + 1;
+    });
+  } catch (error) {
+    console.warn("Couldn't load pending wholesale orders:", error);
+  }
+}
+
 async function loadWholesaleAccounts() {
   try {
     await loadCatalogCache();
     const snapshot = await db.collection("wholesaleAccounts").get();
     allWholesaleAccounts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    await loadPendingReleaseCounts();
     renderWholesaleGrid();
   } catch (error) {
     console.error("Failed to load wholesale accounts:", error);
@@ -170,7 +187,11 @@ function renderWholesaleCard(account) {
         <p class="contact-line"><i class="bi bi-telephone"></i> ${account.phone || "-"}</p>
         <p class="contact-line"><i class="bi bi-envelope"></i> ${account.email || "-"}</p>
         <p class="contact-line mb-2"><i class="bi bi-geo-alt"></i> ${account.address || "-"}</p>
-        <div class="mb-3" style="font-size:0.75rem;">${documentBadges(account)}</div>
+        <div class="mb-3" style="font-size:0.75rem;">${documentBadges(account)}${
+          pendingReleaseByAccount[account.id]
+            ? ` <span class="badge text-bg-warning">${pendingReleaseByAccount[account.id]} order${pendingReleaseByAccount[account.id] === 1 ? "" : "s"} pending release</span>`
+            : ""
+        }</div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
           <button type="button" class="btn btn-amson flex-fill process-order-btn" data-id="${account.id}"><i class="bi bi-cart-check me-1"></i>Process Order</button>
           <button type="button" class="icon-btn wholesale-history-btn" data-id="${account.id}" aria-label="Purchase history" title="Purchase history"><i class="bi bi-clock-history"></i></button>
@@ -645,6 +666,8 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
           poRefNumber: processOrderPoRefInput.value.trim(),
           poDocumentUrl,
           notes: processOrderNotesInput.value.trim(),
+          // Pending until the client picks it up or it's delivered.
+          releaseStatus: "pending",
           createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         }),
       },
@@ -679,8 +702,9 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     }
 
     bootstrap.Modal.getInstance(processOrderModalEl).hide();
+    await loadWholesaleAccounts();
     const saved = await orderRef.get();
-    const print = await showAppConfirm(`Wholesale order recorded (SI No. ${invoiceNo}) and stock deducted.`, {
+    const print = await showAppConfirm(`Wholesale order recorded (SI No. ${invoiceNo}) and stock deducted. Mark it Released in the buyer's purchase history once it's picked up or delivered.`, {
       title: "Order Recorded",
       confirmLabel: "Download Sales Invoice",
       cancelLabel: "Close",
@@ -711,7 +735,7 @@ async function openHistoryModal(account) {
   document.getElementById("wholesaleHistoryBuyer").textContent = account.name;
   const body = document.getElementById("wholesaleHistoryBody");
   const empty = document.getElementById("wholesaleHistoryEmpty");
-  body.innerHTML = '<tr><td colspan="6" class="text-muted">Loading...</td></tr>';
+  body.innerHTML = '<tr><td colspan="7" class="text-muted">Loading...</td></tr>';
   empty.classList.add("d-none");
   bootstrap.Modal.getOrCreateInstance(document.getElementById("wholesaleHistoryModal")).show();
 
@@ -721,7 +745,7 @@ async function openHistoryModal(account) {
       .map((doc) => ({ id: doc.id, ...doc.data() }))
       .sort((a, b) => (b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0) - (a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0));
   } catch (error) {
-    body.innerHTML = '<tr><td colspan="6" class="text-danger">Could not load the history. Please try again.</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" class="text-danger">Could not load the history. Please try again.</td></tr>';
     return;
   }
 
@@ -738,7 +762,13 @@ async function openHistoryModal(account) {
         <td>${(o.items || []).map((it) => `${escapeHtml(it.productName)} x${it.qty}${it.returnedQty ? ` <span class="text-danger">(${it.returnedQty} exchanged)</span>` : ""}`).join(", ")}</td>
         <td>${formatPeso(o.total || 0)}</td>
         <td>${o.freeOfCost ? "Free of cost" : escapeHtml(SALE_RECEIPT_PAYMENT_METHOD_LABELS[o.paymentMethod] || o.paymentMethod || "-")}</td>
+        <td>${
+          o.releaseStatus === "pending"
+            ? '<span class="badge text-bg-warning">Pending</span>'
+            : `<span class="badge text-bg-success">Released</span>${o.releasedAt ? `<div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(o.releasedAt)}${o.releasedBy ? ` - ${escapeHtml(o.releasedBy)}` : ""}</div>` : ""}`
+        }</td>
         <td class="text-nowrap">
+          ${o.releaseStatus === "pending" ? `<button type="button" class="btn btn-amson btn-sm wholesale-release-btn" data-id="${o.id}">Mark Released</button>` : ""}
           <button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-invoice-btn" data-id="${o.id}">Invoice</button>
           <button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-exchange-btn" data-id="${o.id}">Exchange</button>
         </td>
@@ -751,6 +781,33 @@ async function openHistoryModal(account) {
   body.querySelectorAll(".wholesale-exchange-btn").forEach((btn) => {
     btn.addEventListener("click", () => openExchangeDialog(historyOrders.find((o) => o.id === btn.dataset.id), account));
   });
+  body.querySelectorAll(".wholesale-release-btn").forEach((btn) => {
+    btn.addEventListener("click", () => markWholesaleOrderReleased(historyOrders.find((o) => o.id === btn.dataset.id), account, btn));
+  });
+}
+
+// The client has picked up the order, or it has been delivered.
+async function markWholesaleOrderReleased(order, account, btn) {
+  if (!order) return;
+  const ok = await showAppConfirm(`Mark SI ${order.invoiceNo || ""} as released to ${account.name} (picked up or delivered)?`, {
+    title: "Release Wholesale Order",
+    confirmLabel: "Mark Released",
+  });
+  if (!ok) return;
+  btn.disabled = true;
+  try {
+    await db.collection("wholesaleOrders").doc(order.id).update({
+      releaseStatus: "released",
+      releasedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      releasedBy: wholesaleStaffName,
+    });
+    await logAuditEvent({ action: "Wholesale Order Released", details: `SI ${order.invoiceNo || order.id} - ${account.name}` });
+    await loadWholesaleAccounts();
+    openHistoryModal(account);
+  } catch (error) {
+    btn.disabled = false;
+    showAppAlert("Couldn't update this order. Please try again.");
+  }
 }
 
 /* ---------- Wholesale exchange (REQ090, Fig 2.15) ---------- */

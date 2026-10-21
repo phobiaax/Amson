@@ -123,7 +123,19 @@ function rangeSubtitle(start, end) {
 }
 
 async function buildDailySalesReport(start, end) {
-  const sales = await loadSalesInRange(start, end);
+  const [sales, batchSnap, supplierSnap] = await Promise.all([
+    loadSalesInRange(start, end),
+    db.collection("stockBatches").get(),
+    db.collection("suppliers").get(),
+  ]);
+  const batchesById = new Map(batchSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
+  const supplierNames = new Map(supplierSnap.docs.map((d) => [d.id, d.data().name || ""]));
+  // Older sales only kept the batch number, not the batch's ID.
+  const findBatch = (productId, b) =>
+    (b.batchId && batchesById.get(b.batchId)) ||
+    Array.from(batchesById.values()).find((x) => x.productId === productId && b.batchNo && x.batchNo === b.batchNo) ||
+    null;
+  const byBatch = new Map();
   const byDay = new Map();
   const ensureDay = (key) => {
     if (!byDay.has(key)) byDay.set(key, { orders: 0, total: 0, retailItems: 0, retailTotal: 0, wholesaleItems: 0, wholesaleTotal: 0, methods: new Map() });
@@ -153,6 +165,25 @@ async function buildDailySalesReport(start, end) {
       it.qty += l.qty;
       it.amount += l.amount;
       items.set(key, it);
+
+      // Batch, expiry, date received and supplier per item sold.
+      const parts = l.batches && l.batches.length ? l.batches.filter((b) => b.qty > 0) : [{ batchNo: l.batchNo, expirationDate: l.expirationDate, qty: l.qty }];
+      parts.forEach((b) => {
+        const batch = findBatch(l.productId, b);
+        const bKey = `${key}|${batch ? batch.id : b.batchNo || ""}`;
+        const row = byBatch.get(bKey) || {
+          name: productName(l.productId, l.name),
+          batchNo: b.batchNo || (batch && batch.batchNo) || "",
+          expirationDate: b.expirationDate || (batch && batch.expirationDate) || "",
+          dateReceived: (batch && batch.dateReceived) || "",
+          supplier: (batch && batch.supplierId && supplierNames.get(batch.supplierId)) || "",
+          qty: 0,
+          amount: 0,
+        };
+        row.qty += b.qty;
+        row.amount += l.price * b.qty;
+        byBatch.set(bKey, row);
+      });
     });
   });
 
@@ -217,6 +248,17 @@ async function buildDailySalesReport(start, end) {
               .sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name))
               .map((it) => [it.name, qty(it.qty), money(it.amount), money(0)]),
             totals: [["TOTAL", qty(Array.from(items.values()).reduce((n, i) => n + i.qty, 0)), money(Array.from(items.values()).reduce((n, i) => n + i.amount, 0)), money(0)]],
+          },
+          {
+            heading: "Item Sold by Batch",
+            columns: [
+              { label: "Item", width: 3 }, { label: "Batch No", width: 1.2 }, { label: "Exp" }, { label: "Date Received" },
+              { label: "Supplier", width: 1.8 }, { label: "No. of Items", align: "right" }, { label: "Total Amount", align: "right" },
+            ],
+            rows: Array.from(byBatch.values())
+              .sort((a, b) => a.name.localeCompare(b.name) || String(a.expirationDate).localeCompare(String(b.expirationDate)))
+              .map((r) => [r.name, r.batchNo, r.expirationDate ? formatDateMDY(r.expirationDate) : "", r.dateReceived ? formatDateMDY(r.dateReceived) : "", r.supplier, qty(r.qty), money(r.amount)]),
+            totals: [["TOTAL", "", "", "", "", qty(Array.from(byBatch.values()).reduce((n, r) => n + r.qty, 0)), money(Array.from(byBatch.values()).reduce((n, r) => n + r.amount, 0))]],
           },
         ],
       },
