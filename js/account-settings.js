@@ -65,6 +65,7 @@ auth.onAuthStateChanged(async (user) => {
     lastNameInput.value = data.lastName || "";
     contactNumberInput.value = data.contactNumber || "";
     accountEmailInput.value = data.email || "";
+    showProfilePhoto(data.photoUrl);
 
     if (data.shippingAddress) {
       streetAddressInput.value = data.shippingAddress.streetAddress || "";
@@ -342,5 +343,44 @@ confirmEmailChangeBtn.addEventListener("click", async () => {
     changeEmailStep2Alert.classList.remove("d-none");
   } finally {
     confirmEmailChangeBtn.disabled = false;
+  }
+});
+
+// ---- Profile picture (REQ040) ----
+const profilePhotoPreview = document.getElementById("profilePhotoPreview");
+const profilePhotoPlaceholder = document.getElementById("profilePhotoPlaceholder");
+const profilePhotoInput = document.getElementById("profilePhotoInput");
+const profilePhotoBtn = document.getElementById("profilePhotoBtn");
+
+function showProfilePhoto(url) {
+  profilePhotoPreview.style.backgroundImage = url ? `url('${url}')` : "";
+  profilePhotoPlaceholder.classList.toggle("d-none", !!url);
+}
+
+profilePhotoBtn.addEventListener("click", () => profilePhotoInput.click());
+
+profilePhotoInput.addEventListener("change", async () => {
+  const file = profilePhotoInput.files[0];
+  profilePhotoInput.value = "";
+  if (!file || !signedInUid) return;
+  profileAlert.classList.add("d-none");
+  profileSuccess.classList.add("d-none");
+  if (file.size > 5 * 1024 * 1024) {
+    profileAlert.textContent = "That photo is too large. Please choose one under 5MB.";
+    profileAlert.classList.remove("d-none");
+    return;
+  }
+  profilePhotoBtn.disabled = true;
+  try {
+    const photoUrl = await uploadToCloudinary(file);
+    await db.collection("users").doc(signedInUid).update({ photoUrl });
+    showProfilePhoto(photoUrl);
+    profileSuccess.textContent = "Profile photo updated.";
+    profileSuccess.classList.remove("d-none");
+  } catch (error) {
+    profileAlert.textContent = error.message || "Something went wrong uploading your photo. Please try again.";
+    profileAlert.classList.remove("d-none");
+  } finally {
+    profilePhotoBtn.disabled = false;
   }
 });

@@ -104,6 +104,16 @@
 
       <div class="checkout-card p-4 mb-4">
         <h2 class="h5 fw-bold mb-3">Profile</h2>
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div id="profilePhotoPreview" class="rounded-circle d-flex align-items-center justify-content-center" style="width:72px; height:72px; background-color:#f2f2f4; background-size:cover; background-position:center; border:1px solid var(--amson-border);">
+            <i class="bi bi-person" id="profilePhotoPlaceholder" style="font-size:2rem; color:#999;"></i>
+          </div>
+          <div>
+            <button type="button" class="btn btn-outline-dark-amson btn-sm" id="profilePhotoBtn"><i class="bi bi-camera me-1"></i>Change Photo</button>
+            <input type="file" id="profilePhotoInput" accept="image/png,image/jpeg" class="d-none">
+            <p class="text-muted mb-0 mt-1" style="font-size:0.75rem;">PNG or JPG, up to 5MB</p>
+          </div>
+        </div>
         <div class="row g-3">
           <div class="col-sm-6">
             <label for="firstNameInput" class="form-label">First Name</label>
@@ -273,6 +283,8 @@
 <script src="../js/cart.js"></script>
 <script src="../js/orders.js"></script>
 <script src="../js/validators.js"></script>
+<script src="../js/cloudinary-config.js"></script>
+<script src="../js/cloudinary.js"></script>
 <script src="../js/account-settings.js"></script>
 <script src="../js/store-info.js"></script>
 </body>

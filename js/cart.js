@@ -4,17 +4,89 @@
 
 const CART_STORAGE_KEY = "amsonCart";
 
-function getCart() {
+// A signed-in customer's cart belongs to the account (REQ014): it's saved on
+// users/{uid}.cart so it follows them to any device, with a per-account
+// local copy for speed. Guests keep a browser-only cart, which is merged
+// into the account cart when they sign in.
+// The last signed-in customer is remembered so pages read the right cart
+// immediately, before Firebase Auth finishes restoring the session.
+const CART_OWNER_KEY = "amsonCartOwner";
+let cartOwnerUid = null;
+try {
+  cartOwnerUid = localStorage.getItem(CART_OWNER_KEY);
+} catch (error) {}
+let cartSyncTimer = null;
+
+function cartStorageKey() {
+  return cartOwnerUid ? `${CART_STORAGE_KEY}:${cartOwnerUid}` : CART_STORAGE_KEY;
+}
+
+function readCartKey(key) {
   try {
-    return JSON.parse(localStorage.getItem(CART_STORAGE_KEY)) || [];
+    return JSON.parse(localStorage.getItem(key)) || [];
   } catch (error) {
     return [];
   }
 }
 
+function getCart() {
+  return readCartKey(cartStorageKey());
+}
+
 function saveCart(cart) {
-  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+  try {
+    localStorage.setItem(cartStorageKey(), JSON.stringify(cart));
+  } catch (error) {
+    // Storage blocked (private mode) - the account copy below still saves.
+  }
   updateCartBadge();
+  if (cartOwnerUid && typeof db !== "undefined") {
+    const uid = cartOwnerUid;
+    clearTimeout(cartSyncTimer);
+    cartSyncTimer = setTimeout(() => {
+      db.collection("users").doc(uid).update({ cart }).catch((error) => console.error("Failed to save cart:", error));
+    }, 400);
+  }
+}
+
+function mergeCarts(a, b) {
+  const merged = a.map((item) => ({ ...item }));
+  b.forEach((item) => {
+    const existing = merged.find((m) => m.id === item.id);
+    if (existing) existing.qty = Math.max(existing.qty, item.qty);
+    else merged.push({ ...item });
+  });
+  return merged;
+}
+
+if (typeof auth !== "undefined") {
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      cartOwnerUid = null;
+      try {
+        localStorage.removeItem(CART_OWNER_KEY);
+      } catch (error) {}
+      updateCartBadge();
+      return;
+    }
+    try {
+      const doc = await db.collection("users").doc(user.uid).get();
+      if (!doc.exists || doc.data().role !== "customer") return;
+      const accountCart = Array.isArray(doc.data().cart) ? doc.data().cart : [];
+      const guestCart = readCartKey(CART_STORAGE_KEY);
+      cartOwnerUid = user.uid;
+      try {
+        localStorage.setItem(CART_OWNER_KEY, user.uid);
+      } catch (error) {}
+      const merged = mergeCarts(accountCart, guestCart);
+      if (guestCart.length) localStorage.removeItem(CART_STORAGE_KEY);
+      if (guestCart.length || JSON.stringify(merged) !== JSON.stringify(getCart())) saveCart(merged);
+      else updateCartBadge();
+      document.dispatchEvent(new CustomEvent("cart:synced"));
+    } catch (error) {
+      console.error("Failed to load the account cart:", error);
+    }
+  });
 }
 
 // Both return { qty, capped } - capped is true if the requested quantity
