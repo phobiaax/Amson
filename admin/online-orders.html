@@ -340,6 +340,16 @@
         <div class="invalid-feedback" id="trackingLinkError"></div>
       </div>
 
+      <div class="mb-3">
+        <label for="lalamoveFeeInput" class="form-label">Lalamove Delivery Fee</label>
+        <div class="input-group">
+          <span class="input-group-text">₱</span>
+          <input type="number" class="form-control" id="lalamoveFeeInput" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="invalid-feedback" id="lalamoveFeeError"></div>
+        <p class="form-text mb-0">This is emailed to the customer as part of their delivery receipt, and is payable directly to the rider - it's separate from what they already paid online.</p>
+      </div>
+
       <div class="d-flex gap-2">
         <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Back</button>
         <button type="button" class="btn btn-amson flex-fill" id="markDispatchedBtn">Mark as Dispatched</button>
@@ -434,6 +444,9 @@
 <!-- jsPDF (Export Report) -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 
+<!-- EmailJS (dispatch receipt email to the customer) -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
 <!-- Firebase (compat SDK) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -441,6 +454,7 @@
 
 <!-- App scripts -->
 <script src="../js/firebase-config.js"></script>
+<script src="../js/emailjs-config.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/orders.js"></script>
 <script src="../js/admin-sidebar.js"></script>

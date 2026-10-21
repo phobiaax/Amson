@@ -99,6 +99,8 @@ const holdModalEl = document.getElementById("holdModal");
 const approvedModalEl = document.getElementById("approvedModal");
 const trackingLinkInput = document.getElementById("trackingLinkInput");
 const trackingLinkError = document.getElementById("trackingLinkError");
+const lalamoveFeeInput = document.getElementById("lalamoveFeeInput");
+const lalamoveFeeError = document.getElementById("lalamoveFeeError");
 const markDispatchedBtn = document.getElementById("markDispatchedBtn");
 const pickupReadyModalEl = document.getElementById("pickupReadyModal");
 
@@ -730,6 +732,9 @@ function openApprovedModal(order) {
   trackingLinkInput.value = order.trackingLink || "";
   trackingLinkInput.classList.remove("is-invalid");
   trackingLinkError.textContent = "";
+  lalamoveFeeInput.value = order.lalamoveFee != null ? order.lalamoveFee : "";
+  lalamoveFeeInput.classList.remove("is-invalid");
+  lalamoveFeeError.textContent = "";
 
   bootstrap.Modal.getOrCreateInstance(approvedModalEl).show();
 }
@@ -748,6 +753,58 @@ approvedModalEl.addEventListener("click", (e) => {
   });
 });
 
+// Emailed to the customer right after Mark as Dispatched - the itemized
+// order, what they already paid online, and the Lalamove fee the rider
+// collects on delivery, so there's no surprise about what's still owed.
+// Needs EMAILJS_DISPATCH_RECEIPT_TEMPLATE_ID (emailjs-config.js) set up on
+// the EmailJS dashboard - same account/service as the OTP template - with
+// these template variables: to_email, to_name, first_name, order_number,
+// items_list, subtotal, credit_applied, amount_paid_online, delivery_fee,
+// grand_total, delivery_address, tracking_link.
+async function sendDispatchReceiptEmail(order, lalamoveFee, trackingLink) {
+  if (
+    typeof emailjs === "undefined" ||
+    EMAILJS_DISPATCH_RECEIPT_TEMPLATE_ID === "YOUR_EMAILJS_DISPATCH_RECEIPT_TEMPLATE_ID"
+  ) {
+    console.warn("EmailJS dispatch receipt template isn't configured yet - receipt email was not sent.");
+    return;
+  }
+
+  const contact = order.contact || {};
+  if (!contact.email) return;
+
+  const itemsList = (order.items || [])
+    .map((item) => `${item.name} x${item.qty} - ${formatPeso(item.price * item.qty)}`)
+    .join("\n");
+
+  const shipping = order.shipping || {};
+  const deliveryAddress = [shipping.streetAddress, shipping.city, shipping.province, shipping.zipCode]
+    .filter(Boolean)
+    .join(", ");
+
+  const amountPaidOnline = order.total || 0;
+  const deliveryFee = lalamoveFee || 0;
+
+  try {
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_DISPATCH_RECEIPT_TEMPLATE_ID, {
+      to_email: contact.email,
+      to_name: contact.firstName || "",
+      first_name: contact.firstName || "",
+      order_number: order.orderNumber,
+      items_list: itemsList,
+      subtotal: formatPeso(order.subtotal != null ? order.subtotal : amountPaidOnline),
+      credit_applied: order.creditApplied > 0 ? formatPeso(order.creditApplied) : "",
+      amount_paid_online: formatPeso(amountPaidOnline),
+      delivery_fee: formatPeso(deliveryFee),
+      grand_total: formatPeso(amountPaidOnline + deliveryFee),
+      delivery_address: deliveryAddress,
+      tracking_link: trackingLink,
+    });
+  } catch (error) {
+    console.error("Failed to send dispatch receipt email:", error);
+  }
+}
+
 markDispatchedBtn.addEventListener("click", async () => {
   if (!approvedModalOrderId) return;
   const trackingLink = trackingLinkInput.value.trim();
@@ -760,6 +817,15 @@ markDispatchedBtn.addEventListener("click", async () => {
   }
   trackingLinkInput.classList.remove("is-invalid");
 
+  const lalamoveFeeRaw = lalamoveFeeInput.value.trim();
+  const lalamoveFee = parseFloat(lalamoveFeeRaw);
+  if (!lalamoveFeeRaw || isNaN(lalamoveFee) || lalamoveFee < 0) {
+    lalamoveFeeError.textContent = "Please enter the Lalamove delivery fee (0 or more).";
+    lalamoveFeeInput.classList.add("is-invalid");
+    return;
+  }
+  lalamoveFeeInput.classList.remove("is-invalid");
+
   const orderId = approvedModalOrderId;
   const order = allOrders.find((o) => o.id === orderId);
 
@@ -770,11 +836,15 @@ markDispatchedBtn.addEventListener("click", async () => {
       status: "dispatched",
       "statusTimestamps.dispatched": firebase.firestore.FieldValue.serverTimestamp(),
       trackingLink,
+      lalamoveFee,
     });
 
     order.status = "dispatched";
     order.trackingLink = trackingLink;
+    order.lalamoveFee = lalamoveFee;
     approvedModalOrderId = null;
+
+    sendDispatchReceiptEmail(order, lalamoveFee, trackingLink);
 
     bootstrap.Modal.getInstance(approvedModalEl).hide();
     renderOrdersTable();

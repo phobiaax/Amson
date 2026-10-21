@@ -56,9 +56,16 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
               ? `<p class="text-muted mb-3" style="font-size:0.85rem;">This medicine requires a valid prescription. You'll be asked to upload it at checkout.</p>`
               : ""
           }
-          <button type="button" class="btn btn-amson w-100 py-2" id="addToCartBtn" ${product.inStock ? "" : "disabled"}>
-            <i class="bi bi-cart3 me-2"></i>${product.inStock ? "Add to Cart" : "Out of Stock"}
-          </button>
+          <div class="d-flex flex-column gap-2">
+            <button type="button" class="btn btn-amson w-100 py-2" id="addToCartBtn" ${product.inStock ? "" : "disabled"}>
+              <i class="bi bi-cart3 me-2"></i>${product.inStock ? "Add to Cart" : "Out of Stock"}
+            </button>
+            ${
+              product.inStock
+                ? `<button type="button" class="btn btn-outline-dark-amson w-100 py-2" id="buyNowBtn">Buy Now</button>`
+                : ""
+            }
+          </div>
         </div>
       </div>
 
@@ -117,6 +124,18 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
       } else {
         showCartToast(`Added ${currentQty()} × ${product.name} to cart.`);
       }
+    });
+  }
+
+  const buyNowBtn = document.getElementById("buyNowBtn");
+  if (buyNowBtn) {
+    buyNowBtn.addEventListener("click", () => {
+      const result = addToCart(product.id, currentQty());
+      if (result.capped && result.qty === 0) {
+        showCartToast("Sorry, that item is out of stock.", "warning");
+        return;
+      }
+      window.location.href = "cart.html";
     });
   }
 })();

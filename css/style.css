@@ -197,7 +197,17 @@ a {
   border: 1px solid var(--amson-border);
 }
 
+/* A focused field is blue by default (just "you're in this field now"),
+   same as it would be unstyled - red is reserved for a field that's
+   actually wrong (failed its pattern/required check), not every field
+   anyone happens to click into. */
 .input-icon-group .form-control:focus {
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
+}
+
+.input-icon-group .form-control.is-invalid:focus,
+.was-validated .input-icon-group .form-control:invalid:focus {
   border-color: var(--amson-red);
   box-shadow: 0 0 0 3px rgba(238, 49, 55, 0.1);
 }
@@ -212,8 +222,9 @@ a {
   background-image: none;
 }
 
-/* Registration form: no green "valid" success styling on any field - only
-   red feedback after a failed submit attempt. */
+/* Registration form: no green "valid" success styling on any field - a
+   correctly-filled field just goes back to the plain border, not a color
+   that implies something's wrong. */
 #registerForm.was-validated .form-control:valid,
 #registerForm .form-control.is-valid {
   border-color: var(--amson-border);
@@ -221,8 +232,8 @@ a {
 }
 #registerForm.was-validated .form-control:valid:focus,
 #registerForm .form-control.is-valid:focus {
-  border-color: var(--amson-red);
-  box-shadow: 0 0 0 3px rgba(238, 49, 55, 0.1);
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
 }
 #registerForm.was-validated .form-check-input:valid,
 #registerForm .form-check-input.is-valid {
@@ -300,8 +311,8 @@ a {
 }
 
 .otp-input:focus {
-  border-color: var(--amson-red);
-  box-shadow: 0 0 0 3px rgba(238, 49, 55, 0.1);
+  border-color: #86b7fe;
+  box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
   outline: none;
 }
 

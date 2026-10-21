@@ -147,7 +147,7 @@ registerForm.addEventListener("submit", async (e) => {
   }
 
   if (!NAME_PATTERN.test(firstNameInput.value.trim()) || !NAME_PATTERN.test(lastNameInput.value.trim())) {
-    showAlert("Names can only contain letters.");
+    showAlert("Names can only contain letters, dashes, and periods.");
     return;
   }
 

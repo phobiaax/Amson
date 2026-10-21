@@ -708,9 +708,16 @@ function renderProductCard(product) {
         <p class="product-desc">${product.description || ""}</p>
         <p class="product-price">${formatPeso(product.price)}</p>
         ${product.rxRequired ? `<p class="text-muted mb-2" style="font-size:0.78rem;"><i class="bi bi-file-medical me-1"></i>Prescription required</p>` : ""}
-        <button type="button" class="btn btn-amson w-100 btn-add-cart" data-id="${product.id}" ${product.inStock ? "" : "disabled"}>
-          ${product.inStock ? "+ Add to Cart" : "Out of Stock"}
-        </button>
+        <div class="d-flex flex-column gap-2">
+          <button type="button" class="btn btn-amson w-100 btn-add-cart" data-id="${product.id}" ${product.inStock ? "" : "disabled"}>
+            ${product.inStock ? "+ Add to Cart" : "Out of Stock"}
+          </button>
+          ${
+            product.inStock
+              ? `<button type="button" class="btn btn-outline-dark-amson w-100 btn-buy-now" data-id="${product.id}">Buy Now</button>`
+              : ""
+          }
+        </div>
       </div>
     </div>
   `;
@@ -783,13 +790,20 @@ async function showProductQuickView(productId) {
             ? `<p class="text-muted mb-3" style="font-size:0.85rem;">This medicine requires a valid prescription. You'll be asked to upload it at checkout.</p>`
             : ""
         }
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-amson flex-fill py-2" id="quickViewAddToCartBtn" ${product.inStock ? "" : "disabled"}>
-            <i class="bi bi-cart3 me-2"></i>${product.inStock ? "Add to Cart" : "Out of Stock"}
-          </button>
-          <a href="product-details.html?id=${product.id}" class="btn btn-outline-dark-amson py-2" title="Open full page">
-            <i class="bi bi-arrows-fullscreen"></i>
-          </a>
+        <div class="d-flex flex-column gap-2">
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-amson flex-fill py-2" id="quickViewAddToCartBtn" ${product.inStock ? "" : "disabled"}>
+              <i class="bi bi-cart3 me-2"></i>${product.inStock ? "Add to Cart" : "Out of Stock"}
+            </button>
+            <a href="product-details.html?id=${product.id}" class="btn btn-outline-dark-amson py-2" title="Open full page">
+              <i class="bi bi-arrows-fullscreen"></i>
+            </a>
+          </div>
+          ${
+            product.inStock
+              ? `<button type="button" class="btn btn-outline-dark-amson w-100 py-2" id="quickViewBuyNowBtn">Buy Now</button>`
+              : ""
+          }
         </div>
       </div>
     </div>
@@ -848,6 +862,18 @@ async function showProductQuickView(productId) {
       } else {
         showCartToast(`Added ${currentQty()} × ${product.name} to cart.`);
       }
+    });
+  }
+
+  const buyNowBtn = document.getElementById("quickViewBuyNowBtn");
+  if (buyNowBtn) {
+    buyNowBtn.addEventListener("click", () => {
+      const result = addToCart(product.id, currentQty());
+      if (result.capped && result.qty === 0) {
+        showCartToast("Sorry, that item is out of stock.", "warning");
+        return;
+      }
+      window.location.href = "cart.html";
     });
   }
 

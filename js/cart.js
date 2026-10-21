@@ -160,4 +160,18 @@ document.addEventListener("click", (e) => {
   }
 });
 
+// ---- Buy Now - adds the item then takes the customer straight to the
+// cart, instead of them having to add it and then go find the cart icon
+// themselves ----
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".btn-buy-now");
+  if (!btn) return;
+  const result = addToCart(btn.dataset.id, 1);
+  if (result.capped && result.qty === 0) {
+    showCartToast("Sorry, that item is out of stock.", "warning");
+    return;
+  }
+  window.location.href = "cart.html";
+});
+
 document.addEventListener("DOMContentLoaded", updateCartBadge);
