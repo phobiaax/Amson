@@ -140,6 +140,17 @@
             <button type="button" class="btn btn-amson mt-3" id="saveStoreBannerBtn">Save Announcement</button>
           </div>
         </div>
+
+        <div class="col-12 d-none" id="emailTestCard">
+          <div class="checkout-card p-4">
+            <h2 class="h5 fw-bold mb-1">Email Test</h2>
+            <p class="text-muted mb-3" style="font-size:0.85rem;">Sends a sample order email (the same template customers get) to the address below and shows EmailJS's reply, so you can see why emails aren't arriving.</p>
+            <label class="form-label" for="emailTestAddress">Send to</label>
+            <input type="email" class="form-control" id="emailTestAddress" style="max-width:360px;">
+            <div id="emailTestAlert" class="alert auth-alert d-none mt-3 mb-0" role="alert" style="white-space:pre-line;"></div>
+            <button type="button" class="btn btn-outline-dark-amson mt-3" id="emailTestBtn">Send Test Email</button>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -154,7 +165,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <!-- App scripts -->
+<!-- EmailJS (Email Test) -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="../js/firebase-config.js"></script>
+<script src="../js/emailjs-config.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/admin-sidebar.js"></script>
 <script src="../js/validators.js"></script>
