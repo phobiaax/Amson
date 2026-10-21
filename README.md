@@ -39,7 +39,7 @@ free Spark plan. There is no build step.
 | Cloud Firestore | All data | `js/firebase-config.js`, rules in `firestore.rules` |
 | Cloudinary | Product photos, payment screenshots, prescriptions, documents | `js/cloudinary-config.js` (unsigned upload preset) |
 | Firebase AI Logic (Gemini) | Live chat assistant | `js/chat-config.js` |
-| EmailJS | One-time verification codes | `js/emailjs-config.js` |
+| EmailJS | Sign-up and new-device codes, order update emails | `js/emailjs-config.js` |
 | jsPDF, SheetJS, Chart.js, Choices.js | PDFs, Excel import/export, charts, searchable selects | loaded from CDN in each page |
 
 These keys are public browser keys by design; access is controlled by
@@ -84,6 +84,16 @@ in-site bell always shows them.
 
 The free EmailJS plan allows 200 emails a month (OTP codes included); a
 typical order sends 2 to 3 emails.
+
+## Login code on a new device
+
+When someone logs in from a browser their account hasn't used before,
+a 6-digit code is emailed to them (the same EmailJS template as the sign-up
+code). They have to enter it before they can continue. Customers and staff
+both get this. Each person gets one code per device, and Account Settings
+lists their recognized devices. Every account therefore needs a real inbox.
+While testing with made-up emails, set `REQUIRE_DEVICE_CODE = false` in
+`js/device-trust.js`.
 
 ## First-time store setup
 
