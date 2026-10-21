@@ -76,17 +76,9 @@ in-site bell always shows them.
 
 1. EmailJS dashboard → Email Templates → Create New Template.
 2. Set **To Email** to `{{to_email}}` and **Subject** to `{{subject}}`.
-3. Body, for example:
-
-   ```
-   Hi {{to_name}},
-
-   {{message}}
-
-   View your order: {{link}}
-
-   Amson Pharmaceuticals - Las Piñas
-   ```
+3. Body: paste `docs/email-templates/order-update.html` into the template's
+   HTML/code editor (same look as the verification code email). It uses
+   `{{to_name}}`, `{{subject}}`, `{{message}}` and `{{link}}`.
 4. Save, then paste the template ID into `EMAILJS_ORDER_TEMPLATE_ID` in
    `js/emailjs-config.js`. Until then no order emails are sent.
 

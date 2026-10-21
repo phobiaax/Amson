@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{subject}}</title>
+<!--[if mso]>
+<style>
+  * { font-family: Arial, sans-serif !important; }
+</style>
+<![endif]-->
+<style>
+  /* Roboto with web-safe fallback (most email clients strip @import/@font-face, so Arial is the real fallback) */
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+  body, table, td { font-family: 'Roboto', Arial, Helvetica, sans-serif !important; }
+
+  @media only screen and (max-width: 520px) {
+    .email-container { width: 100% !important; }
+    .email-padding { padding: 24px 20px !important; }
+    .header-padding { padding: 20px 20px !important; }
+  }
+</style>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f6f8; font-family:'Roboto', Arial, Helvetica, sans-serif;">
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f8; padding:32px 0;">
+    <tr>
+      <td align="center">
+
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" class="email-container" style="max-width:480px; width:100%; background-color:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+
+          <!-- Header -->
+          <tr>
+            <td class="header-padding" style="background-color:#EE3137; padding:24px 32px;">
+              <span style="color:#ffffff; font-size:20px; font-weight:bold; letter-spacing:0.5px;">
+                Amson Pharmaceuticals
+              </span>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td class="email-padding" style="padding:32px;">
+              <p style="margin:0 0 16px 0; font-size:16px; color:#1a1a1a;">
+                Hi {{to_name}},
+              </p>
+
+              <!-- The update, e.g. "Payment confirmed for order AMP-2026-0012" -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                <tr>
+                  <td style="background-color:#fdeceb; border-left:4px solid #EE3137; border-radius:6px; padding:16px 20px;">
+                    <p style="margin:0 0 8px 0; font-size:16px; font-weight:bold; color:#EE3137;">
+                      {{subject}}
+                    </p>
+                    <p style="margin:0; font-size:14px; color:#4a4a4a; line-height:1.6;">
+                      {{message}}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Button -->
+              <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px auto;">
+                <tr>
+                  <td align="center" style="background-color:#EE3137; border-radius:6px;">
+                    <a href="{{link}}" target="_blank" style="display:inline-block; padding:12px 28px; font-size:14px; font-weight:bold; color:#ffffff; text-decoration:none;">
+                      View your order
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:0; font-size:13px; color:#777777; line-height:1.5;">
+                You can also see every update in My Orders on our website. To stop these emails, turn off "Email me order updates" in Account Settings.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#f4f6f8; padding:20px 32px; border-top:1px solid #eaeaea;">
+              <p style="margin:0; font-size:12px; color:#9a9a9a; text-align:center;">
+                &copy; Amson Pharmaceuticals - Las Pi&ntilde;as. This is an automated message, please do not reply.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>
