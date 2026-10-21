@@ -82,12 +82,13 @@ function setAppDialogField(html) {
 
 // Replaces window.confirm() - resolves true/false. Dismissing without
 // clicking Confirm (Esc, or clicking Cancel) resolves false.
-function showAppConfirm(message, { title = "Please Confirm", confirmLabel = "Confirm", cancelLabel = "Cancel", fieldHtml = null } = {}) {
+function showAppConfirm(message, { title = "Please Confirm", confirmLabel = "Confirm", cancelLabel = "Cancel", fieldHtml = null, onRender = null } = {}) {
   ensureAppDialogModal();
   return new Promise((resolve) => {
     document.getElementById("appDialogTitle").textContent = title;
     document.getElementById("appDialogMessage").textContent = message;
     setAppDialogField(fieldHtml);
+    if (onRender) onRender();
     const cancelBtn = document.getElementById("appDialogCancelBtn");
     const okBtn = document.getElementById("appDialogOkBtn");
     cancelBtn.classList.remove("d-none");

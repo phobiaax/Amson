@@ -123,7 +123,8 @@ service cloud.firestore {
       //      users/{uid} ledger is staff/system-only (see above).
       //   3. Resubmitting a corrected proof of payment/reference number on
       //      an active hold (order-details.js's issueResubmitBtn handler) -
-      //      only ever touches those two fields plus marking the hold
+      //      (or a new prescription photo after a rejected prescription) -
+      //      only ever touches those fields plus marking the hold
       //      resolvedByCustomerAt, never the order total or status.
       allow update: if isSignedIn() && resource.data.customerId == myUid() && (
         (resource.data.status == "delivered" &&
@@ -138,7 +139,7 @@ service cloud.firestore {
         ||
         (resource.data.get("paymentIssue", null) != null &&
          request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(["proofOfPaymentUrl", "paymentReferenceNumber", "paymentIssue"]))
+           .hasOnly(["proofOfPaymentUrl", "paymentReferenceNumber", "paymentIssue", "prescriptionPhotoUrl"]))
       );
       allow update: if isStaff();
 

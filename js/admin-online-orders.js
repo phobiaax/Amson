@@ -29,7 +29,60 @@ const PAYMENT_ISSUE_TYPES = {
   out_of_stock: {
     label: "Out of Stock",
   },
+  // Set by the Reject Prescription button (REQ079), not the dropdown.
+  prescription_rejected: {
+    label: "Prescription Not Accepted",
+  },
 };
+
+const PRESCRIPTION_REJECTION_REASONS = {
+  unclear_photo: "The prescription photo is unclear or cut off. Please upload a clear photo of the whole prescription.",
+  expired: "The prescription has expired. Please upload a current prescription from your doctor.",
+  mismatch: "The prescription doesn't match the items ordered. Please upload the prescription for these items.",
+  incomplete: "The prescription is missing required details (doctor's name, license no., signature, or date). Please upload a complete one.",
+  other: "",
+};
+
+const PRESCRIPTION_REJECTION_LABELS = {
+  unclear_photo: "Unclear photo",
+  expired: "Expired prescription",
+  mismatch: "Doesn't match items ordered",
+  incomplete: "Missing doctor's details",
+  other: "Other",
+};
+
+// Who acted on a verification and when (REQ081).
+function verificationStamp(action) {
+  return {
+    action,
+    by: currentStaffName,
+    byUid: auth.currentUser ? auth.currentUser.uid : null,
+    at: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+}
+
+// The customer's notice when an order is approved. Prescription orders go
+// straight to Ready for Pick-up (REQ025, REQ078).
+function notifyOrderApproved(order) {
+  if (order.requiresPrescription) {
+    notifyCustomer(
+      order.customerId,
+      `Order ${order.orderNumber} is ready for pick-up`,
+      "Your prescription and payment were verified. Please bring the original prescription and a valid ID when you pick up your order at the store.",
+      `order-details.html?id=${order.id}`,
+      "success"
+    );
+    logAuditEvent({ action: "Prescription Approved", details: `Order ${order.orderNumber} (SI No. ${order.invoiceNo || "-"})`, actor: currentStaffName });
+  } else {
+    notifyCustomer(
+      order.customerId,
+      `Payment confirmed for order ${order.orderNumber}`,
+      "We've verified your payment. Your order is now being prepared.",
+      `order-details.html?id=${order.id}`,
+      "success"
+    );
+  }
+}
 
 const REJECTION_REASON_NOTES = {
   unclear_screenshot: "Please re-upload a clear screenshot showing completed QR PH transaction.",
@@ -63,6 +116,7 @@ let verificationSearchTerm = "";
 // that's been waiting longest - not whichever order happened to come in
 // most recently.
 let verificationSortDesc = false;
+let verificationTypeFilter = "all";
 
 const tabVerificationBtn = document.getElementById("tabVerificationBtn");
 const tabOrdersBtn = document.getElementById("tabOrdersBtn");
@@ -292,6 +346,9 @@ function verificationQueue() {
     (order) => order.status === "placed" && (!order.paymentIssue || order.paymentIssue.resolvedByCustomerAt)
   );
 
+  if (verificationTypeFilter === "rx") queue = queue.filter((order) => order.requiresPrescription);
+  if (verificationTypeFilter === "regular") queue = queue.filter((order) => !order.requiresPrescription);
+
   if (verificationSearchTerm) {
     const term = verificationSearchTerm.toLowerCase();
     queue = queue.filter(
@@ -326,6 +383,7 @@ function renderVerificationQueue() {
               <p class="fw-bold mb-0">${order.orderNumber}</p>
               <p class="text-muted mb-0" style="font-size:0.85rem;">${customerName(order)}</p>
               <p class="text-muted mb-0" style="font-size:0.78rem;">${formatOrderDate(order.createdAt)}</p>
+              ${order.requiresPrescription ? '<span class="badge rounded-pill text-bg-info mt-1 me-1">RX - Pick-up</span>' : ""}
               ${order.paymentIssue && order.paymentIssue.resolvedByCustomerAt ? '<span class="badge rounded-pill text-bg-warning mt-1">Customer Resubmitted</span>' : ""}
               ${!order.proofOfPaymentUrl ? '<p class="text-muted mb-0" style="font-size:0.75rem;">No payment made</p>' : ""}
             </div>
@@ -385,8 +443,13 @@ function renderReviewPanel(order) {
   if (order.paymentIssue && order.paymentIssue.resolvedByCustomerAt) {
     const issue = order.paymentIssue;
     const originalIssue =
-      issue.type === "invalid_payment" ? `flagged as invalid (${issue.reasonLabel || "unspecified reason"})` : "flagged as underpaid";
-    issueNote.innerHTML = `<i class="bi bi-arrow-repeat me-1"></i>This order was previously ${originalIssue}. The customer has resubmitted a corrected proof of payment and reference number below.`;
+      issue.type === "invalid_payment"
+        ? `flagged as invalid (${issue.reasonLabel || "unspecified reason"})`
+        : issue.type === "prescription_rejected"
+        ? `rejected for its prescription (${issue.reasonLabel || "unspecified reason"})`
+        : "flagged as underpaid";
+    const resubmitted = issue.type === "prescription_rejected" ? "a new prescription photo" : "a corrected proof of payment and reference number";
+    issueNote.innerHTML = `<i class="bi bi-arrow-repeat me-1"></i>This order was previously ${escapeHtml(originalIssue)}. The customer has resubmitted ${resubmitted} below.`;
     issueNote.classList.remove("d-none");
 
     if (issue.type === "underpayment") {
@@ -408,6 +471,14 @@ function renderReviewPanel(order) {
     document.getElementById("reviewProofImageLink").href = order.proofOfPaymentUrl;
     document.getElementById("reviewProofImage").src = order.proofOfPaymentUrl;
   }
+
+  const isRx = !!order.requiresPrescription;
+  document.getElementById("reviewPanelHeading").textContent = isRx ? "Prescription & Payment Review" : "Proof of Payment Review";
+  document.getElementById("reviewRxChecklist").classList.toggle("d-none", !isRx);
+  rejectPrescriptionBtn.classList.toggle("d-none", !isRx);
+  approvePaymentBtn.innerHTML = isRx
+    ? '<i class="bi bi-check-circle me-1"></i>Approve Prescription & Payment'
+    : '<i class="bi bi-check-circle me-1"></i>Approve Payment';
 
   const prescriptionSection = document.getElementById("reviewPrescriptionSection");
   if (order.prescriptionPhotoUrl) {
@@ -463,6 +534,7 @@ approvePaymentBtn.addEventListener("click", async () => {
         items: itemsWithBatches,
         "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
         paymentIssue: firebase.firestore.FieldValue.delete(),
+        verification: verificationStamp(order.requiresPrescription ? "prescription_and_payment_approved" : "payment_approved"),
       };
       if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
       return update;
@@ -472,13 +544,7 @@ approvePaymentBtn.addEventListener("click", async () => {
     order.items = itemsWithBatches;
     delete order.paymentIssue;
 
-    notifyCustomer(
-      order.customerId,
-      `Payment confirmed for order ${order.orderNumber}`,
-      "We've verified your payment. Your order is now being prepared.",
-      `order-details.html?id=${orderId}`,
-      "success"
-    );
+    notifyOrderApproved(order);
 
     selectedVerificationId = null;
 
@@ -526,6 +592,95 @@ approvePaymentBtn.addEventListener("click", async () => {
   } finally {
     approvePaymentBtn.disabled = false;
   }
+});
+
+/* ---------- Prescription rejection (REQ079) ---------- */
+// The order goes On Hold like a payment issue: the customer gets the reason
+// and 7 days to upload a valid prescription. If they don't, it closes, and
+// a payment staff already confirmed is kept as store credit (no refunds).
+const rejectPrescriptionBtn = document.getElementById("rejectPrescriptionBtn");
+
+rejectPrescriptionBtn.addEventListener("click", async () => {
+  const order = allOrders.find((o) => o.id === selectedVerificationId);
+  if (!order) return;
+
+  const reasonOptions = Object.entries(PRESCRIPTION_REJECTION_LABELS)
+    .map(([value, label]) => `<option value="${value}">${label}</option>`)
+    .join("");
+  const ok = await showAppConfirm(`Reject the prescription for order ${order.orderNumber}? The customer will be asked to upload a valid one within 7 days.`, {
+    title: "Reject Prescription",
+    confirmLabel: "Reject Prescription",
+    fieldHtml: `
+      <label class="form-label" for="rxRejectReasonSelect">Reason *</label>
+      <select class="form-select mb-3" id="rxRejectReasonSelect">${reasonOptions}</select>
+      <label class="form-label" for="rxRejectNoteInput">Message to the customer *</label>
+      <textarea class="form-control mb-3" id="rxRejectNoteInput" rows="3">${escapeHtml(PRESCRIPTION_REJECTION_REASONS.unclear_photo)}</textarea>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="rxRejectPaymentOkCheck">
+        <label class="form-check-label" for="rxRejectPaymentOkCheck">Payment was checked and received in full</label>
+      </div>
+      <p class="text-muted mt-1 mb-0" style="font-size:0.78rem;">If ticked and the order later closes unresolved, the payment is kept as store credit.</p>
+    `,
+    onRender: () => {
+      const select = document.getElementById("rxRejectReasonSelect");
+      const note = document.getElementById("rxRejectNoteInput");
+      select.addEventListener("change", () => {
+        note.value = PRESCRIPTION_REJECTION_REASONS[select.value] || "";
+      });
+    },
+  });
+  if (!ok) return;
+
+  const reason = document.getElementById("rxRejectReasonSelect").value;
+  const note = document.getElementById("rxRejectNoteInput").value.trim();
+  const paymentVerified = document.getElementById("rxRejectPaymentOkCheck").checked;
+  if (!note) {
+    await showAppAlert("A message explaining the rejection is required. Nothing was changed.");
+    return;
+  }
+
+  rejectPrescriptionBtn.disabled = true;
+  try {
+    const paymentIssue = {
+      type: "prescription_rejected",
+      reason,
+      reasonLabel: PRESCRIPTION_REJECTION_LABELS[reason],
+      note,
+      paymentVerified,
+      flaggedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
+    };
+    await db.collection("orders").doc(order.id).update({ paymentIssue, verification: verificationStamp("prescription_rejected") });
+    notifyCustomer(
+      order.customerId,
+      `Prescription not accepted for order ${order.orderNumber}`,
+      `${PRESCRIPTION_REJECTION_LABELS[reason]}: ${note}`,
+      `order-details.html?id=${order.id}`,
+      "danger"
+    );
+    logAuditEvent({
+      action: "Prescription Rejected",
+      details: `Order ${order.orderNumber} - ${PRESCRIPTION_REJECTION_LABELS[reason]}: ${note}`,
+      actor: currentStaffName,
+    });
+
+    order.paymentIssue = paymentIssue;
+    selectedVerificationId = null;
+    renderVerificationQueue();
+    renderOrdersTable();
+    bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
+  } catch (error) {
+    reviewAlert.textContent = error.message || "Something went wrong rejecting this prescription. Please try again.";
+    reviewAlert.classList.remove("d-none");
+  } finally {
+    rejectPrescriptionBtn.disabled = false;
+  }
+});
+
+const verificationTypeFilterSelect = document.getElementById("verificationTypeFilter");
+verificationTypeFilterSelect.addEventListener("change", () => {
+  verificationTypeFilter = verificationTypeFilterSelect.value;
+  renderVerificationQueue();
 });
 
 paymentIssueSelect.addEventListener("change", () => {
@@ -667,7 +822,7 @@ issueConfirmBtn.addEventListener("click", async () => {
         paymentIssue.outstandingBalance = Math.max(0, order.total - received);
       }
 
-      await db.collection("orders").doc(orderId).update({ paymentIssue });
+      await db.collection("orders").doc(orderId).update({ paymentIssue, verification: verificationStamp(`hold_${issueType}`) });
       notifyCustomer(
         order.customerId,
         `Payment issue on order ${order.orderNumber}`,
@@ -704,6 +859,7 @@ issueConfirmBtn.addEventListener("click", async () => {
             "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
             paymentOverage,
             paymentIssue: firebase.firestore.FieldValue.delete(),
+            verification: verificationStamp(order.requiresPrescription ? "prescription_and_payment_approved" : "payment_approved_overpaid"),
           };
           if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
           return update;
@@ -717,13 +873,8 @@ issueConfirmBtn.addEventListener("click", async () => {
         }
       );
 
-      notifyCustomer(
-        order.customerId,
-        `Payment confirmed for order ${order.orderNumber}`,
-        "We've verified your payment. Your order is now being prepared.",
-        `order-details.html?id=${orderId}`,
-        "success"
-      );
+      order.invoiceNo = invoiceNo;
+      notifyOrderApproved(order);
 
       if (excessAmount > 0 && order.customerId) {
         notifyCustomer(

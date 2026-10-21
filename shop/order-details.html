@@ -143,7 +143,7 @@
           <div class="upload-dropzone bg-white" id="issueUploadDropzone">
             <div id="issueUploadEmptyState">
               <i class="bi bi-upload"></i>
-              <span>Click to upload a corrected payment screenshot</span>
+              <span id="issueUploadPrompt">Click to upload a corrected payment screenshot</span>
               <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
             </div>
             <div id="issueUploadPreviewState" class="d-none">
@@ -154,8 +154,10 @@
             <input type="file" id="issueProofInput" accept="image/png,image/jpeg" class="d-none">
           </div>
 
-          <label for="issueReferenceNumberInput" class="form-label mt-3">Reference Number</label>
-          <input type="text" class="form-control" id="issueReferenceNumberInput" placeholder="e.g. GC1234567890">
+          <div id="issueReferenceGroup">
+            <label for="issueReferenceNumberInput" class="form-label mt-3">Reference Number</label>
+            <input type="text" class="form-control" id="issueReferenceNumberInput" placeholder="e.g. GC1234567890">
+          </div>
 
           <div class="alert alert-danger d-none mt-3 mb-0" id="issueResubmitError" role="alert"></div>
 

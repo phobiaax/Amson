@@ -18,7 +18,7 @@ const ORDER_STATUS_STEP_LABELS = {
 };
 
 const PICKUP_ORDER_STATUS_STEP_LABELS = {
-  placed: "Order Pending Verification",
+  placed: "Pending Prescription Verification",
   payment_confirmed: "Payment Confirmed",
   delivered: "Ready for Pick-up",
   received: "Picked Up",
@@ -34,7 +34,7 @@ const ORDER_STATUS_BADGE_LABELS = {
 };
 
 const PICKUP_ORDER_STATUS_BADGE_LABELS = {
-  placed: "Order Pending Verification",
+  placed: "Pending Prescription Verification",
   payment_confirmed: "Payment Confirmed",
   delivered: "Ready for Pick-up",
   received: "Picked Up",
@@ -56,6 +56,7 @@ const HOLD_REASON_LABELS = {
   invalid_payment: "Payment Issue - Invalid Payment",
   underpayment: "Payment Issue - Underpayment",
   out_of_stock: "Item Out of Stock",
+  prescription_rejected: "Prescription Not Accepted",
 };
 
 function computeUnappliedCredit(order) {
@@ -64,6 +65,9 @@ function computeUnappliedCredit(order) {
   const creditApplied = order.creditApplied || 0;
   if (issue.type === "underpayment") return (issue.amountReceived || 0) + creditApplied;
   if (issue.type === "out_of_stock") return (order.total || 0) + creditApplied;
+  // A rejected prescription only carries the payment over if staff
+  // confirmed the payment itself was received in full.
+  if (issue.type === "prescription_rejected") return (issue.paymentVerified ? order.total || 0 : 0) + creditApplied;
   return 0;
 }
 
@@ -245,6 +249,10 @@ async function generateOrderNumber() {
 }
 
 function downloadOrderReceipt(order) {
+  if (!order.invoiceNo) {
+    showAppAlert("Your receipt will be available once our staff verify your payment.");
+    return;
+  }
   if (typeof window.jspdf === "undefined") {
     showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
     return;
@@ -317,6 +325,14 @@ function downloadOrderReceipt(order) {
 
   y += 2;
   doc.line(14, y, 196, y);
+  if (order.creditApplied > 0) {
+    y += 8;
+    doc.text("Subtotal", 14, y);
+    doc.text(formatPeso(order.subtotal || order.total + order.creditApplied), 196, y, { align: "right" });
+    y += 6;
+    doc.text("Store credit applied", 14, y);
+    doc.text(`-${formatPeso(order.creditApplied)}`, 196, y, { align: "right" });
+  }
   y += 8;
   doc.setFont(undefined, "bold");
   doc.text("Total", 14, y);
