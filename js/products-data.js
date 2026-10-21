@@ -1239,7 +1239,7 @@ async function deductStockFEFO(productId, qty, opts = {}) {
 //
 // Pass `record` to write the sale itself in the same transaction:
 // { ref, mode: "set" | "update", build(allocations, invoiceNo) => data,
-//   alsoWrite?(transaction, invoiceNo) }.
+//   alsoWrite?(transaction, invoiceNo), check?(doc) }.
 // A record also gets the next Sales Invoice number (SI#), allocated inside
 // the same transaction so a failed sale never burns a number and two sales
 // can never share one.
@@ -1302,6 +1302,9 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, re
     }
     const extraDocs = [];
     for (const ref of extraReads) extraDocs.push(await transaction.get(ref));
+    // record.check(doc) may throw to stop the sale if the record changed
+    // since it was loaded (e.g. another staff member already approved it).
+    if (record && record.check) record.check(await transaction.get(record.ref));
 
     // Firestore transactions need every read before any write.
     let invoiceNo = null;

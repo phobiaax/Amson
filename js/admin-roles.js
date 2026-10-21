@@ -28,7 +28,6 @@ const ADMIN_PAGE_ACCESS = {
   "reports.html": ["admin", "branch_manager", "technical_staff"],
   "settings.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "staff-management.html": ["admin", "branch_manager"],
-  "migrate-credit.html": ["admin", "branch_manager"],
 };
 
 // Where each role lands after login (and when sent away from a page it

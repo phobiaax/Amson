@@ -551,6 +551,13 @@ async function confirmOrderSale(order, buildUpdate, alsoWrite = null) {
           return buildUpdate(allocations, invoiceNo, itemsWithBatches);
         },
         alsoWrite,
+        // Two staff approving at once must not deduct stock twice.
+        check: (doc) => {
+          const fresh = doc.exists ? doc.data() : null;
+          if (!fresh || fresh.status !== "placed" || fresh.invoiceNo) {
+            throw new Error("This order was already processed by someone else. Refresh the page to see its current status.");
+          }
+        },
       },
     }
   );

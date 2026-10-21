@@ -69,7 +69,9 @@ function computeUnappliedCredit(order) {
   // A rejected prescription only carries the payment over if staff
   // confirmed the payment itself was received in full.
   if (issue.type === "prescription_rejected") return (issue.paymentVerified ? order.total || 0 : 0) + creditApplied;
-  return 0;
+  // Invalid / not-received payment: nothing paid by QR carries over, but
+  // store credit redeemed on this order does.
+  return creditApplied;
 }
 
 // The amount of this order's payment currently held as credit, whichever
@@ -198,25 +200,52 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
   const now = Date.now();
 
   if (order.paymentIssue && order.paymentIssue.holdUntil && order.paymentIssue.holdUntil.toMillis() < now) {
-    const unappliedCredit = computeUnappliedCredit(order);
+    let unappliedCredit = computeUnappliedCredit(order);
     const closedReason = `${HOLD_REASON_LABELS[order.paymentIssue.type] || "This order"} was not resolved within 7 days.`;
 
-    const batch = db.batch();
-    batch.update(db.collection("orders").doc(orderId), {
-      status: "closed_unresolved",
-      "statusTimestamps.closed_unresolved": firebase.firestore.FieldValue.serverTimestamp(),
-      paymentIssue: firebase.firestore.FieldValue.delete(),
-      closedReason,
-      unappliedCredit,
-    });
-    if (grantCreditToBalance && unappliedCredit > 0 && order.customerId) {
-      batch.update(db.collection("users").doc(order.customerId), {
-        creditBalance: firebase.firestore.FieldValue.increment(unappliedCredit),
-      });
+    // Only staff pages close the order and credit the balance, in one
+    // transaction, so the credit is never lost or added twice. Customer
+    // pages just show it as closed until then.
+    if (!grantCreditToBalance) {
+      order.status = "closed_unresolved";
+      order.closedReason = closedReason;
+      order.unappliedCredit = unappliedCredit;
+      delete order.paymentIssue;
+      return order;
     }
-    await batch.commit();
 
-    if (grantCreditToBalance && unappliedCredit > 0 && order.customerId) {
+    const orderRef = db.collection("orders").doc(orderId);
+    const closed = await db.runTransaction(async (transaction) => {
+      const fresh = await transaction.get(orderRef);
+      const f = fresh.exists ? fresh.data() : null;
+      if (!f || !f.paymentIssue || !f.paymentIssue.holdUntil || f.paymentIssue.holdUntil.toMillis() >= Date.now()) return false;
+      unappliedCredit = computeUnappliedCredit(f);
+      transaction.update(orderRef, {
+        status: "closed_unresolved",
+        "statusTimestamps.closed_unresolved": firebase.firestore.FieldValue.serverTimestamp(),
+        paymentIssue: firebase.firestore.FieldValue.delete(),
+        closedReason,
+        unappliedCredit,
+      });
+      if (unappliedCredit > 0 && f.customerId) {
+        transaction.update(db.collection("users").doc(f.customerId), {
+          creditBalance: firebase.firestore.FieldValue.increment(unappliedCredit),
+        });
+      }
+      return true;
+    });
+    if (!closed) {
+      // Someone else already handled it (or the hold was extended).
+      const fresh = await orderRef.get();
+      if (fresh.exists) {
+        const data = fresh.data();
+        Object.assign(order, data);
+        if (!data.paymentIssue) delete order.paymentIssue;
+      }
+      return order;
+    }
+
+    if (unappliedCredit > 0 && order.customerId) {
       notifyCustomer(
         order.customerId,
         `You have ${formatPeso(unappliedCredit)} credit from order ${order.orderNumber}`,
@@ -236,11 +265,17 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
   if (order.status === "dispatched" && order.statusTimestamps && order.statusTimestamps.dispatched) {
     const dispatchedAt = order.statusTimestamps.dispatched.toMillis();
     if (now - dispatchedAt > DISPATCH_AUTO_DELIVER_MS) {
-      await db.collection("orders").doc(orderId).update({
-        status: "delivered",
-        "statusTimestamps.delivered": firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      order.status = "delivered";
+      // Never let this break the page: if the write is refused (e.g. the
+      // device clock is ahead), the order just stays Dispatched for now.
+      try {
+        await db.collection("orders").doc(orderId).update({
+          status: "delivered",
+          "statusTimestamps.delivered": firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        order.status = "delivered";
+      } catch (error) {
+        console.warn("Couldn't mark the order delivered yet:", error);
+      }
     }
   }
 
