@@ -50,6 +50,10 @@ These keys are public browser keys by design; access is controlled by
 The rules file in this repo does nothing until it is published:
 Firebase console → Firestore Database → Rules → paste the file → Publish.
 
+Publish the current file before the branch uses the system: it is what
+stops a customer from writing their own orders, holds or store credit
+straight to the database, and what cuts off a deactivated staff account.
+
 ## Live chat setup (AI assistant)
 
 The chat works without any setup: common questions get built-in answers
