@@ -263,31 +263,11 @@ function formatDateTime(timestamp) {
 }
 
 function inventorySortMillis(batch) {
-  if (batch.isVirtual) return 0;
   if (inventorySortField === "lastAdjustedAt") {
     const ts = batch.lastAdjustedAt || batch.createdAt;
     return ts && ts.toMillis ? ts.toMillis() : 0;
   }
   return new Date(batch.expirationDate).getTime();
-}
-
-// Products the Dashboard/this page's own "Out of Stock" count flags (any
-// active product with zero physical stock) that have never had a single
-// stockBatches document - e.g. created but never received via Receive
-// Stock. The batch table is otherwise a list of batches, so a product like
-// that would be counted in outOfStockCount but never actually appear as a
-// row anywhere, leaving staff unable to see which products make up that
-// number. These synthetic rows close that gap.
-function neverStockedProductRows() {
-  const stockedProductIds = new Set(allBatches.map((b) => b.productId));
-  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && !stockedProductIds.has(p.id)).map((p) => ({
-    id: `virtual-${p.id}`,
-    productId: p.id,
-    batchNo: "-",
-    quantity: 0,
-    isVirtual: true,
-    computedStatuses: ["out_of_stock"],
-  }));
 }
 
 /* ---------- Table ---------- */
@@ -300,8 +280,7 @@ function filteredBatches() {
     .map((b) => ({
       ...b,
       computedStatuses: getBatchStatuses(b, physicalStockByProduct[b.productId] || 0),
-    }))
-    .concat(neverStockedProductRows());
+    }));
 
   if (inventoryFilter !== "all") {
     filtered = filtered.filter((b) => b.computedStatuses.includes(inventoryFilter));
@@ -402,25 +381,6 @@ function batchSupplierCell(batch) {
 function renderBatchRow(batch) {
   const product = getProductById(batch.productId);
   const reorderPoint = (product && product.reorderPoint) || DEFAULT_REORDER_POINT;
-
-  if (batch.isVirtual) {
-    return `
-      <tr class="text-muted">
-        <td colspan="2" class="fst-italic">Never received</td>
-        <td>-</td>
-        <td>${escapeHtml(product ? product.name : "Unknown product")}</td>
-        <td>${product ? CATEGORY_LABELS[product.category] || "-" : "-"}</td>
-        <td>-</td>
-        <td>0</td>
-        <td>${reorderPoint}</td>
-        <td>
-          ${batch.computedStatuses.map((s) => `<span class="batch-status-pill ${s}">${BATCH_STATUS_LABELS[s]}</span>`).join(" ")}
-        </td>
-        <td>-</td>
-        <td></td>
-      </tr>
-    `;
-  }
 
   return `
     <tr>
@@ -1468,7 +1428,7 @@ exportInventoryBtn.addEventListener("click", () => {
     columns: [
       { label: "Product", value: (b) => (getProductById(b.productId) || {}).name || "Unknown product", width: 3 },
       { label: "Category", value: (b) => CATEGORY_LABELS[(getProductById(b.productId) || {}).category] || "", width: 1.5 },
-      { label: "Batch No.", value: (b) => (b.isVirtual ? "Never received" : b.batchNo), width: 1.3 },
+      { label: "Batch No.", value: (b) => b.batchNo, width: 1.3 },
       { label: "Expiry", value: (b) => formatDateMDY(b.expirationDate) },
       { label: "Qty", value: (b) => b.quantity, width: 0.6 },
       { label: "Reorder Pt.", value: (b) => (getProductById(b.productId) || {}).reorderPoint || DEFAULT_REORDER_POINT, width: 0.8 },
