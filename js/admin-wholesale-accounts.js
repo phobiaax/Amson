@@ -690,8 +690,7 @@ async function openHistoryModal(account) {
 }
 
 /* ---------- Wholesale sales invoice (REQ092) ---------- */
-// The branch's own copy with buyer details, batch and expiry per line. Not a
-// BIR-registered invoice - those are still issued from the branch's booklet.
+// The branch's own copy with buyer details, batch and expiry per line.
 function downloadWholesaleInvoice(order) {
   if (!order) return;
   if (typeof window.jspdf === "undefined") {
@@ -763,9 +762,5 @@ function downloadWholesaleInvoice(order) {
   y += 14;
   doc.text("Received by: ______________________", 14, y);
   doc.text("Released by: ______________________", 110, y);
-  y += 10;
-  doc.setFontSize(8);
-  doc.setTextColor(120, 120, 120);
-  doc.text("System-generated sales record. Not a BIR-registered invoice.", 14, y);
   doc.save(`Amson-SI-${order.invoiceNo || order.id}.pdf`);
 }

@@ -287,8 +287,6 @@ function downloadOrderReceipt(order) {
   doc.setFontSize(10);
   doc.setFont(undefined, "normal");
   y += 6;
-  // Not a BIR-registered official receipt - the branch issues those by hand
-  // on request, so the system's own document must never claim to be one.
   doc.text("Order Receipt", 14, y);
 
   y += 10;
