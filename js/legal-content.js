@@ -53,7 +53,7 @@ const LEGAL_PRIVACY_HTML = `
   <p>To verify your email and keep your account secure, process and verify orders, payments and prescriptions, arrange delivery or pick-up, send you order updates, and answer your questions.</p>
 
   <h6>3. Who We Share It With</h6>
-  <p>The courier receives your name, delivery address and contact number for delivery. Service providers that run this website store or process data on our behalf: Google Firebase (accounts and database), Cloudinary (uploaded images), and EmailJS (emails). The chat assistant's AI provider receives only the question you type - never your name, address, order details or prescriptions. We do not sell your personal data.</p>
+  <p>The courier receives your name, delivery address and contact number for delivery. Service providers that run this website store or process data on our behalf: Google Firebase (accounts and database), Cloudinary (uploaded images), and EmailJS (emails). The chat assistant uses Google's Gemini AI through Firebase. It receives only what you type in the chat (with the earlier messages of the same chat) and public product information - never your name, address, order details or prescriptions. Chat messages are stored so our staff can follow up. We do not sell your personal data.</p>
 
   <h6>4. Storage and Security</h6>
   <p>Data is sent over encrypted connections, and staff can only see what their role requires. We keep your data while your account is active and as long as needed for the branch's business records.</p>

@@ -410,6 +410,24 @@ async function computeStaffNotifications() {
     });
   }
 
+  // Chats the assistant handed to staff (REQ038). Never blocks the other
+  // alerts if chat isn't set up yet.
+  try {
+    const waiting = await db.collection("chatThreads").where("status", "==", "waiting_staff").get();
+    if (!waiting.empty) {
+      notifications.push({
+        key: "chat_waiting",
+        signature: waiting.docs.map((d) => d.id).sort().join(","),
+        severity: "warning",
+        icon: "bi-chat-dots",
+        message: `${waiting.size} chat${waiting.size === 1 ? " is" : "s are"} waiting for a staff reply.`,
+        link: "live-chat.html",
+      });
+    }
+  } catch (error) {
+    console.warn("Chat alerts unavailable:", error);
+  }
+
   notifications.sort((a, b) => STAFF_NOTIF_SEVERITY_RANK[a.severity] - STAFF_NOTIF_SEVERITY_RANK[b.severity]);
   return notifications;
 }

@@ -38,6 +38,7 @@ free Spark plan. There is no build step.
 | Firebase Authentication | Customer and staff accounts | `js/firebase-config.js` |
 | Cloud Firestore | All data | `js/firebase-config.js`, rules in `firestore.rules` |
 | Cloudinary | Product photos, payment screenshots, prescriptions, documents | `js/cloudinary-config.js` (unsigned upload preset) |
+| Firebase AI Logic (Gemini) | Live chat assistant | `js/chat-config.js` |
 | EmailJS | One-time verification codes | `js/emailjs-config.js` |
 | jsPDF, SheetJS, Chart.js, Choices.js | PDFs, Excel import/export, charts, searchable selects | loaded from CDN in each page |
 
@@ -48,6 +49,23 @@ These keys are public browser keys by design; access is controlled by
 
 The rules file in this repo does nothing until it is published:
 Firebase console → Firestore Database → Rules → paste the file → Publish.
+
+## Live chat setup (AI assistant)
+
+The chat works without any setup: common questions get built-in answers
+and everything else goes to staff in Admin → Live Chat. To turn on AI
+replies (Google Gemini, free tier, no API key in the code):
+
+1. Firebase console → **AI Logic** → Get started → choose the
+   **Gemini Developer API** (no-cost tier, works on the Spark plan).
+2. Publish the latest `firestore.rules` (the chat collections are in it).
+3. Settings are in `js/chat-config.js`: the model, and `dailyAiLimit`, the
+   branch's own cap on AI replies per day. When the cap is reached (or the
+   AI is unavailable), new questions are handed to staff. Today's count is
+   shown at the top of Admin → Live Chat.
+
+Set `aiProvider: "none"` in `js/chat-config.js` to run the chat with
+built-in answers and staff only.
 
 ## First-time store setup
 
