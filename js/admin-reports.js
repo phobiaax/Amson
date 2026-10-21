@@ -428,8 +428,15 @@ async function buildSupplierPurchasesReport(year, month) {
   const suppliers = {};
   supplierSnap.docs.forEach((d) => (suppliers[d.id] = d.data().name));
 
+  // A batch topped up by later deliveries lists each one in `deliveries`;
+  // each delivery is its own row here.
   const received = batchSnap.docs
     .map((d) => d.data())
+    .flatMap((b) =>
+      b.deliveries && b.deliveries.length
+        ? b.deliveries.map((dl) => ({ ...b, ...dl, initialQuantity: dl.qty, quantity: dl.qty }))
+        : [b]
+    )
     .map((b) => {
       const when = b.dateReceived ? new Date(`${b.dateReceived}T00:00:00`) : tsToDate(b.createdAt);
       return { ...b, when };

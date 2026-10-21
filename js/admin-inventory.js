@@ -492,20 +492,112 @@ function populateSupplierSelect(selectEl) {
   selectEl._choices = makeSearchableSelect(selectEl);
 }
 
-// Every batch has its own expiry date, so a batch number is used once only:
-// it can't repeat any batch already received (any product, any status) or
-// another line in the same delivery. Returns the duplicated batch numbers.
-function findDuplicateBatchNos(items) {
-  const seen = new Set();
-  const dupes = [];
-  items.forEach((it) => {
-    if (!it.batchNo) return;
-    const key = it.batchNo.toLowerCase();
-    const existing = allBatches.some((b) => (b.batchNo || "").toLowerCase() === key);
-    if (existing || seen.has(key)) dupes.push(it.batchNo);
-    seen.add(key);
+// ---- Batch numbers ----
+// The manufacturer prints a batch number and its expiry date on the box,
+// and one product's batch always has one expiry date. So when stock comes
+// in (Receive Stock form, Excel upload, PO delivery):
+//   - same product + batch no. + expiry as a batch already in stock: the
+//     units are added to that batch (each delivery is kept in its
+//     `deliveries` list for the Supplier Purchases report);
+//   - same product + batch no. with a different expiry: refused, it's a
+//     typing mistake;
+//   - a different product with the same batch no.: a separate batch
+//     (manufacturers can use the same codes).
+// lines: [{ productId, batchNo, expirationDate, qty, supplierId,
+// supplierReceiptNo, unitCost, dateReceived, poId? }]
+function batchKey(productId, batchNo) {
+  return `${productId}|${String(batchNo || "").trim().toLowerCase()}`;
+}
+
+function planStockReceipt(lines) {
+  const productName = (id) => (getProductById(id) || {}).name || "this product";
+  const errors = [];
+  const merged = new Map();
+  lines.forEach((line) => {
+    const key = batchKey(line.productId, line.batchNo);
+    const prior = merged.get(key);
+    if (!prior) return merged.set(key, { ...line });
+    if (prior.expirationDate !== line.expirationDate) {
+      errors.push(`Batch ${line.batchNo} of ${productName(line.productId)} is entered twice with different expiry dates.`);
+    } else {
+      prior.qty += line.qty;
+    }
   });
-  return [...new Set(dupes)];
+  const newLines = [];
+  const topUps = [];
+  merged.forEach((line, key) => {
+    const existing = allBatches.find((b) => batchKey(b.productId, b.batchNo) === key);
+    if (!existing) return newLines.push(line);
+    if (existing.expirationDate !== line.expirationDate) {
+      errors.push(
+        `Batch ${line.batchNo} of ${productName(line.productId)} is already recorded with expiry ${formatDateMDY(`${existing.expirationDate}T12:00:00`)}. Check the box: one batch has only one expiry date.`
+      );
+    } else if (existing.status === "bad_order") {
+      errors.push(`Batch ${line.batchNo} of ${productName(line.productId)} was already written off as a Bad Order, so it can't be received again.`);
+    } else {
+      topUps.push({ batchId: existing.id, line });
+    }
+  });
+  return { errors, newLines, topUps };
+}
+
+function deliveryRecord(src, qty) {
+  return {
+    qty,
+    dateReceived: src.dateReceived || null,
+    supplierId: src.supplierId || null,
+    supplierReceiptNo: src.supplierReceiptNo || null,
+    unitCost: src.unitCost == null || isNaN(src.unitCost) ? null : src.unitCost,
+    poId: src.poId || null,
+  };
+}
+
+// Inside a transaction. Reads first (Firestore needs every read before any
+// write), then adds new batches and tops up existing ones.
+async function applyStockReceipt(transaction, plan) {
+  const refs = plan.topUps.map((t) => db.collection("stockBatches").doc(t.batchId));
+  const docs = [];
+  for (const ref of refs) docs.push(await transaction.get(ref));
+  return () => {
+    plan.newLines.forEach((line) => {
+      const record = {
+        productId: line.productId,
+        batchNo: line.batchNo,
+        expirationDate: line.expirationDate,
+        quantity: line.qty,
+        initialQuantity: line.qty,
+        supplierId: line.supplierId || null,
+        supplierReceiptNo: line.supplierReceiptNo || null,
+        unitCost: line.unitCost == null || isNaN(line.unitCost) ? null : line.unitCost,
+        dateReceived: line.dateReceived,
+        status: "active",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+      if (line.poId) record.poId = line.poId;
+      transaction.set(db.collection("stockBatches").doc(), record);
+    });
+    plan.topUps.forEach((t, i) => {
+      if (!docs[i].exists) throw new Error(`Batch ${t.line.batchNo} no longer exists. Refresh the page and try again.`);
+      const b = docs[i].data();
+      const firstQty = b.initialQuantity != null ? b.initialQuantity : b.quantity || 0;
+      const deliveries = (b.deliveries && b.deliveries.length ? b.deliveries : [deliveryRecord(b, firstQty)]).concat([deliveryRecord(t.line, t.line.qty)]);
+      transaction.update(refs[i], {
+        quantity: (b.quantity || 0) + t.line.qty,
+        initialQuantity: firstQty + t.line.qty,
+        deliveries,
+        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+  };
+}
+
+function receiptSummary(plan) {
+  const name = (id) => (getProductById(id) || {}).name || id;
+  return plan.newLines
+    .map((l) => `${name(l.productId)} x${l.qty} (Batch ${l.batchNo})`)
+    .concat(plan.topUps.map((t) => `${name(t.line.productId)} x${t.line.qty} (added to existing Batch ${t.line.batchNo})`))
+    .join("; ");
 }
 
 function updateRemoveButtonsVisibility(container) {
@@ -616,47 +708,29 @@ saveReceiveStockBtn.addEventListener("click", async () => {
   if (invalid || items.length === 0) {
     return showReceiveError("Every item needs a product, quantity, batch number, and expiry date. Only the unit cost is optional.");
   }
-  const dupes = findDuplicateBatchNos(items);
-  if (dupes.length) {
-    return showReceiveError(`Batch no. ${dupes.join(", ")} is already used by another batch. Each batch needs its own batch number.`);
-  }
+  const plan = planStockReceipt(items.map((it) => ({ ...it, supplierId, supplierReceiptNo, dateReceived })));
+  if (plan.errors.length) return showReceiveError(plan.errors.join(" "));
 
   saveReceiveStockBtn.disabled = true;
   receiveModalAlert.classList.add("d-none");
 
   try {
-    // All batches or none, so a retry after an error can't add stock twice.
-    const writeBatch = db.batch();
-    for (const item of items) {
-      writeBatch.set(db.collection("stockBatches").doc(), {
-        productId: item.productId,
-        batchNo: item.batchNo,
-        expirationDate: item.expirationDate,
-        quantity: item.qty,
-        initialQuantity: item.qty,
-        supplierId,
-        supplierReceiptNo,
-        unitCost: isNaN(item.unitCost) ? null : item.unitCost,
-        dateReceived,
-        status: "active",
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-    }
-    await writeBatch.commit();
+    // All lines or none, so a retry after an error can't add stock twice.
+    await db.runTransaction(async (transaction) => {
+      const write = await applyStockReceipt(transaction, plan);
+      write();
+    });
 
     const supplier = allSuppliers.find((sup) => sup.id === supplierId);
     await logAuditEvent({
       action: "Stock Received",
-      details: `${items.length} batch${items.length === 1 ? "" : "es"} from ${supplier ? supplier.name : "unspecified supplier"}${supplierReceiptNo ? `, Receipt/DR ${supplierReceiptNo}` : ""}: ${items
-        .map((it) => `${(getProductById(it.productId) || {}).name || it.productId} x${it.qty} (Batch ${it.batchNo})`)
-        .join("; ")}`,
+      details: `From ${supplier ? supplier.name : "unspecified supplier"}, Receipt/DR ${supplierReceiptNo}: ${receiptSummary(plan)}`,
     });
 
     bootstrap.Modal.getInstance(receiveStockModalEl).hide();
     await loadInventory();
   } catch (error) {
-    receiveModalAlert.textContent = "Something went wrong receiving this stock. Please try again.";
+    receiveModalAlert.textContent = error.message && error.message.startsWith("Batch ") ? error.message : "Something went wrong receiving this stock. Please try again.";
     receiveModalAlert.classList.remove("d-none");
   } finally {
     saveReceiveStockBtn.disabled = false;
@@ -735,8 +809,6 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   }
 
   let hasInvalid = false;
-  let hasDuplicate = false;
-  const seenRows = [];
   rowEls.forEach((tr) => tr.classList.remove("table-danger"));
   const parsedRows = rowEls.map((tr) => {
     const get = (cls) => tr.querySelector(`.${cls}`);
@@ -754,11 +826,7 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
     if (!product || !batchNo || !expiryDate || !qty || qty <= 0 || !supplier || !receiptNo || !dateReceived) {
       tr.classList.add("table-danger");
       hasInvalid = true;
-    } else if (findDuplicateBatchNos([...seenRows, { productId: product.id, batchNo }]).includes(batchNo)) {
-      tr.classList.add("table-danger");
-      hasDuplicate = true;
     }
-    if (product && batchNo) seenRows.push({ productId: product.id, batchNo });
 
     return {
       product,
@@ -777,8 +845,20 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
     receiveBatchReviewAlert.classList.remove("d-none");
     return;
   }
-  if (hasDuplicate) {
-    receiveBatchReviewAlert.textContent = "The highlighted rows use a batch number that's already used by another batch (or repeated in this file). Each batch needs its own batch number.";
+  const plan = planStockReceipt(
+    parsedRows.map((r) => ({
+      productId: r.product.id,
+      batchNo: r.batchNo,
+      expirationDate: r.expiryDate,
+      qty: r.qty,
+      supplierId: r.supplierId,
+      supplierReceiptNo: r.supplierReceiptNo,
+      unitCost: r.unitCost,
+      dateReceived: r.dateReceived,
+    }))
+  );
+  if (plan.errors.length) {
+    receiveBatchReviewAlert.textContent = plan.errors.join(" ");
     receiveBatchReviewAlert.classList.remove("d-none");
     return;
   }
@@ -787,34 +867,22 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   receiveBatchReviewConfirmBtn.disabled = true;
   receiveBatchReviewConfirmBtn.textContent = "Receiving...";
 
-  // Saved in groups of up to 400 rows, each group all-or-nothing, so a
+  // Saved in groups of up to 400 lines, each group all-or-nothing, so a
   // failed group can be retried without duplicating the ones before it.
+  const ops = plan.newLines.map((line) => ({ line })).concat(plan.topUps.map((t) => ({ topUp: t })));
   let imported = 0;
   let failed = 0;
-  for (let start = 0; start < parsedRows.length; start += 400) {
-    const chunk = parsedRows.slice(start, start + 400);
-    const writeBatch = db.batch();
-    chunk.forEach((row) => {
-      writeBatch.set(db.collection("stockBatches").doc(), {
-        productId: row.product.id,
-        batchNo: row.batchNo,
-        expirationDate: row.expiryDate,
-        quantity: row.qty,
-        initialQuantity: row.qty,
-        supplierId: row.supplierId,
-        supplierReceiptNo: row.supplierReceiptNo,
-        unitCost: row.unitCost,
-        dateReceived: row.dateReceived,
-        status: "active",
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-    });
+  for (let start = 0; start < ops.length; start += 400) {
+    const chunk = ops.slice(start, start + 400);
+    const subPlan = { newLines: chunk.filter((o) => o.line).map((o) => o.line), topUps: chunk.filter((o) => o.topUp).map((o) => o.topUp) };
     try {
-      await writeBatch.commit();
+      await db.runTransaction(async (transaction) => {
+        const write = await applyStockReceipt(transaction, subPlan);
+        write();
+      });
       imported += chunk.length;
     } catch (error) {
-      failed = parsedRows.length - imported;
+      failed = ops.length - imported;
       break;
     }
   }
@@ -823,9 +891,11 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   receiveBatchReviewConfirmBtn.textContent = "Confirm Import";
   bootstrap.Modal.getInstance(receiveBatchReviewModalEl).hide();
 
-  receiveBatchUploadStatus.textContent = `Received ${imported} batch${imported === 1 ? "" : "es"}.${failed ? ` The last ${failed} row${failed === 1 ? "" : "s"} (from row ${imported + 1}) didn't save - upload just those rows again.` : ""}`;
+  receiveBatchUploadStatus.textContent = `Received ${imported} line${imported === 1 ? "" : "s"}${plan.topUps.length ? ` (${plan.topUps.length} added to batches already in stock)` : ""}.${
+    failed ? ` ${failed} line${failed === 1 ? "" : "s"} didn't save - check Inventory, then upload only the missing rows again.` : ""
+  }`;
   if (imported > 0) {
-    await logAuditEvent({ action: "Stock Received (Batch Upload)", details: `${imported} batch${imported === 1 ? "" : "es"} imported from file` });
+    await logAuditEvent({ action: "Stock Received (Batch Upload)", details: `${imported} line${imported === 1 ? "" : "s"} imported from file: ${receiptSummary(plan)}` });
   }
   receiveBatchFileInput.value = "";
   await loadInventory();
@@ -1771,9 +1841,23 @@ async function submitPoReceiving(po) {
     alertEl.classList.remove("d-none");
     return;
   }
-  const poDupes = findDuplicateBatchNos(receivedItems.filter((it) => it.receivedQty > 0));
-  if (poDupes.length) {
-    alertEl.textContent = `Batch no. ${poDupes.join(", ")} is already used by another batch. Each batch needs its own batch number.`;
+  const plan = planStockReceipt(
+    receivedItems
+      .filter((it) => it.receivedQty > 0)
+      .map((it) => ({
+        productId: it.productId,
+        batchNo: it.batchNo,
+        expirationDate: it.expirationDate,
+        qty: it.receivedQty,
+        supplierId: po.supplierId,
+        supplierReceiptNo,
+        unitCost: it.unitCost,
+        dateReceived: todayISO(),
+        poId: po.id,
+      }))
+  );
+  if (plan.errors.length) {
+    alertEl.textContent = plan.errors.join(" ");
     alertEl.classList.remove("d-none");
     return;
   }
@@ -1801,24 +1885,8 @@ async function submitPoReceiving(po) {
       if (!fresh.exists || fresh.data().status !== "pending") {
         throw new Error("This delivery was already recorded. Refresh the page to see it.");
       }
-      for (const item of receivedItems) {
-        if (item.receivedQty <= 0) continue;
-        transaction.set(db.collection("stockBatches").doc(), {
-          productId: item.productId,
-          batchNo: item.batchNo,
-          expirationDate: item.expirationDate,
-          quantity: item.receivedQty,
-          initialQuantity: item.receivedQty,
-          supplierId: po.supplierId,
-          supplierReceiptNo,
-          unitCost: item.unitCost,
-          dateReceived: todayISO(),
-          status: "active",
-          poId: po.id,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
-      }
+      const write = await applyStockReceipt(transaction, plan);
+      write();
       transaction.update(poRef, {
         status: newStatus,
         receivingRecord: { items: receivedItems, discrepancies, supplierReceiptNo },
@@ -1834,7 +1902,8 @@ async function submitPoReceiving(po) {
     bootstrap.Modal.getInstance(viewPoModalEl).hide();
     await loadInventory();
   } catch (error) {
-    alertEl.textContent = error.message && error.message.startsWith("This delivery") ? error.message : "Something went wrong recording this delivery. Please try again.";
+    alertEl.textContent =
+      error.message && (error.message.startsWith("This delivery") || error.message.startsWith("Batch ")) ? error.message : "Something went wrong recording this delivery. Please try again.";
     alertEl.classList.remove("d-none");
   } finally {
     submitBtn.disabled = false;
