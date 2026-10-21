@@ -12,7 +12,7 @@
  */
 const CHAT_CONFIG = {
   aiProvider: "gemini",
-  geminiModel: "gemini-2.5-flash-lite",
+  geminiModel: "gemini-3.5-flash-lite",
   firebaseModularSdkVersion: "12.17.1",
   dailyAiLimit: 300,
   // How many earlier messages of the conversation the AI sees.
