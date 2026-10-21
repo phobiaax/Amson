@@ -22,6 +22,11 @@ auth.onAuthStateChanged(async (user) => {
   try {
     const doc = await db.collection("users").doc(user.uid).get();
     const data = doc.exists ? doc.data() : {};
+    // Verified customers on a device they never confirmed go back to log in
+    // (REQ005). Unverified accounts are still finishing sign-up.
+    if (doc.exists && data.role === "customer" && data.emailVerified && typeof enforceRecognizedDevice === "function") {
+      if (!(await enforceRecognizedDevice(data))) return;
+    }
     accountFirstName.textContent = data.firstName || "Account";
     guestActions.classList.add("d-none");
     accountActions.classList.remove("d-none");

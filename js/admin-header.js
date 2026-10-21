@@ -29,6 +29,8 @@ auth.onAuthStateChanged(async (user) => {
     }
 
     const admin = doc.data();
+    // Staff need a confirmed device too (REQ044).
+    if (typeof enforceRecognizedDevice === "function" && !(await enforceRecognizedDevice(admin))) return;
 
     if (!roleCanAccessPage(admin.role, currentAdminPageName())) {
       await showAppAlert("You don't have access to that page.");

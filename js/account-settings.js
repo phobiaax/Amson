@@ -67,6 +67,8 @@ auth.onAuthStateChanged(async (user) => {
     accountEmailInput.value = data.email || "";
     showProfilePhoto(data.photoUrl);
     document.getElementById("emailNotificationsToggle").checked = data.emailNotifications !== false;
+    currentUserData = data;
+    renderTrustedDevices(data.trustedDevices || []);
 
     if (data.shippingAddress) {
       streetAddressInput.value = data.shippingAddress.streetAddress || "";
@@ -402,5 +404,36 @@ document.getElementById("emailNotificationsToggle").addEventListener("change", a
     status.textContent = "Couldn't save that setting. Please try again.";
   } finally {
     toggle.disabled = false;
+  }
+});
+
+// ---- Recognized devices (REQ005) ----
+let currentUserData = null;
+
+function renderTrustedDevices(devices) {
+  const list = document.getElementById("trustedDevicesList");
+  if (!devices.length) {
+    list.innerHTML = '<li class="text-muted">No devices yet.</li>';
+    return;
+  }
+  const thisId = typeof getDeviceId === "function" ? getDeviceId() : null;
+  list.innerHTML = devices
+    .map((d) => `<li class="py-1 border-bottom"><i class="bi bi-laptop me-2"></i>${escapeHtml(d.label || "Device")}${d.id === thisId ? ' <span class="badge rounded-pill text-bg-success ms-1">This device</span>' : ""}<span class="text-muted ms-2" style="font-size:0.78rem;">added ${d.addedAt ? formatDateMDY(d.addedAt) : ""}</span></li>`)
+    .join("");
+}
+
+document.getElementById("forgetDevicesBtn").addEventListener("click", async (e) => {
+  if (!signedInUid || !currentUserData) return;
+  if (!(await showAppConfirm("Forget every other device? They'll need a code from your email the next time they log in.", { confirmLabel: "Forget" }))) return;
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    const keep = await forgetOtherDevices(signedInUid, currentUserData);
+    currentUserData.trustedDevices = keep;
+    renderTrustedDevices(keep);
+  } catch (error) {
+    showAppAlert("Something went wrong. Please try again.");
+  } finally {
+    btn.disabled = false;
   }
 });

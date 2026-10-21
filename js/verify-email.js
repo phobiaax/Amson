@@ -97,6 +97,12 @@ async function verifyCode(enteredCode) {
     });
 
     sessionStorage.removeItem("amsonPendingVerificationEmail");
+    // The emailed code proves this device too (REQ005).
+    try {
+      await trustThisDevice(user.uid);
+    } catch (error) {
+      console.warn("Couldn't save this device:", error);
+    }
     window.location.href = "shop/index.html";
   } catch (error) {
     showAlert(error.message || "Something went wrong. Please try again.");
