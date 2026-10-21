@@ -147,7 +147,7 @@ registerForm.addEventListener("submit", async (e) => {
   }
 
   if (!NAME_PATTERN.test(firstNameInput.value.trim()) || !NAME_PATTERN.test(lastNameInput.value.trim())) {
-    showAlert("Names can only contain letters, dashes, and periods.");
+    showAlert("Use letters, spaces, periods (e.g. Ma. or Jr.) and dashes between letters (e.g. Anne-Marie).");
     return;
   }
 

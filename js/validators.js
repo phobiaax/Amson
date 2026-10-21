@@ -7,12 +7,12 @@
 // 6+ characters, at least one letter, one digit, and one special character.
 const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
 
-// One or more letter-groups (including accented characters) separated by a
-// single space, hyphen, or period - "Juan Dela Cruz" and "Juan P. Cruz" pass,
-// but "----" or "..." (no actual letters) don't, no digits or any other
-// symbol is allowed, and separators can't lead, trail, or repeat
-// ("John--Doe", " Juan").
-const NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[\s\-.][A-Za-zÀ-ÖØ-öø-ÿ]+)*$/;
+// Letter-groups (including accented characters) separated by one space,
+// hyphen or period; a period may be followed by a space and may end the
+// name. "Juan Dela Cruz", "Ma. Clara", "Juan P. Cruz", "Jr." and
+// "Anne-Marie" pass; digits, other symbols, a leading or trailing hyphen,
+// and doubled separators ("John--Doe", " Juan") don't.
+const NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:(?:\.\s?|[\s-])[A-Za-zÀ-ÖØ-öø-ÿ]+)*\.?$/;
 
 // Same shape browsers use for <input type="email"> (WHATWG HTML living
 // standard), tightened further so the local part can't lead, trail, or

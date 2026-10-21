@@ -101,7 +101,7 @@ saveProfileBtn.addEventListener("click", async () => {
     return;
   }
   if (!NAME_PATTERN.test(firstName) || !NAME_PATTERN.test(lastName)) {
-    profileAlert.textContent = "Names can only contain letters, dashes, and periods.";
+    profileAlert.textContent = "Use letters, spaces, periods (e.g. Ma. or Jr.) and dashes between letters (e.g. Anne-Marie).";
     profileAlert.classList.remove("d-none");
     return;
   }

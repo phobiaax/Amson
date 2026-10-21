@@ -77,13 +77,13 @@
         <div class="row">
           <div class="col-sm-6 mb-3">
             <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" id="firstName" placeholder="Juan" pattern="[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[\s\-.][A-Za-zÀ-ÖØ-öø-ÿ]+)*" maxlength="50" required>
-            <p class="form-text text-danger mb-0 d-none" id="firstNameHint">Names can only contain letters, dashes, and periods.</p>
+            <input type="text" class="form-control" id="firstName" placeholder="Juan" pattern="[A-Za-zÀ-ÖØ-öø-ÿ]+(?:(?:\.\s?|[\s\-])[A-Za-zÀ-ÖØ-öø-ÿ]+)*\.?" maxlength="50" required>
+            <p class="form-text text-danger mb-0 d-none" id="firstNameHint">Use letters, spaces, periods (e.g. Ma. or Jr.) and dashes between letters (e.g. Anne-Marie).</p>
           </div>
           <div class="col-sm-6 mb-3">
             <label for="lastName" class="form-label">Last Name <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" id="lastName" placeholder="Dela Cruz" pattern="[A-Za-zÀ-ÖØ-öø-ÿ]+(?:[\s\-.][A-Za-zÀ-ÖØ-öø-ÿ]+)*" maxlength="50" required>
-            <p class="form-text text-danger mb-0 d-none" id="lastNameHint">Names can only contain letters, dashes, and periods.</p>
+            <input type="text" class="form-control" id="lastName" placeholder="Dela Cruz" pattern="[A-Za-zÀ-ÖØ-öø-ÿ]+(?:(?:\.\s?|[\s\-])[A-Za-zÀ-ÖØ-öø-ÿ]+)*\.?" maxlength="50" required>
+            <p class="form-text text-danger mb-0 d-none" id="lastNameHint">Use letters, spaces, periods (e.g. Ma. or Jr.) and dashes between letters (e.g. Anne-Marie).</p>
           </div>
         </div>
 

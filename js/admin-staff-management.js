@@ -199,7 +199,7 @@ saveStaffBtn.addEventListener("click", async () => {
   const role = editingStaffId && editingStaffIsAdmin ? "admin" : staffRoleInput.value;
 
   if (!NAME_PATTERN.test(firstName) || !NAME_PATTERN.test(lastName)) {
-    staffModalAlert.textContent = "Please enter a valid first and last name (letters, spaces, hyphens and apostrophes only).";
+    staffModalAlert.textContent = "Please enter a valid first and last name. Use letters, spaces, periods (e.g. Ma. or Jr.) and dashes between letters (e.g. Anne-Marie).";
     staffModalAlert.classList.remove("d-none");
     return;
   }
