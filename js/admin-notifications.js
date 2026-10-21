@@ -93,3 +93,14 @@ if (markAllNotifsReadBtn) {
     }
   });
 }
+
+// Desktop alerts: the browser asks the staff member once.
+const enableBrowserAlertsBtn = document.getElementById("enableBrowserAlertsBtn");
+if (enableBrowserAlertsBtn && typeof Notification !== "undefined" && Notification.permission === "default") {
+  enableBrowserAlertsBtn.classList.remove("d-none");
+  enableBrowserAlertsBtn.addEventListener("click", async () => {
+    const result = await Notification.requestPermission();
+    enableBrowserAlertsBtn.classList.add("d-none");
+    if (result === "granted") showAppAlert("Desktop alerts are on. New alerts will pop up when you open any staff page.", { title: "Desktop Alerts" });
+  });
+}

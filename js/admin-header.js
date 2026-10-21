@@ -94,6 +94,7 @@ async function refreshAdminNotifBell(uid) {
   try {
     const [notifications, readMap] = await Promise.all([computeStaffNotifications(), getStaffNotifReadMap(uid)]);
     const unread = notifications.filter((n) => !isStaffNotifRead(readMap, n));
+    showBrowserAlerts(unread);
 
     const badge = document.getElementById("adminNotifBadge");
     if (badge) {
@@ -169,4 +170,33 @@ if (adminLogoutBtn) {
     await auth.signOut();
     window.location.href = "../login.html";
   });
+}
+
+// ---- Browser (desktop) alerts for staff ----
+// Turned on from the Notifications page. Each unread alert pops up once per
+// browser; it shows again only when its contents change.
+const BROWSER_ALERTED_KEY = "amsonBrowserAlerted";
+
+function showBrowserAlerts(unread) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  let alerted = {};
+  try {
+    alerted = JSON.parse(localStorage.getItem(BROWSER_ALERTED_KEY)) || {};
+  } catch (error) {}
+  unread.forEach((n) => {
+    if (alerted[n.key] === n.signature) return;
+    try {
+      const popup = new Notification("Amson Pharmaceuticals", { body: n.message, icon: "../assets/logo-transp.png", tag: n.key });
+      popup.onclick = () => {
+        window.focus();
+        window.location.href = n.link;
+      };
+    } catch (error) {
+      return;
+    }
+    alerted[n.key] = n.signature;
+  });
+  try {
+    localStorage.setItem(BROWSER_ALERTED_KEY, JSON.stringify(alerted));
+  } catch (error) {}
 }

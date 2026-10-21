@@ -160,6 +160,84 @@ function rerenderAnalytics() {
   renderSalesChart(lastLoadedOrders, lastLoadedPosSales);
   renderCategoryChart(lastLoadedOrders, lastLoadedPosSales);
   renderMostBoughtItems(lastLoadedOrders, lastLoadedPosSales);
+  renderInventoryChart();
+}
+
+// ---- Inventory movement (stock in vs stock out) ----
+// Stock in = units received; stock out = units sold (walk-in, online,
+// wholesale) plus write-offs. Same period and buckets as the sales chart.
+let inventoryMovementData = null;
+let inventoryChartInstance = null;
+
+async function loadInventoryMovementData() {
+  try {
+    const [batchSnap, writeOffSnap, wholesaleSnap] = await Promise.all([
+      db.collection("stockBatches").get(),
+      db.collection("writeOffs").get(),
+      db.collection("wholesaleOrders").get(),
+    ]);
+    inventoryMovementData = {
+      batches: batchSnap.docs.map((d) => d.data()),
+      writeOffs: writeOffSnap.docs.map((d) => d.data()),
+      wholesale: wholesaleSnap.docs.map((d) => d.data()),
+    };
+  } catch (error) {
+    console.warn("Inventory movement unavailable:", error);
+    inventoryMovementData = { batches: [], writeOffs: [], wholesale: [] };
+  }
+  renderInventoryChart();
+}
+
+function renderInventoryChart() {
+  const canvas = document.getElementById("inventoryChart");
+  const emptyState = document.getElementById("inventoryChartEmpty");
+  if (!canvas || !inventoryMovementData || typeof Chart === "undefined") return;
+  const period = dashboardPeriod;
+  const stockIn = {};
+  const stockOut = {};
+  const add = (map, date, qty) => {
+    if (!date || isNaN(date) || !inPeriod(date, period) || !qty) return;
+    const key = dashboardBucketKey(date, period);
+    map[key] = (map[key] || 0) + qty;
+  };
+  const toDate = (v) => (v && v.toDate ? v.toDate() : v ? new Date(v) : null);
+
+  inventoryMovementData.batches.forEach((b) => {
+    const when = b.dateReceived ? new Date(`${b.dateReceived}T12:00:00`) : toDate(b.createdAt);
+    add(stockIn, when, b.initialQuantity != null ? b.initialQuantity : b.quantity || 0);
+  });
+  inventoryMovementData.writeOffs.forEach((w) => add(stockOut, toDate(w.createdAt), w.quantity || 0));
+  inventoryMovementData.wholesale.forEach((w) => add(stockOut, toDate(w.createdAt), (w.items || []).reduce((n, i) => n + (i.qty || 0), 0)));
+  (lastLoadedPosSales || []).forEach((s) => add(stockOut, toDate(s.createdAt), (s.items || []).reduce((n, i) => n + (i.qty || 0), 0)));
+  (lastLoadedOrders || [])
+    .filter(isConfirmedSale)
+    .forEach((o) => add(stockOut, toDate((o.statusTimestamps && o.statusTimestamps.payment_confirmed) || o.createdAt), (o.items || []).reduce((n, i) => n + (i.qty || 0), 0)));
+
+  if (inventoryChartInstance) inventoryChartInstance.destroy();
+  if (!Object.keys(stockIn).length && !Object.keys(stockOut).length) {
+    canvas.classList.add("d-none");
+    emptyState.classList.remove("d-none");
+    return;
+  }
+  canvas.classList.remove("d-none");
+  emptyState.classList.add("d-none");
+  const keys = dashboardAllBucketKeys(period);
+  inventoryChartInstance = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: keys.map((key) => dashboardBucketLabel(key, period)),
+      datasets: [
+        { label: "Stock in (received)", data: keys.map((k) => stockIn[k] || 0), backgroundColor: "#1a9c4b" },
+        { label: "Stock out (sold + written off)", data: keys.map((k) => stockOut[k] || 0), backgroundColor: "#EE3137" },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+    },
+  });
 }
 
 function shiftDashboardPeriod(step) {
@@ -241,6 +319,7 @@ async function loadDashboardStats() {
     lastLoadedPosSales = posSales;
 
     rerenderAnalytics();
+    loadInventoryMovementData();
   } catch (error) {
     console.error("Failed to load dashboard stats:", error);
   }
