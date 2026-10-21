@@ -1156,7 +1156,14 @@ async function deductStockFEFO(productId, qty, opts = {}) {
 // A record also gets the next Sales Invoice number (SI#), allocated inside
 // the same transaction so a failed sale never burns a number and two sales
 // can never share one.
-async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, record = null } = {}) {
+// Options beyond the sale record, for exchanges:
+//   returns:    [{ batchId, qty }] units put back on those batches in the
+//               same transaction (a returned item)
+//   extraReads: document refs read inside the transaction; their snapshots
+//               are passed to afterWrite
+//   afterWrite: (transaction, { allocations, invoiceNo, extraDocs }) => more
+//               writes that must succeed or fail together with the stock
+async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, record = null, returns = [], extraReads = [], afterWrite = null } = {}) {
   const allowedStatuses = includeWholesaleOnly ? ["active", "wholesale_only"] : ["active"];
   const isSellable = includeWholesaleOnly ? isWholesaleSellableBatch : isRetailSellableBatch;
 
@@ -1200,6 +1207,15 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, re
       perItemBatches.push({ qty: item.qty, batches });
     }
 
+    const returnDocs = [];
+    for (const r of returns) {
+      const doc = await transaction.get(db.collection("stockBatches").doc(r.batchId));
+      if (!doc.exists) throw new Error("The batch the item came from no longer exists; it can't be returned to stock automatically.");
+      returnDocs.push({ doc, qty: r.qty });
+    }
+    const extraDocs = [];
+    for (const ref of extraReads) extraDocs.push(await transaction.get(ref));
+
     // Firestore transactions need every read before any write.
     let invoiceNo = null;
     if (record) {
@@ -1209,22 +1225,38 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, re
       invoiceNo = formatInvoiceNo(next);
     }
 
+    // New quantity per batch, so a batch both deducted and returned to (or
+    // used by two items) is written once with the right figure.
+    const newQty = new Map();
+    const batchRefs = new Map();
     const allocations = [];
     for (const item of perItemBatches) {
       let remaining = item.qty;
       const used = [];
       for (const batch of item.batches) {
         if (remaining <= 0) break;
-        const deduct = Math.min(batch.quantity, remaining);
-        transaction.update(batch.ref, {
-          quantity: batch.quantity - deduct,
-          lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
+        const current = newQty.has(batch.ref.id) ? newQty.get(batch.ref.id) : batch.quantity;
+        const deduct = Math.min(current, remaining);
+        if (deduct <= 0) continue;
+        newQty.set(batch.ref.id, current - deduct);
+        batchRefs.set(batch.ref.id, batch.ref);
         used.push({ batchId: batch.ref.id, batchNo: batch.batchNo, expirationDate: batch.expirationDate, qty: deduct });
         remaining -= deduct;
       }
+      if (remaining > 0) throw new Error("Not enough stock available to fulfill this quantity.");
       allocations.push(used);
     }
+    returnDocs.forEach(({ doc, qty }) => {
+      const current = newQty.has(doc.id) ? newQty.get(doc.id) : doc.data().quantity || 0;
+      newQty.set(doc.id, current + qty);
+      batchRefs.set(doc.id, doc.ref);
+    });
+    newQty.forEach((quantity, id) => {
+      transaction.update(batchRefs.get(id), {
+        quantity,
+        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
 
     if (record) {
       const data = record.build(allocations, invoiceNo);
@@ -1234,8 +1266,107 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, re
       // (e.g. crediting an overpayment to the customer's balance).
       if (record.alsoWrite) record.alsoWrite(transaction, invoiceNo);
     }
+    if (afterWrite) afterWrite(transaction, { allocations, invoiceNo, extraDocs });
     return { allocations, invoiceNo };
   });
+}
+
+// ---- Wholesale exchange (REQ090, Fig 2.15) ----
+// No refunds: the buyer returns units from a recorded wholesale order and
+// takes a replacement of equal or higher value, paying any difference. In
+// one transaction the returned units go back to the batch they came from
+// (latest-expiring first), the replacement is taken by FEFO, the order line
+// remembers what was returned, and the exchange record is written.
+async function processWholesaleExchange({ orderId, lineIndex, returnQty, replacement, reason, processedBy }) {
+  const orderRef = db.collection("wholesaleOrders").doc(orderId);
+  const orderSnap = await orderRef.get();
+  if (!orderSnap.exists) throw new Error("This wholesale order no longer exists.");
+  const order = orderSnap.data();
+  const line = (order.items || [])[lineIndex];
+  if (!line) throw new Error("That item isn't on this order.");
+  const remaining = line.qty - (line.returnedQty || 0);
+  if (!(returnQty > 0) || returnQty > remaining) throw new Error(`Only ${remaining} of ${line.productName} can still be returned from this order.`);
+  if (!reason || !reason.trim()) throw new Error("A reason for the exchange is required.");
+  if (!replacement || !replacement.productId || !(replacement.qty > 0)) throw new Error("Choose the replacement item and quantity.");
+
+  const returnedValue = Math.round(returnQty * (line.unitPrice || 0) * 100) / 100;
+  const replacementValue = Math.round(replacement.qty * (replacement.unitPrice || 0) * 100) / 100;
+  if (replacementValue < returnedValue) {
+    throw new Error(`The replacement (${formatPeso(replacementValue)}) must be of equal or higher value than the returned items (${formatPeso(returnedValue)}). Refunds aren't given.`);
+  }
+
+  // Which batches the returned units go back to, latest-expiring first,
+  // skipping units already returned earlier.
+  const batches = (line.batches || []).map((b) => ({ ...b }));
+  const returnParts = [];
+  let need = returnQty;
+  for (let i = batches.length - 1; i >= 0 && need > 0; i--) {
+    const left = (batches[i].qty || 0) - (batches[i].returnedQty || 0);
+    const take = Math.min(left, need);
+    if (take <= 0) continue;
+    returnParts.push({ batchId: batches[i].batchId, batchNo: batches[i].batchNo, expirationDate: batches[i].expirationDate, qty: take });
+    batches[i].returnedQty = (batches[i].returnedQty || 0) + take;
+    need -= take;
+  }
+  if (need > 0) throw new Error("This order line has no batch record to return the stock to. Record the return with a write-off/receiving entry instead.");
+
+  const counterRef = db.collection("counters").doc("wholesaleExchanges");
+  const exchangeRef = db.collection("wholesaleExchanges").doc();
+  const replacementProduct = getProductById(replacement.productId);
+  let exchangeNo = null;
+
+  await deductStockFEFOMultiple([{ productId: replacement.productId, qty: replacement.qty }], {
+    includeWholesaleOnly: true,
+    returns: returnParts.map((p) => ({ batchId: p.batchId, qty: p.qty })),
+    extraReads: [orderRef, counterRef],
+    afterWrite: (tx, { allocations, extraDocs }) => {
+      const [freshOrder, counterDoc] = extraDocs;
+      const freshLine = (freshOrder.data().items || [])[lineIndex];
+      if (!freshLine || freshLine.qty - (freshLine.returnedQty || 0) < returnQty) {
+        throw new Error("This order was changed by someone else. Reopen it and try again.");
+      }
+      const next = (counterDoc.exists ? counterDoc.data().count || 0 : 0) + 1;
+      exchangeNo = `EX-${String(next).padStart(5, "0")}`;
+      tx.set(counterRef, { count: next }, { merge: true });
+
+      const items = freshOrder.data().items.map((it, idx) =>
+        idx === lineIndex ? { ...it, returnedQty: (it.returnedQty || 0) + returnQty, batches } : it
+      );
+      tx.update(orderRef, { items });
+      tx.set(exchangeRef, {
+        exchangeNo,
+        wholesaleOrderId: orderId,
+        invoiceNo: order.invoiceNo || "",
+        wholesaleAccountId: order.wholesaleAccountId || null,
+        buyerName: order.buyerName || "",
+        purchasedAt: order.createdAt || null,
+        returned: { productId: line.productId, productName: line.productName, qty: returnQty, unitPrice: line.unitPrice || 0, value: returnedValue, batches: returnParts },
+        replacement: {
+          productId: replacement.productId,
+          productName: replacementProduct ? replacementProduct.name : replacement.productId,
+          qty: replacement.qty,
+          unitPrice: replacement.unitPrice || 0,
+          value: replacementValue,
+          batches: allocations[0],
+        },
+        priceDifference: Math.round((replacementValue - returnedValue) * 100) / 100,
+        reason: reason.trim(),
+        processedBy: processedBy || "",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    },
+  });
+
+  await logAuditEvent({
+    action: "Wholesale Exchange",
+    details:
+      `${exchangeNo} - ${order.buyerName || ""}, SI ${order.invoiceNo || "-"}: returned ${line.productName} x${returnQty} (${formatPeso(returnedValue)}), ` +
+      `replaced with ${replacementProduct ? replacementProduct.name : replacement.productId} x${replacement.qty} (${formatPeso(replacementValue)}), ` +
+      `difference ${formatPeso(replacementValue - returnedValue)}. Reason: ${reason.trim()}`,
+  });
+
+  const saved = await exchangeRef.get();
+  return { id: exchangeRef.id, ...saved.data() };
 }
 
 // ---- Sales Invoice numbers ----

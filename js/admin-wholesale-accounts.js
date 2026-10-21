@@ -677,16 +677,186 @@ async function openHistoryModal(account) {
       (o) => `<tr>
         <td class="fw-medium">${escapeHtml(o.invoiceNo || "-")}</td>
         <td>${formatDateMDY(o.createdAt)}</td>
-        <td>${(o.items || []).map((it) => `${escapeHtml(it.productName)} x${it.qty}`).join(", ")}</td>
+        <td>${(o.items || []).map((it) => `${escapeHtml(it.productName)} x${it.qty}${it.returnedQty ? ` <span class="text-danger">(${it.returnedQty} exchanged)</span>` : ""}`).join(", ")}</td>
         <td>${formatPeso(o.total || 0)}</td>
         <td>${o.freeOfCost ? "Free of cost" : escapeHtml(SALE_RECEIPT_PAYMENT_METHOD_LABELS[o.paymentMethod] || o.paymentMethod || "-")}</td>
-        <td><button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-invoice-btn" data-id="${o.id}">Invoice</button></td>
+        <td class="text-nowrap">
+          <button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-invoice-btn" data-id="${o.id}">Invoice</button>
+          <button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-exchange-btn" data-id="${o.id}">Exchange</button>
+        </td>
       </tr>`
     )
     .join("");
   body.querySelectorAll(".wholesale-invoice-btn").forEach((btn) => {
     btn.addEventListener("click", () => downloadWholesaleInvoice(historyOrders.find((o) => o.id === btn.dataset.id)));
   });
+  body.querySelectorAll(".wholesale-exchange-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openExchangeDialog(historyOrders.find((o) => o.id === btn.dataset.id), account));
+  });
+}
+
+/* ---------- Wholesale exchange (REQ090, Fig 2.15) ---------- */
+let wholesaleStaffName = "Staff";
+document.addEventListener("admin:ready", (e) => {
+  const admin = e.detail && e.detail.admin;
+  if (admin) wholesaleStaffName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
+});
+
+async function openExchangeDialog(order, account) {
+  if (!order) return;
+  const lines = (order.items || []).map((it, idx) => ({ idx, it, left: it.qty - (it.returnedQty || 0) })).filter((l) => l.left > 0);
+  if (!lines.length) {
+    await showAppAlert("Every item on this order has already been returned.");
+    return;
+  }
+  const productOptions = SAMPLE_PRODUCTS.filter((p) => p.status === "active")
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+    .join("");
+
+  const ok = await showAppConfirm(`Exchange items from SI No. ${order.invoiceNo || "-"} (${order.buyerName || ""}). No refunds: the replacement must be of equal or higher value.`, {
+    title: "Wholesale Exchange",
+    confirmLabel: "Process Exchange",
+    fieldHtml: `
+      <label class="form-label" for="exReturnLine">Item being returned</label>
+      <select class="form-select mb-2" id="exReturnLine">
+        ${lines.map((l) => `<option value="${l.idx}">${escapeHtml(l.it.productName)} - ${l.left} returnable @ ${formatPeso(l.it.unitPrice || 0)}</option>`).join("")}
+      </select>
+      <label class="form-label" for="exReturnQty">Quantity returned</label>
+      <input type="number" class="form-control mb-3" id="exReturnQty" min="1" step="1" value="1">
+      <label class="form-label" for="exReplacementProduct">Replacement item</label>
+      <select class="form-select mb-2" id="exReplacementProduct">${productOptions}</select>
+      <div class="row g-2 mb-2">
+        <div class="col-6">
+          <label class="form-label" for="exReplacementQty">Quantity</label>
+          <input type="number" class="form-control" id="exReplacementQty" min="1" step="1" value="1">
+        </div>
+        <div class="col-6">
+          <label class="form-label" for="exReplacementPrice">Unit price (₱)</label>
+          <input type="number" class="form-control" id="exReplacementPrice" min="0" step="0.01">
+        </div>
+      </div>
+      <p class="mb-3" style="font-size:0.85rem;" id="exDifferenceText"></p>
+      <label class="form-label" for="exReason">Reason for exchange *</label>
+      <textarea class="form-control" id="exReason" rows="2" placeholder="e.g. Wrong item delivered / damaged packaging"></textarea>
+    `,
+    onRender: () => {
+      const lineSel = document.getElementById("exReturnLine");
+      const retQty = document.getElementById("exReturnQty");
+      const prodSel = document.getElementById("exReplacementProduct");
+      const repQty = document.getElementById("exReplacementQty");
+      const repPrice = document.getElementById("exReplacementPrice");
+      const diffText = document.getElementById("exDifferenceText");
+      const line = () => order.items[Number(lineSel.value)];
+      const update = () => {
+        const returned = (parseInt(retQty.value, 10) || 0) * (line().unitPrice || 0);
+        const repl = (parseInt(repQty.value, 10) || 0) * (parseFloat(repPrice.value) || 0);
+        const diff = repl - returned;
+        diffText.innerHTML = `Returned value <strong>${formatPeso(returned)}</strong> - Replacement value <strong>${formatPeso(repl)}</strong> - ${
+          diff >= 0 ? `Buyer pays <strong>${formatPeso(diff)}</strong>` : '<span class="text-danger">Replacement is worth less than the return (not allowed)</span>'
+        }`;
+      };
+      const setDefaults = () => {
+        prodSel.value = line().productId;
+        const p = getProductById(prodSel.value);
+        repPrice.value = p ? p.wholesalePrice || line().unitPrice || 0 : line().unitPrice || 0;
+        retQty.max = String(order.items[Number(lineSel.value)].qty - (order.items[Number(lineSel.value)].returnedQty || 0));
+        update();
+      };
+      lineSel.addEventListener("change", setDefaults);
+      prodSel.addEventListener("change", () => {
+        const p = getProductById(prodSel.value);
+        repPrice.value = p ? p.wholesalePrice || 0 : 0;
+        update();
+      });
+      [retQty, repQty, repPrice].forEach((el) => el.addEventListener("input", update));
+      setDefaults();
+    },
+  });
+  if (!ok) return;
+
+  const payload = {
+    orderId: order.id,
+    lineIndex: Number(document.getElementById("exReturnLine").value),
+    returnQty: parseInt(document.getElementById("exReturnQty").value, 10),
+    replacement: {
+      productId: document.getElementById("exReplacementProduct").value,
+      qty: parseInt(document.getElementById("exReplacementQty").value, 10),
+      unitPrice: parseFloat(document.getElementById("exReplacementPrice").value) || 0,
+    },
+    reason: document.getElementById("exReason").value,
+    processedBy: wholesaleStaffName,
+  };
+  try {
+    const exchange = await processWholesaleExchange(payload);
+    catalogLoadPromise = null;
+    await loadCatalogCache();
+    const download = await showAppConfirm(
+      `Exchange ${exchange.exchangeNo} recorded. Returned items are back in stock and the replacement was taken from stock (earliest expiry first).${exchange.priceDifference > 0 ? ` Collect ${formatPeso(exchange.priceDifference)} from the buyer.` : ""}`,
+      { title: "Exchange Recorded", confirmLabel: "Download Exchange Document", cancelLabel: "Close" }
+    );
+    if (download) downloadExchangeDocument(exchange);
+    openHistoryModal(account);
+  } catch (error) {
+    await showAppAlert(error.message || "Something went wrong recording the exchange. Please try again.");
+  }
+}
+
+function downloadExchangeDocument(ex) {
+  if (typeof window.jspdf === "undefined") {
+    showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = 18;
+  doc.setFontSize(15);
+  doc.setFont(undefined, "bold");
+  doc.text("Amson Pharmaceuticals", 14, y);
+  doc.setFontSize(10);
+  doc.setFont(undefined, "normal");
+  y += 6;
+  doc.text("Wholesale Exchange - Las Pinas Branch", 14, y);
+  doc.setFont(undefined, "bold");
+  doc.text(ex.exchangeNo || "", 196, 18, { align: "right" });
+  doc.setFont(undefined, "normal");
+  doc.text(`Date: ${formatDateMDY(ex.createdAt || new Date())}`, 196, 24, { align: "right" });
+  y += 10;
+  [`Buyer: ${ex.buyerName || ""}`, `Original SI No.: ${ex.invoiceNo || "-"}  (purchased ${formatDateMDY(ex.purchasedAt)})`, `Reason: ${ex.reason || ""}`].forEach((line) => {
+    doc.text(doc.splitTextToSize(line, 180), 14, y);
+    y += 6;
+  });
+  const section = (title, part) => {
+    y += 4;
+    doc.setFont(undefined, "bold");
+    doc.text(title, 14, y);
+    doc.setFont(undefined, "normal");
+    y += 6;
+    (part.batches || []).forEach((b) => {
+      doc.text(doc.splitTextToSize(`${part.productName}  -  Batch ${b.batchNo || "-"}, Exp ${b.expirationDate ? formatDateMDY(b.expirationDate) : "-"}  -  Qty ${b.qty}`, 182), 14, y);
+      y += 6;
+    });
+    doc.text(`Qty ${part.qty} x ${reportSafeNumber(part.unitPrice)} = ${reportSafeNumber(part.value)}`, 196, y, { align: "right" });
+    y += 4;
+  };
+  section("Returned", ex.returned || {});
+  section("Replacement", ex.replacement || {});
+  y += 6;
+  doc.setFont(undefined, "bold");
+  doc.text(`Price difference paid by buyer: ${reportSafeNumber(ex.priceDifference)}`, 14, y);
+  doc.setFont(undefined, "normal");
+  y += 16;
+  doc.text("Received by: ______________________", 14, y);
+  doc.text("Processed by: ______________________", 110, y);
+  y += 6;
+  doc.setFontSize(9);
+  doc.text(ex.processedBy || "", 110, y);
+  doc.save(`Amson-${ex.exchangeNo || "exchange"}.pdf`);
+}
+
+// Plain numbers for PDFs (the PDF font has no peso sign).
+function reportSafeNumber(n) {
+  return Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /* ---------- Wholesale sales invoice (REQ092) ---------- */

@@ -21,6 +21,7 @@ const REPORT_TYPES = {
   monthly_inventory: { label: "Monthly Inventory (per category)", range: "month" },
   supplier_purchases: { label: "Supplier Purchases", range: "month" },
   pull_out: { label: "Pull-Out Report (write-offs)", range: "dates" },
+  returns_exchanges: { label: "Return / Exchange Report (wholesale)", range: "dates" },
   po_discrepancy: { label: "Purchase Order Discrepancy Report", range: "dates" },
 };
 
@@ -460,6 +461,66 @@ async function buildPullOutReport(start, end) {
   };
 }
 
+// The branch's "Return to POS" sheet, plus what was given in exchange
+// (REQ114).
+async function buildReturnsExchangeReport(start, end) {
+  const from = firebase.firestore.Timestamp.fromDate(start);
+  const to = firebase.firestore.Timestamp.fromDate(end);
+  const snap = await db.collection("wholesaleExchanges").where("createdAt", ">=", from).where("createdAt", "<", to).get();
+  let totalReturned = 0;
+  let totalDiff = 0;
+  const rows = [];
+  snap.docs
+    .map((d) => d.data())
+    .sort((a, b) => (tsToDate(a.createdAt) || 0) - (tsToDate(b.createdAt) || 0))
+    .forEach((ex) => {
+      const r = ex.returned || {};
+      const parts = r.batches && r.batches.length ? r.batches : [{ batchNo: "", expirationDate: "", qty: r.qty }];
+      parts.forEach((b, i) => {
+        rows.push([
+          r.productName || "",
+          b.batchNo || "",
+          b.expirationDate ? formatDateMDY(b.expirationDate) : "",
+          ex.buyerName || "",
+          ex.invoiceNo ? `SI ${ex.invoiceNo}` : "",
+          formatDateMDY(ex.purchasedAt),
+          formatDateMDY(ex.createdAt),
+          reportNumber(b.qty, 0),
+          reportNumber(r.unitPrice),
+          reportNumber((b.qty || 0) * (r.unitPrice || 0)),
+          i === 0 ? `${(ex.replacement || {}).productName || ""} x${(ex.replacement || {}).qty || 0}` : "",
+          i === 0 ? reportNumber(ex.priceDifference) : "",
+          i === 0 ? `${ex.exchangeNo || ""}: ${ex.reason || ""}` : "",
+        ]);
+      });
+      totalReturned += r.value || 0;
+      totalDiff += ex.priceDifference || 0;
+    });
+  return {
+    title: "AMSON PHARMACEUTICALS - Return / Exchange Report",
+    subtitle: rangeSubtitle(start, end),
+    filename: `returns-exchanges-${localISODate(start)}`,
+    notes: ["Items returned by wholesale buyers and what they took in exchange. No refunds are given; the buyer pays any price difference."],
+    sheets: [
+      {
+        name: "Return to POS",
+        sections: [
+          {
+            heading: "Return Medicine from Customer",
+            columns: [
+              { label: "Item", width: 2.4 }, { label: "Batch" }, { label: "Expiry" }, { label: "Customer", width: 1.5 }, { label: "DR# / SI#" },
+              { label: "Date Purchase" }, { label: "Date Return" }, { label: "Qty", align: "right", width: 0.6 }, { label: "Amount", align: "right" },
+              { label: "Total Amount", align: "right" }, { label: "Replaced With", width: 1.8 }, { label: "Difference Paid", align: "right" }, { label: "Exchange / Reason", width: 2 },
+            ],
+            rows,
+            totals: [["TOTAL", "", "", "", "", "", "", "", "", reportNumber(totalReturned), "", reportNumber(totalDiff), ""]],
+          },
+        ],
+      },
+    ],
+  };
+}
+
 async function buildPoDiscrepancyReport(start, end) {
   const [poSnap, supplierSnap] = await Promise.all([db.collection("purchaseOrders").get(), db.collection("suppliers").get()]);
   const suppliers = {};
@@ -756,6 +817,7 @@ async function generateReport() {
         daily_sales: buildDailySalesReport,
         customer_file: buildCustomerFileReport,
         pull_out: buildPullOutReport,
+        returns_exchanges: buildReturnsExchangeReport,
         po_discrepancy: buildPoDiscrepancyReport,
       }[type](start, end);
     } else {
