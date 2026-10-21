@@ -210,9 +210,36 @@ async function loadOrders() {
     const posSnapshot = await db.collection("posSales").get();
     allPosSales = posSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     renderWalkinTable();
+    listenToOrders();
   } catch (error) {
     console.error("Failed to load orders:", error);
   }
+}
+
+// Live orders (REQNF005): new orders, customer resubmissions and other
+// staff's actions show up without a refresh.
+let unsubscribeOrders = null;
+let ordersRefreshTimer = null;
+
+function listenToOrders() {
+  if (unsubscribeOrders) return;
+  let first = true;
+  unsubscribeOrders = db.collection("orders").onSnapshot(
+    (snap) => {
+      if (first) {
+        first = false;
+        return; // loadOrders already has this data
+      }
+      const fresh = snap.docs.map((doc) => ({ id: doc.id, ...doc.data({ serverTimestamps: "estimate" }) }));
+      clearTimeout(ordersRefreshTimer);
+      ordersRefreshTimer = setTimeout(() => {
+        allOrders = fresh;
+        renderVerificationQueue();
+        renderOrdersTable();
+      }, 300);
+    },
+    (error) => console.warn("Live orders unavailable:", error)
+  );
 }
 
 /* ---------- Tabs ---------- */

@@ -44,6 +44,7 @@ document.addEventListener("admin:ready", async (e) => {
   if (admin) currentCashierName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
   if (admin) currentStaffRole = admin.role;
   loadTodaySales();
+  listenToTodaySales();
 
   await loadCatalogCache();
   populatePosProductSelect();
@@ -365,6 +366,30 @@ function renderTodaySales() {
 }
 
 document.getElementById("posTodayRefreshBtn").addEventListener("click", loadTodaySales);
+
+// Live (REQNF005): sales rung up on another counter appear here too.
+let unsubscribeTodaySales = null;
+function listenToTodaySales() {
+  if (unsubscribeTodaySales) return;
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  let first = true;
+  let timer = null;
+  unsubscribeTodaySales = db
+    .collection("posSales")
+    .where("createdAt", ">=", firebase.firestore.Timestamp.fromDate(startOfDay))
+    .onSnapshot(
+      () => {
+        if (first) {
+          first = false;
+          return;
+        }
+        clearTimeout(timer);
+        timer = setTimeout(loadTodaySales, 500);
+      },
+      (error) => console.warn("Live sales unavailable:", error)
+    );
+}
 
 // View/print a past sale, and void it if this staff member's role allows.
 function openPosSaleReceipt(sale, afterVoid) {

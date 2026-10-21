@@ -173,9 +173,43 @@ async function loadInventory() {
     renderInventoryTable();
     renderPoTable();
     renderReconciliationTab();
+    listenToBatches();
   } catch (error) {
     console.error("Failed to load inventory:", error);
   }
+}
+
+// Live stock (REQNF005): a sale, receipt or write-off anywhere updates this
+// table and the tiles without a refresh.
+let unsubscribeBatches = null;
+let batchRefreshTimer = null;
+
+function listenToBatches() {
+  if (unsubscribeBatches) return;
+  let first = true;
+  unsubscribeBatches = db.collection("stockBatches").onSnapshot(
+    (snap) => {
+      if (first) {
+        first = false;
+        return; // loadInventory already has this data
+      }
+      allBatches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      clearTimeout(batchRefreshTimer);
+      batchRefreshTimer = setTimeout(async () => {
+        renderInventoryTable();
+        try {
+          const counts = await computeInventoryAlertCounts(allBatches);
+          document.getElementById("lowStockCount").textContent = counts.lowStock;
+          document.getElementById("outOfStockCount").textContent = counts.outOfStock;
+          document.getElementById("nearExpiryCount").textContent = counts.nearExpiry;
+          document.getElementById("expiredCount").textContent = counts.expired;
+        } catch (error) {
+          console.warn("Inventory tiles couldn't refresh:", error);
+        }
+      }, 400);
+    },
+    (error) => console.warn("Live inventory unavailable:", error)
+  );
 }
 
 /* ---------- Tabs ---------- */

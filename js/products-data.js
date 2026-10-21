@@ -272,10 +272,9 @@ function sumPhysicalStockByProduct(batches) {
 // stay per-batch, since each physical lot has its own expiry and needs
 // its own decision - these counts simply mirror whatever the Inventory
 // table itself labels a batch, so the tile and the row never disagree.
-async function computeInventoryAlertCounts() {
+async function computeInventoryAlertCounts(batchesOverride = null) {
   await loadCatalogCache();
-  const batchSnapshot = await db.collection("stockBatches").get();
-  const batches = batchSnapshot.docs.map((doc) => doc.data());
+  const batches = batchesOverride || (await db.collection("stockBatches").get()).docs.map((doc) => doc.data());
   const physicalStockByProduct = sumPhysicalStockByProduct(batches);
 
   let nearExpiry = 0;

@@ -320,6 +320,28 @@ function renderOrder(order) {
   downloadReceiptBtn.title = order.invoiceNo ? "" : "Available once your payment is verified";
 }
 
+// Live status (REQNF005): staff confirming, dispatching or flagging the
+// order shows here without a refresh. Skipped while the customer is in the
+// middle of resubmitting, so their picked file isn't cleared.
+let unsubscribeOrder = null;
+function listenToOrder(docRef) {
+  if (unsubscribeOrder) return;
+  let first = true;
+  unsubscribeOrder = docRef.onSnapshot(
+    (doc) => {
+      if (first) {
+        first = false;
+        return;
+      }
+      if (!doc.exists) return;
+      if (issueProofInput.files && issueProofInput.files[0]) return;
+      currentOrder = doc.data({ serverTimestamps: "estimate" });
+      renderOrder(currentOrder);
+    },
+    (error) => console.warn("Live order status unavailable:", error)
+  );
+}
+
 async function loadOrder(uid) {
   if (!orderId) {
     orderNotFoundNotice.classList.remove("d-none");
@@ -341,6 +363,7 @@ async function loadOrder(uid) {
     currentOrder = await enforceOrderDeadline(orderId, doc.data());
     renderOrder(currentOrder);
     orderDetailContent.classList.remove("d-none");
+    listenToOrder(docRef);
   } catch (error) {
     orderNotFoundNotice.classList.remove("d-none");
   } finally {
