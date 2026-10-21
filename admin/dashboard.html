@@ -138,10 +138,16 @@
         <h2 class="h5 fw-bold mb-0">Sales Analytics</h2>
         <div class="d-flex align-items-center flex-wrap gap-2">
           <div class="btn-group" role="group" aria-label="Analytics period" id="dashboardPeriodGroup">
-            <button type="button" class="btn order-filter-btn dashboard-period-btn" data-period="today">Today</button>
+            <button type="button" class="btn order-filter-btn dashboard-period-btn" data-period="today">Day</button>
             <button type="button" class="btn order-filter-btn dashboard-period-btn" data-period="week">Week</button>
             <button type="button" class="btn order-filter-btn dashboard-period-btn active" data-period="month">Month</button>
             <button type="button" class="btn order-filter-btn dashboard-period-btn" data-period="year">Year</button>
+          </div>
+          <div class="d-flex align-items-center gap-1">
+            <button type="button" class="btn btn-outline-dark-amson btn-sm" id="dashboardRangePrevBtn" aria-label="Previous period"><i class="bi bi-chevron-left"></i></button>
+            <span class="fw-medium px-1" id="dashboardRangeLabel" style="min-width:150px; text-align:center; font-size:0.9rem;"></span>
+            <button type="button" class="btn btn-outline-dark-amson btn-sm" id="dashboardRangeNextBtn" aria-label="Next period"><i class="bi bi-chevron-right"></i></button>
+            <input type="date" class="form-control form-control-sm" id="dashboardRangePicker" style="width:auto;" aria-label="Pick a date to show its day, week, month or year">
           </div>
           <button type="button" class="btn btn-outline-dark-amson btn-sm" id="exportAnalyticsPdfBtn">
             <i class="bi bi-file-earmark-pdf me-1"></i>PDF
