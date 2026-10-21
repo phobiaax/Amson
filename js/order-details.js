@@ -388,6 +388,10 @@ markReceivedBtn.addEventListener("click", async () => {
     const doc = await currentOrderRef.get();
     currentOrder = doc.data();
     renderOrder(currentOrder);
+    logAuditEvent({
+      action: "Order Received by Customer",
+      details: `Order ${currentOrder.orderNumber || ""} - the customer confirmed they received it`,
+    });
   } catch (error) {
     updateMarkReceivedButton(currentOrder);
   }

@@ -130,7 +130,7 @@
                     </div>
                     <p class="detail-label mb-0">Order Total</p>
                     <p class="detail-value product-price mb-3" id="reviewOrderTotal"></p>
-                    <p class="detail-label mb-0">Submitted At</p>
+                    <p class="detail-label mb-0">Order Date &amp; Time</p>
                     <p class="detail-value mb-3" id="reviewSubmittedAt"></p>
                     <p class="detail-label mb-0">Reference Number</p>
                     <p class="detail-value mb-3" id="reviewReferenceNumber"></p>
@@ -191,8 +191,6 @@
               <button type="button" class="btn order-filter-btn" data-filter="pending">Pending</button>
             </div>
             <div class="d-flex gap-2 flex-wrap">
-              <button type="button" class="btn btn-outline-dark-amson btn-sm" id="ordersExportBtn"><i class="bi bi-box-arrow-up-right me-1"></i>Export Report</button>
-              <a href="reports.html?type=daily_sales" class="btn btn-outline-dark-amson btn-sm"><i class="bi bi-file-earmark-bar-graph me-1"></i>Daily Sales Report</a>
               <input type="text" class="form-control form-control-sm" id="ordersSearchInput" placeholder="Search orders" style="width:180px;">
               <select class="form-select form-select-sm" id="ordersSortFieldSelect" style="width:160px;">
                 <option value="createdAt">Sort: Date Created</option>
@@ -210,6 +208,7 @@
                   <th>Date &amp; Time</th>
                   <th>Customer</th>
                   <th>Order Count</th>
+                  <th>Reference No.</th>
                   <th>Order Total</th>
                   <th>Status</th>
                 </tr>
@@ -225,7 +224,7 @@
         <!-- ===== Walk-in Orders panel (read-only POS sales log) ===== -->
         <div id="walkinPanel" class="p-4 d-none">
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-            <input type="text" class="form-control form-control-sm" id="walkinSearchInput" placeholder="Search SI no., customer, cashier or product" style="width:280px;">
+            <input type="text" class="form-control form-control-sm" id="walkinSearchInput" placeholder="Search SI no., reference no., customer, cashier or product" style="width:280px;">
           </div>
 
           <div class="table-responsive">
@@ -238,6 +237,7 @@
                   <th>Items</th>
                   <th>Total</th>
                   <th>Payment Method</th>
+                  <th>Reference No.</th>
                   <th>Cashier</th>
                   <th></th>
                 </tr>
@@ -458,6 +458,10 @@
         <div class="d-flex justify-content-between mb-1">
           <span class="text-muted">Mode of Payment</span>
           <span class="fw-medium" id="posReceiptPaymentMode">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1 d-none" id="posReceiptRefNoRow">
+          <span class="text-muted">Reference No.</span>
+          <span class="fw-medium" id="posReceiptRefNo">-</span>
         </div>
         <div class="d-flex justify-content-between mb-1">
           <span class="text-muted">Amount</span>

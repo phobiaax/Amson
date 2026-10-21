@@ -19,6 +19,11 @@ const posAlert = document.getElementById("posAlert");
 const posCompleteSaleBtn = document.getElementById("posCompleteSaleBtn");
 const posPaymentMethodSelect = document.getElementById("posPaymentMethodSelect");
 const posCustomerNameInput = document.getElementById("posCustomerNameInput");
+const posReferenceFields = document.getElementById("posReferenceFields");
+const posReferenceNoInput = document.getElementById("posReferenceNoInput");
+
+// Payment methods that come with a transaction reference number.
+const POS_REFERENCE_METHODS = ["gcash", "bank_transfer", "terminal"];
 
 function posPaymentMethod() {
   return posPaymentMethodSelect.value || "cash";
@@ -26,6 +31,7 @@ function posPaymentMethod() {
 
 posPaymentMethodSelect.addEventListener("change", () => {
   posCashFields.classList.toggle("d-none", posPaymentMethod() !== "cash");
+  posReferenceFields.classList.toggle("d-none", !POS_REFERENCE_METHODS.includes(posPaymentMethod()));
   updatePosTotals();
 });
 
@@ -59,7 +65,7 @@ function populatePosProductSelect() {
     value: p.id,
     label: `${p.name} - ${formatPeso(p.price)} (${p.totalStock} in stock)`,
   }));
-  posProductSelect.innerHTML = options.map((o) => `<option value="${o.value}">${o.label}</option>`).join("");
+  posProductSelect.innerHTML = options.map((o) => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join("");
 
   if (posProductChoices) {
     posProductChoices.destroy();
@@ -229,6 +235,14 @@ posCompleteSaleBtn.addEventListener("click", () => {
     return;
   }
 
+  const needsReference = POS_REFERENCE_METHODS.includes(paymentMethod);
+  const referenceNo = needsReference ? posReferenceNoInput.value.trim() : "";
+  if (needsReference && !referenceNo) {
+    posAlert.textContent = "Enter the reference number from the payment slip or receipt.";
+    posAlert.classList.remove("d-none");
+    return;
+  }
+
   const rxIncluded = posCartHasRx();
   if (rxIncluded && !posRxVerifiedCheck.checked) {
     posAlert.textContent = "Check the customer's prescription and tick RX Verified before completing this sale.";
@@ -256,6 +270,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
     branch: POS_BRANCH_NAME,
     completedAt: new Date(),
     customerName,
+    referenceNo,
     title: "Review Transaction",
     onConfirm: async () => {
       try {
@@ -274,6 +289,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
                 items: items.map((item, idx) => ({ ...item, ...batchFieldsFromAllocation(allocations[idx]) })),
                 total,
                 paymentMethod,
+                referenceNo: referenceNo || null,
                 cashReceived: isCash ? cash : paymentMethod === "credit" ? 0 : total,
                 change: isCash ? cash - total : 0,
                 cashier: currentCashierName,
@@ -289,6 +305,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
         posCart = [];
         posCashInput.value = "";
         posCustomerNameInput.value = "";
+        posReferenceNoInput.value = "";
         renderPosCart();
         catalogLoadPromise = null;
         await loadCatalogCache();
@@ -306,8 +323,15 @@ posCompleteSaleBtn.addEventListener("click", () => {
           branch: POS_BRANCH_NAME,
           completedAt: new Date(),
           customerName,
+          referenceNo,
           invoiceNo,
           title: "Sale Complete",
+        });
+        logAuditEvent({
+          action: "Walk-in Sale",
+          details: `SI ${invoiceNo} - ${customerName} - ${items.map((it) => `${it.name} x${it.qty}`).join(", ")} - Total ${formatPeso(total)}, ${
+            SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod
+          }${referenceNo ? ` (Ref ${referenceNo})` : ""} - stock deducted`,
         });
         loadTodaySales();
         return true;
@@ -408,6 +432,7 @@ function openPosSaleReceipt(sale, afterVoid) {
     completedAt: sale.createdAt && sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(),
     invoiceNo: sale.invoiceNo || null,
     customerName: sale.customerName || "Walk-in",
+    referenceNo: sale.referenceNo || "",
     title: "Sale Receipt",
     voidInfo: voidSummary(sale),
     partialVoidInfo: partialVoidSummary(sale),

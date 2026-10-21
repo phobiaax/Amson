@@ -245,6 +245,12 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
       return order;
     }
 
+    if (typeof logAuditEvent === "function") {
+      logAuditEvent({
+        action: "Order Closed (Unresolved)",
+        details: `Order ${order.orderNumber} - ${closedReason}${unappliedCredit > 0 ? ` ${formatPeso(unappliedCredit)} kept as store credit.` : ""}`,
+      });
+    }
     if (unappliedCredit > 0 && order.customerId) {
       notifyCustomer(
         order.customerId,
@@ -273,6 +279,9 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
           "statusTimestamps.delivered": firebase.firestore.FieldValue.serverTimestamp(),
         });
         order.status = "delivered";
+        if (typeof logAuditEvent === "function") {
+          logAuditEvent({ action: "Order Auto-Delivered", details: `Order ${order.orderNumber} - marked Delivered 3 days after dispatch`, actor: "System" });
+        }
       } catch (error) {
         console.warn("Couldn't mark the order delivered yet:", error);
       }

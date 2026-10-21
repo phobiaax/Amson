@@ -137,6 +137,11 @@
               <option value="credit">Credit (pay later)</option>
             </select>
 
+            <div id="posReferenceFields" class="d-none">
+              <label for="posReferenceNoInput" class="form-label mt-3">Reference No. <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="posReferenceNoInput" maxlength="40" placeholder="From the G-Cash / bank / card terminal slip">
+            </div>
+
             <div id="posCashFields">
               <label for="posCashInput" class="form-label mt-3">Cash Received</label>
               <div class="input-group">
@@ -240,6 +245,10 @@
         <div class="d-flex justify-content-between mb-1">
           <span class="text-muted">Mode of Payment</span>
           <span class="fw-medium" id="posReceiptPaymentMode">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1 d-none" id="posReceiptRefNoRow">
+          <span class="text-muted">Reference No.</span>
+          <span class="fw-medium" id="posReceiptRefNo">-</span>
         </div>
         <div class="d-flex justify-content-between mb-1">
           <span class="text-muted">Amount</span>

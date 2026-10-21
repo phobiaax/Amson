@@ -594,6 +594,12 @@ async function enforceExpiryStatus() {
       await markBatchBadOrder(batch.id);
     } else if (batch.status === "active" && expiry <= wholesaleOnlyThreshold) {
       await db.collection("stockBatches").doc(batch.id).update({ status: "wholesale_only" });
+      const product = getProductById(batch.productId);
+      await logAuditEvent({
+        action: "Batch Moved to Wholesale Only",
+        details: `${product ? product.name : batch.productId} - Batch ${batch.batchNo || "-"}, ${batch.quantity} units (within ${NEAR_EXPIRY_MONTHS} months of expiry ${formatDateMDY(`${batch.expirationDate}T12:00:00`)}), no longer sold retail`,
+        actor: "System",
+      });
     }
   }
 }
@@ -825,6 +831,7 @@ function showSaleReceipt({
   completedAt,
   invoiceNo = null,
   customerName = "",
+  referenceNo = "",
   title = "Sale Receipt",
   onConfirm = null,
   onEdit = null,
@@ -865,6 +872,12 @@ function showSaleReceipt({
     SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod;
   document.getElementById("posReceiptAmountPaid").textContent =
     paymentMethod === "credit" ? "Charged on credit" : formatPeso(amountPaid);
+
+  const refRow = document.getElementById("posReceiptRefNoRow");
+  if (refRow) {
+    refRow.classList.toggle("d-none", !referenceNo);
+    document.getElementById("posReceiptRefNo").textContent = referenceNo || "-";
+  }
 
   const changeRow = document.getElementById("posReceiptChangeRow");
   if (isCash) {

@@ -224,6 +224,14 @@ service cloud.firestore {
     match /auditLog/{entryId} {
       allow read: if isStaff();
       allow create: if isStaff();
+      // Customers' own order steps (confirming receipt, the 3-day
+      // auto-deliver) are logged from their order pages - only these two
+      // actions, in the usual shape.
+      allow create: if isSignedIn() &&
+        request.resource.data.action in ["Order Received by Customer", "Order Auto-Delivered"] &&
+        request.resource.data.keys().hasOnly(["action", "details", "user", "ipAddress", "createdAt"]) &&
+        request.resource.data.details is string && request.resource.data.details.size() <= 200 &&
+        request.resource.data.createdAt == request.time;
       allow update, delete: if false;
     }
 

@@ -78,7 +78,7 @@ function notifyOrderApproved(order) {
       `order-details.html?id=${order.id}`,
       "success"
     );
-    logAuditEvent({ action: "Prescription Approved", details: `Order ${order.orderNumber} (SI No. ${order.invoiceNo || "-"})`, actor: currentStaffName });
+    logAuditEvent({ action: "Prescription Approved", details: `Order ${order.orderNumber} (SI No. ${order.invoiceNo || "-"}) - ready for pick-up, stock deducted: ${orderItemsText(order)}`, actor: currentStaffName });
   } else {
     notifyCustomer(
       order.customerId,
@@ -87,7 +87,16 @@ function notifyOrderApproved(order) {
       `order-details.html?id=${order.id}`,
       "success"
     );
+    logAuditEvent({
+      action: "Online Order Approved",
+      details: `Order ${order.orderNumber} (SI No. ${order.invoiceNo || "-"}) - payment verified (Ref ${order.paymentReferenceNumber || "-"}), stock deducted: ${orderItemsText(order)}`,
+      actor: currentStaffName,
+    });
   }
+}
+
+function orderItemsText(order) {
+  return (order.items || []).map((i) => `${i.name} x${i.qty}`).join(", ");
 }
 
 const REJECTION_REASON_NOTES = {
@@ -147,7 +156,6 @@ const approvePaymentBtn = document.getElementById("approvePaymentBtn");
 
 const filterButtons = Array.from(document.querySelectorAll("#ordersPanel .order-filter-btn"));
 const filterAllCount = document.getElementById("filterAllCount");
-const ordersExportBtn = document.getElementById("ordersExportBtn");
 const ordersSearchInput = document.getElementById("ordersSearchInput");
 const ordersSortBtn = document.getElementById("ordersSortBtn");
 const ordersSortFieldSelect = document.getElementById("ordersSortFieldSelect");
@@ -272,6 +280,7 @@ function renderWalkinTable() {
       (sale) =>
         (sale.cashier || "").toLowerCase().includes(term) ||
         (sale.invoiceNo || "").includes(term) ||
+        (sale.referenceNo || "").toLowerCase().includes(term) ||
         (sale.customerName || "").toLowerCase().includes(term) ||
         (sale.items || []).some((item) => (item.name || "").toLowerCase().includes(term))
     );
@@ -301,6 +310,7 @@ function renderWalkinTable() {
           <td>${itemsSummary}</td>
           <td>${formatPeso(sale.total)}</td>
           <td>${SALE_RECEIPT_PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod || "-"}</td>
+          <td>${escapeHtml(sale.referenceNo || "-")}</td>
           <td>${escapeHtml(sale.cashier || "-")}${sale.voided ? ' <span class="badge rounded-pill text-bg-danger ms-1">Voided</span>' : sale.partialVoids && sale.partialVoids.length ? ' <span class="badge rounded-pill text-bg-warning ms-1">Items Voided</span>' : ""}</td>
           <td><button type="button" class="btn btn-outline-dark-amson btn-sm walkin-view-btn" data-id="${sale.id}">View</button></td>
         </tr>
@@ -341,6 +351,7 @@ function openWalkinSaleReceipt(saleId) {
     completedAt: sale.createdAt && sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(),
     invoiceNo: sale.invoiceNo || null,
     customerName: sale.customerName || "Walk-in",
+    referenceNo: sale.referenceNo || "",
     title: "Sale Receipt",
     voidInfo: voidSummary(sale),
     partialVoidInfo: partialVoidSummary(sale),
@@ -398,6 +409,7 @@ function verificationQueue() {
     queue = queue.filter(
       (order) =>
         (order.orderNumber || "").toLowerCase().includes(term) ||
+        (order.paymentReferenceNumber || "").toLowerCase().includes(term) ||
         customerName(order).toLowerCase().includes(term)
     );
   }
@@ -426,7 +438,7 @@ function renderVerificationQueue() {
             <div>
               <p class="fw-bold mb-0">${escapeHtml(order.orderNumber)}</p>
               <p class="text-muted mb-0" style="font-size:0.85rem;">${escapeHtml(customerName(order))}</p>
-              <p class="text-muted mb-0" style="font-size:0.78rem;">${formatOrderDate(order.createdAt)}</p>
+              <p class="text-muted mb-0" style="font-size:0.78rem;"><i class="bi bi-clock me-1"></i>${formatOrderDateTime(order.createdAt)}</p>
               ${order.requiresPrescription ? '<span class="badge rounded-pill text-bg-info mt-1 me-1">RX - Pick-up</span>' : ""}
               ${order.paymentIssue && order.paymentIssue.resolvedByCustomerAt ? '<span class="badge rounded-pill text-bg-warning mt-1">Customer Resubmitted</span>' : ""}
               ${!order.proofOfPaymentUrl ? '<p class="text-muted mb-0" style="font-size:0.75rem;">No payment made</p>' : ""}
@@ -638,6 +650,7 @@ approvePaymentBtn.addEventListener("click", async () => {
           holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
         };
         await db.collection("orders").doc(orderId).update({ paymentIssue });
+        logAuditEvent({ action: "Order On Hold", details: `Order ${order.orderNumber} - Item Out of Stock (7-day hold)`, actor: currentStaffName });
         notifyCustomer(
           order.customerId,
           `Order ${order.orderNumber} - item out of stock`,
@@ -897,6 +910,13 @@ issueConfirmBtn.addEventListener("click", async () => {
       }
 
       await db.collection("orders").doc(orderId).update({ paymentIssue, verification: verificationStamp(`hold_${issueType}`) });
+      logAuditEvent({
+        action: "Order On Hold",
+        details: `Order ${order.orderNumber} - ${(PAYMENT_ISSUE_TYPES[issueType] || {}).label || issueType}${
+          paymentIssue.amountReceived != null ? `, received ${formatPeso(paymentIssue.amountReceived)}` : ""
+        }${note ? `. Note: ${note}` : ""} (7-day hold)`,
+        actor: currentStaffName,
+      });
       notifyCustomer(
         order.customerId,
         `Payment issue on order ${order.orderNumber}`,
@@ -988,6 +1008,7 @@ issueConfirmBtn.addEventListener("click", async () => {
           holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
         };
         await db.collection("orders").doc(orderId).update({ paymentIssue });
+        logAuditEvent({ action: "Order On Hold", details: `Order ${order.orderNumber} - Item Out of Stock (7-day hold)`, actor: currentStaffName });
         notifyCustomer(
           order.customerId,
           `Order ${order.orderNumber} - item out of stock`,
@@ -1144,6 +1165,11 @@ markDispatchedBtn.addEventListener("click", async () => {
     order.status = "dispatched";
     order.trackingLink = trackingLink;
     order.lalamoveFee = lalamoveFee;
+    logAuditEvent({
+      action: "Order Dispatched",
+      details: `Order ${order.orderNumber} (SI No. ${order.invoiceNo || "-"}) - Lalamove fee ${formatPeso(lalamoveFee)}, tracking ${trackingLink}`,
+      actor: currentStaffName,
+    });
     notifyCustomer(
       order.customerId,
       `Order ${order.orderNumber} is on the way`,
@@ -1181,6 +1207,7 @@ function filteredOrders() {
     filtered = filtered.filter(
       (order) =>
         (order.orderNumber || "").toLowerCase().includes(term) ||
+        (order.paymentReferenceNumber || "").toLowerCase().includes(term) ||
         customerName(order).toLowerCase().includes(term)
     );
   }
@@ -1325,6 +1352,7 @@ function renderOrderRow(order) {
       <td>${formatOrderDateTime(order.createdAt)}</td>
       <td>${escapeHtml(customerName(order))}</td>
       <td>${itemCount}</td>
+      <td>${escapeHtml(order.paymentReferenceNumber || "-")}</td>
       <td class="product-price">
         ${formatPeso(order.total)}
         ${order.creditApplied > 0 ? `<p class="text-success mb-0" style="font-size:0.72rem;font-weight:normal;">${formatPeso(order.creditApplied)} credit applied</p>` : ""}
@@ -1369,6 +1397,11 @@ async function advanceOrderStatus(btn) {
       });
 
     order.status = newStatus;
+    logAuditEvent({
+      action: "Order Status Changed",
+      details: `Order ${order.orderNumber}: ${labels[previousStatus] || previousStatus} -> ${labels[newStatus] || newStatus}`,
+      actor: currentStaffName,
+    });
     renderVerificationQueue();
     renderOrdersTable();
   } catch (error) {
@@ -1390,6 +1423,11 @@ async function releaseOrderHold(btn) {
   btn.disabled = true;
   try {
     await db.collection("orders").doc(orderId).update({ paymentIssue: firebase.firestore.FieldValue.delete() });
+    logAuditEvent({
+      action: "Order Hold Released",
+      details: `Order ${order.orderNumber} - ${(PAYMENT_ISSUE_TYPES[(order.paymentIssue || {}).type] || {}).label || "hold"} released for a normal review`,
+      actor: currentStaffName,
+    });
     delete order.paymentIssue;
     renderVerificationQueue();
     renderOrdersTable();
@@ -1459,29 +1497,6 @@ verificationSearchInput.addEventListener("input", () => {
 verificationSortBtn.addEventListener("click", () => {
   verificationSortDesc = !verificationSortDesc;
   renderVerificationQueue();
-});
-
-ordersExportBtn.addEventListener("click", () => {
-  exportTable({
-    title: "Online Orders",
-    subtitle: ordersFilter === "all" ? "All orders" : `Filter: ${ordersFilter}`,
-    filenamePrefix: "amson-online-orders",
-    rows: filteredOrders(),
-    columns: [
-      { label: "Order No.", value: (o) => o.orderNumber, width: 1.3 },
-      { label: "SI No.", value: (o) => o.invoiceNo || "" },
-      { label: "Date", value: (o) => formatDateMDY(o.createdAt, true), width: 1.3 },
-      { label: "Customer", value: (o) => customerName(o), width: 1.5 },
-      { label: "Items", value: (o) => (o.items || []).map((i) => `${i.name} x${i.qty}`).join(", "), width: 3.5 },
-      { label: "Total", value: (o) => (o.total || 0).toFixed(2), width: 0.9 },
-      { label: "Credit Applied", value: (o) => (o.creditApplied ? o.creditApplied.toFixed(2) : ""), width: 0.9 },
-      {
-        label: "Status",
-        value: (o) => (o.paymentIssue ? `On Hold - ${(PAYMENT_ISSUE_TYPES[o.paymentIssue.type] || {}).label || "Payment Issue"}` : orderBadgeLabel(o)),
-        width: 1.6,
-      },
-    ],
-  });
 });
 
 // Linked from a customer's order history: open the Online Orders tab
