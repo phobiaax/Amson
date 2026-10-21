@@ -321,5 +321,22 @@ async function deleteSupplier(id) {
 
 /* ---------- Export ---------- */
 exportSuppliersBtn.addEventListener("click", () => {
-  exportBlankPdf("amson-suppliers");
+  exportTable({
+    title: "Suppliers",
+    filenamePrefix: "amson-suppliers",
+    rows: filteredSuppliers(),
+    columns: [
+      { label: "Supplier", value: (s) => s.name, width: 1.8 },
+      { label: "Contact Person", value: (s) => s.contactPerson || "", width: 1.4 },
+      { label: "Phone", value: (s) => s.phone || "" },
+      { label: "Email", value: (s) => s.email || "", width: 1.6 },
+      { label: "Address", value: (s) => s.address || "", width: 2 },
+      { label: "Status", value: (s) => (s.status === "active" ? "Active" : "Inactive"), width: 0.7 },
+      {
+        label: "Products",
+        value: (s) => (s.productIds || []).map((id) => (getProductById(id) || {}).name).filter(Boolean).join(", "),
+        width: 3,
+      },
+    ],
+  });
 });

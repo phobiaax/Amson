@@ -838,15 +838,97 @@ function voidSummary(sale) {
   return `${sale.voidReason || ""}${sale.voidedBy ? ` (by ${sale.voidedBy}${when ? `, ${when}` : ""})` : ""}`;
 }
 
-function exportBlankPdf(filenamePrefix) {
+// MM/DD/YYYY (REQNF028) for a Firestore Timestamp, Date, or ISO string.
+function formatDateMDY(value, withTime = false) {
+  if (!value) return "";
+  const date = value.toDate ? value.toDate() : new Date(value);
+  if (isNaN(date)) return "";
+  const mdy = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${date.getFullYear()}`;
+  return withTime ? `${mdy} ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : mdy;
+}
+
+// ---- Table export (PDF or Excel) ----
+// Exports exactly the rows a page is showing (after its search/filters).
+// columns: [{ label, value: (row) => text, width? }] - width is a share
+// of the PDF page width (defaults to equal shares).
+async function exportTable({ title, subtitle = "", filenamePrefix, columns, rows }) {
+  const format = await showAppSelect(
+    `${rows.length} row${rows.length === 1 ? "" : "s"} will be exported.`,
+    [
+      { value: "pdf", label: "PDF" },
+      { value: "xlsx", label: "Excel (.xlsx)" },
+    ],
+    { title: `Export ${title}`, confirmLabel: "Export" }
+  );
+  if (!format) return;
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const cells = rows.map((row) => columns.map((col) => {
+    const v = col.value(row);
+    return v === null || v === undefined ? "" : v;
+  }));
+
+  if (format === "xlsx") {
+    if (typeof XLSX === "undefined") {
+      showAppAlert("Excel export isn't available right now. Please try again in a moment.");
+      return;
+    }
+    const sheet = XLSX.utils.aoa_to_sheet([columns.map((c) => c.label), ...cells]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheet, title.slice(0, 31));
+    XLSX.writeFile(wb, `${filenamePrefix}-${stamp}.xlsx`);
+    return;
+  }
+
   if (typeof window.jspdf === "undefined") {
     showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
     return;
   }
-
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  doc.save(`${filenamePrefix}-${new Date().toISOString().slice(0, 10)}.pdf`);
+  const doc = new jsPDF({ orientation: "landscape" });
+  const marginX = 10;
+  const pageWidth = doc.internal.pageSize.getWidth() - marginX * 2;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const totalShare = columns.reduce((sum, c) => sum + (c.width || 1), 0);
+  const widths = columns.map((c) => ((c.width || 1) / totalShare) * pageWidth);
+  const lineHeight = 4.2;
+  let y = 14;
+
+  doc.setFontSize(13);
+  doc.setFont(undefined, "bold");
+  doc.text(`${POS_BRANCH_NAME} - ${title}`, marginX, y);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(9);
+  y += 6;
+  doc.text(`${subtitle ? `${subtitle}  |  ` : ""}Generated ${new Date().toLocaleString("en-PH")}  |  ${rows.length} row(s)`, marginX, y);
+  y += 7;
+
+  const drawRow = (values, bold) => {
+    doc.setFont(undefined, bold ? "bold" : "normal");
+    const wrapped = values.map((v, i) => doc.splitTextToSize(String(v), widths[i] - 2));
+    const height = Math.max(...wrapped.map((w) => w.length)) * lineHeight + 1.5;
+    if (y + height > pageHeight - 10) {
+      doc.addPage();
+      y = 14;
+      if (!bold) drawRow(columns.map((c) => c.label), true);
+    }
+    let x = marginX;
+    wrapped.forEach((lines, i) => {
+      doc.text(lines, x, y);
+      x += widths[i];
+    });
+    y += height;
+    doc.setDrawColor(220);
+    doc.line(marginX, y - 1.5, marginX + pageWidth, y - 1.5);
+  };
+
+  doc.setFontSize(8);
+  drawRow(columns.map((c) => c.label), true);
+  if (cells.length === 0) {
+    doc.text("No rows match the current filters.", marginX, y + 2);
+  }
+  cells.forEach((row) => drawRow(row, false));
+  doc.save(`${filenamePrefix}-${stamp}.pdf`);
 }
 
 // ---- FEFO stock deduction for a single product ----

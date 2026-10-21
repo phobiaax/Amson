@@ -157,5 +157,16 @@ auditClearFiltersBtn.addEventListener("click", () => {
 
 /* ---------- Export ---------- */
 exportAuditLogBtn.addEventListener("click", () => {
-  exportBlankPdf("amson-audit-log");
+  exportTable({
+    title: "Audit Log",
+    subtitle: auditDateFrom || auditDateTo ? `${auditDateFrom || "start"} to ${auditDateTo || "today"}` : "All entries",
+    filenamePrefix: "amson-audit-log",
+    rows: filteredAuditEntries(),
+    columns: [
+      { label: "Date & Time", value: (e) => formatDateMDY(e.createdAt, true), width: 1.3 },
+      { label: "User", value: (e) => e.user || "", width: 1.2 },
+      { label: "Action", value: (e) => e.action || "", width: 1.5 },
+      { label: "Details", value: (e) => e.details || "", width: 5 },
+    ],
+  });
 });

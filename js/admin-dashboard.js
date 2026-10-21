@@ -374,8 +374,30 @@ function renderMostBoughtItems(orders, posSales) {
     .join("");
 }
 
+// Dashboard summary - the numbers on the cards right now. (Sales
+// Analytics below has its own, more detailed export.)
 document.getElementById("exportReportBtn").addEventListener("click", () => {
-  exportBlankPdf("amson-dashboard-report");
+  const card = (id) => (document.getElementById(id) || {}).textContent || "";
+  exportTable({
+    title: "Dashboard Summary",
+    subtitle: formatDateMDY(new Date()),
+    filenamePrefix: "amson-dashboard-summary",
+    rows: [
+      ["Pending payment verifications", card("pendingVerificationCount")],
+      ["Active online orders", card("activeOrdersCount")],
+      ["Online sales today", card("onlineTodaySalesValue")],
+      ["Online transactions today", card("onlineTodayTransactionsValue")],
+      ["Walk-in sales today", card("posTodaySalesValue")],
+      ["Walk-in transactions today", card("posTodayTransactionsValue")],
+      ["Low stock products", card("lowStockCount")],
+      ["Near-expiry batches", card("nearExpiryCount")],
+      ["Out of stock products", card("outOfStockCount")],
+    ],
+    columns: [
+      { label: "Metric", value: (r) => r[0], width: 3 },
+      { label: "Value", value: (r) => r[1], width: 1 },
+    ],
+  });
 });
 
 // ---- Sales Analytics export (PDF / Excel) ----

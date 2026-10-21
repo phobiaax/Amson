@@ -1316,7 +1316,26 @@ submitCountBtn.addEventListener("click", async () => {
 
 /* ---------- Export Report ---------- */
 exportInventoryBtn.addEventListener("click", () => {
-  exportBlankPdf("amson-inventory-report");
+  const supplierName = (id) => ((allSuppliers.find((s) => s.id === id) || {}).name || "");
+  exportTable({
+    title: "Inventory",
+    subtitle: inventoryFilter === "all" ? "All batches" : `Filter: ${BATCH_STATUS_LABELS[inventoryFilter] || inventoryFilter}`,
+    filenamePrefix: "amson-inventory",
+    rows: filteredBatches(),
+    columns: [
+      { label: "Product", value: (b) => (getProductById(b.productId) || {}).name || "Unknown product", width: 3 },
+      { label: "Category", value: (b) => CATEGORY_LABELS[(getProductById(b.productId) || {}).category] || "", width: 1.5 },
+      { label: "Batch No.", value: (b) => (b.isVirtual ? "Never received" : b.batchNo), width: 1.3 },
+      { label: "Expiry", value: (b) => formatDateMDY(b.expirationDate) },
+      { label: "Qty", value: (b) => b.quantity, width: 0.6 },
+      { label: "Reorder Pt.", value: (b) => (getProductById(b.productId) || {}).reorderPoint || DEFAULT_REORDER_POINT, width: 0.8 },
+      { label: "Status", value: (b) => b.computedStatuses.map((s) => BATCH_STATUS_LABELS[s]).join(", ") + (b.status === "wholesale_only" ? ", Wholesale Only" : ""), width: 1.6 },
+      { label: "Supplier", value: (b) => supplierName(b.supplierId), width: 1.5 },
+      { label: "Receipt/DR No.", value: (b) => b.supplierReceiptNo || "", width: 1.2 },
+      { label: "Unit Cost", value: (b) => (typeof b.unitCost === "number" ? b.unitCost.toFixed(2) : ""), width: 0.8 },
+      { label: "Date Received", value: (b) => formatDateMDY(b.dateReceived) },
+    ],
+  });
 });
 
 /* ================= Purchase Orders ================= */

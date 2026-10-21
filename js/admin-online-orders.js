@@ -1153,5 +1153,24 @@ verificationSortBtn.addEventListener("click", () => {
 });
 
 ordersExportBtn.addEventListener("click", () => {
-  exportBlankPdf("amson-online-orders");
+  exportTable({
+    title: "Online Orders",
+    subtitle: ordersFilter === "all" ? "All orders" : `Filter: ${ordersFilter}`,
+    filenamePrefix: "amson-online-orders",
+    rows: filteredOrders(),
+    columns: [
+      { label: "Order No.", value: (o) => o.orderNumber, width: 1.3 },
+      { label: "SI No.", value: (o) => o.invoiceNo || "" },
+      { label: "Date", value: (o) => formatDateMDY(o.createdAt, true), width: 1.3 },
+      { label: "Customer", value: (o) => customerName(o), width: 1.5 },
+      { label: "Items", value: (o) => (o.items || []).map((i) => `${i.name} x${i.qty}`).join(", "), width: 3.5 },
+      { label: "Total", value: (o) => (o.total || 0).toFixed(2), width: 0.9 },
+      { label: "Credit Applied", value: (o) => (o.creditApplied ? o.creditApplied.toFixed(2) : ""), width: 0.9 },
+      {
+        label: "Status",
+        value: (o) => (o.paymentIssue ? `On Hold - ${(PAYMENT_ISSUE_TYPES[o.paymentIssue.type] || {}).label || "Payment Issue"}` : orderBadgeLabel(o)),
+        width: 1.6,
+      },
+    ],
+  });
 });
