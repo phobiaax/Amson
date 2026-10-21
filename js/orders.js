@@ -361,7 +361,7 @@ function downloadOrderReceipt(order) {
   doc.setFontSize(9);
   doc.setFont(undefined, "normal");
   doc.setTextColor(120, 120, 120);
-  doc.text("THIS IS NOT AN OFFICIAL RECEIPT. Generated electronically for your records.", 14, y);
+  doc.text("Generated electronically for your records.", 14, y);
 
   doc.save(`${order.orderNumber}-receipt.pdf`);
 }
