@@ -248,8 +248,19 @@ async function chatAiReply(history, question) {
   // Gemini expects the conversation to start with the customer.
   while (contents.length && contents[0].role !== "user") contents.shift();
 
+  // The free tier allows about 15 AI requests a minute across the whole
+  // site. If a burst hits that limit, wait a few seconds and try once more
+  // before falling back to products / staff.
+  const isRateLimited = (error) => /429|RESOURCE_EXHAUSTED|quota|rate/i.test(String((error && error.message) || error));
   try {
-    const result = await model.generateContent({ contents });
+    let result;
+    try {
+      result = await model.generateContent({ contents });
+    } catch (error) {
+      if (!isRateLimited(error)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      result = await model.generateContent({ contents });
+    }
     let text = (result.response.text() || "").trim();
     const handoff = text.includes("[[STAFF]]");
     text = text.replace(/\[\[STAFF\]\]/g, "").trim();
