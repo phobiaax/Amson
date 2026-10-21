@@ -480,6 +480,22 @@ function renderReviewPanel(order) {
   document.getElementById("reviewSubmittedAt").textContent = formatOrderDateTime(order.createdAt);
   reviewReferenceNumber.textContent = order.paymentReferenceNumber || "-";
 
+  // The database can't check an order's prices, so flag any that don't
+  // match the catalog (or don't add up) before staff approve it.
+  const priceWarning = document.getElementById("reviewPriceWarning");
+  const problems = [];
+  (order.items || []).forEach((item) => {
+    const product = getProductById(item.id);
+    if (!product) problems.push(`${item.name || item.id} is no longer in the catalog`);
+    else if (Math.abs((item.price || 0) - (product.price || 0)) > 0.001) problems.push(`${product.name} is ${formatPeso(item.price || 0)} on this order but ${formatPeso(product.price || 0)} in the catalog`);
+  });
+  const itemsTotal = (order.items || []).reduce((n, i) => n + (i.price || 0) * (i.qty || 0), 0);
+  if (Math.abs(itemsTotal - ((order.total || 0) + (order.creditApplied || 0))) > 0.001) {
+    problems.push(`the items add up to ${formatPeso(itemsTotal)}, not the order total`);
+  }
+  priceWarning.textContent = problems.length ? `Check before approving: ${problems.join("; ")}.` : "";
+  priceWarning.classList.toggle("d-none", problems.length === 0);
+
   const issueNote = document.getElementById("reviewPaymentIssueNote");
   const previousIssueBreakdown = document.getElementById("reviewPreviousIssueBreakdown");
   if (order.paymentIssue && order.paymentIssue.resolvedByCustomerAt) {
