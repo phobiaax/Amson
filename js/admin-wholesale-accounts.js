@@ -60,6 +60,32 @@ const processOrderNotesInput = document.getElementById("processOrderNotesInput")
 const processOrderPaymentSelect = document.getElementById("processOrderPaymentSelect");
 const processOrderTotal = document.getElementById("processOrderTotal");
 const confirmProcessOrderBtn = document.getElementById("confirmProcessOrderBtn");
+const wholesaleLtoExpiryInput = document.getElementById("wholesaleLtoExpiryInput");
+const wholesalePermitExpiryInput = document.getElementById("wholesalePermitExpiryInput");
+const processOrderFreeCheck = document.getElementById("processOrderFreeCheck");
+const processOrderFreeReasonInput = document.getElementById("processOrderFreeReasonInput");
+
+// LTO / Business Permit validity (REQ086): "expired", "expiring" (within
+// 30 days), "valid", or "missing" when no date is on file.
+function documentValidity(dateStr) {
+  if (!dateStr) return "missing";
+  const end = new Date(`${dateStr}T23:59:59`);
+  const now = new Date();
+  if (end < now) return "expired";
+  if (end - now < 30 * 24 * 60 * 60 * 1000) return "expiring";
+  return "valid";
+}
+
+function documentBadges(account) {
+  const badge = (label, dateStr) => {
+    const v = documentValidity(dateStr);
+    if (v === "expired") return `<span class="badge rounded-pill text-bg-danger me-1">${label} expired ${formatDateMDY(dateStr)}</span>`;
+    if (v === "expiring") return `<span class="badge rounded-pill text-bg-warning me-1">${label} expires ${formatDateMDY(dateStr)}</span>`;
+    if (v === "missing") return `<span class="badge rounded-pill text-bg-light border me-1">${label} date not set</span>`;
+    return `<span class="badge rounded-pill text-bg-success me-1">${label} valid to ${formatDateMDY(dateStr)}</span>`;
+  };
+  return badge("LTO", account.ltoValidUntil) + badge("Permit", account.permitValidUntil);
+}
 
 document.addEventListener("admin:ready", loadWholesaleAccounts);
 
@@ -113,6 +139,9 @@ function renderWholesaleGrid() {
     document.querySelectorAll(".delete-wholesale-btn").forEach((btn) => {
       btn.addEventListener("click", () => deleteWholesaleAccount(btn.dataset.id));
     });
+    document.querySelectorAll(".wholesale-history-btn").forEach((btn) => {
+      btn.addEventListener("click", () => openHistoryModal(allWholesaleAccounts.find((w) => w.id === btn.dataset.id)));
+    });
     document.querySelectorAll(".process-order-btn").forEach((btn) => {
       btn.addEventListener("click", () => openProcessOrderModal(allWholesaleAccounts.find((w) => w.id === btn.dataset.id)));
     });
@@ -140,9 +169,11 @@ function renderWholesaleCard(account) {
         <p class="contact-line"><i class="bi bi-briefcase"></i> ${BUSINESS_TYPE_LABELS[account.businessType] || "-"}</p>
         <p class="contact-line"><i class="bi bi-telephone"></i> ${account.phone || "-"}</p>
         <p class="contact-line"><i class="bi bi-envelope"></i> ${account.email || "-"}</p>
-        <p class="contact-line mb-3"><i class="bi bi-geo-alt"></i> ${account.address || "-"}</p>
+        <p class="contact-line mb-2"><i class="bi bi-geo-alt"></i> ${account.address || "-"}</p>
+        <div class="mb-3" style="font-size:0.75rem;">${documentBadges(account)}</div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
           <button type="button" class="btn btn-amson flex-fill process-order-btn" data-id="${account.id}"><i class="bi bi-cart-check me-1"></i>Process Order</button>
+          <button type="button" class="icon-btn wholesale-history-btn" data-id="${account.id}" aria-label="Purchase history" title="Purchase history"><i class="bi bi-clock-history"></i></button>
           <button type="button" class="icon-btn edit-wholesale-btn" data-id="${account.id}" aria-label="Edit"><i class="bi bi-pencil"></i></button>
           <button type="button" class="icon-btn icon-btn-danger delete-wholesale-btn" data-id="${account.id}" aria-label="Delete"><i class="bi bi-trash"></i></button>
         </div>
@@ -211,6 +242,8 @@ function resetWholesaleForm() {
   wholesaleAddressInput.value = "";
   wholesaleLtoInput.value = "";
   wholesalePermitInput.value = "";
+  wholesaleLtoExpiryInput.value = "";
+  wholesalePermitExpiryInput.value = "";
   wholesaleLtoStatus.textContent = "No file uploaded yet.";
   wholesalePermitStatus.textContent = "No file uploaded yet.";
   existingLtoUrl = null;
@@ -241,6 +274,8 @@ function openEditModal(account) {
   wholesalePhoneInput.value = account.phone || "";
   wholesaleEmailInput.value = account.email || "";
   wholesaleAddressInput.value = account.address || "";
+  wholesaleLtoExpiryInput.value = account.ltoValidUntil || "";
+  wholesalePermitExpiryInput.value = account.permitValidUntil || "";
   setToggleValue(wholesaleStatusToggle, account.status || "active");
 
   if (account.ltoDocumentUrl) {
@@ -296,6 +331,8 @@ saveWholesaleBtn.addEventListener("click", async () => {
       address: wholesaleAddressInput.value.trim(),
       ltoDocumentUrl: ltoDocumentUrl || null,
       permitDocumentUrl: permitDocumentUrl || null,
+      ltoValidUntil: wholesaleLtoExpiryInput.value || null,
+      permitValidUntil: wholesalePermitExpiryInput.value || null,
       status: getToggleValue(wholesaleStatusToggle),
     };
 
@@ -458,6 +495,18 @@ function openProcessOrderModal(account) {
   selectedPoDocFile = null;
   processOrderNotesInput.value = "";
   processOrderPaymentSelect.value = "cash";
+  processOrderFreeCheck.checked = false;
+  processOrderFreeReasonInput.value = "";
+  processOrderFreeReasonInput.classList.add("d-none");
+
+  const expiredDocs = [
+    documentValidity(account.ltoValidUntil) === "expired" ? "LTO" : null,
+    documentValidity(account.permitValidUntil) === "expired" ? "Business Permit" : null,
+  ].filter(Boolean);
+  if (expiredDocs.length) {
+    processOrderAlert.textContent = `This buyer's ${expiredDocs.join(" and ")} has expired. Ask for an updated copy before selling - the order can't be recorded until it's updated.`;
+    processOrderAlert.classList.remove("d-none");
+  }
 
   destroyChoicesIn(processOrderItemsContainer);
   processOrderItemsContainer.innerHTML = "";
@@ -481,6 +530,24 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     qty: parseInt(row.querySelector(".order-qty-input").value, 10),
     unitPrice: parseFloat(row.querySelector(".order-price-input").value),
   }));
+
+  const buyer = allWholesaleAccounts.find((w) => w.id === processingAccountId);
+  if (buyer && (documentValidity(buyer.ltoValidUntil) === "expired" || documentValidity(buyer.permitValidUntil) === "expired")) {
+    processOrderAlert.textContent = "This buyer's LTO or Business Permit has expired. Update the document and its date in Edit first.";
+    processOrderAlert.classList.remove("d-none");
+    return;
+  }
+
+  const freeOfCost = processOrderFreeCheck.checked;
+  const freeReason = processOrderFreeReasonInput.value.trim();
+  if (freeOfCost) {
+    items.forEach((it) => (it.unitPrice = 0));
+    if (!freeReason) {
+      processOrderAlert.textContent = "A reason is required for a free-of-cost distribution.";
+      processOrderAlert.classList.remove("d-none");
+      return;
+    }
+  }
 
   const invalid = items.some((it) => !it.productId || !it.qty || it.qty <= 0 || isNaN(it.unitPrice) || it.unitPrice < 0);
   if (invalid || items.length === 0) {
@@ -516,10 +583,11 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     });
 
     // Stock deduction, SI# and the order record in one transaction.
+    const orderRef = db.collection("wholesaleOrders").doc();
     const { invoiceNo } = await deductStockFEFOMultiple(items, {
       includeWholesaleOnly: true,
       record: {
-        ref: db.collection("wholesaleOrders").doc(),
+        ref: orderRef,
         mode: "set",
         build: (allocations, invoiceNo) => ({
           invoiceNo,
@@ -527,7 +595,11 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
           buyerName: account ? account.name : "",
           items: orderItems.map((item, idx) => ({ ...item, ...batchFieldsFromAllocation(allocations[idx]) })),
           total,
-          paymentMethod,
+          paymentMethod: freeOfCost ? "free_of_cost" : paymentMethod,
+          freeOfCost,
+          freeOfCostReason: freeOfCost ? freeReason : null,
+          contactPerson: account ? account.contactPerson || "" : "",
+          buyerAddress: account ? account.address || "" : "",
           poRefNumber: processOrderPoRefInput.value.trim(),
           poDocumentUrl,
           notes: processOrderNotesInput.value.trim(),
@@ -536,13 +608,26 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
       },
     });
 
-    await logAuditEvent({
-      action: "Wholesale Order Recorded",
-      details: `SI ${invoiceNo} - ${account ? account.name : ""} - ${orderItems.length} item(s), Total ${formatPeso(total)}, ${SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod}`,
-    });
+    await logAuditEvent(
+      freeOfCost
+        ? {
+            action: "Free-of-Cost Distribution",
+            details: `SI ${invoiceNo} - ${account ? account.name : ""} - ${orderItems.map((it) => `${it.productName} x${it.qty}`).join(", ")}. Reason: ${freeReason}`,
+          }
+        : {
+            action: "Wholesale Order Recorded",
+            details: `SI ${invoiceNo} - ${account ? account.name : ""} - ${orderItems.length} item(s), Total ${formatPeso(total)}, ${SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod}`,
+          }
+    );
 
     bootstrap.Modal.getInstance(processOrderModalEl).hide();
-    showAppAlert(`Wholesale order recorded (SI No. ${invoiceNo}) and stock deducted.`);
+    const saved = await orderRef.get();
+    const print = await showAppConfirm(`Wholesale order recorded (SI No. ${invoiceNo}) and stock deducted.`, {
+      title: "Order Recorded",
+      confirmLabel: "Download Sales Invoice",
+      cancelLabel: "Close",
+    });
+    if (print && saved.exists) downloadWholesaleInvoice({ id: saved.id, ...saved.data() });
   } catch (error) {
     processOrderAlert.textContent = error.message || "Something went wrong recording this order. Please try again.";
     processOrderAlert.classList.remove("d-none");
@@ -550,3 +635,137 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     confirmProcessOrderBtn.disabled = false;
   }
 });
+
+processOrderFreeCheck.addEventListener("change", () => {
+  processOrderFreeReasonInput.classList.toggle("d-none", !processOrderFreeCheck.checked);
+  processOrderItemsContainer.querySelectorAll(".order-price-input").forEach((input) => {
+    if (processOrderFreeCheck.checked) input.value = 0;
+    input.disabled = processOrderFreeCheck.checked;
+  });
+  recalcProcessOrderTotal();
+});
+
+/* ---------- Purchase history (REQ089) ---------- */
+let historyOrders = [];
+
+async function openHistoryModal(account) {
+  if (!account) return;
+  document.getElementById("wholesaleHistoryBuyer").textContent = account.name;
+  const body = document.getElementById("wholesaleHistoryBody");
+  const empty = document.getElementById("wholesaleHistoryEmpty");
+  body.innerHTML = '<tr><td colspan="6" class="text-muted">Loading...</td></tr>';
+  empty.classList.add("d-none");
+  bootstrap.Modal.getOrCreateInstance(document.getElementById("wholesaleHistoryModal")).show();
+
+  try {
+    const snapshot = await db.collection("wholesaleOrders").where("wholesaleAccountId", "==", account.id).get();
+    historyOrders = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => (b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0) - (a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0));
+  } catch (error) {
+    body.innerHTML = '<tr><td colspan="6" class="text-danger">Could not load the history. Please try again.</td></tr>';
+    return;
+  }
+
+  if (!historyOrders.length) {
+    body.innerHTML = "";
+    empty.classList.remove("d-none");
+    return;
+  }
+  body.innerHTML = historyOrders
+    .map(
+      (o) => `<tr>
+        <td class="fw-medium">${escapeHtml(o.invoiceNo || "-")}</td>
+        <td>${formatDateMDY(o.createdAt)}</td>
+        <td>${(o.items || []).map((it) => `${escapeHtml(it.productName)} x${it.qty}`).join(", ")}</td>
+        <td>${formatPeso(o.total || 0)}</td>
+        <td>${o.freeOfCost ? "Free of cost" : escapeHtml(SALE_RECEIPT_PAYMENT_METHOD_LABELS[o.paymentMethod] || o.paymentMethod || "-")}</td>
+        <td><button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-invoice-btn" data-id="${o.id}">Invoice</button></td>
+      </tr>`
+    )
+    .join("");
+  body.querySelectorAll(".wholesale-invoice-btn").forEach((btn) => {
+    btn.addEventListener("click", () => downloadWholesaleInvoice(historyOrders.find((o) => o.id === btn.dataset.id)));
+  });
+}
+
+/* ---------- Wholesale sales invoice (REQ092) ---------- */
+// The branch's own copy with buyer details, batch and expiry per line. Not a
+// BIR-registered invoice - those are still issued from the branch's booklet.
+function downloadWholesaleInvoice(order) {
+  if (!order) return;
+  if (typeof window.jspdf === "undefined") {
+    showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
+    return;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = 18;
+  doc.setFontSize(15);
+  doc.setFont(undefined, "bold");
+  doc.text("Amson Pharmaceuticals", 14, y);
+  doc.setFontSize(10);
+  doc.setFont(undefined, "normal");
+  y += 6;
+  doc.text("Wholesale Sales Invoice - Las Pinas Branch", 14, y);
+  doc.setFont(undefined, "bold");
+  doc.text(`SI No. ${order.invoiceNo || "-"}`, 196, 18, { align: "right" });
+  doc.setFont(undefined, "normal");
+  doc.text(`Date: ${formatDateMDY(order.createdAt)}`, 196, 24, { align: "right" });
+
+  y += 10;
+  doc.setFont(undefined, "bold");
+  doc.text("Sold to", 14, y);
+  doc.setFont(undefined, "normal");
+  const buyerLines = [
+    order.buyerName,
+    order.contactPerson ? `Attn: ${order.contactPerson}` : "",
+    order.buyerAddress,
+    order.poRefNumber ? `Buyer PO No.: ${order.poRefNumber}` : "",
+    `Terms: ${order.freeOfCost ? "Free of cost" : SALE_RECEIPT_PAYMENT_METHOD_LABELS[order.paymentMethod] || order.paymentMethod || "-"}`,
+  ].filter(Boolean);
+  buyerLines.forEach((line) => {
+    y += 5;
+    doc.text(String(line), 14, y);
+  });
+
+  y += 10;
+  doc.setFont(undefined, "bold");
+  const cols = [14, 86, 116, 140, 156, 176];
+  ["Item", "Batch", "Expiry", "Qty", "Unit Price", "Amount"].forEach((h, i) => doc.text(h, i === 5 ? 196 : cols[i], y, i === 5 ? { align: "right" } : undefined));
+  y += 2;
+  doc.line(14, y, 196, y);
+  doc.setFont(undefined, "normal");
+  (order.items || []).forEach((it) => {
+    y += 6;
+    if (y > 275) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.text(doc.splitTextToSize(String(it.productName || ""), 70)[0], cols[0], y);
+    doc.text(doc.splitTextToSize(String(it.batchNo || "-"), 28)[0], cols[1], y);
+    doc.text(it.expirationDate ? formatDateMDY(it.expirationDate) : "-", cols[2], y);
+    doc.text(String(it.qty), cols[3], y);
+    doc.text(formatPeso(it.unitPrice), cols[4], y);
+    doc.text(formatPeso(it.subtotal), 196, y, { align: "right" });
+  });
+  y += 3;
+  doc.line(14, y, 196, y);
+  y += 7;
+  doc.setFont(undefined, "bold");
+  doc.text("Total", 14, y);
+  doc.text(formatPeso(order.total || 0), 196, y, { align: "right" });
+  doc.setFont(undefined, "normal");
+  if (order.freeOfCost && order.freeOfCostReason) {
+    y += 7;
+    doc.text(`Free-of-cost distribution: ${order.freeOfCostReason}`, 14, y);
+  }
+  y += 14;
+  doc.text("Received by: ______________________", 14, y);
+  doc.text("Released by: ______________________", 110, y);
+  y += 10;
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text("System-generated sales record. Not a BIR-registered invoice.", 14, y);
+  doc.save(`Amson-SI-${order.invoiceNo || order.id}.pdf`);
+}

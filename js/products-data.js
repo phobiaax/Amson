@@ -600,6 +600,7 @@ const SALE_RECEIPT_PAYMENT_METHOD_LABELS = {
   cash: "Cash",
   gcash: "G-Cash / QR Ph",
   bank_transfer: "Bank Transfer",
+  free_of_cost: "Free of Cost",
   terminal: "Terminal (Card)",
   credit: "Credit",
   card: "Card",

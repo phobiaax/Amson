@@ -130,11 +130,15 @@
           <label class="form-label">LTO Document</label>
           <input type="file" class="form-control" id="wholesaleLtoInput" accept="image/*,.pdf">
           <p class="text-muted mb-0 mt-1" id="wholesaleLtoStatus" style="font-size:0.78rem;">No file uploaded yet.</p>
+          <label class="form-label mt-2" for="wholesaleLtoExpiryInput">LTO Valid Until</label>
+          <input type="date" class="form-control" id="wholesaleLtoExpiryInput">
         </div>
         <div class="col-md-6">
           <label class="form-label">Permit Document</label>
           <input type="file" class="form-control" id="wholesalePermitInput" accept="image/*,.pdf">
           <p class="text-muted mb-0 mt-1" id="wholesalePermitStatus" style="font-size:0.78rem;">No file uploaded yet.</p>
+          <label class="form-label mt-2" for="wholesalePermitExpiryInput">Permit Valid Until</label>
+          <input type="date" class="form-control" id="wholesalePermitExpiryInput">
         </div>
       </div>
 
@@ -196,6 +200,12 @@
         <option value="credit">Credit (pay later)</option>
       </select>
 
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="processOrderFreeCheck">
+        <label class="form-check-label" for="processOrderFreeCheck">Free-of-cost distribution (near-expiry stock, ₱0)</label>
+      </div>
+      <input type="text" class="form-control mb-3 d-none" id="processOrderFreeReasonInput" placeholder="Reason (required), e.g. Near-expiry donation to clinic">
+
       <label class="form-label">Notes (optional)</label>
       <textarea class="form-control mb-3" id="processOrderNotesInput" rows="2"></textarea>
 
@@ -214,6 +224,28 @@
   </div>
 </div>
 
+<!-- Purchase history (REQ089) -->
+<div class="modal fade" id="wholesaleHistoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content p-4">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <h2 class="h5 fw-bold mb-0">Purchase History</h2>
+          <p class="text-muted mb-0" id="wholesaleHistoryBuyer"></p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="table-responsive" style="max-height:420px; overflow-y:auto;">
+        <table class="table table-sm align-middle mb-0" style="font-size:0.85rem;">
+          <thead><tr><th>SI No.</th><th>Date</th><th>Items</th><th>Total</th><th>Payment</th><th></th></tr></thead>
+          <tbody id="wholesaleHistoryBody"></tbody>
+        </table>
+      </div>
+      <p class="text-muted text-center py-3 d-none mb-0" id="wholesaleHistoryEmpty">No orders recorded for this buyer yet.</p>
+    </div>
+  </div>
+</div>
+
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -226,6 +258,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <!-- App scripts -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="../js/firebase-config.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/cloudinary-config.js"></script>
