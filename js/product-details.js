@@ -65,6 +65,7 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
       <div class="product-about">
         <h2>About the Product</h2>
         <p class="mb-0">${product.description || "No description available yet."}</p>
+        ${product.dosageNotes ? `<h2 class="h6 fw-bold mt-3">Dosage / Usage</h2><p class="mb-0">${escapeHtml(product.dosageNotes)}</p>` : ""}
       </div>
     </div>
   `;

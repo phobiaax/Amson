@@ -36,6 +36,7 @@ const productRetailPriceInput = document.getElementById("productRetailPriceInput
 const productWholesalePriceInput = document.getElementById("productWholesalePriceInput");
 const productReorderPointInput = document.getElementById("productReorderPointInput");
 const productDescriptionInput = document.getElementById("productDescriptionInput");
+const productDosageNotesInput = document.getElementById("productDosageNotesInput");
 const productImageDropzone = document.getElementById("productImageDropzone");
 const productImageInput = document.getElementById("productImageInput");
 const productImageEmptyState = document.getElementById("productImageEmptyState");
@@ -286,6 +287,7 @@ function resetProductForm() {
   productWholesalePriceInput.value = "";
   productReorderPointInput.value = "";
   productDescriptionInput.value = "";
+  productDosageNotesInput.value = "";
   productAvailablePOS.checked = true;
   productAvailableOnline.checked = true;
   setToggleValue(productRxToggle, "no");
@@ -357,6 +359,7 @@ function openEditModal(product) {
   productWholesalePriceInput.value = product.wholesalePrice ?? "";
   productReorderPointInput.value = product.reorderPoint ?? "";
   productDescriptionInput.value = product.description || "";
+  productDosageNotesInput.value = product.dosageNotes || "";
   productAvailablePOS.checked = !!product.availableInPOS;
   productAvailableOnline.checked = !!product.availableInOnlineStore;
   setToggleValue(productRxToggle, product.rxRequired ? "yes" : "no");
@@ -433,6 +436,7 @@ saveProductBtn.addEventListener("click", async () => {
       wholesalePrice: parseFloat(productWholesalePriceInput.value) || 0,
       reorderPoint: parseInt(productReorderPointInput.value, 10) || DEFAULT_REORDER_POINT,
       description: productDescriptionInput.value.trim(),
+      dosageNotes: productDosageNotesInput.value.trim(),
       imageUrl: imageUrl || null,
       availableInPOS: productAvailablePOS.checked,
       availableInOnlineStore: productAvailableOnline.checked,
@@ -548,7 +552,7 @@ uploadBatchBtn.addEventListener("click", () => batchFileInput.click());
 
 downloadTemplateBtn.addEventListener("click", () => {
   const exampleRow = {
-    name: "Biogesic 500mg", genericName: "Paracetamol", brand: "Biogesic", category: "Pain Relief",
+    name: "Biogesic 500mg", genericName: "Paracetamol", brand: "Biogesic", category: "Branded",
     costingPrice: 3.5, retailPrice: 8, wholesalePrice: 6.5, description: "For fever and pain relief",
     availableInPOS: "yes", availableInOnlineStore: "yes", rxRequired: "no", status: "active",
   };

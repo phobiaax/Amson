@@ -946,12 +946,36 @@ function openApprovedModal(order) {
   document.getElementById("approvedCustomerName").textContent = customerName(order);
   document.getElementById("approvedContactNo").textContent = order.contact ? order.contact.contactNumber : "";
   document.getElementById("approvedDeliveryNotes").textContent = shipping.deliveryNotes || "None";
+  document.getElementById("approvedOrderNumber").textContent = order.orderNumber || "";
+  document.getElementById("approvedSchedule").textContent = formatDeliverySchedule(order.deliverySchedule);
+  document.getElementById("internalDeliveryNotesInput").value = order.internalDeliveryNotes || "";
   trackingLinkInput.value = order.trackingLink || "";
   trackingLinkInput.classList.remove("is-invalid");
   trackingLinkError.textContent = "";
 
   bootstrap.Modal.getOrCreateInstance(approvedModalEl).show();
 }
+
+// One paste into Lalamove's notes/booking form (REQ103).
+document.getElementById("copyAllDeliveryBtn").addEventListener("click", (e) => {
+  const text = (id) => document.getElementById(id).textContent;
+  const all = [
+    `Order No.: ${text("approvedOrderNumber")}`,
+    `Name: ${text("approvedCustomerName")}`,
+    `Contact No.: ${text("approvedContactNo")}`,
+    `Address: ${text("approvedAddress")}`,
+    `Schedule: ${text("approvedSchedule")}`,
+    `Notes: ${text("approvedDeliveryNotes")}`,
+  ].join("\n");
+  const btn = e.currentTarget;
+  navigator.clipboard.writeText(all).then(() => {
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+    setTimeout(() => {
+      btn.innerHTML = originalHtml;
+    }, 1500);
+  });
+});
 
 approvedModalEl.addEventListener("click", (e) => {
   const btn = e.target.closest(".copy-btn");
@@ -989,6 +1013,7 @@ markDispatchedBtn.addEventListener("click", async () => {
       status: "dispatched",
       "statusTimestamps.dispatched": firebase.firestore.FieldValue.serverTimestamp(),
       trackingLink,
+      internalDeliveryNotes: document.getElementById("internalDeliveryNotesInput").value.trim(),
     });
 
     order.status = "dispatched";

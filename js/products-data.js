@@ -1120,6 +1120,7 @@ function renderProductCard(product) {
         </a>
         <p class="product-desc">${product.description || ""}</p>
         <p class="product-price">${formatPeso(product.price)}</p>
+        ${product.inStock ? `<p class="text-muted mb-1" style="font-size:0.78rem;">${product.totalStock} in stock</p>` : ""}
         ${product.rxRequired ? `<p class="text-muted mb-2" style="font-size:0.78rem;"><i class="bi bi-file-medical me-1"></i>Prescription required</p>` : ""}
         <button type="button" class="btn btn-amson w-100 btn-add-cart" data-id="${product.id}" ${product.inStock ? "" : "disabled"}>
           ${product.inStock ? "+ Add to Cart" : "Out of Stock"}
@@ -1210,6 +1211,7 @@ async function showProductQuickView(productId) {
     <div class="product-about mt-4">
       <h3 class="h6 fw-bold">About the Product</h3>
       <p class="mb-0">${product.description || "No description available yet."}</p>
+      ${product.dosageNotes ? `<h3 class="h6 fw-bold mt-3">Dosage / Usage</h3><p class="mb-0">${escapeHtml(product.dosageNotes)}</p>` : ""}
     </div>
   `;
 

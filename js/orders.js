@@ -83,6 +83,18 @@ function orderCreditAmount(order) {
   return 0;
 }
 
+const DELIVERY_SLOT_LABELS = {
+  morning: "Morning (8AM-12PM)",
+  afternoon: "Afternoon (12PM-4PM)",
+  evening: "Evening (4PM-8PM)",
+};
+
+function formatDeliverySchedule(schedule) {
+  if (!schedule || schedule.asap || !schedule.date) return "No preferred schedule (within 48 hours)";
+  const [y, m, d] = schedule.date.split("-");
+  return `${m}/${d}/${y} - ${DELIVERY_SLOT_LABELS[schedule.slot] || schedule.slot || ""}`.trim();
+}
+
 const DISPATCH_AUTO_DELIVER_MS = 3 * 24 * 60 * 60 * 1000;
 
 function orderStatusSteps(order) {

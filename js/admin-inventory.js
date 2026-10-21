@@ -126,6 +126,9 @@ document.addEventListener("admin:ready", (e) => {
   const admin = e.detail && e.detail.admin;
   if (admin) currentAdminName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Admin";
   if (admin) currentAdminRole = admin.role;
+  if (currentAdminRole !== "admin" && currentAdminRole !== "branch_manager") {
+    document.getElementById("submitCountBtn").textContent = "Save Count for Branch Manager";
+  }
   loadInventory();
 });
 
@@ -333,6 +336,14 @@ async function deleteOrphanBatch(batchId) {
   }
 }
 
+// Supplier name plus the receipt/DR no. it came in on (REQ049).
+function batchSupplierCell(batch) {
+  const supplier = allSuppliers.find((s) => s.id === batch.supplierId);
+  if (!supplier && !batch.supplierReceiptNo) return "-";
+  const receipt = batch.supplierReceiptNo ? `<br><span class="text-muted" style="font-size:0.75rem;">DR ${escapeHtml(batch.supplierReceiptNo)}</span>` : "";
+  return `${supplier ? escapeHtml(supplier.name) : "-"}${receipt}`;
+}
+
 function renderBatchRow(batch) {
   const product = getProductById(batch.productId);
   const reorderPoint = (product && product.reorderPoint) || DEFAULT_REORDER_POINT;
@@ -344,6 +355,7 @@ function renderBatchRow(batch) {
         <td>-</td>
         <td>${product ? product.name : "Unknown product"}</td>
         <td>${product ? CATEGORY_LABELS[product.category] || "-" : "-"}</td>
+        <td>-</td>
         <td>0</td>
         <td>${reorderPoint}</td>
         <td>
@@ -362,6 +374,7 @@ function renderBatchRow(batch) {
       <td>${formatExpiryLabel(batch.expirationDate)}</td>
       <td>${product ? product.name : "Unknown product"}</td>
       <td>${product ? CATEGORY_LABELS[product.category] || "-" : "-"}</td>
+      <td>${batchSupplierCell(batch)}</td>
       <td>${batch.quantity}</td>
       <td>${reorderPoint}</td>
       <td>
@@ -1269,8 +1282,6 @@ confirmOpenSessionBtn.addEventListener("click", async () => {
 submitCountBtn.addEventListener("click", async () => {
   const activeSession = findActiveSession();
   if (!activeSession) return;
-  if (!(await showAppConfirm("Submit this count? This finalizes the session and updates stock quantities to match what was counted.", { confirmLabel: "Submit" }))) return;
-
   const rows = Array.from(reconciliationItemsBody.querySelectorAll("tr"));
   const updatedItems = rows.map((row) => {
     const idx = Number(row.dataset.idx);
@@ -1278,6 +1289,42 @@ submitCountBtn.addEventListener("click", async () => {
     const countedQty = parseInt(row.querySelector(".reconciliation-counted-input").value, 10) || 0;
     return { ...item, countedQty, variance: countedQty - item.systemQty };
   });
+
+  // Only the Branch Manager finalizes (REQ061). Anyone else's count is saved
+  // on the session for the Branch Manager to review and submit.
+  const canFinalize = currentAdminRole === "admin" || currentAdminRole === "branch_manager";
+  if (!canFinalize) {
+    try {
+      await db.collection("reconciliations").doc(activeSession.id).update({
+        items: updatedItems,
+        countSavedBy: currentAdminName,
+        countSavedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      activeSession.items = updatedItems;
+      await showAppAlert("Count saved. Only the Branch Manager can finalize it and update the stock.", { title: "Count Saved" });
+    } catch (error) {
+      reconciliationAlert.textContent = "Something went wrong saving the count. Please try again.";
+      reconciliationAlert.classList.remove("d-none");
+    }
+    return;
+  }
+
+  const variances = updatedItems.filter((i) => i.variance !== 0);
+  let varianceReason = "";
+  if (variances.length > 0) {
+    const reason = await showAppPrompt(
+      `${variances.length} batch${variances.length === 1 ? " has" : "es have"} a variance. Stock will be changed to the counted quantities. What's the reason for the variance?`,
+      { title: "Finalize Count", confirmLabel: "Finalize", defaultValue: "" }
+    );
+    if (reason === null) return;
+    varianceReason = reason.trim();
+    if (!varianceReason) {
+      await showAppAlert("A reason is required when the count differs from the system. Nothing was changed.");
+      return;
+    }
+  } else if (!(await showAppConfirm("Submit this count? It matches the system, so no stock changes. This finalizes the session.", { confirmLabel: "Submit" }))) {
+    return;
+  }
 
   submitCountBtn.disabled = true;
   reconciliationAlert.classList.add("d-none");
@@ -1295,6 +1342,7 @@ submitCountBtn.addEventListener("click", async () => {
     await db.collection("reconciliations").doc(activeSession.id).update({
       items: updatedItems,
       status: "finalized",
+      varianceReason: varianceReason || null,
       finalizedBy: currentAdminName,
       finalizedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
@@ -1302,7 +1350,13 @@ submitCountBtn.addEventListener("click", async () => {
     const adjustedCount = updatedItems.filter((i) => i.variance !== 0).length;
     await logAuditEvent({
       action: "Stock Reconciliation Finalized",
-      details: `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)}) - ${adjustedCount} batch${adjustedCount === 1 ? "" : "es"} adjusted`,
+      details:
+        `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)}) - ${adjustedCount} batch${adjustedCount === 1 ? "" : "es"} adjusted` +
+        (variances.length
+          ? `: ${variances
+              .map((i) => `${(getProductById(i.productId) || {}).name || "Unknown"} batch ${i.batchNo} ${i.systemQty} -> ${i.countedQty}`)
+              .join("; ")}. Reason: ${varianceReason}`
+          : ""),
     });
 
     await loadInventory();

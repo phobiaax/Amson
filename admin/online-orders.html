@@ -330,7 +330,13 @@
         <h2 class="mb-2">Payment approved!</h2>
         <p class="text-muted mb-3">Please book the delivery using the customer details below.</p>
       </div>
-      <a href="https://web.lalamove.com/" target="_blank" rel="noopener" class="btn btn-amson w-100 mb-3">Go to Lalamove Web Portal</a>
+      <a href="https://web.lalamove.com/" target="_blank" rel="noopener" class="btn btn-amson w-100 mb-2">Go to Lalamove Web Portal</a>
+      <button type="button" class="btn btn-outline-dark-amson w-100 mb-3" id="copyAllDeliveryBtn"><i class="bi bi-clipboard-check me-1"></i>Copy All Delivery Details</button>
+
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div><p class="detail-label mb-0">Order No.</p><p class="detail-value" id="approvedOrderNumber"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedOrderNumber"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
 
       <div class="d-flex justify-content-between align-items-start mb-2">
         <div><p class="detail-label mb-0">Address</p><p class="detail-value" id="approvedAddress"></p></div>
@@ -344,9 +350,18 @@
         <div><p class="detail-label mb-0">Contact No.</p><p class="detail-value" id="approvedContactNo"></p></div>
         <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedContactNo"><i class="bi bi-clipboard"></i> Copy</button>
       </div>
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div><p class="detail-label mb-0">Preferred Schedule</p><p class="detail-value" id="approvedSchedule"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedSchedule"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
       <div class="d-flex justify-content-between align-items-start mb-3">
         <div><p class="detail-label mb-0">Delivery Notes</p><p class="detail-value" id="approvedDeliveryNotes"></p></div>
         <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedDeliveryNotes"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
+
+      <div class="mb-3">
+        <label for="internalDeliveryNotesInput" class="form-label">Internal Notes <span class="text-muted">(staff only, optional)</span></label>
+        <textarea class="form-control" id="internalDeliveryNotesInput" rows="2" placeholder="e.g. Rider: Juan, booked 2:15 PM, fee ₱120"></textarea>
       </div>
 
       <div class="mb-3">
