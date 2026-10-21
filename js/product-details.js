@@ -131,13 +131,6 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
 
   const buyNowBtn = document.getElementById("buyNowBtn");
   if (buyNowBtn) {
-    buyNowBtn.addEventListener("click", () => {
-      const result = addToCart(product.id, currentQty());
-      if (result.capped && result.qty === 0) {
-        showCartToast("Sorry, that item is out of stock.", "warning");
-        return;
-      }
-      window.location.href = "cart.html";
-    });
+    buyNowBtn.addEventListener("click", () => buyNow(product.id, currentQty()));
   }
 })();

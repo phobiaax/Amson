@@ -33,21 +33,42 @@ function getCart() {
   return readCartKey(cartStorageKey());
 }
 
+// Each copy of the cart carries when it last changed, so the newer one
+// wins when a page loads - otherwise an item added just before leaving a
+// page (before the account copy was saved) was lost on the next page.
+let pendingCartSync = null;
+
 function saveCart(cart) {
+  const updatedAt = Date.now();
   try {
     localStorage.setItem(cartStorageKey(), JSON.stringify(cart));
+    localStorage.setItem(`${cartStorageKey()}:at`, String(updatedAt));
   } catch (error) {
     // Storage blocked (private mode) - the account copy below still saves.
   }
   updateCartBadge();
   if (cartOwnerUid && typeof db !== "undefined") {
-    const uid = cartOwnerUid;
+    pendingCartSync = { uid: cartOwnerUid, cart, updatedAt };
     clearTimeout(cartSyncTimer);
-    cartSyncTimer = setTimeout(() => {
-      db.collection("users").doc(uid).update({ cart }).catch((error) => console.error("Failed to save cart:", error));
-    }, 400);
+    cartSyncTimer = setTimeout(flushCartSync, 400);
   }
 }
+
+// Saves a waiting cart change to the account now (e.g. before leaving the page).
+function flushCartSync() {
+  clearTimeout(cartSyncTimer);
+  if (!pendingCartSync) return Promise.resolve();
+  const { uid, cart, updatedAt } = pendingCartSync;
+  pendingCartSync = null;
+  return db
+    .collection("users")
+    .doc(uid)
+    .update({ cart, cartUpdatedAt: updatedAt })
+    .catch((error) => console.error("Failed to save cart:", error));
+}
+window.addEventListener("pagehide", () => {
+  flushCartSync();
+});
 
 function mergeCarts(a, b) {
   const merged = a.map((item) => ({ ...item }));
@@ -73,14 +94,22 @@ if (typeof auth !== "undefined") {
       const doc = await db.collection("users").doc(user.uid).get();
       if (!doc.exists || doc.data().role !== "customer") return;
       const accountCart = Array.isArray(doc.data().cart) ? doc.data().cart : [];
+      const accountAt = doc.data().cartUpdatedAt || 0;
       const guestCart = readCartKey(CART_STORAGE_KEY);
       cartOwnerUid = user.uid;
       try {
         localStorage.setItem(CART_OWNER_KEY, user.uid);
       } catch (error) {}
-      const merged = mergeCarts(accountCart, guestCart);
+      // This browser's copy if it changed more recently than the account's.
+      const localCart = getCart();
+      let localAt = 0;
+      try {
+        localAt = Number(localStorage.getItem(`${cartStorageKey()}:at`)) || 0;
+      } catch (error) {}
+      const localIsNewer = localAt > accountAt;
+      const merged = mergeCarts(localIsNewer ? localCart : accountCart, guestCart);
       if (guestCart.length) localStorage.removeItem(CART_STORAGE_KEY);
-      if (guestCart.length || JSON.stringify(merged) !== JSON.stringify(getCart())) saveCart(merged);
+      if (guestCart.length || localIsNewer || JSON.stringify(merged) !== JSON.stringify(localCart)) saveCart(merged);
       else updateCartBadge();
       document.dispatchEvent(new CustomEvent("cart:synced"));
     } catch (error) {
@@ -235,15 +264,24 @@ document.addEventListener("click", (e) => {
 // ---- Buy Now - adds the item then takes the customer straight to the
 // cart, instead of them having to add it and then go find the cart icon
 // themselves ----
-document.addEventListener("click", (e) => {
-  const btn = e.target.closest(".btn-buy-now");
-  if (!btn) return;
-  const result = addToCart(btn.dataset.id, 1);
+// Buy Now: adds the item to the cart (alongside anything already there)
+// and opens the cart page.
+async function buyNow(productId, qty = 1) {
+  const result = addToCart(productId, qty);
   if (result.capped && result.qty === 0) {
     showCartToast("Sorry, that item is out of stock.", "warning");
     return;
   }
+  // Save the cart to the account before leaving (at most 2 seconds), so the
+  // cart page doesn't load the older copy without this item.
+  await Promise.race([flushCartSync(), new Promise((resolve) => setTimeout(resolve, 2000))]);
   window.location.href = "cart.html";
+}
+
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".btn-buy-now");
+  if (!btn) return;
+  buyNow(btn.dataset.id, 1);
 });
 
 document.addEventListener("DOMContentLoaded", updateCartBadge);
