@@ -162,7 +162,7 @@
                   <th>Product Name</th>
                   <th>Category</th>
                   <th>Supplier</th>
-                  <th>Quantity</th>
+                  <th>Available Inventory</th>
                   <th>Reorder Point</th>
                   <th>Status</th>
                   <th>Last Updated</th>
@@ -304,17 +304,17 @@
       <div class="row g-3 mb-3">
         <div class="col-md-6">
           <div class="d-flex justify-content-between align-items-center">
-            <label class="form-label mb-0">Supplier</label>
+            <label class="form-label mb-0">Supplier <span class="text-danger">*</span></label>
             <button type="button" class="btn btn-link btn-sm p-0" id="receiveNewSupplierBtn" style="font-size:0.8rem;">+ New Supplier</button>
           </div>
           <select class="form-select" id="receiveSupplierSelect"></select>
         </div>
         <div class="col-md-6">
-          <label class="form-label">Date Received</label>
+          <label class="form-label">Date Received <span class="text-danger">*</span></label>
           <input type="date" class="form-control" id="receiveDateInput">
         </div>
         <div class="col-md-6">
-          <label class="form-label" for="receiveReceiptNoInput">Supplier Receipt / DR No.</label>
+          <label class="form-label" for="receiveReceiptNoInput">Supplier Receipt / DR No. <span class="text-danger">*</span></label>
           <input type="text" class="form-control" id="receiveReceiptNoInput" placeholder="e.g. SI-930-003-0802">
         </div>
       </div>

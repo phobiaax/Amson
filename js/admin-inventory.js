@@ -482,12 +482,30 @@ function populateProductSelect(selectEl) {
   selectEl._choices = makeSearchableSelect(selectEl);
 }
 
+// Every delivery and purchase order needs a supplier - the first option is
+// only a prompt and can't be saved.
 function populateSupplierSelect(selectEl) {
-  const options = ['<option value="">No supplier / unspecified</option>'].concat(
+  const options = ['<option value="">Choose a supplier</option>'].concat(
     allSuppliers.map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`)
   );
   selectEl.innerHTML = options.join("");
   selectEl._choices = makeSearchableSelect(selectEl);
+}
+
+// A batch number belongs to one delivery of a product: it can't repeat a
+// batch already received for that product (any status), or another line in
+// the same delivery. Returns the duplicated batch numbers.
+function findDuplicateBatchNos(items) {
+  const seen = new Set();
+  const dupes = [];
+  items.forEach((it) => {
+    if (!it.productId || !it.batchNo) return;
+    const key = `${it.productId}|${it.batchNo.toLowerCase()}`;
+    const existing = allBatches.some((b) => b.productId === it.productId && (b.batchNo || "").toLowerCase() === it.batchNo.toLowerCase());
+    if (existing || seen.has(key)) dupes.push(it.batchNo);
+    seen.add(key);
+  });
+  return [...new Set(dupes)];
 }
 
 function updateRemoveButtonsVisibility(container) {
@@ -515,21 +533,21 @@ function addReceiveItemRow() {
     <div class="row g-3">
       <div class="col-md-6">
         <div class="d-flex justify-content-between align-items-center">
-          <label class="form-label mb-0">Product</label>
+          <label class="form-label mb-0">Product <span class="text-danger">*</span></label>
           <button type="button" class="btn btn-link btn-sm p-0 quick-add-product-btn" style="font-size:0.8rem;">+ New Product</button>
         </div>
         <select class="form-select receive-product-select"></select>
       </div>
       <div class="col-md-6">
-        <label class="form-label">Qty Received</label>
+        <label class="form-label">Qty Received <span class="text-danger">*</span></label>
         <input type="number" min="1" class="form-control receive-qty-input">
       </div>
       <div class="col-md-6">
-        <label class="form-label">Batch No.</label>
+        <label class="form-label">Batch No. <span class="text-danger">*</span></label>
         <input type="text" class="form-control receive-batchno-input" placeholder="e.g. BIO-500-100">
       </div>
       <div class="col-md-6">
-        <label class="form-label">Expiry Date</label>
+        <label class="form-label">Expiry Date <span class="text-danger">*</span></label>
         <input type="date" class="form-control receive-expiry-input">
       </div>
       <div class="col-md-6">
@@ -575,7 +593,7 @@ receiveStockBtn.addEventListener("click", () => {
 
 saveReceiveStockBtn.addEventListener("click", async () => {
   const supplierId = receiveSupplierSelect.value;
-  const dateReceived = receiveDateInput.value || todayISO();
+  const dateReceived = receiveDateInput.value;
   const supplierReceiptNo = receiveReceiptNoInput.value.trim();
   const rows = Array.from(receiveItemsContainer.querySelectorAll(".repeater-item"));
 
@@ -587,11 +605,20 @@ saveReceiveStockBtn.addEventListener("click", async () => {
     unitCost: parseFloat(row.querySelector(".receive-unitcost-input").value),
   }));
 
+  const showReceiveError = (text) => {
+    receiveModalAlert.textContent = text;
+    receiveModalAlert.classList.remove("d-none");
+  };
+  if (!supplierId || !dateReceived || !supplierReceiptNo) {
+    return showReceiveError("Choose the supplier and fill in the date received and the supplier receipt / DR no.");
+  }
   const invalid = items.some((it) => !it.productId || !it.qty || it.qty <= 0 || !it.batchNo || !it.expirationDate);
   if (invalid || items.length === 0) {
-    receiveModalAlert.textContent = "Every item needs a product, quantity, batch number, and expiry date.";
-    receiveModalAlert.classList.remove("d-none");
-    return;
+    return showReceiveError("Every item needs a product, quantity, batch number, and expiry date. Only the unit cost is optional.");
+  }
+  const dupes = findDuplicateBatchNos(items);
+  if (dupes.length) {
+    return showReceiveError(`Batch no. ${dupes.join(", ")} was already used for this product. Each delivery needs its own batch number.`);
   }
 
   saveReceiveStockBtn.disabled = true;
@@ -607,8 +634,8 @@ saveReceiveStockBtn.addEventListener("click", async () => {
         expirationDate: item.expirationDate,
         quantity: item.qty,
         initialQuantity: item.qty,
-        supplierId: supplierId || null,
-        supplierReceiptNo: supplierReceiptNo || null,
+        supplierId,
+        supplierReceiptNo,
         unitCost: isNaN(item.unitCost) ? null : item.unitCost,
         dateReceived,
         status: "active",
@@ -708,6 +735,8 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   }
 
   let hasInvalid = false;
+  let hasDuplicate = false;
+  const seenRows = [];
   rowEls.forEach((tr) => tr.classList.remove("table-danger"));
   const parsedRows = rowEls.map((tr) => {
     const get = (cls) => tr.querySelector(`.${cls}`);
@@ -717,13 +746,19 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
     const qty = parseInt(get("rbr-qty").value, 10);
     const product = SAMPLE_PRODUCTS.find((p) => (p.sku || "").toLowerCase() === sku.toLowerCase());
 
-    if (!product || !batchNo || !expiryDate || !qty || qty <= 0) {
-      tr.classList.add("table-danger");
-      hasInvalid = true;
-    }
-
     const supplierName = get("rbr-supplier").value.trim();
     const supplier = allSuppliers.find((s) => s.name.toLowerCase() === supplierName.toLowerCase());
+    const receiptNo = get("rbr-receiptno").value.trim();
+    const dateReceived = get("rbr-datereceived").value;
+
+    if (!product || !batchNo || !expiryDate || !qty || qty <= 0 || !supplier || !receiptNo || !dateReceived) {
+      tr.classList.add("table-danger");
+      hasInvalid = true;
+    } else if (findDuplicateBatchNos([...seenRows, { productId: product.id, batchNo }]).includes(batchNo)) {
+      tr.classList.add("table-danger");
+      hasDuplicate = true;
+    }
+    if (product && batchNo) seenRows.push({ productId: product.id, batchNo });
 
     return {
       product,
@@ -731,14 +766,19 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
       expiryDate,
       qty,
       supplierId: supplier ? supplier.id : null,
-      supplierReceiptNo: get("rbr-receiptno").value.trim() || null,
+      supplierReceiptNo: receiptNo,
       unitCost: get("rbr-unitcost").value === "" ? null : parseFloat(get("rbr-unitcost").value),
-      dateReceived: get("rbr-datereceived").value || todayISO(),
+      dateReceived,
     };
   });
 
   if (hasInvalid) {
-    receiveBatchReviewAlert.textContent = "Every batch needs a recognized SKU, a batch number, an expiry date, and a quantity greater than 0 - fix the highlighted rows, or remove them.";
+    receiveBatchReviewAlert.textContent = "Every row needs a recognized SKU, batch number, expiry date, quantity above 0, a supplier name that matches a saved supplier, a receipt / DR no. and a date received (only the unit cost is optional). Fix the highlighted rows, or remove them.";
+    receiveBatchReviewAlert.classList.remove("d-none");
+    return;
+  }
+  if (hasDuplicate) {
+    receiveBatchReviewAlert.textContent = "The highlighted rows use a batch number already received for that product (or repeated in this file). Each delivery needs its own batch number.";
     receiveBatchReviewAlert.classList.remove("d-none");
     return;
   }
@@ -844,7 +884,7 @@ function populateQuickProductCategorySelect() {
 }
 
 function refreshSupplierSelects() {
-  const options = [{ value: "", label: "No supplier / unspecified" }].concat(
+  const options = [{ value: "", label: "Choose a supplier" }].concat(
     allSuppliers.map((s) => ({ value: s.id, label: s.name }))
   );
   [receiveSupplierSelect, poSupplierSelect].forEach((sel) => {
@@ -1430,7 +1470,7 @@ exportInventoryBtn.addEventListener("click", () => {
       { label: "Category", value: (b) => CATEGORY_LABELS[(getProductById(b.productId) || {}).category] || "", width: 1.5 },
       { label: "Batch No.", value: (b) => b.batchNo, width: 1.3 },
       { label: "Expiry", value: (b) => formatDateMDY(b.expirationDate) },
-      { label: "Qty", value: (b) => b.quantity, width: 0.6 },
+      { label: "Available Inventory", value: (b) => b.quantity, width: 0.9 },
       { label: "Reorder Pt.", value: (b) => (getProductById(b.productId) || {}).reorderPoint || DEFAULT_REORDER_POINT, width: 0.8 },
       { label: "Status", value: (b) => b.computedStatuses.map((s) => BATCH_STATUS_LABELS[s]).join(", ") + (b.status === "wholesale_only" ? ", Wholesale Only" : ""), width: 1.6 },
       { label: "Supplier", value: (b) => supplierName(b.supplierId), width: 1.5 },
@@ -1728,6 +1768,12 @@ async function submitPoReceiving(po) {
   const missingBatchInfo = receivedItems.some((it) => it.receivedQty > 0 && (!it.batchNo || !it.expirationDate));
   if (missingBatchInfo) {
     alertEl.textContent = "Every item with a received quantity needs a batch number and expiry date.";
+    alertEl.classList.remove("d-none");
+    return;
+  }
+  const poDupes = findDuplicateBatchNos(receivedItems.filter((it) => it.receivedQty > 0));
+  if (poDupes.length) {
+    alertEl.textContent = `Batch no. ${poDupes.join(", ")} was already used for this product. Each delivery needs its own batch number.`;
     alertEl.classList.remove("d-none");
     return;
   }

@@ -77,6 +77,12 @@
       </div>
 
       <div class="checkout-card p-4">
+        <div class="btn-group flex-wrap mb-3" role="group" aria-label="Filter notifications" id="notifFilterGroup">
+          <button type="button" class="btn order-filter-btn active" data-filter="all">All (<span data-count="all">0</span>)</button>
+          <button type="button" class="btn order-filter-btn" data-filter="orders">Orders (<span data-count="orders">0</span>)</button>
+          <button type="button" class="btn order-filter-btn" data-filter="stock">Stock (<span data-count="stock">0</span>)</button>
+          <button type="button" class="btn order-filter-btn" data-filter="chat">Live Chat (<span data-count="chat">0</span>)</button>
+        </div>
         <div id="notificationsList" class="d-flex flex-column gap-2"></div>
         <p class="text-muted text-center py-5 d-none" id="notificationsEmpty">
           <i class="bi bi-check-circle" style="font-size:1.5rem;"></i><br>

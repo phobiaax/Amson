@@ -14,6 +14,27 @@ const SEVERITY_CLASS = {
 
 let currentNotifUid = null;
 let currentNotifications = [];
+let currentReadMap = {};
+let notifFilter = "all";
+let shownNotifications = [];
+
+// Filter buttons: All / Orders / Stock / Live Chat, with a count on each.
+document.querySelectorAll("#notifFilterGroup [data-filter]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    notifFilter = btn.dataset.filter;
+    document.querySelectorAll("#notifFilterGroup [data-filter]").forEach((b) => b.classList.toggle("active", b === btn));
+    renderNotifications(currentNotifications, currentReadMap);
+  });
+});
+
+function notifTimeLabel(at) {
+  if (!at) return "";
+  const diff = Date.now() - at;
+  if (diff >= 0 && diff < 60 * 1000) return "Just now";
+  if (diff >= 0 && diff < 60 * 60 * 1000) return `${Math.floor(diff / 60000)} min ago`;
+  if (diff >= 0 && diff < 24 * 60 * 60 * 1000) return `${Math.floor(diff / 3600000)} hr ago`;
+  return formatDateMDY(new Date(at), diff >= 0 && diff < 7 * 24 * 60 * 60 * 1000);
+}
 
 document.addEventListener("admin:ready", (e) => {
   currentNotifUid = e.detail && e.detail.uid;
@@ -27,13 +48,20 @@ async function loadNotifications() {
       currentNotifUid ? getStaffNotifReadMap(currentNotifUid) : Promise.resolve({}),
     ]);
     currentNotifications = notifications;
+    currentReadMap = readMap;
     renderNotifications(notifications, readMap);
   } catch (error) {
     console.error("Failed to load notifications:", error);
   }
 }
 
-function renderNotifications(notifications, readMap) {
+function renderNotifications(allNotifications, readMap) {
+  document.querySelectorAll("#notifFilterGroup [data-count]").forEach((el) => {
+    const cat = el.dataset.count;
+    el.textContent = cat === "all" ? allNotifications.length : allNotifications.filter((n) => n.category === cat).length;
+  });
+  const notifications = notifFilter === "all" ? allNotifications : allNotifications.filter((n) => n.category === notifFilter);
+  shownNotifications = notifications;
   if (notifications.length === 0) {
     notificationsList.innerHTML = "";
     notificationsEmpty.classList.remove("d-none");
@@ -48,13 +76,16 @@ function renderNotifications(notifications, readMap) {
     .map((n) => {
       const isRead = isStaffNotifRead(readMap, n);
       const severityColor = SEVERITY_COLORS[n.severity] || SEVERITY_COLORS.info;
-      const severityBg = SEVERITY_BACKGROUNDS[n.severity] || SEVERITY_BACKGROUNDS.info;
+      const when = notifTimeLabel(n.at);
       return `
-        <a href="${n.link}" class="d-flex justify-content-between align-items-center gap-3 p-3 admin-notif-row" data-key="${n.key}" data-signature="${n.signature}" style="text-decoration:none; color:inherit; border:1px solid var(--amson-border); border-left:6px solid ${severityColor}; background-color:${severityBg}; border-radius:10px; ${isRead ? "opacity:0.6;" : ""}">
+        <a href="${n.link}" class="d-flex justify-content-between align-items-center gap-3 p-3 admin-notif-row" data-key="${n.key}" data-signature="${n.signature}" style="text-decoration:none; color:inherit; border:1px solid var(--amson-border); border-left:4px solid ${severityColor}; background-color:#fff; border-radius:10px; ${isRead ? "opacity:0.6;" : ""}">
           <div class="d-flex align-items-center gap-3">
             ${isRead ? "" : '<span class="rounded-circle bg-primary flex-shrink-0" style="width:8px; height:8px; display:inline-block;"></span>'}
-            <i class="bi ${n.icon}" style="font-size:1.2rem;"></i>
-            <span style="${isRead ? "" : "font-weight:600;"}">${escapeHtml(n.message)}</span>
+            <i class="bi ${n.icon}" style="font-size:1.2rem; color:${severityColor};"></i>
+            <div>
+              <div style="${isRead ? "" : "font-weight:600;"}">${escapeHtml(n.message)}</div>
+              <div class="text-muted" style="font-size:0.78rem;">${escapeHtml(STAFF_NOTIF_CATEGORY_LABELS[n.category] || "")}${when ? ` · ${escapeHtml(when)}` : ""}</div>
+            </div>
           </div>
           <span class="badge rounded-pill ${SEVERITY_CLASS[n.severity]}">${n.severity === "danger" ? "Urgent" : n.severity === "warning" ? "Warning" : "Info"}</span>
         </a>
@@ -80,10 +111,11 @@ function renderNotifications(notifications, readMap) {
 
 if (markAllNotifsReadBtn) {
   markAllNotifsReadBtn.addEventListener("click", async () => {
-    if (!currentNotifUid || currentNotifications.length === 0) return;
+    if (!currentNotifUid || shownNotifications.length === 0) return;
     markAllNotifsReadBtn.disabled = true;
     try {
-      await markAllStaffNotifsRead(currentNotifUid, currentNotifications);
+      // Only the ones in the current filter.
+      await markAllStaffNotifsRead(currentNotifUid, shownNotifications);
       await loadNotifications();
       if (typeof refreshAdminNotifBell === "function") refreshAdminNotifBell(currentNotifUid);
     } catch (error) {

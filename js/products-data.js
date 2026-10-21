@@ -305,7 +305,6 @@ async function computeInventoryAlertCounts(batchesOverride = null) {
 // so if the same batch goes low, gets read, then drops further, it's
 // unread again - marking read never permanently silences a recurring
 // problem. ----
-const STAFF_NOTIF_SEVERITY_RANK = { danger: 0, warning: 1, info: 2 };
 
 async function computeStaffNotifications() {
   await loadCatalogCache();
@@ -316,6 +315,14 @@ async function computeStaffNotifications() {
   ]);
 
   const notifications = [];
+  // Each notification carries a category (for the Stock / Orders / Live
+  // Chat filters) and `at`, when it happened, so lists show newest first.
+  const ms = (v) => (v && v.toMillis ? v.toMillis() : v ? new Date(v).getTime() || 0 : 0);
+  const lastStockChange = {};
+  batchSnapshot.docs.forEach((doc) => {
+    const b = doc.data();
+    lastStockChange[b.productId] = Math.max(lastStockChange[b.productId] || 0, ms(b.lastAdjustedAt || b.createdAt));
+  });
 
   // Low / out of stock per product, on its physical stock across all
   // batches - the same rule as the Inventory and Dashboard tiles.
@@ -325,6 +332,8 @@ async function computeStaffNotifications() {
     if (stock === 0) {
       notifications.push({
         key: `out_of_stock:${p.id}`,
+        category: "stock",
+        at: lastStockChange[p.id] || ms(p.createdAt),
         signature: "0",
         severity: "danger",
         icon: "bi-box-seam",
@@ -334,6 +343,8 @@ async function computeStaffNotifications() {
     } else if (stock <= (p.reorderPoint || DEFAULT_REORDER_POINT)) {
       notifications.push({
         key: `low_stock:${p.id}`,
+        category: "stock",
+        at: lastStockChange[p.id] || 0,
         signature: `${stock}`,
         severity: "warning",
         icon: "bi-box-seam",
@@ -354,6 +365,8 @@ async function computeStaffNotifications() {
     if (expiryStatus === "expired") {
       notifications.push({
         key: `expired:${b.id}`,
+        category: "stock",
+        at: ms(`${b.expirationDate}T00:00:00`),
         signature: `${b.quantity}`,
         severity: "danger",
         icon: "bi-calendar-x",
@@ -363,6 +376,13 @@ async function computeStaffNotifications() {
     } else if (expiryStatus === "near_expiry") {
       notifications.push({
         key: `near_expiry:${b.id}`,
+        category: "stock",
+        // the day it came within NEAR_EXPIRY_MONTHS of expiring
+        at: (() => {
+          const d = new Date(`${b.expirationDate}T00:00:00`);
+          d.setMonth(d.getMonth() - NEAR_EXPIRY_MONTHS);
+          return d.getTime() || 0;
+        })(),
         signature: `${b.quantity}:${b.expirationDate}`,
         severity: "warning",
         icon: "bi-hourglass-split",
@@ -377,6 +397,8 @@ async function computeStaffNotifications() {
     if (o.status !== "placed") return;
     notifications.push({
       key: `payment_verification:${doc.id}`,
+      category: "orders",
+      at: Math.max(ms(o.createdAt), ms(o.paymentIssue && o.paymentIssue.resolvedByCustomerAt)),
       signature: o.status,
       severity: "info",
       icon: "bi-credit-card",
@@ -390,6 +412,8 @@ async function computeStaffNotifications() {
     if (po.status !== "discrepancy") return;
     notifications.push({
       key: `po_discrepancy:${doc.id}`,
+      category: "stock",
+      at: ms(po.receivedAt),
       signature: po.status,
       severity: "danger",
       icon: "bi-exclamation-triangle",
@@ -404,6 +428,8 @@ async function computeStaffNotifications() {
   if (pricePending.length > 0) {
     notifications.push({
       key: "price_pending",
+      category: "stock",
+      at: Math.max(0, ...pricePending.map((p) => ms(p.updatedAt || p.createdAt))),
       signature: pricePending.map((p) => p.id).sort().join(","),
       severity: "info",
       icon: "bi-tag",
@@ -419,6 +445,8 @@ async function computeStaffNotifications() {
     if (pending.length) {
       notifications.push({
         key: "bad_order_disposal",
+        category: "stock",
+        at: Math.max(0, ...pending.map((d) => ms(d.data().badOrderAt))),
         signature: pending.map((d) => d.id).sort().join(","),
         severity: "danger",
         icon: "bi-trash",
@@ -443,6 +471,11 @@ async function computeStaffNotifications() {
     if (flagged.length) {
       notifications.push({
         key: "wholesale_documents",
+        category: "orders",
+        // 30 days before the soonest document runs out
+        at: Math.min(
+          ...flagged.map((d) => Math.min(...[d.data().ltoValidUntil, d.data().permitValidUntil].filter(Boolean).map((v) => ms(`${v}T00:00:00`))))
+        ) - 30 * 24 * 60 * 60 * 1000,
         signature: flagged.map((d) => `${d.id}:${d.data().ltoValidUntil}:${d.data().permitValidUntil}`).sort().join(","),
         severity: "warning",
         icon: "bi-file-earmark-text",
@@ -460,6 +493,8 @@ async function computeStaffNotifications() {
     if (!pending.empty) {
       notifications.push({
         key: "wholesale_pending_release",
+        category: "orders",
+        at: Math.max(0, ...pending.docs.map((d) => ms(d.data().createdAt))),
         signature: pending.docs.map((d) => d.id).sort().join(","),
         severity: "info",
         icon: "bi-truck",
@@ -478,6 +513,8 @@ async function computeStaffNotifications() {
     if (!waiting.empty) {
       notifications.push({
         key: "chat_waiting",
+        category: "chat",
+        at: Math.max(0, ...waiting.docs.map((d) => ms(d.data().handoffAt || d.data().lastMessageAt))),
         signature: waiting.docs.map((d) => d.id).sort().join(","),
         severity: "warning",
         icon: "bi-chat-dots",
@@ -489,9 +526,12 @@ async function computeStaffNotifications() {
     console.warn("Chat alerts unavailable:", error);
   }
 
-  notifications.sort((a, b) => STAFF_NOTIF_SEVERITY_RANK[a.severity] - STAFF_NOTIF_SEVERITY_RANK[b.severity]);
+  // Newest first; urgency is shown by each row's colour and label instead.
+  notifications.sort((a, b) => (b.at || 0) - (a.at || 0));
   return notifications;
 }
+
+const STAFF_NOTIF_CATEGORY_LABELS = { stock: "Stock", orders: "Orders", chat: "Live Chat" };
 
 async function getStaffNotifReadMap(uid) {
   const doc = await db.collection("notifications").doc(uid).get();

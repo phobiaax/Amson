@@ -37,9 +37,26 @@ function syncSelection(cart) {
   });
 }
 
+// "You May Also Like": in-stock products not already in the cart, from the
+// same categories as the cart's items first.
+function renderCartSuggestions(cart) {
+  const section = document.getElementById("cartSuggestionsSection");
+  const grid = document.getElementById("cartSuggestionsGrid");
+  if (!section || !grid) return;
+  const inCart = new Set(cart.map((item) => item.id));
+  const cartCategories = new Set(cart.map((item) => (getProductById(item.id) || {}).category).filter(Boolean));
+  const picks = storefrontCatalog()
+    .filter((p) => p.inStock && !inCart.has(p.id))
+    .sort((a, b) => (cartCategories.has(b.category) ? 1 : 0) - (cartCategories.has(a.category) ? 1 : 0))
+    .slice(0, 10);
+  section.classList.toggle("d-none", picks.length === 0);
+  grid.innerHTML = picks.map(renderProductCard).join("");
+}
+
 function renderCartPage() {
   const cart = getCart();
   syncSelection(cart);
+  renderCartSuggestions(cart);
   const count = cartCount(cart);
   cartHeading.textContent = `Shopping Cart (${count})`;
 
@@ -168,6 +185,12 @@ checkoutBtn.addEventListener("click", (e) => {
   if (checkoutBtn.classList.contains("disabled")) return;
   sessionStorage.setItem("amsonCheckoutSelectedIds", JSON.stringify([...selectedIds]));
   window.location.href = "checkout.html";
+});
+
+// Adding a suggested product shows it in the cart straight away (the add
+// itself is done by cart.js's Add to Cart handler, which runs first).
+document.addEventListener("click", (e) => {
+  if (e.target.closest("#cartSuggestionsGrid .btn-add-cart")) setTimeout(renderCartPage, 0);
 });
 
 (async function init() {
