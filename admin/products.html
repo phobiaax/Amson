@@ -39,8 +39,9 @@
       <li><a href="customer-accounts.html" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
       <li><a href="wholesale-accounts.html" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
       <li><a href="staff-management.html" class="admin-nav-link" id="staffManagementNavLink"><i class="bi bi-people"></i>Staff Management</a></li>
-      <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
+      <li><a href="live-chat.html" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
       <li><a href="notifications.html" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="reports.html" class="admin-nav-link"><i class="bi bi-file-earmark-bar-graph"></i>Reports</a></li>
       <li><a href="audit-log.html" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
     </ul>
   </aside>
@@ -169,12 +170,15 @@
           <input type="number" min="0" step="1" class="form-control" id="productReorderPointInput" placeholder="e.g. 20">
           <p class="text-muted mb-0 mt-1" style="font-size:0.75rem;">Used by Inventory to flag a batch as Low Stock.</p>
         </div>
-        <div class="col-12 d-none" id="priceRestrictedNote">
-          <p class="text-muted mb-0" style="font-size:0.78rem;"><i class="bi bi-lock-fill me-1"></i>Only a Branch Manager can change prices on an existing product.</p>
+        <div class="col-12 d-flex align-items-center justify-content-between gap-2 flex-wrap">
+          <p class="text-muted mb-0 d-none" style="font-size:0.78rem;" id="priceRestrictedNote"><i class="bi bi-lock-fill me-1"></i><span id="priceRestrictedText"></span></p>
+          <button type="button" class="btn btn-outline-dark-amson btn-sm d-none" id="priceLockToggleBtn"></button>
         </div>
         <div class="col-md-7">
           <label class="form-label">Description</label>
           <textarea class="form-control" id="productDescriptionInput" rows="4" placeholder="Shown to customers on the product page"></textarea>
+          <label class="form-label mt-3">Dosage / Usage Notes</label>
+          <textarea class="form-control" id="productDosageNotesInput" rows="2" placeholder="e.g. Adults: 1 tablet every 4-6 hours as needed. Do not exceed 8 tablets a day."></textarea>
         </div>
         <div class="col-md-5">
           <label class="form-label">Product Image</label>
@@ -292,6 +296,10 @@
 
       <div id="categoriesList" class="d-flex flex-column gap-2 mb-3"></div>
 
+      <button type="button" class="btn btn-outline-dark-amson btn-sm w-100 mb-3" id="addBranchCategoriesBtn">
+        Add the branch's categories (Generics, Branded, Drugstore, Medical Supplies, Grocery)
+      </button>
+
       <div class="d-flex gap-2">
         <input type="text" class="form-control" id="newCategoryNameInput" placeholder="New category name">
         <button type="button" class="btn btn-amson flex-shrink-0" id="addCategoryBtn">Add</button>
@@ -325,6 +333,7 @@
 <script src="../js/admin-sidebar.js"></script>
 <script src="../js/admin-products.js"></script>
 <script src="../js/admin-roles.js"></script>
+<script src="../js/device-trust.js"></script>
 <script src="../js/admin-header.js"></script>
 </body>
 </html>

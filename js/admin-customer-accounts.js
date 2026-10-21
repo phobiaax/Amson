@@ -25,6 +25,8 @@ const toggleCustomerStatusBtn = document.getElementById("toggleCustomerStatusBtn
 
 document.addEventListener("admin:ready", loadCustomers);
 
+let ordersByCustomer = {};
+
 /* ---------- Load ---------- */
 async function loadCustomers() {
   try {
@@ -32,10 +34,12 @@ async function loadCustomers() {
     const ordersSnapshot = await db.collection("orders").get();
 
     const orderCounts = {};
+    ordersByCustomer = {};
     ordersSnapshot.docs.forEach((doc) => {
       const customerId = doc.data().customerId;
       if (!customerId) return;
       orderCounts[customerId] = (orderCounts[customerId] || 0) + 1;
+      (ordersByCustomer[customerId] = ordersByCustomer[customerId] || []).push({ id: doc.id, ...doc.data() });
     });
 
     allCustomers = usersSnapshot.docs.map((doc) => ({
@@ -83,7 +87,7 @@ function filteredCustomers() {
 
 function formatDate(timestamp) {
   if (!timestamp) return "-";
-  return timestamp.toDate().toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+  return formatDateMDY(timestamp);
 }
 
 function renderCustomersTable() {
@@ -118,9 +122,9 @@ function renderCustomerRow(customer) {
   const status = computedStatus(customer);
   return `
     <tr>
-      <td>${customer.firstName || ""} ${customer.lastName || ""}</td>
-      <td>${customer.email || "-"}</td>
-      <td>${customer.contactNumber || "-"}</td>
+      <td>${escapeHtml(`${customer.firstName || ""} ${customer.lastName || ""}`)}</td>
+      <td>${escapeHtml(customer.email || "-")}</td>
+      <td>${escapeHtml(customer.contactNumber || "-")}</td>
       <td>${formatDate(customer.createdAt)}</td>
       <td>${customer.totalOrders}</td>
       <td><span class="badge rounded-pill ${status === "active" ? "text-bg-success" : "text-bg-secondary"}">${status === "active" ? "Active" : "Deactivated"}</span></td>
@@ -187,6 +191,23 @@ function openViewModal(customer) {
   document.getElementById("viewCustomerDateRegistered").textContent = formatDate(customer.createdAt);
   document.getElementById("viewCustomerTotalOrders").textContent = customer.totalOrders;
   document.getElementById("viewCustomerEmailVerified").textContent = customer.emailVerified ? "Yes" : "No";
+
+  // Order history (REQ116), newest first.
+  const orders = (ordersByCustomer[customer.id] || [])
+    .slice()
+    .sort((a, b) => (b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0) - (a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0));
+  document.getElementById("viewCustomerOrdersBody").innerHTML = orders.length
+    ? orders
+        .map(
+          (o) => `<tr>
+            <td><a href="online-orders.html?search=${encodeURIComponent(o.orderNumber || "")}">${escapeHtml(o.orderNumber || "-")}</a></td>
+            <td>${formatOrderDate(o.createdAt)}</td>
+            <td>${formatPeso(o.total || 0)}</td>
+            <td>${escapeHtml(o.paymentIssue ? "On Hold" : orderBadgeLabel(o))}</td>
+          </tr>`
+        )
+        .join("")
+    : '<tr><td colspan="4" class="text-muted">No orders yet.</td></tr>';
 
   const addr = customer.shippingAddress;
   document.getElementById("viewCustomerAddress").textContent = addr

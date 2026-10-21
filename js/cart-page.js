@@ -173,4 +173,5 @@ checkoutBtn.addEventListener("click", (e) => {
 (async function init() {
   await loadCatalogCache();
   renderCartPage();
+  document.addEventListener("cart:synced", renderCartPage);
 })();

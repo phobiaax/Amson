@@ -47,16 +47,33 @@ let dashboardPeriod = "month";
 let lastLoadedOrders = [];
 let lastLoadedPosSales = [];
 
-function periodStartDate(period) {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (period === "today") return start;
+// The period shown is the day / week (Monday to Sunday) / month / year
+// that contains dashboardAnchor. It starts as today; the picker and the
+// previous/next buttons move it.
+let dashboardAnchor = new Date();
+
+function periodRange(period, anchor = dashboardAnchor) {
+  const a = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate());
+  if (period === "today") return { start: a, end: new Date(a.getFullYear(), a.getMonth(), a.getDate() + 1) };
   if (period === "week") {
-    start.setDate(start.getDate() - 6);
-    return start;
+    const start = new Date(a);
+    start.setDate(a.getDate() - ((a.getDay() + 6) % 7)); // back to Monday
+    return { start, end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7) };
   }
-  if (period === "year") return new Date(now.getFullYear(), 0, 1);
-  return new Date(now.getFullYear(), now.getMonth(), 1); // month
+  if (period === "year") return { start: new Date(a.getFullYear(), 0, 1), end: new Date(a.getFullYear() + 1, 0, 1) };
+  return { start: new Date(a.getFullYear(), a.getMonth(), 1), end: new Date(a.getFullYear(), a.getMonth() + 1, 1) }; // month
+}
+
+function periodStartDate(period) {
+  return periodRange(period).start;
+}
+
+// Charts stop at "now" for the current period instead of drawing empty
+// future hours/days/months.
+function periodChartEnd(period) {
+  const { end } = periodRange(period);
+  const now = new Date();
+  return end > now ? now : new Date(end.getTime() - 1);
 }
 
 function localDayKey(date) {
@@ -64,7 +81,7 @@ function localDayKey(date) {
 }
 
 // The bucket a given date falls into for the current period's chart -
-// hourly for Today (a single day has nothing to group by otherwise),
+// hourly for a day (a single day has nothing to group by otherwise),
 // daily for Week/Month, monthly for Year (365 daily points would be
 // unreadable).
 function dashboardBucketKey(date, period) {
@@ -77,34 +94,34 @@ function dashboardBucketLabel(key, period) {
   if (period === "today") {
     const d = new Date();
     d.setHours(parseInt(key, 10), 0, 0, 0);
-    return d.toLocaleTimeString("en-PH", { hour: "numeric" });
+    return d.toLocaleTimeString("en-US", { hour: "numeric" });
   }
   if (period === "year") {
     const [y, m] = key.split("-").map(Number);
-    return new Date(y, m - 1, 1).toLocaleDateString("en-PH", { month: "short" });
+    return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short" });
   }
   const [y, m, d] = key.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+  return `${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")}`;
 }
 
 // Every bucket key that should appear on the chart for this period, in
 // order, even if a given hour/day/month had zero sales - so the x-axis
 // doesn't just skip around based on whichever days happened to have data.
 function dashboardAllBucketKeys(period) {
-  const now = new Date();
+  const { start } = periodRange(period);
+  const last = periodChartEnd(period);
+  const keys = [];
+  if (last < start) return keys;
   if (period === "today") {
-    const keys = [];
-    for (let h = 0; h <= now.getHours(); h++) keys.push(String(h).padStart(2, "0"));
+    for (let h = 0; h <= last.getHours(); h++) keys.push(String(h).padStart(2, "0"));
     return keys;
   }
   if (period === "year") {
-    const keys = [];
-    for (let m = 0; m <= now.getMonth(); m++) keys.push(`${now.getFullYear()}-${String(m + 1).padStart(2, "0")}`);
+    for (let m = 0; m <= last.getMonth(); m++) keys.push(`${start.getFullYear()}-${String(m + 1).padStart(2, "0")}`);
     return keys;
   }
-  const keys = [];
-  const cursor = new Date(periodStartDate(period));
-  while (cursor <= now) {
+  const cursor = new Date(start);
+  while (cursor <= last) {
     keys.push(localDayKey(cursor));
     cursor.setDate(cursor.getDate() + 1);
   }
@@ -112,17 +129,66 @@ function dashboardAllBucketKeys(period) {
 }
 
 function inPeriod(date, period) {
-  return date >= periodStartDate(period);
+  const { start, end } = periodRange(period);
+  return date >= start && date < end;
 }
+
+// "10/21/2026", "10/19/2026 - 10/25/2026", "October 2026", "2026".
+function dashboardRangeText(period) {
+  const { start, end } = periodRange(period);
+  if (period === "today") return formatDateMDY(start);
+  if (period === "week") return `${formatDateMDY(start)} - ${formatDateMDY(new Date(end.getTime() - 1))}`;
+  if (period === "year") return String(start.getFullYear());
+  return start.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+const dashboardRangeLabel = document.getElementById("dashboardRangeLabel");
+const dashboardRangePicker = document.getElementById("dashboardRangePicker");
+const dashboardRangePrevBtn = document.getElementById("dashboardRangePrevBtn");
+const dashboardRangeNextBtn = document.getElementById("dashboardRangeNextBtn");
+
+function renderDashboardRange() {
+  dashboardRangeLabel.textContent = dashboardRangeText(dashboardPeriod);
+  dashboardRangePicker.value = localDayKey(dashboardAnchor);
+  dashboardRangePicker.max = localDayKey(new Date());
+  // No moving into a period that hasn't started yet.
+  dashboardRangeNextBtn.disabled = periodRange(dashboardPeriod).end > new Date();
+}
+
+function rerenderAnalytics() {
+  renderDashboardRange();
+  renderSalesChart(lastLoadedOrders, lastLoadedPosSales);
+  renderCategoryChart(lastLoadedOrders, lastLoadedPosSales);
+  renderMostBoughtItems(lastLoadedOrders, lastLoadedPosSales);
+}
+
+function shiftDashboardPeriod(step) {
+  const a = new Date(dashboardAnchor);
+  if (dashboardPeriod === "today") a.setDate(a.getDate() + step);
+  else if (dashboardPeriod === "week") a.setDate(a.getDate() + 7 * step);
+  else if (dashboardPeriod === "year") a.setFullYear(a.getFullYear() + step, 0, 1);
+  else a.setMonth(a.getMonth() + step, 1);
+  if (step > 0 && periodRange(dashboardPeriod, a).start > new Date()) return;
+  dashboardAnchor = a;
+  rerenderAnalytics();
+}
+
+dashboardRangePrevBtn.addEventListener("click", () => shiftDashboardPeriod(-1));
+dashboardRangeNextBtn.addEventListener("click", () => shiftDashboardPeriod(1));
+dashboardRangePicker.addEventListener("change", () => {
+  if (!dashboardRangePicker.value) return;
+  const [y, m, d] = dashboardRangePicker.value.split("-").map(Number);
+  const picked = new Date(y, m - 1, d);
+  dashboardAnchor = picked > new Date() ? new Date() : picked;
+  rerenderAnalytics();
+});
 
 document.querySelectorAll("#dashboardPeriodGroup .dashboard-period-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll("#dashboardPeriodGroup .dashboard-period-btn").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     dashboardPeriod = btn.dataset.period;
-    renderSalesChart(lastLoadedOrders, lastLoadedPosSales);
-    renderCategoryChart(lastLoadedOrders, lastLoadedPosSales);
-    renderMostBoughtItems(lastLoadedOrders, lastLoadedPosSales);
+    rerenderAnalytics();
   });
 });
 
@@ -132,10 +198,19 @@ async function loadDashboardStats() {
     const ordersSnapshot = await db.collection("orders").get();
     const posSalesSnapshot = await db.collection("posSales").get();
     const orders = ordersSnapshot.docs.map((doc) => doc.data());
-    const posSales = posSalesSnapshot.docs.map((doc) => doc.data());
+    // A voided walk-in sale was reversed - it isn't revenue.
+    const posSales = posSalesSnapshot.docs.map((doc) => doc.data()).filter((s) => !s.voided);
 
     const pendingVerification = orders.filter((o) => o.status === "placed").length;
-    const activeOrders = orders.filter((o) => o.status !== "received").length;
+    // Still being worked on: verified but not yet handed over.
+    const activeOrders = orders.filter((o) => ["payment_confirmed", "dispatched"].includes(o.status)).length;
+    // Apply the expiry rules (Wholesale Only, Bad Order) here too, so they
+    // don't wait for someone to open Inventory.
+    try {
+      await enforceExpiryStatus();
+    } catch (error) {
+      console.warn("Expiry rules couldn't run:", error);
+    }
     const { lowStock, nearExpiry, outOfStock } = await computeInventoryAlertCounts();
 
     document.getElementById("pendingVerificationCount").textContent = pendingVerification;
@@ -165,9 +240,7 @@ async function loadDashboardStats() {
     lastLoadedOrders = orders;
     lastLoadedPosSales = posSales;
 
-    renderSalesChart(orders, posSales);
-    renderCategoryChart(orders, posSales);
-    renderMostBoughtItems(orders, posSales);
+    rerenderAnalytics();
   } catch (error) {
     console.error("Failed to load dashboard stats:", error);
   }
@@ -365,7 +438,7 @@ function renderMostBoughtItems(orders, posSales) {
     .map(
       (item, idx) => `
         <div class="d-flex justify-content-between align-items-center">
-          <span><strong>#${idx + 1}</strong> ${item.name}</span>
+          <span><strong>#${idx + 1}</strong> ${escapeHtml(item.name)}</span>
           <span class="text-muted">${item.qty} sold</span>
         </div>
       `
@@ -373,8 +446,30 @@ function renderMostBoughtItems(orders, posSales) {
     .join("");
 }
 
+// Dashboard summary - the numbers on the cards right now. (Sales
+// Analytics below has its own, more detailed export.)
 document.getElementById("exportReportBtn").addEventListener("click", () => {
-  exportBlankPdf("amson-dashboard-report");
+  const card = (id) => (document.getElementById(id) || {}).textContent || "";
+  exportTable({
+    title: "Dashboard Summary",
+    subtitle: formatDateMDY(new Date()),
+    filenamePrefix: "amson-dashboard-summary",
+    rows: [
+      ["Pending payment verifications", card("pendingVerificationCount")],
+      ["Active online orders", card("activeOrdersCount")],
+      ["Online sales today", card("onlineTodaySalesValue")],
+      ["Online transactions today", card("onlineTodayTransactionsValue")],
+      ["Walk-in sales today", card("posTodaySalesValue")],
+      ["Walk-in transactions today", card("posTodayTransactionsValue")],
+      ["Low stock products", card("lowStockCount")],
+      ["Near-expiry batches", card("nearExpiryCount")],
+      ["Out of stock products", card("outOfStockCount")],
+    ],
+    columns: [
+      { label: "Metric", value: (r) => r[0], width: 3 },
+      { label: "Value", value: (r) => r[1], width: 1 },
+    ],
+  });
 });
 
 // ---- Sales Analytics export (PDF / Excel) ----
@@ -382,7 +477,8 @@ document.getElementById("exportReportBtn").addEventListener("click", () => {
 // so the export always matches whatever period is currently selected -
 // never a second, drifting definition of "this period's sales."
 function dashboardPeriodLabel(period) {
-  return { today: "Today", week: "This Week", month: "This Month", year: "This Year" }[period] || period;
+  const name = { today: "Day", week: "Week", month: "Month", year: "Year" }[period] || period;
+  return `${name} - ${dashboardRangeText(period)}`;
 }
 
 function buildSalesAnalyticsReport() {
@@ -485,7 +581,7 @@ document.getElementById("exportAnalyticsPdfBtn").addEventListener("click", () =>
   y += 7;
   doc.setFontSize(10);
   doc.setTextColor(100);
-  doc.text(`Period: ${dashboardPeriodLabel(period)}  |  Generated: ${new Date().toLocaleString("en-PH")}`, marginX, y);
+  doc.text(`Period: ${dashboardPeriodLabel(period)}  |  Generated: ${formatDateMDY(new Date(), true)}`, marginX, y);
   doc.setTextColor(0);
   y += 10;
 
@@ -535,7 +631,7 @@ document.getElementById("exportAnalyticsPdfBtn").addEventListener("click", () =>
     mostBought.forEach((item, idx) => row(`#${idx + 1} ${item.name}`, `${item.qty} sold`));
   }
 
-  doc.save(`amson-sales-analytics-${period}-${new Date().toISOString().slice(0, 10)}.pdf`);
+  doc.save(`amson-sales-analytics-${period}-${localDayKey(periodRange(period).start)}.pdf`);
 });
 
 document.getElementById("exportAnalyticsExcelBtn").addEventListener("click", () => {
@@ -567,5 +663,5 @@ document.getElementById("exportAnalyticsExcelBtn").addEventListener("click", () 
   );
   XLSX.utils.book_append_sheet(wb, mostBoughtSheet, "Most Bought Items");
 
-  XLSX.writeFile(wb, `amson-sales-analytics-${period}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  XLSX.writeFile(wb, `amson-sales-analytics-${period}-${localDayKey(periodRange(period).start)}.xlsx`);
 });

@@ -37,8 +37,9 @@
       <li><a href="customer-accounts.html" class="admin-nav-link active"><i class="bi bi-person"></i>Customer Accounts</a></li>
       <li><a href="wholesale-accounts.html" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
       <li><a href="staff-management.html" class="admin-nav-link" id="staffManagementNavLink"><i class="bi bi-people"></i>Staff Management</a></li>
-      <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
+      <li><a href="live-chat.html" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
       <li><a href="notifications.html" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="reports.html" class="admin-nav-link"><i class="bi bi-file-earmark-bar-graph"></i>Reports</a></li>
       <li><a href="audit-log.html" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
     </ul>
   </aside>
@@ -134,6 +135,14 @@
       <p class="detail-label mb-1">Shipping Address</p>
       <p class="text-muted mb-3" id="viewCustomerAddress">-</p>
 
+      <p class="detail-label mb-1">Order History</p>
+      <div class="table-responsive mb-3" style="max-height:220px; overflow-y:auto;">
+        <table class="table table-sm align-middle mb-0" style="font-size:0.85rem;">
+          <thead><tr><th>Order No.</th><th>Date</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody id="viewCustomerOrdersBody"></tbody>
+        </table>
+      </div>
+
       <div id="customerModalAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
 
       <div class="d-flex gap-2">
@@ -156,8 +165,10 @@
 <script src="../js/firebase-config.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/admin-sidebar.js"></script>
+<script src="../js/orders.js"></script>
 <script src="../js/admin-customer-accounts.js"></script>
 <script src="../js/admin-roles.js"></script>
+<script src="../js/device-trust.js"></script>
 <script src="../js/admin-header.js"></script>
 </body>
 </html>

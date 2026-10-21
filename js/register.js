@@ -203,7 +203,7 @@ registerForm.addEventListener("submit", async (e) => {
       firstName: firstNameInput.value.trim(),
       lastName: lastNameInput.value.trim(),
       email: email,
-      contactNumber: contactNumberInput.value.trim(),
+      contactNumber: normalizePhPhone(contactNumberInput.value),
       role: "customer",
       emailVerified: false,
       emailVerificationCode: otpCode,
@@ -211,8 +211,18 @@ registerForm.addEventListener("submit", async (e) => {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
-    await sendOtpEmail(email, otpCode, firstNameInput.value.trim());
+    // The account exists now, so go on to the code page even if the email
+    // didn't send - the customer can tap Resend there.
+    let codeSent = false;
+    try {
+      codeSent = await sendOtpEmail(email, otpCode, firstNameInput.value.trim());
+    } catch (error) {
+      console.warn("Verification email not sent:", error);
+    }
+    if (!codeSent) sessionStorage.setItem("amsonOtpSendFailed", "1");
     sessionStorage.setItem("amsonPendingVerificationEmail", email);
+    // After the code, new accounts go to the login page (not straight in).
+    sessionStorage.setItem("amsonFromRegistration", "1");
     window.location.href = "verify-email.html";
   } catch (error) {
     showAlert(mapAuthError(error));

@@ -65,6 +65,7 @@ const receiveStockBtn = document.getElementById("receiveStockBtn");
 const receiveStockModalEl = document.getElementById("receiveStockModal");
 const receiveSupplierSelect = document.getElementById("receiveSupplierSelect");
 const receiveDateInput = document.getElementById("receiveDateInput");
+const receiveReceiptNoInput = document.getElementById("receiveReceiptNoInput");
 const receiveItemsContainer = document.getElementById("receiveItemsContainer");
 const receiveAddItemBtn = document.getElementById("receiveAddItemBtn");
 const receiveModalAlert = document.getElementById("receiveModalAlert");
@@ -120,9 +121,14 @@ const openReconciliationAlert = document.getElementById("openReconciliationAlert
 const confirmOpenSessionBtn = document.getElementById("confirmOpenSessionBtn");
 
 let currentAdminName = "Admin";
+let currentAdminRole = null;
 document.addEventListener("admin:ready", (e) => {
   const admin = e.detail && e.detail.admin;
   if (admin) currentAdminName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Admin";
+  if (admin) currentAdminRole = admin.role;
+  if (currentAdminRole !== "admin" && currentAdminRole !== "branch_manager") {
+    document.getElementById("submitCountBtn").textContent = "Save Count for Branch Manager";
+  }
   loadInventory();
 });
 
@@ -167,9 +173,43 @@ async function loadInventory() {
     renderInventoryTable();
     renderPoTable();
     renderReconciliationTab();
+    listenToBatches();
   } catch (error) {
     console.error("Failed to load inventory:", error);
   }
+}
+
+// Live stock (REQNF005): a sale, receipt or write-off anywhere updates this
+// table and the tiles without a refresh.
+let unsubscribeBatches = null;
+let batchRefreshTimer = null;
+
+function listenToBatches() {
+  if (unsubscribeBatches) return;
+  let first = true;
+  unsubscribeBatches = db.collection("stockBatches").onSnapshot(
+    (snap) => {
+      if (first) {
+        first = false;
+        return; // loadInventory already has this data
+      }
+      allBatches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      clearTimeout(batchRefreshTimer);
+      batchRefreshTimer = setTimeout(async () => {
+        renderInventoryTable();
+        try {
+          const counts = await computeInventoryAlertCounts(allBatches);
+          document.getElementById("lowStockCount").textContent = counts.lowStock;
+          document.getElementById("outOfStockCount").textContent = counts.outOfStock;
+          document.getElementById("nearExpiryCount").textContent = counts.nearExpiry;
+          document.getElementById("expiredCount").textContent = counts.expired;
+        } catch (error) {
+          console.warn("Inventory tiles couldn't refresh:", error);
+        }
+      }, 400);
+    },
+    (error) => console.warn("Live inventory unavailable:", error)
+  );
 }
 
 /* ---------- Tabs ---------- */
@@ -209,54 +249,25 @@ async function generateRcnNumber() {
 /* ---------- Formatting ---------- */
 function formatExpiryLabel(isoDate) {
   if (!isoDate) return "-";
-  const date = new Date(isoDate);
-  return date.toLocaleDateString("en-PH", { month: "long", year: "numeric" });
+  return formatDateMDY(isoDate);
 }
 
 function formatDateAdded(timestamp) {
   if (!timestamp) return "-";
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+  return formatDateMDY(timestamp);
 }
 
 function formatDateTime(timestamp) {
   if (!timestamp) return "-";
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date.toLocaleString("en-PH", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatDateMDY(timestamp, true);
 }
 
 function inventorySortMillis(batch) {
-  if (batch.isVirtual) return 0;
   if (inventorySortField === "lastAdjustedAt") {
     const ts = batch.lastAdjustedAt || batch.createdAt;
     return ts && ts.toMillis ? ts.toMillis() : 0;
   }
   return new Date(batch.expirationDate).getTime();
-}
-
-// Products the Dashboard/this page's own "Out of Stock" count flags (any
-// active product with zero physical stock) that have never had a single
-// stockBatches document - e.g. created but never received via Receive
-// Stock. The batch table is otherwise a list of batches, so a product like
-// that would be counted in outOfStockCount but never actually appear as a
-// row anywhere, leaving staff unable to see which products make up that
-// number. These synthetic rows close that gap.
-function neverStockedProductRows() {
-  const stockedProductIds = new Set(allBatches.map((b) => b.productId));
-  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && !stockedProductIds.has(p.id)).map((p) => ({
-    id: `virtual-${p.id}`,
-    productId: p.id,
-    batchNo: "-",
-    quantity: 0,
-    isVirtual: true,
-    computedStatuses: ["out_of_stock"],
-  }));
 }
 
 /* ---------- Table ---------- */
@@ -269,8 +280,7 @@ function filteredBatches() {
     .map((b) => ({
       ...b,
       computedStatuses: getBatchStatuses(b, physicalStockByProduct[b.productId] || 0),
-    }))
-    .concat(neverStockedProductRows());
+    }));
 
   if (inventoryFilter !== "all") {
     filtered = filtered.filter((b) => b.computedStatuses.includes(inventoryFilter));
@@ -315,9 +325,39 @@ function renderInventoryTable() {
     inventoryTableBody.querySelectorAll(".delete-orphan-batch-btn").forEach((btn) => {
       btn.addEventListener("click", () => deleteOrphanBatch(btn.dataset.id));
     });
+    inventoryTableBody.querySelectorAll(".mark-disposed-btn").forEach((btn) => {
+      btn.addEventListener("click", () => markBatchDisposed(btn.dataset.id));
+    });
   }
 
   renderInventoryPagination(totalPages);
+}
+
+// Staff confirm a Bad Order batch was physically pulled out and disposed of.
+async function markBatchDisposed(batchId) {
+  const batch = allBatches.find((b) => b.id === batchId);
+  if (!batch) return;
+  const product = getProductById(batch.productId);
+  const note = await showAppPrompt(`Confirm that batch ${batch.batchNo || "-"} of ${product ? product.name : "this product"} (${batch.badOrderQty || 0} units) was pulled out and disposed of. How was it disposed of?`, {
+    title: "Mark Bad Order Disposed",
+    confirmLabel: "Mark disposed",
+    defaultValue: "",
+  });
+  if (note === null) return;
+  try {
+    await db.collection("stockBatches").doc(batchId).update({
+      disposedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      disposedBy: currentAdminName,
+      disposalNote: note.trim(),
+    });
+    await logAuditEvent({
+      action: "Bad Order Disposed",
+      details: `${product ? product.name : batch.productId} - Batch ${batch.batchNo || "-"}, ${batch.badOrderQty || 0} units${note.trim() ? `. ${note.trim()}` : ""}`,
+    });
+    await loadInventory();
+  } catch (error) {
+    showAppAlert("Something went wrong saving this. Please try again.");
+  }
 }
 
 async function deleteOrphanBatch(batchId) {
@@ -330,43 +370,36 @@ async function deleteOrphanBatch(batchId) {
   }
 }
 
+// Supplier name plus the receipt/DR no. it came in on (REQ049).
+function batchSupplierCell(batch) {
+  const supplier = allSuppliers.find((s) => s.id === batch.supplierId);
+  if (!supplier && !batch.supplierReceiptNo) return "-";
+  const receipt = batch.supplierReceiptNo ? `<br><span class="text-muted" style="font-size:0.75rem;">DR ${escapeHtml(batch.supplierReceiptNo)}</span>` : "";
+  return `${supplier ? escapeHtml(supplier.name) : "-"}${receipt}`;
+}
+
 function renderBatchRow(batch) {
   const product = getProductById(batch.productId);
   const reorderPoint = (product && product.reorderPoint) || DEFAULT_REORDER_POINT;
 
-  if (batch.isVirtual) {
-    return `
-      <tr class="text-muted">
-        <td colspan="2" class="fst-italic">Never received</td>
-        <td>-</td>
-        <td>${product ? product.name : "Unknown product"}</td>
-        <td>${product ? CATEGORY_LABELS[product.category] || "-" : "-"}</td>
-        <td>0</td>
-        <td>${reorderPoint}</td>
-        <td>
-          ${batch.computedStatuses.map((s) => `<span class="batch-status-pill ${s}">${BATCH_STATUS_LABELS[s]}</span>`).join(" ")}
-        </td>
-        <td>-</td>
-        <td></td>
-      </tr>
-    `;
-  }
-
   return `
     <tr>
-      <td class="fw-medium">${batch.batchNo}</td>
+      <td class="fw-medium">${escapeHtml(batch.batchNo)}</td>
       <td>${formatDateAdded(batch.createdAt)}</td>
       <td>${formatExpiryLabel(batch.expirationDate)}</td>
-      <td>${product ? product.name : "Unknown product"}</td>
+      <td>${escapeHtml(product ? product.name : "Unknown product")}</td>
       <td>${product ? CATEGORY_LABELS[product.category] || "-" : "-"}</td>
+      <td>${batchSupplierCell(batch)}</td>
       <td>${batch.quantity}</td>
       <td>${reorderPoint}</td>
       <td>
         ${batch.computedStatuses.map((s) => `<span class="batch-status-pill ${s}">${BATCH_STATUS_LABELS[s]}</span>`).join(" ")}
         ${batch.status === "wholesale_only" ? '<span class="badge rounded-pill text-bg-secondary ms-1">Wholesale Only</span>' : ""}
+        ${batch.status === "bad_order" ? `<span class="badge rounded-pill text-bg-danger ms-1">Bad Order${batch.badOrderQty ? ` (${batch.badOrderQty} written off)` : ""}</span>${batch.disposedAt ? '<span class="badge rounded-pill text-bg-light border ms-1">Disposed</span>' : ""}` : ""}
       </td>
       <td>${formatDateTime(batch.lastAdjustedAt || batch.createdAt)}</td>
       <td>
+        ${batch.status === "bad_order" && !batch.disposedAt ? `<button type="button" class="btn btn-outline-dark-amson btn-sm mark-disposed-btn" data-id="${batch.id}">Mark disposed</button>` : ""}
         ${product ? "" : `<button type="button" class="icon-btn delete-orphan-batch-btn" data-id="${batch.id}" aria-label="Delete orphaned batch" title="This batch's product was deleted - remove this leftover record"><i class="bi bi-trash text-danger"></i></button>`}
       </td>
     </tr>
@@ -427,6 +460,7 @@ inventorySortFieldSelect.addEventListener("change", () => {
 function makeSearchableSelect(selectEl) {
   return new Choices(selectEl, {
     searchEnabled: true,
+    allowHTML: false,
     itemSelectText: "",
     shouldSort: false,
     searchResultLimit: 50,
@@ -444,13 +478,13 @@ function destroyChoicesIn(container) {
 }
 
 function populateProductSelect(selectEl) {
-  selectEl.innerHTML = SAMPLE_PRODUCTS.map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
+  selectEl.innerHTML = SAMPLE_PRODUCTS.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
   selectEl._choices = makeSearchableSelect(selectEl);
 }
 
 function populateSupplierSelect(selectEl) {
   const options = ['<option value="">No supplier / unspecified</option>'].concat(
-    allSuppliers.map((s) => `<option value="${s.id}">${s.name}</option>`)
+    allSuppliers.map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`)
   );
   selectEl.innerHTML = options.join("");
   selectEl._choices = makeSearchableSelect(selectEl);
@@ -498,6 +532,10 @@ function addReceiveItemRow() {
         <label class="form-label">Expiry Date</label>
         <input type="date" class="form-control receive-expiry-input">
       </div>
+      <div class="col-md-6">
+        <label class="form-label">Unit Cost (&#8369;) <span class="text-muted fw-normal">(optional)</span></label>
+        <input type="number" min="0" step="0.01" class="form-control receive-unitcost-input">
+      </div>
     </div>
   `;
   receiveItemsContainer.appendChild(row);
@@ -528,6 +566,7 @@ receiveStockBtn.addEventListener("click", () => {
   receiveItemCount = 0;
   addReceiveItemRow();
   receiveDateInput.value = todayISO();
+  receiveReceiptNoInput.value = "";
   receiveModalAlert.classList.add("d-none");
   receiveBatchUploadStatus.textContent = "";
   populateSupplierSelect(receiveSupplierSelect);
@@ -537,6 +576,7 @@ receiveStockBtn.addEventListener("click", () => {
 saveReceiveStockBtn.addEventListener("click", async () => {
   const supplierId = receiveSupplierSelect.value;
   const dateReceived = receiveDateInput.value || todayISO();
+  const supplierReceiptNo = receiveReceiptNoInput.value.trim();
   const rows = Array.from(receiveItemsContainer.querySelectorAll(".repeater-item"));
 
   const items = rows.map((row) => ({
@@ -544,6 +584,7 @@ saveReceiveStockBtn.addEventListener("click", async () => {
     qty: parseInt(row.querySelector(".receive-qty-input").value, 10),
     batchNo: row.querySelector(".receive-batchno-input").value.trim(),
     expirationDate: row.querySelector(".receive-expiry-input").value,
+    unitCost: parseFloat(row.querySelector(".receive-unitcost-input").value),
   }));
 
   const invalid = items.some((it) => !it.productId || !it.qty || it.qty <= 0 || !it.batchNo || !it.expirationDate);
@@ -557,20 +598,33 @@ saveReceiveStockBtn.addEventListener("click", async () => {
   receiveModalAlert.classList.add("d-none");
 
   try {
+    // All batches or none, so a retry after an error can't add stock twice.
+    const writeBatch = db.batch();
     for (const item of items) {
-      await db.collection("stockBatches").add({
+      writeBatch.set(db.collection("stockBatches").doc(), {
         productId: item.productId,
         batchNo: item.batchNo,
         expirationDate: item.expirationDate,
         quantity: item.qty,
         initialQuantity: item.qty,
         supplierId: supplierId || null,
+        supplierReceiptNo: supplierReceiptNo || null,
+        unitCost: isNaN(item.unitCost) ? null : item.unitCost,
         dateReceived,
         status: "active",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
     }
+    await writeBatch.commit();
+
+    const supplier = allSuppliers.find((sup) => sup.id === supplierId);
+    await logAuditEvent({
+      action: "Stock Received",
+      details: `${items.length} batch${items.length === 1 ? "" : "es"} from ${supplier ? supplier.name : "unspecified supplier"}${supplierReceiptNo ? `, Receipt/DR ${supplierReceiptNo}` : ""}: ${items
+        .map((it) => `${(getProductById(it.productId) || {}).name || it.productId} x${it.qty} (Batch ${it.batchNo})`)
+        .join("; ")}`,
+    });
 
     bootstrap.Modal.getInstance(receiveStockModalEl).hide();
     await loadInventory();
@@ -583,14 +637,14 @@ saveReceiveStockBtn.addEventListener("click", async () => {
 });
 
 /* ---------- Receive Stock: batch upload (Excel .xlsx/.xls or .csv, via SheetJS) ---------- */
-const RECEIVE_BATCH_TEMPLATE_HEADERS = ["sku", "batchNo", "expiryDate", "qtyReceived", "supplierName", "dateReceived"];
+const RECEIVE_BATCH_TEMPLATE_HEADERS = ["sku", "batchNo", "expiryDate", "qtyReceived", "unitCost", "supplierName", "receiptNo", "dateReceived"];
 
 receiveUploadBatchBtn.addEventListener("click", () => receiveBatchFileInput.click());
 
 receiveDownloadTemplateBtn.addEventListener("click", () => {
   const exampleRow = {
     sku: "SKU-0001", batchNo: "B2026-001", expiryDate: "2027-06-30",
-    qtyReceived: 100, supplierName: "Unilab", dateReceived: todayISO(),
+    qtyReceived: 100, unitCost: 3.5, supplierName: "Unilab", receiptNo: "DR-0001", dateReceived: todayISO(),
   };
   const ws = XLSX.utils.json_to_sheet([exampleRow], { header: RECEIVE_BATCH_TEMPLATE_HEADERS });
   const wb = XLSX.utils.book_new();
@@ -612,7 +666,9 @@ function receiveBatchReviewRowHtml(row = {}) {
       <td><input type="text" class="form-control form-control-sm rbr-batchno" value="${row.batchno || ""}"></td>
       <td><input type="date" class="form-control form-control-sm rbr-expirydate" value="${row.expirydate || ""}"></td>
       <td><input type="number" min="1" step="1" class="form-control form-control-sm rbr-qty" value="${row.qtyreceived || ""}"></td>
-      <td><input type="text" class="form-control form-control-sm rbr-supplier" value="${row.suppliername || ""}"></td>
+      <td><input type="number" min="0" step="0.01" class="form-control form-control-sm rbr-unitcost" value="${row.unitcost || ""}"></td>
+      <td><input type="text" class="form-control form-control-sm rbr-supplier" value="${escapeHtml(row.suppliername || "")}"></td>
+      <td><input type="text" class="form-control form-control-sm rbr-receiptno" value="${row.receiptno || ""}"></td>
       <td><input type="date" class="form-control form-control-sm rbr-datereceived" value="${row.datereceived || todayISO()}"></td>
       <td><button type="button" class="icon-btn rbr-remove" aria-label="Remove row"><i class="bi bi-trash text-danger"></i></button></td>
     </tr>
@@ -675,6 +731,8 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
       expiryDate,
       qty,
       supplierId: supplier ? supplier.id : null,
+      supplierReceiptNo: get("rbr-receiptno").value.trim() || null,
+      unitCost: get("rbr-unitcost").value === "" ? null : parseFloat(get("rbr-unitcost").value),
       dateReceived: get("rbr-datereceived").value || todayISO(),
     };
   });
@@ -689,25 +747,35 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   receiveBatchReviewConfirmBtn.disabled = true;
   receiveBatchReviewConfirmBtn.textContent = "Receiving...";
 
+  // Saved in groups of up to 400 rows, each group all-or-nothing, so a
+  // failed group can be retried without duplicating the ones before it.
   let imported = 0;
   let failed = 0;
-  for (const row of parsedRows) {
-    try {
-      await db.collection("stockBatches").add({
+  for (let start = 0; start < parsedRows.length; start += 400) {
+    const chunk = parsedRows.slice(start, start + 400);
+    const writeBatch = db.batch();
+    chunk.forEach((row) => {
+      writeBatch.set(db.collection("stockBatches").doc(), {
         productId: row.product.id,
         batchNo: row.batchNo,
         expirationDate: row.expiryDate,
         quantity: row.qty,
         initialQuantity: row.qty,
         supplierId: row.supplierId,
+        supplierReceiptNo: row.supplierReceiptNo,
+        unitCost: row.unitCost,
         dateReceived: row.dateReceived,
         status: "active",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
-      imported += 1;
+    });
+    try {
+      await writeBatch.commit();
+      imported += chunk.length;
     } catch (error) {
-      failed += 1;
+      failed = parsedRows.length - imported;
+      break;
     }
   }
 
@@ -715,7 +783,10 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   receiveBatchReviewConfirmBtn.textContent = "Confirm Import";
   bootstrap.Modal.getInstance(receiveBatchReviewModalEl).hide();
 
-  receiveBatchUploadStatus.textContent = `Received ${imported} batch${imported === 1 ? "" : "es"}.${failed ? ` ${failed} failed to save - please try those again.` : ""}`;
+  receiveBatchUploadStatus.textContent = `Received ${imported} batch${imported === 1 ? "" : "es"}.${failed ? ` The last ${failed} row${failed === 1 ? "" : "s"} (from row ${imported + 1}) didn't save - upload just those rows again.` : ""}`;
+  if (imported > 0) {
+    await logAuditEvent({ action: "Stock Received (Batch Upload)", details: `${imported} batch${imported === 1 ? "" : "es"} imported from file` });
+  }
   receiveBatchFileInput.value = "";
   await loadInventory();
 });
@@ -768,7 +839,7 @@ quickAddProductModalEl.addEventListener("hidden.bs.modal", () => {
 
 function populateQuickProductCategorySelect() {
   quickProductCategorySelect.innerHTML = Object.entries(CATEGORY_LABELS)
-    .map(([id, name]) => `<option value="${id}">${name}</option>`)
+    .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
     .join("");
 }
 
@@ -811,6 +882,9 @@ function openQuickAddProductModal(targetSelect) {
   quickAddProductTargetSelect = targetSelect;
   quickProductNameInput.value = "";
   quickProductPriceInput.value = "";
+  const pricesAllowed = currentAdminRole === "admin" || currentAdminRole === "branch_manager";
+  quickProductPriceInput.disabled = !pricesAllowed;
+  quickProductPriceInput.placeholder = pricesAllowed ? "0.00" : "Set by the Branch Manager";
   quickAddProductAlert.classList.add("d-none");
   populateQuickProductCategorySelect();
   bootstrap.Modal.getInstance(receiveStockModalEl).hide();
@@ -868,7 +942,10 @@ quickAddSupplierSaveBtn.addEventListener("click", async () => {
 quickAddProductSaveBtn.addEventListener("click", async () => {
   const name = quickProductNameInput.value.trim();
   const category = quickProductCategorySelect.value;
-  const retailPrice = parseFloat(quickProductPriceInput.value);
+  // Only a Branch Manager sets prices (REQ071); anyone else's quick-add
+  // product is saved Inactive with prices pending.
+  const pricesAllowed = currentAdminRole === "admin" || currentAdminRole === "branch_manager";
+  const retailPrice = pricesAllowed ? parseFloat(quickProductPriceInput.value) : 0;
 
   if (!name || !category || isNaN(retailPrice)) {
     quickAddProductAlert.textContent = "Product name, category, and retail price are required.";
@@ -895,7 +972,8 @@ quickAddProductSaveBtn.addEventListener("click", async () => {
       availableInPOS: true,
       availableInOnlineStore: true,
       rxRequired: false,
-      status: "active",
+      status: pricesAllowed ? "active" : "inactive",
+      pricePending: !pricesAllowed,
       sku,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
@@ -1055,19 +1133,25 @@ saveWriteOffBtn.addEventListener("click", async () => {
           lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
       });
+
+      // The write-off records go in the same transaction, so a retry can't
+      // deduct the stock a second time.
+      for (const item of items) {
+        const batch = allBatches.find((b) => b.id === item.batchId);
+        transaction.set(db.collection("writeOffs").doc(), {
+          batchId: item.batchId,
+          productId: item.productId,
+          batchNo: batch ? batch.batchNo : "",
+          quantity: item.qty,
+          reason: item.reason,
+          writeOffDate: writeOffDateInput.value || todayISO(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      }
     });
 
     for (const item of items) {
       const batch = allBatches.find((b) => b.id === item.batchId);
-      await db.collection("writeOffs").add({
-        batchId: item.batchId,
-        productId: item.productId,
-        batchNo: batch ? batch.batchNo : "",
-        quantity: item.qty,
-        reason: item.reason,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-
       const product = getProductById(item.productId);
       await logAuditEvent({
         action: "Inventory Write-Off",
@@ -1118,11 +1202,11 @@ function renderReconciliationItemsBody(session) {
       const product = getProductById(item.productId);
       return `
         <tr data-idx="${idx}">
-          <td>${product ? product.name : "Unknown product"}</td>
-          <td>${item.batchNo}</td>
+          <td>${escapeHtml(product ? product.name : "Unknown product")}</td>
+          <td>${escapeHtml(item.batchNo)}</td>
           <td>${formatExpiryLabel(item.expirationDate)}</td>
           <td>${item.systemQty}</td>
-          <td><input type="number" min="0" class="form-control form-control-sm reconciliation-counted-input" style="max-width:100px;" value="${item.countedQty || 0}"></td>
+          <td><input type="number" min="0" class="form-control form-control-sm reconciliation-counted-input" style="max-width:100px;" value="${item.countedQty == null ? "" : item.countedQty}" placeholder="Count"></td>
           <td class="reconciliation-variance-cell">-</td>
         </tr>
       `;
@@ -1205,7 +1289,7 @@ confirmOpenSessionBtn.addEventListener("click", async () => {
       batchNo: b.batchNo,
       expirationDate: b.expirationDate,
       systemQty: b.quantity,
-      countedQty: 0,
+      countedQty: null, // filled in by the count
     }));
 
     await db.collection("reconciliations").add({
@@ -1233,9 +1317,13 @@ confirmOpenSessionBtn.addEventListener("click", async () => {
 submitCountBtn.addEventListener("click", async () => {
   const activeSession = findActiveSession();
   if (!activeSession) return;
-  if (!(await showAppConfirm("Submit this count? This finalizes the session and updates stock quantities to match what was counted.", { confirmLabel: "Submit" }))) return;
-
   const rows = Array.from(reconciliationItemsBody.querySelectorAll("tr"));
+  // A batch left blank would otherwise be saved as 0 on hand.
+  const blank = rows.filter((row) => row.querySelector(".reconciliation-counted-input").value.trim() === "").length;
+  if (blank > 0) {
+    await showAppAlert(`Enter a count for every batch (${blank} left blank). Type 0 if none are on hand.`, { title: "Count Incomplete" });
+    return;
+  }
   const updatedItems = rows.map((row) => {
     const idx = Number(row.dataset.idx);
     const item = activeSession.items[idx];
@@ -1243,22 +1331,67 @@ submitCountBtn.addEventListener("click", async () => {
     return { ...item, countedQty, variance: countedQty - item.systemQty };
   });
 
+  // Only the Branch Manager finalizes (REQ061). Anyone else's count is saved
+  // on the session for the Branch Manager to review and submit.
+  const canFinalize = currentAdminRole === "admin" || currentAdminRole === "branch_manager";
+  if (!canFinalize) {
+    try {
+      await db.collection("reconciliations").doc(activeSession.id).update({
+        items: updatedItems,
+        countSavedBy: currentAdminName,
+        countSavedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      activeSession.items = updatedItems;
+      await showAppAlert("Count saved. Only the Branch Manager can finalize it and update the stock.", { title: "Count Saved" });
+    } catch (error) {
+      reconciliationAlert.textContent = "Something went wrong saving the count. Please try again.";
+      reconciliationAlert.classList.remove("d-none");
+    }
+    return;
+  }
+
+  const variances = updatedItems.filter((i) => i.variance !== 0);
+  let varianceReason = "";
+  if (variances.length > 0) {
+    const reason = await showAppPrompt(
+      `${variances.length} batch${variances.length === 1 ? " has" : "es have"} a variance. Stock will be changed to the counted quantities. What's the reason for the variance?`,
+      { title: "Finalize Count", confirmLabel: "Finalize", defaultValue: "" }
+    );
+    if (reason === null) return;
+    varianceReason = reason.trim();
+    if (!varianceReason) {
+      await showAppAlert("A reason is required when the count differs from the system. Nothing was changed.");
+      return;
+    }
+  } else if (!(await showAppConfirm("Submit this count? It matches the system, so no stock changes. This finalizes the session.", { confirmLabel: "Submit" }))) {
+    return;
+  }
+
   submitCountBtn.disabled = true;
   reconciliationAlert.classList.add("d-none");
 
   try {
-    for (const item of updatedItems) {
-      if (item.variance !== 0) {
-        await db.collection("stockBatches").doc(item.batchId).update({
-          quantity: item.countedQty,
+    // Apply each batch's variance to its current quantity in one
+    // transaction, so a sale made while counting isn't wiped out (with no
+    // sales in between, this is exactly the counted quantity).
+    const changed = updatedItems.filter((i) => i.variance !== 0);
+    await db.runTransaction(async (transaction) => {
+      const refs = changed.map((i) => db.collection("stockBatches").doc(i.batchId));
+      const docs = [];
+      for (const ref of refs) docs.push(await transaction.get(ref));
+      docs.forEach((doc, idx) => {
+        if (!doc.exists) return;
+        transaction.update(refs[idx], {
+          quantity: Math.max(0, (doc.data().quantity || 0) + changed[idx].variance),
           lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
-      }
-    }
+      });
+    });
 
     await db.collection("reconciliations").doc(activeSession.id).update({
       items: updatedItems,
       status: "finalized",
+      varianceReason: varianceReason || null,
       finalizedBy: currentAdminName,
       finalizedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
@@ -1266,7 +1399,13 @@ submitCountBtn.addEventListener("click", async () => {
     const adjustedCount = updatedItems.filter((i) => i.variance !== 0).length;
     await logAuditEvent({
       action: "Stock Reconciliation Finalized",
-      details: `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)}) - ${adjustedCount} batch${adjustedCount === 1 ? "" : "es"} adjusted`,
+      details:
+        `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)}) - ${adjustedCount} batch${adjustedCount === 1 ? "" : "es"} adjusted` +
+        (variances.length
+          ? `: ${variances
+              .map((i) => `${(getProductById(i.productId) || {}).name || "Unknown"} batch ${i.batchNo} ${i.systemQty} -> ${i.countedQty}`)
+              .join("; ")}. Reason: ${varianceReason}`
+          : ""),
     });
 
     await loadInventory();
@@ -1280,7 +1419,26 @@ submitCountBtn.addEventListener("click", async () => {
 
 /* ---------- Export Report ---------- */
 exportInventoryBtn.addEventListener("click", () => {
-  exportBlankPdf("amson-inventory-report");
+  const supplierName = (id) => ((allSuppliers.find((s) => s.id === id) || {}).name || "");
+  exportTable({
+    title: "Inventory",
+    subtitle: inventoryFilter === "all" ? "All batches" : `Filter: ${BATCH_STATUS_LABELS[inventoryFilter] || inventoryFilter}`,
+    filenamePrefix: "amson-inventory",
+    rows: filteredBatches(),
+    columns: [
+      { label: "Product", value: (b) => (getProductById(b.productId) || {}).name || "Unknown product", width: 3 },
+      { label: "Category", value: (b) => CATEGORY_LABELS[(getProductById(b.productId) || {}).category] || "", width: 1.5 },
+      { label: "Batch No.", value: (b) => b.batchNo, width: 1.3 },
+      { label: "Expiry", value: (b) => formatDateMDY(b.expirationDate) },
+      { label: "Qty", value: (b) => b.quantity, width: 0.6 },
+      { label: "Reorder Pt.", value: (b) => (getProductById(b.productId) || {}).reorderPoint || DEFAULT_REORDER_POINT, width: 0.8 },
+      { label: "Status", value: (b) => b.computedStatuses.map((s) => BATCH_STATUS_LABELS[s]).join(", ") + (b.status === "wholesale_only" ? ", Wholesale Only" : ""), width: 1.6 },
+      { label: "Supplier", value: (b) => supplierName(b.supplierId), width: 1.5 },
+      { label: "Receipt/DR No.", value: (b) => b.supplierReceiptNo || "", width: 1.2 },
+      { label: "Unit Cost", value: (b) => (typeof b.unitCost === "number" ? b.unitCost.toFixed(2) : ""), width: 0.8 },
+      { label: "Date Received", value: (b) => formatDateMDY(b.dateReceived) },
+    ],
+  });
 });
 
 /* ================= Purchase Orders ================= */
@@ -1341,8 +1499,8 @@ function renderPoRow(po) {
   const supplier = allSuppliers.find((s) => s.id === po.supplierId);
   return `
     <tr>
-      <td class="fw-medium">${po.poNumber}</td>
-      <td>${supplier ? supplier.name : "-"}</td>
+      <td class="fw-medium">${escapeHtml(po.poNumber)}</td>
+      <td>${escapeHtml(supplier ? supplier.name : "-")}</td>
       <td>${formatExpiryLabel(po.expectedDeliveryDate)}</td>
       <td>${po.items.length} item${po.items.length === 1 ? "" : "s"}</td>
       <td><span class="badge rounded-pill ${PO_STATUS_BADGE_CLASS[po.status]}">${PO_STATUS_LABELS[po.status]}</span></td>
@@ -1514,9 +1672,13 @@ function renderPoReceivingForm(po) {
   const content = document.getElementById("viewPoContent");
   content.innerHTML = `
     <p class="text-muted mb-3">Enter what was actually received for each item. Partial deliveries are fine - stock gets added either way, and any mismatch gets flagged as a discrepancy.</p>
+    <div class="mb-3" style="max-width:320px;">
+      <label class="form-label" for="poReceiptNoInput">Supplier Receipt / DR No.</label>
+      <input type="text" class="form-control form-control-sm" id="poReceiptNoInput">
+    </div>
     <table class="table admin-orders-table align-middle mb-0">
       <thead>
-        <tr><th>Product</th><th>Expected Qty</th><th>Received Qty</th><th>Batch No.</th><th>Expiry Date</th></tr>
+        <tr><th>Product</th><th>Expected Qty</th><th>Received Qty</th><th>Batch No.</th><th>Expiry Date</th><th>Unit Cost</th></tr>
       </thead>
       <tbody>
         ${po.items
@@ -1524,11 +1686,12 @@ function renderPoReceivingForm(po) {
             const product = getProductById(item.productId);
             return `
               <tr data-index="${idx}">
-                <td>${product ? product.name : "Unknown product"}</td>
+                <td>${escapeHtml(product ? product.name : "Unknown product")}</td>
                 <td>${item.expectedQty}</td>
                 <td><input type="number" min="0" class="form-control form-control-sm po-received-qty-input" style="max-width:100px;" value="${item.expectedQty}"></td>
                 <td><input type="text" class="form-control form-control-sm po-received-batchno-input" placeholder="e.g. BIO-500-100"></td>
                 <td><input type="date" class="form-control form-control-sm po-received-expiry-input"></td>
+                <td><input type="number" min="0" step="0.01" class="form-control form-control-sm po-received-unitcost-input" style="max-width:110px;"></td>
               </tr>
             `;
           })
@@ -1556,8 +1719,10 @@ async function submitPoReceiving(po) {
       receivedQty: parseInt(row.querySelector(".po-received-qty-input").value, 10) || 0,
       batchNo: row.querySelector(".po-received-batchno-input").value.trim(),
       expirationDate: row.querySelector(".po-received-expiry-input").value,
+      unitCost: row.querySelector(".po-received-unitcost-input").value === "" ? null : parseFloat(row.querySelector(".po-received-unitcost-input").value),
     };
   });
+  const supplierReceiptNo = document.getElementById("poReceiptNoInput").value.trim() || null;
 
   const alertEl = document.getElementById("viewPoAlert");
   const missingBatchInfo = receivedItems.some((it) => it.receivedQty > 0 && (!it.batchNo || !it.expirationDate));
@@ -1572,23 +1737,6 @@ async function submitPoReceiving(po) {
   alertEl.classList.add("d-none");
 
   try {
-    for (const item of receivedItems) {
-      if (item.receivedQty <= 0) continue;
-      await db.collection("stockBatches").add({
-        productId: item.productId,
-        batchNo: item.batchNo,
-        expirationDate: item.expirationDate,
-        quantity: item.receivedQty,
-        initialQuantity: item.receivedQty,
-        supplierId: po.supplierId,
-        dateReceived: todayISO(),
-        status: "active",
-        poId: po.id,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-    }
-
     const discrepancies = receivedItems
       .filter((it) => it.receivedQty !== it.expectedQty)
       .map((it) => ({
@@ -1597,19 +1745,50 @@ async function submitPoReceiving(po) {
         receivedQty: it.receivedQty,
         diff: it.receivedQty - it.expectedQty,
       }));
-
     const newStatus = discrepancies.length > 0 ? "discrepancy" : "received";
 
-    await db.collection("purchaseOrders").doc(po.id).update({
-      status: newStatus,
-      receivingRecord: { items: receivedItems, discrepancies },
-      receivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    // Stock and PO status together, and only once: if someone else already
+    // recorded this delivery, nothing is added.
+    const poRef = db.collection("purchaseOrders").doc(po.id);
+    await db.runTransaction(async (transaction) => {
+      const fresh = await transaction.get(poRef);
+      if (!fresh.exists || fresh.data().status !== "pending") {
+        throw new Error("This delivery was already recorded. Refresh the page to see it.");
+      }
+      for (const item of receivedItems) {
+        if (item.receivedQty <= 0) continue;
+        transaction.set(db.collection("stockBatches").doc(), {
+          productId: item.productId,
+          batchNo: item.batchNo,
+          expirationDate: item.expirationDate,
+          quantity: item.receivedQty,
+          initialQuantity: item.receivedQty,
+          supplierId: po.supplierId,
+          supplierReceiptNo,
+          unitCost: item.unitCost,
+          dateReceived: todayISO(),
+          status: "active",
+          poId: po.id,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+      transaction.update(poRef, {
+        status: newStatus,
+        receivingRecord: { items: receivedItems, discrepancies, supplierReceiptNo },
+        receivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    await logAuditEvent({
+      action: "Purchase Order Received",
+      details: `${po.poNumber}${supplierReceiptNo ? `, Receipt/DR ${supplierReceiptNo}` : ""} - ${discrepancies.length ? `${discrepancies.length} discrepanc${discrepancies.length === 1 ? "y" : "ies"}` : "all quantities matched"}`,
     });
 
     bootstrap.Modal.getInstance(viewPoModalEl).hide();
     await loadInventory();
   } catch (error) {
-    alertEl.textContent = "Something went wrong recording this delivery. Please try again.";
+    alertEl.textContent = error.message && error.message.startsWith("This delivery") ? error.message : "Something went wrong recording this delivery. Please try again.";
     alertEl.classList.remove("d-none");
   } finally {
     submitBtn.disabled = false;
@@ -1634,7 +1813,7 @@ function renderPoDiscrepancyReport(po) {
             const diffLabel = diff === 0 ? "-" : diff > 0 ? `+${diff}` : String(diff);
             return `
               <tr>
-                <td>${product ? product.name : "Unknown product"}</td>
+                <td>${escapeHtml(product ? product.name : "Unknown product")}</td>
                 <td>${item.expectedQty}</td>
                 <td>${item.receivedQty}</td>
                 <td style="${diff !== 0 ? "color:var(--amson-red); font-weight:600;" : ""}">${diffLabel}</td>
@@ -1691,10 +1870,10 @@ function renderPoReadOnlySummary(po) {
             const product = getProductById(item.productId);
             return `
               <tr>
-                <td>${product ? product.name : "Unknown product"}</td>
+                <td>${escapeHtml(product ? product.name : "Unknown product")}</td>
                 <td>${item.expectedQty}</td>
                 <td>${item.receivedQty}</td>
-                <td>${item.batchNo || "-"}</td>
+                <td>${escapeHtml(item.batchNo || "-")}</td>
               </tr>
             `;
           })

@@ -40,8 +40,9 @@
       <li><a href="customer-accounts.html" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
       <li><a href="wholesale-accounts.html" class="admin-nav-link active"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
       <li><a href="staff-management.html" class="admin-nav-link" id="staffManagementNavLink"><i class="bi bi-people"></i>Staff Management</a></li>
-      <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
+      <li><a href="live-chat.html" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
       <li><a href="notifications.html" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="reports.html" class="admin-nav-link"><i class="bi bi-file-earmark-bar-graph"></i>Reports</a></li>
       <li><a href="audit-log.html" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
     </ul>
   </aside>
@@ -129,13 +130,20 @@
           <label class="form-label">LTO Document</label>
           <input type="file" class="form-control" id="wholesaleLtoInput" accept="image/*,.pdf">
           <p class="text-muted mb-0 mt-1" id="wholesaleLtoStatus" style="font-size:0.78rem;">No file uploaded yet.</p>
+          <label class="form-label mt-2" for="wholesaleLtoExpiryInput">LTO Valid Until</label>
+          <input type="date" class="form-control" id="wholesaleLtoExpiryInput">
         </div>
         <div class="col-md-6">
           <label class="form-label">Permit Document</label>
           <input type="file" class="form-control" id="wholesalePermitInput" accept="image/*,.pdf">
           <p class="text-muted mb-0 mt-1" id="wholesalePermitStatus" style="font-size:0.78rem;">No file uploaded yet.</p>
+          <label class="form-label mt-2" for="wholesalePermitExpiryInput">Permit Valid Until</label>
+          <input type="date" class="form-control" id="wholesalePermitExpiryInput">
         </div>
       </div>
+
+      <label class="form-label d-block">Agreed Prices</label>
+      <div class="mb-3" id="wholesaleAgreedPrices"></div>
 
       <label class="form-label d-block">Status</label>
       <div class="segmented-toggle mb-3" id="wholesaleStatusToggle">
@@ -186,6 +194,21 @@
         <i class="bi bi-plus-lg me-1"></i>Add Item
       </button>
 
+      <label class="form-label" for="processOrderPaymentSelect">Payment / Terms</label>
+      <select class="form-select mb-3" id="processOrderPaymentSelect">
+        <option value="cash" selected>Cash</option>
+        <option value="gcash">G-Cash / QR Ph</option>
+        <option value="bank_transfer">Bank Transfer</option>
+        <option value="terminal">Terminal (Card)</option>
+        <option value="credit">Credit (pay later)</option>
+      </select>
+
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="processOrderFreeCheck">
+        <label class="form-check-label" for="processOrderFreeCheck">Free-of-cost distribution (near-expiry stock, ₱0)</label>
+      </div>
+      <input type="text" class="form-control mb-3 d-none" id="processOrderFreeReasonInput" placeholder="Reason (required), e.g. Near-expiry donation to clinic">
+
       <label class="form-label">Notes (optional)</label>
       <textarea class="form-control mb-3" id="processOrderNotesInput" rows="2"></textarea>
 
@@ -194,12 +217,39 @@
         <p class="product-price mb-0" id="processOrderTotal">₱0</p>
       </div>
 
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="processOrderSavePricesCheck">
+        <label class="form-check-label" for="processOrderSavePricesCheck">Save these prices as this buyer's agreed prices</label>
+      </div>
+
       <div id="processOrderAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
 
       <div class="d-flex gap-2">
         <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-amson flex-fill" id="confirmProcessOrderBtn">Confirm and Record Order</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Purchase history (REQ089) -->
+<div class="modal fade" id="wholesaleHistoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content p-4">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <h2 class="h5 fw-bold mb-0">Purchase History</h2>
+          <p class="text-muted mb-0" id="wholesaleHistoryBuyer"></p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="table-responsive" style="max-height:420px; overflow-y:auto;">
+        <table class="table table-sm align-middle mb-0" style="font-size:0.85rem;">
+          <thead><tr><th>SI No.</th><th>Date</th><th>Items</th><th>Total</th><th>Payment</th><th>Status</th><th></th></tr></thead>
+          <tbody id="wholesaleHistoryBody"></tbody>
+        </table>
+      </div>
+      <p class="text-muted text-center py-3 d-none mb-0" id="wholesaleHistoryEmpty">No orders recorded for this buyer yet.</p>
     </div>
   </div>
 </div>
@@ -216,6 +266,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <!-- App scripts -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="../js/firebase-config.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/cloudinary-config.js"></script>
@@ -223,6 +274,7 @@
 <script src="../js/admin-sidebar.js"></script>
 <script src="../js/admin-wholesale-accounts.js"></script>
 <script src="../js/admin-roles.js"></script>
+<script src="../js/device-trust.js"></script>
 <script src="../js/admin-header.js"></script>
 </body>
 </html>

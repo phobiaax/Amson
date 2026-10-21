@@ -80,10 +80,6 @@
     <div class="container">
       <ul class="nav flex-nowrap flex-md-wrap justify-content-md-center">
         <li class="nav-item"><a class="nav-link" href="products.html">All Products</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=otc">OTC Medicines</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=vitamins">Vitamins &amp; Supplements</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=personal-care">Personal Care</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=health-wellness">Health &amp; Wellness</a></li>
       </ul>
     </div>
   </nav>
@@ -108,6 +104,16 @@
 
       <div class="checkout-card p-4 mb-4">
         <h2 class="h5 fw-bold mb-3">Profile</h2>
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div id="profilePhotoPreview" class="rounded-circle d-flex align-items-center justify-content-center" style="width:72px; height:72px; background-color:#f2f2f4; background-size:cover; background-position:center; border:1px solid var(--amson-border);">
+            <i class="bi bi-person" id="profilePhotoPlaceholder" style="font-size:2rem; color:#999;"></i>
+          </div>
+          <div>
+            <button type="button" class="btn btn-outline-dark-amson btn-sm" id="profilePhotoBtn"><i class="bi bi-camera me-1"></i>Change Photo</button>
+            <input type="file" id="profilePhotoInput" accept="image/png,image/jpeg" class="d-none">
+            <p class="text-muted mb-0 mt-1" style="font-size:0.75rem;">PNG or JPG, up to 5MB</p>
+          </div>
+        </div>
         <div class="row g-3">
           <div class="col-sm-6">
             <label for="firstNameInput" class="form-label">First Name</label>
@@ -166,6 +172,22 @@
         <div id="addressSuccess" class="alert alert-success auth-alert d-none mb-3 mt-3" role="alert"></div>
 
         <button type="button" class="btn btn-amson mt-3" id="saveAddressBtn">Save Address</button>
+      </div>
+
+      <div class="checkout-card p-4 mb-4">
+        <h2 class="h5 fw-bold mb-3">Notifications</h2>
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" id="emailNotificationsToggle" checked>
+          <label class="form-check-label" for="emailNotificationsToggle">Email me order updates (order placed, payment confirmed, on hold, dispatched, ready for pick-up)</label>
+        </div>
+        <p class="text-muted mb-0 mt-1" style="font-size:0.8rem;" id="emailNotificationsStatus">Updates always appear in the bell at the top of the page.</p>
+      </div>
+
+      <div class="checkout-card p-4 mb-4">
+        <h2 class="h5 fw-bold mb-1">Recognized Devices</h2>
+        <p class="text-muted mb-3" style="font-size:0.85rem;">Logging in from any other device asks for a code sent to your email.</p>
+        <ul class="list-unstyled mb-3" id="trustedDevicesList" style="font-size:0.9rem;"></ul>
+        <button type="button" class="btn btn-outline-dark-amson btn-sm" id="forgetDevicesBtn">Forget all other devices</button>
       </div>
 
       <div class="checkout-card p-4">
@@ -253,32 +275,9 @@
 </div>
 
 <!-- ===== Footer ===== -->
-<footer class="site-footer pt-5">
-  <div class="container">
-    <div class="row gy-4">
-      <div class="col-md-3">
-        <h6>About Amson</h6>
-        <p>Amson about description sample text</p>
-      </div>
-      <div class="col-md-3">
-        <h6>Information</h6>
-        <a href="#" class="d-block">Privacy Policy</a>
-        <a href="#" class="d-block">Terms &amp; Conditions</a>
-      </div>
-      <div class="col-md-3 offset-md-3">
-        <h6>Contact Us</h6>
-        <p class="mb-1">Hotline: +63 (02) 8123-4567</p>
-        <p class="mb-1">Email: support@amson.ph</p>
-        <p class="mb-1">Mon-Sun: 8:00 AM - 8:00 PM</p>
-      </div>
-    </div>
-  </div>
-  <div class="footer-bottom text-center py-3 mt-4">
-    © 2026 Amson Pharmaceuticals. All rights reserved. FDA LTO No. XXXXX-XXXX
-  </div>
-</footer>
+<footer class="site-footer pt-5"></footer>
 
-<a href="#" class="floating-chat-btn"><i class="bi bi-chat-square-text-fill"></i>Chat with us</a>
+<a href="#" class="floating-chat-btn d-none" data-chat-entry><i class="bi bi-chat-square-text-fill"></i>Chat with us</a>
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -296,10 +295,16 @@
 <script src="../js/emailjs-config.js"></script>
 <script src="../js/otp.js"></script>
 <script src="../js/products-data.js"></script>
+<script src="../js/device-trust.js"></script>
 <script src="../js/shop-header.js"></script>
 <script src="../js/cart.js"></script>
 <script src="../js/orders.js"></script>
 <script src="../js/validators.js"></script>
+<script src="../js/cloudinary-config.js"></script>
+<script src="../js/cloudinary.js"></script>
 <script src="../js/account-settings.js"></script>
+<script src="../js/store-info.js"></script>
+<script src="../js/chat-config.js"></script>
+<script src="../js/live-chat.js"></script>
 </body>
 </html>

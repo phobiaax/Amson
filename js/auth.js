@@ -23,6 +23,7 @@ togglePasswordBtn.addEventListener("click", () => {
 
 // ---- Helpers ----
 function showAlert(message) {
+  loginAlert.classList.replace("alert-success", "alert-danger");
   loginAlert.textContent = message;
   loginAlert.classList.remove("d-none");
 }
@@ -93,7 +94,7 @@ async function clearLoginAttempts(email) {
 
 function redirectByRole(userData) {
   if (STAFF_ROLES.includes(userData.role)) {
-    window.location.href = "admin/dashboard.html";
+    window.location.href = `admin/${homePageForRole(userData.role)}`;
     return;
   }
   if (!userData.emailVerified) {
@@ -146,6 +147,13 @@ async function performLogin(email, password) {
     }
 
     await clearLoginAttempts(email);
+    // Unverified customers confirm their email first (that code also
+    // recognizes this device). Everyone else on a new device gets a code.
+    const needsEmailVerification = !STAFF_ROLES.includes(userData.role) && !userData.emailVerified;
+    if (!needsEmailVerification && !isDeviceTrusted(userData)) {
+      await startDeviceVerification(credential.user.uid, userData);
+      return;
+    }
     redirectByRole(userData);
   } catch (error) {
     if (["auth/wrong-password", "auth/user-not-found", "auth/invalid-credential"].includes(error.code)) {
@@ -176,10 +184,139 @@ auth.onAuthStateChanged(async (user) => {
     const doc = await db.collection("users").doc(user.uid).get();
     if (!doc.exists) return;
     const userData = doc.data();
-    if (userData.accountStatus === "deactivated") return;
+    if (userData.accountStatus === "deactivated") {
+      await auth.signOut();
+      return;
+    }
+    const needsEmailVerification = !STAFF_ROLES.includes(userData.role) && !userData.emailVerified;
+    if (!needsEmailVerification && !isDeviceTrusted(userData)) {
+      // Signed in from before, but this device was never confirmed.
+      await auth.signOut();
+      return;
+    }
     redirectByRole(userData);
   } catch (error) {}
 });
+
+// ---- New-device code (REQ005, REQ044) ----
+const DEVICE_OTP_TTL_MS = 10 * 60 * 1000;
+const DEVICE_OTP_MAX_TRIES = 5;
+const deviceOtpPanel = document.getElementById("deviceOtpPanel");
+const deviceOtpInput = document.getElementById("deviceOtpInput");
+const deviceOtpVerifyBtn = document.getElementById("deviceOtpVerifyBtn");
+const deviceOtpResendBtn = document.getElementById("deviceOtpResendBtn");
+let deviceOtp = null; // { uid, userData, code, expiresAt, tries, lastSentAt }
+
+async function sendDeviceCode() {
+  deviceOtp.code = generateOtpCode();
+  deviceOtp.expiresAt = Date.now() + DEVICE_OTP_TTL_MS;
+  deviceOtp.tries = 0;
+  deviceOtp.lastSentAt = Date.now();
+  const sent = await sendOtpEmail(deviceOtp.userData.email, deviceOtp.code, deviceOtp.userData.firstName || "");
+  if (!sent) throw new Error("We couldn't send the code right now. Please try again in a moment.");
+}
+
+async function startDeviceVerification(uid, userData) {
+  try {
+    sessionStorage.setItem(DEVICE_PENDING_KEY, uid);
+  } catch (error) {}
+  deviceOtp = { uid, userData };
+  loginForm.classList.add("d-none");
+  deviceOtpPanel.classList.remove("d-none");
+  document.getElementById("deviceOtpEmail").textContent = userData.email || "your email";
+  try {
+    await sendDeviceCode();
+    deviceOtpInput.focus();
+  } catch (error) {
+    showAlert(error.message);
+  }
+}
+
+async function cancelDeviceVerification(message) {
+  deviceOtp = null;
+  try {
+    sessionStorage.removeItem(DEVICE_PENDING_KEY);
+  } catch (error) {}
+  await auth.signOut();
+  deviceOtpPanel.classList.add("d-none");
+  loginForm.classList.remove("d-none");
+  deviceOtpInput.value = "";
+  passwordInput.value = "";
+  if (typeof grecaptcha !== "undefined") grecaptcha.reset();
+  if (message) showAlert(message);
+  else hideAlert();
+}
+
+deviceOtpVerifyBtn.addEventListener("click", async () => {
+  if (!deviceOtp) return;
+  hideAlert();
+  const entered = deviceOtpInput.value.trim();
+  if (Date.now() > deviceOtp.expiresAt) {
+    showAlert("This code has expired. Tap \"Resend code\" for a new one.");
+    return;
+  }
+  if (entered !== deviceOtp.code) {
+    deviceOtp.tries += 1;
+    if (deviceOtp.tries >= DEVICE_OTP_MAX_TRIES) {
+      await cancelDeviceVerification("Too many incorrect codes. Please log in again.");
+      return;
+    }
+    showAlert(`Incorrect code. ${DEVICE_OTP_MAX_TRIES - deviceOtp.tries} tries left.`);
+    return;
+  }
+  deviceOtpVerifyBtn.disabled = true;
+  try {
+    await trustThisDevice(deviceOtp.uid);
+    redirectByRole(deviceOtp.userData);
+  } catch (error) {
+    showAlert("Something went wrong confirming this device. Please try again.");
+    deviceOtpVerifyBtn.disabled = false;
+  }
+});
+
+deviceOtpInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") deviceOtpVerifyBtn.click();
+});
+
+deviceOtpResendBtn.addEventListener("click", async () => {
+  if (!deviceOtp) return;
+  hideAlert();
+  if (Date.now() - deviceOtp.lastSentAt < 60 * 1000) {
+    showAlert("Please wait a minute before requesting another code.");
+    return;
+  }
+  try {
+    await sendDeviceCode();
+    showAlert("A new code was sent.");
+    loginAlert.classList.replace("alert-danger", "alert-success");
+    setTimeout(() => loginAlert.classList.replace("alert-success", "alert-danger"), 4000);
+  } catch (error) {
+    showAlert(error.message);
+  }
+});
+
+document.getElementById("deviceOtpCancelBtn").addEventListener("click", () => cancelDeviceVerification());
+
+// Sent back here from another page (device not confirmed).
+try {
+  const notice = sessionStorage.getItem("amsonLoginNotice");
+  if (notice) {
+    sessionStorage.removeItem("amsonLoginNotice");
+    showAlert(notice);
+  }
+  // Just finished registering (verify-email.js).
+  const success = sessionStorage.getItem("amsonLoginSuccess");
+  if (success) {
+    sessionStorage.removeItem("amsonLoginSuccess");
+    showAlert(success);
+    loginAlert.classList.replace("alert-danger", "alert-success");
+  }
+  const registeredEmail = sessionStorage.getItem("amsonLoginEmail");
+  if (registeredEmail) {
+    sessionStorage.removeItem("amsonLoginEmail");
+    emailInput.value = registeredEmail;
+  }
+} catch (error) {}
 
 // ---- Login form submit ----
 loginForm.addEventListener("submit", (e) => {

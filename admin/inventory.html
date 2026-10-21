@@ -39,8 +39,9 @@
       <li><a href="customer-accounts.html" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
       <li><a href="wholesale-accounts.html" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
       <li><a href="staff-management.html" class="admin-nav-link" id="staffManagementNavLink"><i class="bi bi-people"></i>Staff Management</a></li>
-      <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
+      <li><a href="live-chat.html" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
       <li><a href="notifications.html" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="reports.html" class="admin-nav-link"><i class="bi bi-file-earmark-bar-graph"></i>Reports</a></li>
       <li><a href="audit-log.html" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
     </ul>
   </aside>
@@ -75,6 +76,9 @@
           <button type="button" class="btn btn-outline-dark-amson" id="exportInventoryBtn">
             <i class="bi bi-box-arrow-up-right me-1"></i>Export Report
           </button>
+          <a href="reports.html?type=monthly_inventory" class="btn btn-outline-dark-amson">
+            <i class="bi bi-file-earmark-bar-graph me-1"></i>Monthly Reports
+          </a>
         </div>
       </div>
 
@@ -157,6 +161,7 @@
                   <th>Expiration Date</th>
                   <th>Product Name</th>
                   <th>Category</th>
+                  <th>Supplier</th>
                   <th>Quantity</th>
                   <th>Reorder Point</th>
                   <th>Status</th>
@@ -308,6 +313,10 @@
           <label class="form-label">Date Received</label>
           <input type="date" class="form-control" id="receiveDateInput">
         </div>
+        <div class="col-md-6">
+          <label class="form-label" for="receiveReceiptNoInput">Supplier Receipt / DR No.</label>
+          <input type="text" class="form-control" id="receiveReceiptNoInput" placeholder="e.g. SI-930-003-0802">
+        </div>
       </div>
 
       <div id="receiveItemsContainer"></div>
@@ -349,7 +358,9 @@
               <th style="min-width:120px;">Batch No. *</th>
               <th style="min-width:150px;">Expiry Date *</th>
               <th style="min-width:100px;">Qty Received *</th>
+              <th style="min-width:110px;">Unit Cost</th>
               <th style="min-width:160px;">Supplier Name</th>
+              <th style="min-width:140px;">Receipt / DR No.</th>
               <th style="min-width:150px;">Date Received</th>
               <th></th>
             </tr>
@@ -531,6 +542,7 @@
 <script src="../js/admin-sidebar.js"></script>
 <script src="../js/admin-inventory.js"></script>
 <script src="../js/admin-roles.js"></script>
+<script src="../js/device-trust.js"></script>
 <script src="../js/admin-header.js"></script>
 </body>
 </html>

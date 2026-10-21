@@ -1,6 +1,7 @@
 let posCart = [];
 let posProductChoices = null;
 let currentCashierName = "Staff";
+let currentStaffRole = null;
 
 const posProductSelect = document.getElementById("posProductSelect");
 const posQtyInput = document.getElementById("posQtyInput");
@@ -16,18 +17,16 @@ const posCashInput = document.getElementById("posCashInput");
 const posChangeText = document.getElementById("posChangeText");
 const posAlert = document.getElementById("posAlert");
 const posCompleteSaleBtn = document.getElementById("posCompleteSaleBtn");
-const posPaymentMethodInputs = document.querySelectorAll('input[name="posPaymentMethod"]');
+const posPaymentMethodSelect = document.getElementById("posPaymentMethodSelect");
+const posCustomerNameInput = document.getElementById("posCustomerNameInput");
 
 function posPaymentMethod() {
-  const checked = document.querySelector('input[name="posPaymentMethod"]:checked');
-  return checked ? checked.value : "cash";
+  return posPaymentMethodSelect.value || "cash";
 }
 
-posPaymentMethodInputs.forEach((input) => {
-  input.addEventListener("change", () => {
-    posCashFields.classList.toggle("d-none", posPaymentMethod() !== "cash");
-    updatePosTotals();
-  });
+posPaymentMethodSelect.addEventListener("change", () => {
+  posCashFields.classList.toggle("d-none", posPaymentMethod() !== "cash");
+  updatePosTotals();
 });
 
 posQtyDecrementBtn.addEventListener("click", () => {
@@ -43,6 +42,9 @@ posQtyIncrementBtn.addEventListener("click", () => {
 document.addEventListener("admin:ready", async (e) => {
   const admin = e.detail && e.detail.admin;
   if (admin) currentCashierName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
+  if (admin) currentStaffRole = admin.role;
+  loadTodaySales();
+  listenToTodaySales();
 
   await loadCatalogCache();
   populatePosProductSelect();
@@ -64,6 +66,7 @@ function populatePosProductSelect() {
   }
   posProductChoices = new Choices(posProductSelect, {
     searchEnabled: true,
+    allowHTML: false,
     itemSelectText: "",
     shouldSort: false,
     searchResultLimit: 50,
@@ -137,7 +140,7 @@ function renderPosCart() {
     .map(
       (item, idx) => `
         <tr>
-          <td>${item.name}</td>
+          <td>${escapeHtml(item.name)}</td>
           <td>
             <div class="input-group input-group-sm" style="width:110px;">
               <button type="button" class="btn btn-outline-secondary pos-qty-decrement-btn" data-idx="${idx}" aria-label="Decrease quantity"><i class="bi bi-dash-lg"></i></button>
@@ -169,6 +172,29 @@ function renderPosCart() {
   });
 
   updatePosTotals();
+  updateRxBlock();
+}
+
+// RX items need the cashier to confirm they physically checked the
+// prescription (REQ084, Fig 2.14) - no upload for walk-ins.
+const posRxBlock = document.getElementById("posRxBlock");
+const posRxVerifiedCheck = document.getElementById("posRxVerifiedCheck");
+const posRxNotesInput = document.getElementById("posRxNotesInput");
+
+function posCartHasRx() {
+  return posCart.some((item) => {
+    const product = getProductById(item.productId);
+    return product && product.rxRequired;
+  });
+}
+
+function updateRxBlock() {
+  const hasRx = posCartHasRx();
+  posRxBlock.classList.toggle("d-none", !hasRx);
+  if (!hasRx) {
+    posRxVerifiedCheck.checked = false;
+    posRxNotesInput.value = "";
+  }
 }
 
 function posTotal() {
@@ -203,7 +229,18 @@ posCompleteSaleBtn.addEventListener("click", () => {
     return;
   }
 
+  const rxIncluded = posCartHasRx();
+  if (rxIncluded && !posRxVerifiedCheck.checked) {
+    posAlert.textContent = "Check the customer's prescription and tick RX Verified before completing this sale.";
+    posAlert.classList.remove("d-none");
+    return;
+  }
+  const rxNotes = posRxNotesInput.value.trim();
+
   const items = posCart.map((item) => ({ productId: item.productId, name: item.name, price: item.price, qty: item.qty }));
+  // Walk-in buyers stay generic unless the cashier types a name (the
+  // branch's Customer File groups sales by name, e.g. regulars, EMPLOYEE).
+  const customerName = posCustomerNameInput.value.trim() || "Walk-in";
 
   // Nothing is committed yet - this is a preview. Stock only gets deducted
   // and the sale only gets written once the cashier hits Confirm below, so
@@ -218,30 +255,62 @@ posCompleteSaleBtn.addEventListener("click", () => {
     cashier: currentCashierName,
     branch: POS_BRANCH_NAME,
     completedAt: new Date(),
+    customerName,
     title: "Review Transaction",
     onConfirm: async () => {
       try {
-        await deductStockFEFOMultiple(items.map((item) => ({ productId: item.productId, qty: item.qty })));
-
-        await db.collection("posSales").add({
-          items,
-          total,
-          paymentMethod,
-          cashReceived: isCash ? cash : total,
-          change: isCash ? cash - total : 0,
-          cashier: currentCashierName,
-          branch: POS_BRANCH_NAME,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
+        // Stock deduction, the SI# and the sale record are one transaction:
+        // a sale can't be saved without its stock leaving, or vice versa.
+        const saleRef = db.collection("posSales").doc();
+        const { invoiceNo } = await deductStockFEFOMultiple(
+          items.map((item) => ({ productId: item.productId, qty: item.qty })),
+          {
+            record: {
+              ref: saleRef,
+              mode: "set",
+              build: (allocations, invoiceNo) => ({
+                invoiceNo,
+                customerName,
+                items: items.map((item, idx) => ({ ...item, ...batchFieldsFromAllocation(allocations[idx]) })),
+                total,
+                paymentMethod,
+                cashReceived: isCash ? cash : paymentMethod === "credit" ? 0 : total,
+                change: isCash ? cash - total : 0,
+                cashier: currentCashierName,
+                branch: POS_BRANCH_NAME,
+                rxVerified: rxIncluded,
+                rxNotes: rxIncluded ? rxNotes : "",
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+              }),
+            },
+          }
+        );
 
         posCart = [];
         posCashInput.value = "";
+        posCustomerNameInput.value = "";
         renderPosCart();
         catalogLoadPromise = null;
         await loadCatalogCache();
         populatePosProductSelect();
 
-        await showAppAlert("The sale has been completed successfully.", { title: "Sale Complete" });
+        // Show the finished receipt (with its SI No.) so it can be printed.
+        showSaleReceipt({
+          items,
+          total,
+          paymentMethod,
+          isCash,
+          amountPaid: isCash ? cash : total,
+          change: isCash ? cash - total : 0,
+          cashier: currentCashierName,
+          branch: POS_BRANCH_NAME,
+          completedAt: new Date(),
+          customerName,
+          invoiceNo,
+          title: "Sale Complete",
+        });
+        loadTodaySales();
+        return true;
       } catch (error) {
         posAlert.textContent = error.message || "Something went wrong completing this sale. Please try again.";
         posAlert.classList.remove("d-none");
@@ -249,3 +318,121 @@ posCompleteSaleBtn.addEventListener("click", () => {
     },
   });
 });
+
+/* ---------- Today's Sales (walk-in history inside the POS) ---------- */
+const posTodaySalesBody = document.getElementById("posTodaySalesBody");
+const posTodaySalesEmpty = document.getElementById("posTodaySalesEmpty");
+let todaySales = [];
+
+async function loadTodaySales() {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const snapshot = await db
+      .collection("posSales")
+      .where("createdAt", ">=", firebase.firestore.Timestamp.fromDate(startOfDay))
+      .get();
+    todaySales = snapshot.docs
+      .map((doc) => ({ id: doc.id, ...doc.data() }))
+      .sort((a, b) => (b.createdAt ? b.createdAt.toMillis() : 0) - (a.createdAt ? a.createdAt.toMillis() : 0));
+    renderTodaySales();
+  } catch (error) {
+    console.error("Failed to load today's sales:", error);
+  }
+}
+
+function renderTodaySales() {
+  posTodaySalesEmpty.classList.toggle("d-none", todaySales.length > 0);
+  posTodaySalesBody.innerHTML = todaySales
+    .map(
+      (sale) => `
+        <tr class="${sale.voided ? "text-muted" : ""}">
+          <td class="fw-medium">${escapeHtml(sale.invoiceNo || "-")}</td>
+          <td>${sale.createdAt ? sale.createdAt.toDate().toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit" }) : "-"}</td>
+          <td>${escapeHtml(sale.customerName || "Walk-in")}</td>
+          <td>${(sale.items || []).reduce((n, i) => n + i.qty, 0)}</td>
+          <td>${formatPeso(sale.total)}</td>
+          <td>${escapeHtml(SALE_RECEIPT_PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod || "-")}</td>
+          <td>
+            ${sale.voided ? '<span class="badge rounded-pill text-bg-danger me-1">Voided</span>' : sale.partialVoids && sale.partialVoids.length ? '<span class="badge rounded-pill text-bg-warning me-1">Items Voided</span>' : ""}
+            <button type="button" class="btn btn-outline-dark-amson btn-sm pos-today-view-btn" data-id="${sale.id}">View</button>
+          </td>
+        </tr>
+      `
+    )
+    .join("");
+  posTodaySalesBody.querySelectorAll(".pos-today-view-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openPosSaleReceipt(todaySales.find((s) => s.id === btn.dataset.id), loadTodaySales));
+  });
+}
+
+document.getElementById("posTodayRefreshBtn").addEventListener("click", loadTodaySales);
+
+// Live (REQNF005): sales rung up on another counter appear here too.
+let unsubscribeTodaySales = null;
+function listenToTodaySales() {
+  if (unsubscribeTodaySales) return;
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  let first = true;
+  let timer = null;
+  unsubscribeTodaySales = db
+    .collection("posSales")
+    .where("createdAt", ">=", firebase.firestore.Timestamp.fromDate(startOfDay))
+    .onSnapshot(
+      () => {
+        if (first) {
+          first = false;
+          return;
+        }
+        clearTimeout(timer);
+        timer = setTimeout(loadTodaySales, 500);
+      },
+      (error) => console.warn("Live sales unavailable:", error)
+    );
+}
+
+// View/print a past sale, and void it if this staff member's role allows.
+function openPosSaleReceipt(sale, afterVoid) {
+  if (!sale) return;
+  const isCash = sale.paymentMethod === "cash";
+  showSaleReceipt({
+    items: sale.items || [],
+    total: sale.total,
+    paymentMethod: sale.paymentMethod,
+    isCash,
+    amountPaid: sale.cashReceived,
+    change: sale.change || 0,
+    cashier: sale.cashier || "-",
+    branch: sale.branch || POS_BRANCH_NAME,
+    completedAt: sale.createdAt && sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(),
+    invoiceNo: sale.invoiceNo || null,
+    customerName: sale.customerName || "Walk-in",
+    title: "Sale Receipt",
+    voidInfo: voidSummary(sale),
+    partialVoidInfo: partialVoidSummary(sale),
+    onVoid:
+      !sale.voided && roleCanVoidSales(currentStaffRole)
+        ? async () => {
+            // Technical Staff need a Branch Manager to approve (client rule).
+            const details = await promptVoidDetails(sale, { requireApproval: currentStaffRole === "technical_staff" });
+            if (!details) return;
+            try {
+              const result = await voidPosSale(sale, details, currentCashierName);
+              catalogLoadPromise = null;
+              await loadCatalogCache();
+              populatePosProductSelect();
+              await showAppAlert(
+                result.fullVoid
+                  ? `SI No. ${sale.invoiceNo || "-"} was voided and its items returned to stock.`
+                  : `${formatPeso(result.voidedAmount)} of SI No. ${sale.invoiceNo || "-"} was voided (${result.voidedLines.map((l) => `${l.name} x${l.qty}`).join(", ")}) and returned to stock.`,
+                { title: result.fullVoid ? "Sale Voided" : "Items Voided" }
+              );
+              if (afterVoid) afterVoid();
+            } catch (error) {
+              await showAppAlert(error.message || "Something went wrong voiding this sale. Please try again.");
+            }
+          }
+        : null,
+  });
+}

@@ -23,6 +23,14 @@ const issueResubmitError = document.getElementById("issueResubmitError");
 const issueResubmitSuccess = document.getElementById("issueResubmitSuccess");
 const issueResubmitBtn = document.getElementById("issueResubmitBtn");
 const issueActionsContainer = document.getElementById("issueActionsContainer");
+const issueUploadPrompt = document.getElementById("issueUploadPrompt");
+const issueReferenceGroup = document.getElementById("issueReferenceGroup");
+
+// A rejected prescription asks for a new prescription photo instead of a
+// payment screenshot + reference number.
+function isPrescriptionIssue(order) {
+  return !!(order && order.paymentIssue && order.paymentIssue.type === "prescription_rejected");
+}
 
 const MAX_ISSUE_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -101,6 +109,9 @@ function renderPaymentIssue(order) {
   // anything - it's purely informational, so the resubmit form doesn't
   // apply here.
   issueActionsContainer.classList.toggle("d-none", issue.type === "out_of_stock");
+  const rxIssue = issue.type === "prescription_rejected";
+  issueReferenceGroup.classList.toggle("d-none", rxIssue);
+  issueUploadPrompt.textContent = rxIssue ? "Click to upload a clear photo of a valid prescription" : "Click to upload a corrected payment screenshot";
 
   if (issue.type === "invalid_payment") {
     paymentIssueTitle.textContent = `Payment Issue: ${issue.reasonLabel || "Invalid Payment"}`;
@@ -110,6 +121,12 @@ function renderPaymentIssue(order) {
     paymentIssueDetail.textContent =
       `We received ${formatPeso(issue.amountReceived)}, but your order total is ${formatPeso(order.total)} ` +
       `(${formatPeso(issue.outstandingBalance)} short). ${issue.note || "Please send the remaining balance and upload a screenshot of the new payment below."}`;
+  } else if (issue.type === "payment_not_received") {
+    paymentIssueTitle.textContent = "Payment Issue: Payment Not Received";
+    paymentIssueDetail.textContent = issue.note || "We have not received your payment. Please upload proof of a completed QR PH transaction below.";
+  } else if (rxIssue) {
+    paymentIssueTitle.textContent = `Prescription Not Accepted: ${issue.reasonLabel || "Please upload a valid prescription"}`;
+    paymentIssueDetail.textContent = issue.note || "Please upload a clear photo of a valid prescription below.";
   } else if (issue.type === "out_of_stock") {
     paymentIssueTitle.textContent = "Order Issue: Item Out of Stock";
     paymentIssueDetail.textContent =
@@ -126,7 +143,7 @@ function renderPaymentIssue(order) {
 }
 
 function updateResubmitButtonState() {
-  issueResubmitBtn.disabled = !(issueProofInput.files[0] && issueReferenceNumberInput.value.trim());
+  issueResubmitBtn.disabled = !(issueProofInput.files[0] && (isPrescriptionIssue(currentOrder) || issueReferenceNumberInput.value.trim()));
 }
 
 issueUploadDropzone.addEventListener("click", () => issueProofInput.click());
@@ -159,21 +176,26 @@ issueReferenceNumberInput.addEventListener("input", updateResubmitButtonState);
 issueResubmitBtn.addEventListener("click", async () => {
   const file = issueProofInput.files[0];
   const referenceNumber = issueReferenceNumberInput.value.trim();
-  if (!currentOrderRef || !file || !referenceNumber) return;
+  const rxIssue = isPrescriptionIssue(currentOrder);
+  if (!currentOrderRef || !file || (!rxIssue && !referenceNumber)) return;
 
   issueResubmitError.classList.add("d-none");
   issueResubmitBtn.disabled = true;
   issueResubmitBtn.textContent = "Uploading...";
 
   try {
-    const proofOfPaymentUrl = await uploadToCloudinary(file);
-
-    await currentOrderRef.update({
-      proofOfPaymentUrl,
-      paymentReferenceNumber: referenceNumber,
+    const uploadedUrl = await uploadToCloudinary(file);
+    const update = {
       "paymentIssue.resolvedByCustomerAt": firebase.firestore.FieldValue.serverTimestamp(),
       "paymentIssue.holdUntil": firebase.firestore.FieldValue.delete(),
-    });
+    };
+    if (rxIssue) {
+      update.prescriptionPhotoUrl = uploadedUrl;
+    } else {
+      update.proofOfPaymentUrl = uploadedUrl;
+      update.paymentReferenceNumber = referenceNumber;
+    }
+    await currentOrderRef.update(update);
 
     const doc = await currentOrderRef.get();
     currentOrder = doc.data();
@@ -228,6 +250,17 @@ function renderOrder(order) {
     overpaymentNotice.classList.add("d-none");
   }
 
+  // Staff paste the Lalamove share link when they mark the order
+  // Dispatched (validated as https://share.lalamove.com/... there). Only
+  // render it if it still matches that shape.
+  const trackingCard = document.getElementById("detailTrackingCard");
+  const showTracking =
+    !!order.trackingLink &&
+    /^https:\/\/share\.lalamove\.com\/\S+$/i.test(order.trackingLink) &&
+    ["dispatched", "delivered", "received"].includes(order.status);
+  trackingCard.classList.toggle("d-none", !showTracking);
+  if (showTracking) document.getElementById("detailTrackingLink").href = order.trackingLink;
+
   if (order.shipping) {
     document.getElementById("detailAddress").textContent =
       `${order.shipping.streetAddress}, ${order.shipping.city}, ${order.shipping.province} ${order.shipping.zipCode}`;
@@ -281,6 +314,32 @@ function renderOrder(order) {
 
   document.getElementById("detailTotal").textContent = formatPeso(order.total);
   updateMarkReceivedButton(order);
+
+  // The receipt exists once staff verify the payment and assign an SI No.
+  downloadReceiptBtn.disabled = !order.invoiceNo;
+  downloadReceiptBtn.title = order.invoiceNo ? "" : "Available once your payment is verified";
+}
+
+// Live status (REQNF005): staff confirming, dispatching or flagging the
+// order shows here without a refresh. Skipped while the customer is in the
+// middle of resubmitting, so their picked file isn't cleared.
+let unsubscribeOrder = null;
+function listenToOrder(docRef) {
+  if (unsubscribeOrder) return;
+  let first = true;
+  unsubscribeOrder = docRef.onSnapshot(
+    (doc) => {
+      if (first) {
+        first = false;
+        return;
+      }
+      if (!doc.exists) return;
+      if (issueProofInput.files && issueProofInput.files[0]) return;
+      currentOrder = doc.data({ serverTimestamps: "estimate" });
+      renderOrder(currentOrder);
+    },
+    (error) => console.warn("Live order status unavailable:", error)
+  );
 }
 
 async function loadOrder(uid) {
@@ -304,6 +363,7 @@ async function loadOrder(uid) {
     currentOrder = await enforceOrderDeadline(orderId, doc.data());
     renderOrder(currentOrder);
     orderDetailContent.classList.remove("d-none");
+    listenToOrder(docRef);
   } catch (error) {
     orderNotFoundNotice.classList.remove("d-none");
   } finally {

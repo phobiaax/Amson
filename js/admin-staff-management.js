@@ -101,8 +101,8 @@ function renderStaffRow(staff) {
   const status = computedStaffStatus(staff);
   return `
     <tr>
-      <td>${staff.firstName || ""} ${staff.lastName || ""}</td>
-      <td>${staff.email || "-"}</td>
+      <td>${escapeHtml(`${staff.firstName || ""} ${staff.lastName || ""}`)}</td>
+      <td>${escapeHtml(staff.email || "-")}</td>
       <td>${STAFF_ROLE_LABELS[staff.role] || staff.role}</td>
       <td><span class="badge rounded-pill ${status === "active" ? "text-bg-success" : "text-bg-secondary"}">${status === "active" ? "Active" : "Deactivated"}</span></td>
       <td class="d-flex gap-2">
@@ -165,9 +165,13 @@ function openAddModal() {
   staffEmailInput.value = "";
   staffPasswordInput.value = "";
   staffRoleInput.value = "sales_staff";
+  staffRoleInput.disabled = false;
+  editingStaffIsAdmin = false;
   staffModalAlert.classList.add("d-none");
   bootstrap.Modal.getOrCreateInstance(staffModalEl).show();
 }
+
+let editingStaffIsAdmin = false;
 
 function openEditModal(id) {
   const staff = allStaff.find((s) => s.id === id);
@@ -178,7 +182,11 @@ function openEditModal(id) {
   staffCredentialFields.classList.add("d-none");
   staffFirstNameInput.value = staff.firstName || "";
   staffLastNameInput.value = staff.lastName || "";
-  staffRoleInput.value = staff.role === "admin" ? "branch_manager" : staff.role;
+  // The Administrator account keeps its role - the dropdown has no Admin
+  // option, so editing it used to silently demote it to Branch Manager.
+  editingStaffIsAdmin = staff.role === "admin";
+  staffRoleInput.value = editingStaffIsAdmin ? "branch_manager" : staff.role;
+  staffRoleInput.disabled = editingStaffIsAdmin;
   staffModalAlert.classList.add("d-none");
   bootstrap.Modal.getOrCreateInstance(staffModalEl).show();
 }
@@ -188,10 +196,10 @@ addStaffBtn.addEventListener("click", openAddModal);
 saveStaffBtn.addEventListener("click", async () => {
   const firstName = staffFirstNameInput.value.trim();
   const lastName = staffLastNameInput.value.trim();
-  const role = staffRoleInput.value;
+  const role = editingStaffId && editingStaffIsAdmin ? "admin" : staffRoleInput.value;
 
-  if (!firstName || !lastName) {
-    staffModalAlert.textContent = "Please enter a first and last name.";
+  if (!NAME_PATTERN.test(firstName) || !NAME_PATTERN.test(lastName)) {
+    staffModalAlert.textContent = "Please enter a valid first and last name (letters, spaces, hyphens and apostrophes only).";
     staffModalAlert.classList.remove("d-none");
     return;
   }
@@ -210,8 +218,10 @@ saveStaffBtn.addEventListener("click", async () => {
       const email = staffEmailInput.value.trim().toLowerCase();
       const password = staffPasswordInput.value;
 
-      if (!email || password.length < 6) {
-        staffModalAlert.textContent = "Please enter an email and a password of at least 6 characters.";
+      if (!EMAIL_PATTERN.test(email) || !PASSWORD_PATTERN.test(password)) {
+        staffModalAlert.textContent = !EMAIL_PATTERN.test(email)
+          ? "Please enter a valid email address."
+          : "Password must be at least 6 characters with a letter, a number and a symbol.";
         staffModalAlert.classList.remove("d-none");
         saveStaffBtn.disabled = false;
         return;

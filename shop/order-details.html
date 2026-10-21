@@ -80,10 +80,6 @@
     <div class="container">
       <ul class="nav flex-nowrap flex-md-wrap justify-content-md-center">
         <li class="nav-item"><a class="nav-link" href="products.html">All Products</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=otc">OTC Medicines</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=vitamins">Vitamins &amp; Supplements</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=personal-care">Personal Care</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=health-wellness">Health &amp; Wellness</a></li>
       </ul>
     </div>
   </nav>
@@ -147,7 +143,7 @@
           <div class="upload-dropzone bg-white" id="issueUploadDropzone">
             <div id="issueUploadEmptyState">
               <i class="bi bi-upload"></i>
-              <span>Click to upload a corrected payment screenshot</span>
+              <span id="issueUploadPrompt">Click to upload a corrected payment screenshot</span>
               <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
             </div>
             <div id="issueUploadPreviewState" class="d-none">
@@ -158,13 +154,24 @@
             <input type="file" id="issueProofInput" accept="image/png,image/jpeg" class="d-none">
           </div>
 
-          <label for="issueReferenceNumberInput" class="form-label mt-3">Reference Number</label>
-          <input type="text" class="form-control" id="issueReferenceNumberInput" placeholder="e.g. GC1234567890">
+          <div id="issueReferenceGroup">
+            <label for="issueReferenceNumberInput" class="form-label mt-3">Reference Number</label>
+            <input type="text" class="form-control" id="issueReferenceNumberInput" placeholder="e.g. GC1234567890">
+          </div>
 
           <div class="alert alert-danger d-none mt-3 mb-0" id="issueResubmitError" role="alert"></div>
 
           <button type="button" class="btn btn-amson w-100 mt-3" id="issueResubmitBtn" disabled>Resubmit for Review</button>
         </div>
+      </div>
+
+      <div class="checkout-card p-3 mb-4 d-none" id="detailTrackingCard">
+        <h2 class="h6 fw-bold mb-2"><i class="bi bi-truck text-danger me-1"></i>Delivery Tracking</h2>
+        <p class="text-muted mb-2" style="font-size:0.85rem;">Your order was booked with Lalamove. Follow the rider here:</p>
+        <a class="btn btn-outline-dark-amson btn-sm" id="detailTrackingLink" target="_blank" rel="noopener noreferrer">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Track with Lalamove
+        </a>
+        <p class="text-muted mb-0 mt-2" style="font-size:0.78rem;">The delivery fee is paid directly to the rider.</p>
       </div>
 
       <h2 class="h6 fw-bold mb-3"><i class="bi bi-geo-alt text-danger me-1"></i>Shipping Address</h2>
@@ -213,7 +220,7 @@
       <div class="text-center">
         <p class="text-muted mb-2">Need help with your order?</p>
         <div class="d-flex gap-2 justify-content-center flex-wrap">
-          <a href="#" class="btn btn-outline-dark-amson">Chat with Us</a>
+          <a href="#" class="btn btn-outline-dark-amson d-none" data-chat-entry>Chat with Us</a>
           <button type="button" class="btn btn-outline-dark-amson" id="markReceivedBtn" disabled>Order Marked as Received</button>
         </div>
       </div>
@@ -222,32 +229,9 @@
 </main>
 
 <!-- ===== Footer ===== -->
-<footer class="site-footer pt-5">
-  <div class="container">
-    <div class="row gy-4">
-      <div class="col-md-3">
-        <h6>About Amson</h6>
-        <p>Amson about description sample text</p>
-      </div>
-      <div class="col-md-3">
-        <h6>Information</h6>
-        <a href="#" class="d-block">Privacy Policy</a>
-        <a href="#" class="d-block">Terms &amp; Conditions</a>
-      </div>
-      <div class="col-md-3 offset-md-3">
-        <h6>Contact Us</h6>
-        <p class="mb-1">Hotline: +63 (02) 8123-4567</p>
-        <p class="mb-1">Email: support@amson.ph</p>
-        <p class="mb-1">Mon-Sun: 8:00 AM - 8:00 PM</p>
-      </div>
-    </div>
-  </div>
-  <div class="footer-bottom text-center py-3 mt-4">
-    © 2026 Amson Pharmaceuticals. All rights reserved. FDA LTO No. XXXXX-XXXX
-  </div>
-</footer>
+<footer class="site-footer pt-5"></footer>
 
-<a href="#" class="floating-chat-btn"><i class="bi bi-chat-square-text-fill"></i>Chat with us</a>
+<a href="#" class="floating-chat-btn d-none" data-chat-entry><i class="bi bi-chat-square-text-fill"></i>Chat with us</a>
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -265,9 +249,13 @@
 <script src="../js/cloudinary-config.js"></script>
 <script src="../js/cloudinary.js"></script>
 <script src="../js/products-data.js"></script>
+<script src="../js/device-trust.js"></script>
 <script src="../js/shop-header.js"></script>
 <script src="../js/cart.js"></script>
 <script src="../js/orders.js"></script>
 <script src="../js/order-details.js"></script>
+<script src="../js/store-info.js"></script>
+<script src="../js/chat-config.js"></script>
+<script src="../js/live-chat.js"></script>
 </body>
 </html>

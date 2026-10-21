@@ -57,7 +57,7 @@ function renderOrderCard(id, order) {
         ${itemsHtml}
       </div>
       <div class="order-card-footer">
-        <button type="button" class="btn btn-outline-dark-amson download-receipt-btn" data-id="${id}">
+        <button type="button" class="btn btn-outline-dark-amson download-receipt-btn" data-id="${id}"${order.invoiceNo ? "" : ' disabled title="Available once your payment is verified"'}>
           <i class="bi bi-file-earmark-text me-1"></i>Download Receipt
         </button>
         <a href="order-details.html?id=${id}" class="btn btn-amson">View Details ></a>
@@ -68,6 +68,7 @@ function renderOrderCard(id, order) {
 
 async function loadOrders(uid) {
   ordersLoading.classList.remove("d-none");
+  ordersEmptyNotice.classList.add("d-none");
   try {
     await loadCatalogCache();
     const snapshot = await db.collection("orders").where("customerId", "==", uid).get();
@@ -106,10 +107,33 @@ async function loadOrders(uid) {
   }
 }
 
+// Live status (REQNF005): the list refreshes when staff update an order.
+let unsubscribeMyOrders = null;
+function listenToMyOrders(uid) {
+  if (unsubscribeMyOrders) unsubscribeMyOrders();
+  let first = true;
+  let timer = null;
+  unsubscribeMyOrders = db
+    .collection("orders")
+    .where("customerId", "==", uid)
+    .onSnapshot(
+      () => {
+        if (first) {
+          first = false;
+          return;
+        }
+        clearTimeout(timer);
+        timer = setTimeout(() => loadOrders(uid), 500);
+      },
+      (error) => console.warn("Live order updates unavailable:", error)
+    );
+}
+
 auth.onAuthStateChanged((user) => {
   if (!user) {
     ordersSignedOutNotice.classList.remove("d-none");
     return;
   }
   loadOrders(user.uid);
+  listenToMyOrders(user.uid);
 });

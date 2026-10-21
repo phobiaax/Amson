@@ -116,35 +116,24 @@
           Don't have an account? <a href="register.html" class="link-red">Register here</a>
         </p>
       </form>
+
+      <!-- New device: one-time code (REQ005, REQ044) -->
+      <div id="deviceOtpPanel" class="d-none">
+        <p class="mb-2" style="font-size:0.95rem;">We don't recognize this device. We sent a 6-digit code to <strong id="deviceOtpEmail"></strong>.</p>
+        <p class="text-muted mb-3" style="font-size:0.85rem;">Enter it below to continue. The code expires in 10 minutes.</p>
+        <input type="text" class="form-control text-center mb-3" id="deviceOtpInput" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="font-size:1.4rem; letter-spacing:0.4rem;">
+        <button type="button" class="btn btn-amson w-100 py-2" id="deviceOtpVerifyBtn">Verify and Continue</button>
+        <div class="d-flex justify-content-between mt-3" style="font-size:0.88rem;">
+          <button type="button" class="btn btn-link link-red p-0" id="deviceOtpResendBtn">Resend code</button>
+          <button type="button" class="btn btn-link text-muted p-0" id="deviceOtpCancelBtn">Cancel</button>
+        </div>
+      </div>
     </div>
   </div>
 </main>
 
 <!-- ===== Footer ===== -->
-<footer class="site-footer pt-5">
-  <div class="container">
-    <div class="row gy-4">
-      <div class="col-md-3">
-        <h6>About Amson</h6>
-        <p>Amson about description sample text</p>
-      </div>
-      <div class="col-md-3">
-        <h6>Information</h6>
-        <a href="#" class="d-block">Privacy Policy</a>
-        <a href="#" class="d-block">Terms &amp; Conditions</a>
-      </div>
-      <div class="col-md-3 offset-md-3">
-        <h6>Contact Us</h6>
-        <p class="mb-1">Hotline: +63 (02) 8123-4567</p>
-        <p class="mb-1">Email: support@amson.ph</p>
-        <p class="mb-1">Mon-Sun: 8:00 AM - 8:00 PM</p>
-      </div>
-    </div>
-  </div>
-  <div class="footer-bottom text-center py-3 mt-4">
-    © 2026 Amson Pharmaceuticals. All rights reserved. FDA LTO No. XXXXX-XXXX
-  </div>
-</footer>
+<footer class="site-footer pt-5"></footer>
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -158,8 +147,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <!-- App scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="js/firebase-config.js"></script>
+<script src="js/emailjs-config.js"></script>
+<script src="js/otp.js"></script>
+<script src="js/device-trust.js"></script>
 <script src="js/admin-roles.js"></script>
 <script src="js/auth.js"></script>
+<script src="js/store-info.js"></script>
 </body>
 </html>

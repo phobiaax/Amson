@@ -15,9 +15,12 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(myUid())).data.role;
     }
 
+    // A deactivated staff account loses access at once, even if it is
+    // still signed in somewhere.
     function isStaff() {
       return isSignedIn() &&
-        myRole() in ["admin", "branch_manager", "technical_staff", "sales_staff"];
+        myRole() in ["admin", "branch_manager", "technical_staff", "sales_staff"] &&
+        get(/databases/$(database)/documents/users/$(myUid())).data.get("accountStatus", "active") != "deactivated";
     }
 
     // ---- users ----
@@ -27,8 +30,10 @@ service cloud.firestore {
       allow read: if isStaff();
 
       // Self-registration as a customer.
+      // A new account starts with no store credit.
       allow create: if isSignedIn() && myUid() == uid &&
-        request.resource.data.role == "customer";
+        request.resource.data.role == "customer" &&
+        request.resource.data.get("creditBalance", 0) == 0;
 
       // Branch Manager (or the legacy admin role) creating a staff account.
       allow create: if isSignedIn() && myRole() in ["admin", "branch_manager"] &&
@@ -52,9 +57,52 @@ service cloud.firestore {
     }
 
     // ---- catalog ----
+    // Prices (and the price lock / pending flags) are Branch Manager-only
+    // (REQ071, REQ120). Other staff may create a product only without
+    // prices, saved Inactive with pricePending, and may edit products as
+    // long as no price field changes and a price-pending product isn't
+    // made Active.
+    function isPriceManager() {
+      return isSignedIn() && myRole() in ["admin", "branch_manager"];
+    }
+
+    // Sales Staff only view the catalog (REQ121).
+    function isProductEditor() {
+      return isStaff() && myRole() != "sales_staff";
+    }
+
+    function priceFieldsUnchanged() {
+      return request.resource.data.get("costingPrice", 0) == resource.data.get("costingPrice", 0) &&
+        request.resource.data.get("retailPrice", 0) == resource.data.get("retailPrice", 0) &&
+        request.resource.data.get("wholesalePrice", 0) == resource.data.get("wholesalePrice", 0) &&
+        request.resource.data.get("priceLocked", false) == resource.data.get("priceLocked", false) &&
+        request.resource.data.get("pricePending", false) == resource.data.get("pricePending", false);
+    }
+
     match /products/{productId} {
       allow read: if true;
-      allow write: if isStaff();
+
+      allow create: if isPriceManager();
+      allow create: if isProductEditor() &&
+        request.resource.data.get("costingPrice", 0) == 0 &&
+        request.resource.data.get("retailPrice", 0) == 0 &&
+        request.resource.data.get("wholesalePrice", 0) == 0 &&
+        request.resource.data.get("pricePending", false) == true &&
+        request.resource.data.get("status", "") == "inactive";
+
+      allow update: if isPriceManager();
+      allow update: if isProductEditor() && priceFieldsUnchanged() &&
+        !(request.resource.data.get("pricePending", false) == true &&
+          request.resource.data.get("status", "") == "active");
+
+      allow delete: if isProductEditor();
+    }
+
+    // Shop announcement banner (Settings) - public read, set by the Branch
+    // Manager or Technical Staff.
+    match /storeSettings/{settingId} {
+      allow read: if true;
+      allow write: if isSignedIn() && myRole() in ["admin", "branch_manager", "technical_staff"];
     }
 
     match /categories/{categoryId} {
@@ -71,38 +119,51 @@ service cloud.firestore {
       // createOrderWithCreditRedemption) can never exceed the balance the
       // customer had going into this write, so a crafted order can't claim
       // more discount than they actually have.
+      // A new order is always "placed" with nothing staff-only on it, and
+      // any credit applied must come off the balance in the same write.
       allow create: if isSignedIn() &&
         request.resource.data.customerId == myUid() &&
-        request.resource.data.get("creditApplied", 0) <=
-          get(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0);
+        request.resource.data.status == "placed" &&
+        request.resource.data.get("total", 0) >= 0 &&
+        !request.resource.data.keys().hasAny(["paymentIssue", "invoiceNo", "unappliedCredit", "paymentOverage", "verification", "closedReason"]) &&
+        (request.resource.data.get("creditApplied", 0) == 0 ||
+         (request.resource.data.creditApplied > 0 &&
+          getAfter(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) ==
+            get(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) - request.resource.data.creditApplied));
 
       // A signed-in customer may only ever move their own order through
       // three specific transitions - never edit items/total/status freely:
       //   1. Confirming receipt (delivered -> received) - the only
       //      customer-initiated step in the normal lifecycle.
-      //   2. The lazy 7-day hold-expiry close (enforceOrderDeadline in
-      //      orders.js), which can run from the customer's own order page
-      //      and only ever closes a genuinely expired hold. It only ever
-      //      records the credit amount on the order itself - crediting the
-      //      users/{uid} ledger is staff/system-only (see above).
+      //   2. The 3-day auto-deliver of a dispatched order (enforceOrderDeadline
+      //      in orders.js), checked against the server's clock.
+      //      (Expired holds are closed from staff pages only, together
+      //      with the store credit.)
       //   3. Resubmitting a corrected proof of payment/reference number on
       //      an active hold (order-details.js's issueResubmitBtn handler) -
-      //      only ever touches those two fields plus marking the hold
+      //      (or a new prescription photo after a rejected prescription) -
+      //      only ever touches those fields plus marking the hold
       //      resolvedByCustomerAt, never the order total or status.
       allow update: if isSignedIn() && resource.data.customerId == myUid() && (
         (resource.data.status == "delivered" &&
          request.resource.data.status == "received" &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "statusTimestamps"]))
         ||
-        (resource.data.get("paymentIssue", null) != null &&
-         resource.data.paymentIssue.holdUntil < request.time &&
-         request.resource.data.status == "closed_unresolved" &&
-         request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(["status", "statusTimestamps", "paymentIssue", "closedReason", "unappliedCredit"]))
+        (resource.data.status == "dispatched" &&
+         request.resource.data.status == "delivered" &&
+         resource.data.statusTimestamps.dispatched < request.time - duration.value(3, "d") &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "statusTimestamps"]))
         ||
         (resource.data.get("paymentIssue", null) != null &&
+         request.resource.data.get("paymentIssue", null) != null &&
          request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(["proofOfPaymentUrl", "paymentReferenceNumber", "paymentIssue"]))
+           .hasOnly(["proofOfPaymentUrl", "paymentReferenceNumber", "paymentIssue", "prescriptionPhotoUrl"]) &&
+         // Within the hold record the customer may only mark it resolved
+         // (and clear its deadline) - never change its type or amounts.
+         request.resource.data.paymentIssue.diff(resource.data.paymentIssue).affectedKeys()
+           .hasOnly(["resolvedByCustomerAt", "holdUntil"]) &&
+         (!("holdUntil" in request.resource.data.paymentIssue) ||
+          request.resource.data.paymentIssue.holdUntil == resource.data.paymentIssue.get("holdUntil", null)))
       );
       allow update: if isStaff();
 
@@ -131,6 +192,12 @@ service cloud.firestore {
       allow read: if isSignedIn() && resource.data.customerId == myUid();
 
       allow create: if isStaff();
+      // The customer's own "order placed" confirmation, written at checkout.
+      allow create: if isSignedIn() &&
+        request.resource.data.customerId == myUid() &&
+        request.resource.data.kind == "order_placed" &&
+        request.resource.data.read == false &&
+        request.resource.data.keys().hasOnly(["customerId", "title", "detail", "link", "severity", "read", "createdAt", "kind"]);
 
       allow update: if isSignedIn() && resource.data.customerId == myUid() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);
@@ -150,6 +217,7 @@ service cloud.firestore {
     match /writeOffs/{writeOffId}      { allow read, write: if isStaff(); }
     match /wholesaleAccounts/{acctId}  { allow read, write: if isStaff(); }
     match /wholesaleOrders/{orderId}   { allow read, write: if isStaff(); }
+    match /wholesaleExchanges/{exchangeId} { allow read, write: if isStaff(); }
     match /posSales/{saleId}           { allow read, write: if isStaff(); }
 
     // ---- audit log (append-only) ----
@@ -161,9 +229,62 @@ service cloud.firestore {
 
     match /notifications/{notifId} { allow read, write: if isStaff(); }
 
+    // ---- live chat ----
+    // Signed-in customers use the thread "cust_<their uid>"; guests use a
+    // random "guest_..." id kept in their browser (unguessable, and threads
+    // can't be listed by anyone but staff). The customer's browser also
+    // writes the assistant's replies, so customers may post as customer,
+    // assistant or system, but never as staff.
+    function chatThreadIsMine(threadId) {
+      return threadId.matches("guest_[A-Za-z0-9]{24}") ||
+        (isSignedIn() && threadId == "cust_" + myUid());
+    }
+
+    match /chatThreads/{threadId} {
+      allow get: if isStaff() || chatThreadIsMine(threadId);
+      allow list, update: if isStaff();
+      allow create: if chatThreadIsMine(threadId) &&
+        request.resource.data.status == "ai" &&
+        (request.resource.data.customerId == null || (isSignedIn() && request.resource.data.customerId == myUid()));
+      // A customer may only move the thread between assistant and waiting
+      // for staff - never take it over as staff or mark it resolved.
+      allow update: if chatThreadIsMine(threadId) &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["lastMessage", "lastMessageAt", "customerName", "status", "unreadByStaff", "handoffReason", "handoffAt"]) &&
+        request.resource.data.status in ["ai", "waiting_staff", resource.data.status] &&
+        (resource.data.status != "staff" || request.resource.data.status == "staff");
+
+      match /messages/{messageId} {
+        allow read: if isStaff() || chatThreadIsMine(threadId);
+        allow create: if isStaff() ||
+          (chatThreadIsMine(threadId) &&
+           request.resource.data.sender in ["customer", "assistant", "system"] &&
+           request.resource.data.text is string &&
+           request.resource.data.text.size() <= 2000);
+        allow update, delete: if false;
+      }
+    }
+
+    // One counter per day of AI replies; it can only ever go up by one.
+    match /chatUsage/{day} {
+      allow read: if true;
+      allow create: if request.resource.data.count == 1;
+      allow update: if request.resource.data.count == resource.data.count + 1;
+    }
+
     // ---- shared counters ----
+    // Customers only ever bump the yearly order-number counter
+    // (generateOrderNumber at checkout). Everything else - the Sales Invoice
+    // sequence above all - is staff-only, so a customer can't reset or
+    // skip SI numbers.
     match /counters/{counterId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isStaff();
+      // Customers may only move the order-number counter up by one.
+      allow create: if isSignedIn() && counterId.matches("orders-[0-9]{4}") &&
+        request.resource.data.count == 1;
+      allow update: if isSignedIn() && counterId.matches("orders-[0-9]{4}") &&
+        request.resource.data.count == resource.data.count + 1;
     }
 
     // ---- pre-auth login lockout tracking ----

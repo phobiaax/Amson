@@ -8,7 +8,8 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
 
 (async function init() {
   await loadCatalogCache();
-  const product = getProductById(productId);
+  // Only products shown in the online store (not inactive or in-store only).
+  const product = storefrontCatalog().find((p) => p.id === productId) || null;
 
   if (!product) {
     contentEl.innerHTML = `
@@ -72,6 +73,7 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
       <div class="product-about">
         <h2>About the Product</h2>
         <p class="mb-0">${product.description || "No description available yet."}</p>
+        ${product.dosageNotes ? `<h2 class="h6 fw-bold mt-3">Dosage / Usage</h2><p class="mb-0">${escapeHtml(product.dosageNotes)}</p>` : ""}
       </div>
     </div>
   `;

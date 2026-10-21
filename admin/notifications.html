@@ -37,8 +37,9 @@
       <li><a href="customer-accounts.html" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
       <li><a href="wholesale-accounts.html" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
       <li><a href="staff-management.html" class="admin-nav-link" id="staffManagementNavLink"><i class="bi bi-people"></i>Staff Management</a></li>
-      <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
+      <li><a href="live-chat.html" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
       <li><a href="notifications.html" class="admin-nav-link active"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="reports.html" class="admin-nav-link"><i class="bi bi-file-earmark-bar-graph"></i>Reports</a></li>
       <li><a href="audit-log.html" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
     </ul>
   </aside>
@@ -69,7 +70,10 @@
     <div class="admin-content">
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
         <h1 class="mb-0" style="font-weight:800;">Notifications</h1>
-        <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="markAllNotifsReadBtn">Mark all as read</button>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="enableBrowserAlertsBtn"><i class="bi bi-bell me-1"></i>Turn on desktop alerts</button>
+          <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="markAllNotifsReadBtn">Mark all as read</button>
+        </div>
       </div>
 
       <div class="checkout-card p-4">
@@ -97,6 +101,7 @@
 <script src="../js/admin-sidebar.js"></script>
 <script src="../js/admin-notifications.js"></script>
 <script src="../js/admin-roles.js"></script>
+<script src="../js/device-trust.js"></script>
 <script src="../js/admin-header.js"></script>
 </body>
 </html>

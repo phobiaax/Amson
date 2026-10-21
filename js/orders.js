@@ -18,7 +18,7 @@ const ORDER_STATUS_STEP_LABELS = {
 };
 
 const PICKUP_ORDER_STATUS_STEP_LABELS = {
-  placed: "Order Pending Verification",
+  placed: "Pending Prescription Verification",
   payment_confirmed: "Payment Confirmed",
   delivered: "Ready for Pick-up",
   received: "Picked Up",
@@ -34,7 +34,7 @@ const ORDER_STATUS_BADGE_LABELS = {
 };
 
 const PICKUP_ORDER_STATUS_BADGE_LABELS = {
-  placed: "Order Pending Verification",
+  placed: "Pending Prescription Verification",
   payment_confirmed: "Payment Confirmed",
   delivered: "Ready for Pick-up",
   received: "Picked Up",
@@ -56,6 +56,8 @@ const HOLD_REASON_LABELS = {
   invalid_payment: "Payment Issue - Invalid Payment",
   underpayment: "Payment Issue - Underpayment",
   out_of_stock: "Item Out of Stock",
+  prescription_rejected: "Prescription Not Accepted",
+  payment_not_received: "Payment Issue - Payment Not Received",
 };
 
 function computeUnappliedCredit(order) {
@@ -64,7 +66,12 @@ function computeUnappliedCredit(order) {
   const creditApplied = order.creditApplied || 0;
   if (issue.type === "underpayment") return (issue.amountReceived || 0) + creditApplied;
   if (issue.type === "out_of_stock") return (order.total || 0) + creditApplied;
-  return 0;
+  // A rejected prescription only carries the payment over if staff
+  // confirmed the payment itself was received in full.
+  if (issue.type === "prescription_rejected") return (issue.paymentVerified ? order.total || 0 : 0) + creditApplied;
+  // Invalid / not-received payment: nothing paid by QR carries over, but
+  // store credit redeemed on this order does.
+  return creditApplied;
 }
 
 // The amount of this order's payment currently held as credit, whichever
@@ -79,6 +86,18 @@ function orderCreditAmount(order) {
   return 0;
 }
 
+const DELIVERY_SLOT_LABELS = {
+  morning: "Morning (8AM-12PM)",
+  afternoon: "Afternoon (12PM-4PM)",
+  evening: "Evening (4PM-8PM)",
+};
+
+function formatDeliverySchedule(schedule) {
+  if (!schedule || schedule.asap || !schedule.date) return "Same Day Delivery";
+  const [y, m, d] = schedule.date.split("-");
+  return `${m}/${d}/${y} - ${DELIVERY_SLOT_LABELS[schedule.slot] || schedule.slot || ""}`.trim();
+}
+
 const DISPATCH_AUTO_DELIVER_MS = 3 * 24 * 60 * 60 * 1000;
 
 function orderStatusSteps(order) {
@@ -89,7 +108,20 @@ function orderStepLabels(order) {
   return order.requiresPrescription ? PICKUP_ORDER_STATUS_STEP_LABELS : ORDER_STATUS_STEP_LABELS;
 }
 
+// What the customer sees while an order is on hold and waiting on them.
+const CUSTOMER_HOLD_BADGE_LABELS = {
+  invalid_payment: "Payment Rejected - Re-upload Needed",
+  payment_not_received: "Payment Rejected - Re-upload Needed",
+  underpayment: "On Hold - Balance Due",
+  out_of_stock: "On Hold - Out of Stock",
+  prescription_rejected: "Prescription Rejected - Re-upload Needed",
+};
+
 function orderBadgeLabel(order) {
+  if (order.paymentIssue && order.status === "placed") {
+    if (order.paymentIssue.resolvedByCustomerAt) return "Resubmitted - Under Review";
+    return CUSTOMER_HOLD_BADGE_LABELS[order.paymentIssue.type] || "On Hold";
+  }
   const labels = order.requiresPrescription ? PICKUP_ORDER_STATUS_BADGE_LABELS : ORDER_STATUS_BADGE_LABELS;
   return labels[order.status] || order.status;
 }
@@ -105,10 +137,10 @@ function orderStatusIndex(status, steps = ORDER_STATUS_STEPS) {
 // firestore.rules). shop-header.js reads these directly instead of trying
 // to re-derive "did something happen" from live order state on every
 // page load.
-async function notifyCustomer(customerId, title, detail, link, severity = "info") {
+async function notifyCustomer(customerId, title, detail, link, severity = "info", kind = null) {
   if (!customerId) return;
   try {
-    await db.collection("customerNotifications").add({
+    const notif = {
       customerId,
       title,
       detail,
@@ -116,9 +148,43 @@ async function notifyCustomer(customerId, title, detail, link, severity = "info"
       severity,
       read: false,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
+    };
+    if (kind) notif.kind = kind;
+    await db.collection("customerNotifications").add(notif);
+    sendOrderEmail(customerId, title, detail, link);
   } catch (error) {
     console.error("Failed to write customer notification:", error);
+  }
+}
+
+// Email copy of a customer notification (REQ039), through EmailJS. Skipped
+// when EmailJS or the order template isn't set up on this page, or when the
+// customer turned email updates off in Account Settings (REQ042). Never
+// blocks or fails the action that triggered it.
+async function sendOrderEmail(customerId, title, detail, link) {
+  try {
+    if (
+      typeof emailjs === "undefined" ||
+      typeof EMAILJS_ORDER_TEMPLATE_ID === "undefined" ||
+      EMAILJS_ORDER_TEMPLATE_ID === "YOUR_ORDER_TEMPLATE_ID"
+    ) {
+      return;
+    }
+    const doc = await db.collection("users").doc(customerId).get();
+    if (!doc.exists) return;
+    const user = doc.data();
+    if (!user.email || user.emailNotifications === false) return;
+    // Links are relative to the shop folder; make them absolute for email.
+    const url = new URL(`${/\/shop\//.test(window.location.pathname) ? "" : "../shop/"}${link || "orders.html"}`, window.location.href).href;
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_ORDER_TEMPLATE_ID, {
+      to_email: user.email,
+      to_name: user.firstName || "Customer",
+      subject: title,
+      message: detail,
+      link: url,
+    });
+  } catch (error) {
+    console.warn("Order email not sent:", error);
   }
 }
 
@@ -134,25 +200,52 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
   const now = Date.now();
 
   if (order.paymentIssue && order.paymentIssue.holdUntil && order.paymentIssue.holdUntil.toMillis() < now) {
-    const unappliedCredit = computeUnappliedCredit(order);
+    let unappliedCredit = computeUnappliedCredit(order);
     const closedReason = `${HOLD_REASON_LABELS[order.paymentIssue.type] || "This order"} was not resolved within 7 days.`;
 
-    const batch = db.batch();
-    batch.update(db.collection("orders").doc(orderId), {
-      status: "closed_unresolved",
-      "statusTimestamps.closed_unresolved": firebase.firestore.FieldValue.serverTimestamp(),
-      paymentIssue: firebase.firestore.FieldValue.delete(),
-      closedReason,
-      unappliedCredit,
-    });
-    if (grantCreditToBalance && unappliedCredit > 0 && order.customerId) {
-      batch.update(db.collection("users").doc(order.customerId), {
-        creditBalance: firebase.firestore.FieldValue.increment(unappliedCredit),
-      });
+    // Only staff pages close the order and credit the balance, in one
+    // transaction, so the credit is never lost or added twice. Customer
+    // pages just show it as closed until then.
+    if (!grantCreditToBalance) {
+      order.status = "closed_unresolved";
+      order.closedReason = closedReason;
+      order.unappliedCredit = unappliedCredit;
+      delete order.paymentIssue;
+      return order;
     }
-    await batch.commit();
 
-    if (grantCreditToBalance && unappliedCredit > 0 && order.customerId) {
+    const orderRef = db.collection("orders").doc(orderId);
+    const closed = await db.runTransaction(async (transaction) => {
+      const fresh = await transaction.get(orderRef);
+      const f = fresh.exists ? fresh.data() : null;
+      if (!f || !f.paymentIssue || !f.paymentIssue.holdUntil || f.paymentIssue.holdUntil.toMillis() >= Date.now()) return false;
+      unappliedCredit = computeUnappliedCredit(f);
+      transaction.update(orderRef, {
+        status: "closed_unresolved",
+        "statusTimestamps.closed_unresolved": firebase.firestore.FieldValue.serverTimestamp(),
+        paymentIssue: firebase.firestore.FieldValue.delete(),
+        closedReason,
+        unappliedCredit,
+      });
+      if (unappliedCredit > 0 && f.customerId) {
+        transaction.update(db.collection("users").doc(f.customerId), {
+          creditBalance: firebase.firestore.FieldValue.increment(unappliedCredit),
+        });
+      }
+      return true;
+    });
+    if (!closed) {
+      // Someone else already handled it (or the hold was extended).
+      const fresh = await orderRef.get();
+      if (fresh.exists) {
+        const data = fresh.data();
+        Object.assign(order, data);
+        if (!data.paymentIssue) delete order.paymentIssue;
+      }
+      return order;
+    }
+
+    if (unappliedCredit > 0 && order.customerId) {
       notifyCustomer(
         order.customerId,
         `You have ${formatPeso(unappliedCredit)} credit from order ${order.orderNumber}`,
@@ -172,11 +265,17 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
   if (order.status === "dispatched" && order.statusTimestamps && order.statusTimestamps.dispatched) {
     const dispatchedAt = order.statusTimestamps.dispatched.toMillis();
     if (now - dispatchedAt > DISPATCH_AUTO_DELIVER_MS) {
-      await db.collection("orders").doc(orderId).update({
-        status: "delivered",
-        "statusTimestamps.delivered": firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      order.status = "delivered";
+      // Never let this break the page: if the write is refused (e.g. the
+      // device clock is ahead), the order just stays Dispatched for now.
+      try {
+        await db.collection("orders").doc(orderId).update({
+          status: "delivered",
+          "statusTimestamps.delivered": firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        order.status = "delivered";
+      } catch (error) {
+        console.warn("Couldn't mark the order delivered yet:", error);
+      }
     }
   }
 
@@ -193,14 +292,7 @@ function formatOrderDate(timestamp) {
 
 function formatOrderDateTime(timestamp) {
   if (!timestamp) return "";
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date.toLocaleString("en-PH", {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatDateMDY(timestamp, true);
 }
 
 // Redeems as much of the customer's store credit balance as the order
@@ -208,7 +300,9 @@ function formatOrderDateTime(timestamp) {
 // the discounted total in one atomic transaction - the read-then-decrement
 // of users/{uid}.creditBalance and the order creation can't be split apart,
 // or two orders placed back-to-back could both spend the same credit.
-async function createOrderWithCreditRedemption(orderData) {
+// expectFullCredit: the customer was told credit covers the whole order
+// (so no payment proof was asked for); stop if that's no longer true.
+async function createOrderWithCreditRedemption(orderData, { expectFullCredit = false } = {}) {
   const orderRef = db.collection("orders").doc();
   const userRef = orderData.customerId ? db.collection("users").doc(orderData.customerId) : null;
 
@@ -220,6 +314,9 @@ async function createOrderWithCreditRedemption(orderData) {
     }
     const appliedCredit = Math.max(0, Math.min(balance, orderData.total));
     const finalTotal = orderData.total - appliedCredit;
+    if (expectFullCredit && finalTotal > 0) {
+      throw new Error("Your store credit balance changed, so it no longer covers this order. Please reload the page to pay the rest.");
+    }
 
     const orderPayload = { ...orderData, subtotal: orderData.total, total: finalTotal };
     if (appliedCredit > 0) orderPayload.creditApplied = appliedCredit;
@@ -238,13 +335,21 @@ async function generateOrderNumber() {
   const year = new Date().getFullYear();
   const counterRef = db.collection("counters").doc(`orders-${year}`);
 
-  const counterDoc = await counterRef.get();
-  const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
-  await counterRef.set({ count: nextCount }, { merge: true });
+  // In a transaction so two checkouts at the same moment never share a number.
+  const nextCount = await db.runTransaction(async (transaction) => {
+    const counterDoc = await transaction.get(counterRef);
+    const next = (counterDoc.exists ? counterDoc.data().count || 0 : 0) + 1;
+    transaction.set(counterRef, { count: next }, { merge: true });
+    return next;
+  });
   return `AMP-${year}-${String(nextCount).padStart(4, "0")}`;
 }
 
 function downloadOrderReceipt(order) {
+  if (!order.invoiceNo) {
+    showAppAlert("Your receipt will be available once our staff verify your payment.");
+    return;
+  }
   if (typeof window.jspdf === "undefined") {
     showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
     return;
@@ -260,11 +365,15 @@ function downloadOrderReceipt(order) {
   doc.setFontSize(10);
   doc.setFont(undefined, "normal");
   y += 6;
-  doc.text("Official Receipt", 14, y);
+  doc.text("Order Receipt", 14, y);
 
   y += 10;
   doc.setFontSize(11);
   doc.text(`Order Number: ${order.orderNumber}`, 14, y);
+  if (order.invoiceNo) {
+    y += 6;
+    doc.text(`SI No.: ${order.invoiceNo}`, 14, y);
+  }
   y += 6;
   doc.text(`Date: ${formatOrderDate(order.createdAt)}`, 14, y);
   y += 6;
@@ -311,6 +420,14 @@ function downloadOrderReceipt(order) {
 
   y += 2;
   doc.line(14, y, 196, y);
+  if (order.creditApplied > 0) {
+    y += 8;
+    doc.text("Subtotal", 14, y);
+    doc.text(formatPeso(order.subtotal || order.total + order.creditApplied), 196, y, { align: "right" });
+    y += 6;
+    doc.text("Store credit applied", 14, y);
+    doc.text(`-${formatPeso(order.creditApplied)}`, 196, y, { align: "right" });
+  }
   y += 8;
   doc.setFont(undefined, "bold");
   doc.text("Total", 14, y);
@@ -320,7 +437,7 @@ function downloadOrderReceipt(order) {
   doc.setFontSize(9);
   doc.setFont(undefined, "normal");
   doc.setTextColor(120, 120, 120);
-  doc.text("This receipt was generated electronically and is valid without a signature.", 14, y);
+  doc.text("Generated electronically for your records.", 14, y);
 
   doc.save(`${order.orderNumber}-receipt.pdf`);
 }

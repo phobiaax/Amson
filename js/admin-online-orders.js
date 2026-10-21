@@ -18,6 +18,12 @@ const PAYMENT_ISSUE_TYPES = {
     confirmLabel: "Confirm & place on hold",
     mode: "hold",
   },
+  payment_not_received: {
+    label: "Payment Not Received",
+    banner: "Customer will be notified that no matching payment was received and asked to upload proof of a completed QR PH transaction.",
+    confirmLabel: "Confirm & place on hold",
+    mode: "hold",
+  },
   overpayment: {
     label: "Overpayment",
     banner: "Customer will be notified that the excess payment will be applied automatically to their next order.",
@@ -29,7 +35,60 @@ const PAYMENT_ISSUE_TYPES = {
   out_of_stock: {
     label: "Out of Stock",
   },
+  // Set by the Reject Prescription button (REQ079), not the dropdown.
+  prescription_rejected: {
+    label: "Prescription Not Accepted",
+  },
 };
+
+const PRESCRIPTION_REJECTION_REASONS = {
+  unclear_photo: "The prescription photo is unclear or cut off. Please upload a clear photo of the whole prescription.",
+  expired: "The prescription has expired. Please upload a current prescription from your doctor.",
+  mismatch: "The prescription doesn't match the items ordered. Please upload the prescription for these items.",
+  incomplete: "The prescription is missing required details (doctor's name, license no., signature, or date). Please upload a complete one.",
+  other: "",
+};
+
+const PRESCRIPTION_REJECTION_LABELS = {
+  unclear_photo: "Unclear photo",
+  expired: "Expired prescription",
+  mismatch: "Doesn't match items ordered",
+  incomplete: "Missing doctor's details",
+  other: "Other",
+};
+
+// Who acted on a verification and when (REQ081).
+function verificationStamp(action) {
+  return {
+    action,
+    by: currentStaffName,
+    byUid: auth.currentUser ? auth.currentUser.uid : null,
+    at: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+}
+
+// The customer's notice when an order is approved. Prescription orders go
+// straight to Ready for Pick-up (REQ025, REQ078).
+function notifyOrderApproved(order) {
+  if (order.requiresPrescription) {
+    notifyCustomer(
+      order.customerId,
+      `Order ${order.orderNumber} is ready for pick-up`,
+      "Your prescription and payment were verified. Please bring the original prescription and a valid ID when you pick up your order at the store.",
+      `order-details.html?id=${order.id}`,
+      "success"
+    );
+    logAuditEvent({ action: "Prescription Approved", details: `Order ${order.orderNumber} (SI No. ${order.invoiceNo || "-"})`, actor: currentStaffName });
+  } else {
+    notifyCustomer(
+      order.customerId,
+      `Payment confirmed for order ${order.orderNumber}`,
+      "We've verified your payment. Your order is now being prepared.",
+      `order-details.html?id=${order.id}`,
+      "success"
+    );
+  }
+}
 
 const REJECTION_REASON_NOTES = {
   unclear_screenshot: "Please re-upload a clear screenshot showing completed QR PH transaction.",
@@ -63,6 +122,7 @@ let verificationSearchTerm = "";
 // that's been waiting longest - not whichever order happened to come in
 // most recently.
 let verificationSortDesc = false;
+let verificationTypeFilter = "all";
 
 const tabVerificationBtn = document.getElementById("tabVerificationBtn");
 const tabOrdersBtn = document.getElementById("tabOrdersBtn");
@@ -152,9 +212,36 @@ async function loadOrders() {
     const posSnapshot = await db.collection("posSales").get();
     allPosSales = posSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     renderWalkinTable();
+    listenToOrders();
   } catch (error) {
     console.error("Failed to load orders:", error);
   }
+}
+
+// Live orders (REQNF005): new orders, customer resubmissions and other
+// staff's actions show up without a refresh.
+let unsubscribeOrders = null;
+let ordersRefreshTimer = null;
+
+function listenToOrders() {
+  if (unsubscribeOrders) return;
+  let first = true;
+  unsubscribeOrders = db.collection("orders").onSnapshot(
+    (snap) => {
+      if (first) {
+        first = false;
+        return; // loadOrders already has this data
+      }
+      const fresh = snap.docs.map((doc) => ({ id: doc.id, ...doc.data({ serverTimestamps: "estimate" }) }));
+      clearTimeout(ordersRefreshTimer);
+      ordersRefreshTimer = setTimeout(() => {
+        allOrders = fresh;
+        renderVerificationQueue();
+        renderOrdersTable();
+      }, 300);
+    },
+    (error) => console.warn("Live orders unavailable:", error)
+  );
 }
 
 /* ---------- Tabs ---------- */
@@ -175,7 +262,6 @@ tabWalkinBtn.addEventListener("click", () => setActiveTab("walkin"));
 const walkinSearchInput = document.getElementById("walkinSearchInput");
 const walkinTableBody = document.getElementById("walkinTableBody");
 const walkinTableEmpty = document.getElementById("walkinTableEmpty");
-const PAYMENT_METHOD_LABELS_ORDERS = { cash: "Cash", card: "Card", ewallet: "E-Wallet" };
 
 function renderWalkinTable() {
   let sales = [...allPosSales];
@@ -185,6 +271,8 @@ function renderWalkinTable() {
     sales = sales.filter(
       (sale) =>
         (sale.cashier || "").toLowerCase().includes(term) ||
+        (sale.invoiceNo || "").includes(term) ||
+        (sale.customerName || "").toLowerCase().includes(term) ||
         (sale.items || []).some((item) => (item.name || "").toLowerCase().includes(term))
     );
   }
@@ -204,14 +292,16 @@ function renderWalkinTable() {
   walkinTableEmpty.classList.add("d-none");
   walkinTableBody.innerHTML = sales
     .map((sale) => {
-      const itemsSummary = (sale.items || []).map((item) => `${item.name} (x${item.qty})`).join(", ");
+      const itemsSummary = (sale.items || []).map((item) => `${escapeHtml(item.name)} (x${item.qty})`).join(", ");
       return `
         <tr class="walkin-sale-row" data-id="${sale.id}">
+          <td class="fw-medium">${escapeHtml(sale.invoiceNo || "-")}</td>
           <td>${formatOrderDateTime(sale.createdAt)}</td>
+          <td>${escapeHtml(sale.customerName || "Walk-in")}</td>
           <td>${itemsSummary}</td>
           <td>${formatPeso(sale.total)}</td>
-          <td>${PAYMENT_METHOD_LABELS_ORDERS[sale.paymentMethod] || sale.paymentMethod || "-"}</td>
-          <td>${sale.cashier || "-"}</td>
+          <td>${SALE_RECEIPT_PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod || "-"}</td>
+          <td>${escapeHtml(sale.cashier || "-")}${sale.voided ? ' <span class="badge rounded-pill text-bg-danger ms-1">Voided</span>' : sale.partialVoids && sale.partialVoids.length ? ' <span class="badge rounded-pill text-bg-warning ms-1">Items Voided</span>' : ""}</td>
           <td><button type="button" class="btn btn-outline-dark-amson btn-sm walkin-view-btn" data-id="${sale.id}">View</button></td>
         </tr>
       `;
@@ -225,6 +315,15 @@ function renderWalkinTable() {
     });
   });
 }
+
+let currentStaffRole = null;
+let currentStaffName = "Staff";
+document.addEventListener("admin:ready", (e) => {
+  const admin = e.detail && e.detail.admin;
+  if (!admin) return;
+  currentStaffRole = admin.role;
+  currentStaffName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
+});
 
 function openWalkinSaleReceipt(saleId) {
   const sale = allPosSales.find((s) => s.id === saleId);
@@ -240,7 +339,34 @@ function openWalkinSaleReceipt(saleId) {
     cashier: sale.cashier || "-",
     branch: sale.branch || POS_BRANCH_NAME,
     completedAt: sale.createdAt && sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(),
+    invoiceNo: sale.invoiceNo || null,
+    customerName: sale.customerName || "Walk-in",
     title: "Sale Receipt",
+    voidInfo: voidSummary(sale),
+    partialVoidInfo: partialVoidSummary(sale),
+    onVoid:
+      !sale.voided && roleCanVoidSales(currentStaffRole)
+        ? async () => {
+            // Technical Staff need a Branch Manager to approve (client rule).
+            const details = await promptVoidDetails(sale, { requireApproval: currentStaffRole === "technical_staff" });
+            if (!details) return;
+            try {
+              const result = await voidPosSale(sale, details, currentStaffName);
+              // Re-read the sale so the table shows its new total/items.
+              const fresh = await db.collection("posSales").doc(sale.id).get();
+              if (fresh.exists) Object.assign(sale, fresh.data());
+              renderWalkinTable();
+              await showAppAlert(
+                result.fullVoid
+                  ? `SI No. ${sale.invoiceNo || "-"} was voided and its items returned to stock.`
+                  : `${formatPeso(result.voidedAmount)} of SI No. ${sale.invoiceNo || "-"} was voided (${result.voidedLines.map((l) => `${l.name} x${l.qty}`).join(", ")}) and returned to stock.`,
+                { title: result.fullVoid ? "Sale Voided" : "Items Voided" }
+              );
+            } catch (error) {
+              await showAppAlert(error.message || "Something went wrong voiding this sale. Please try again.");
+            }
+          }
+        : null,
   });
 }
 
@@ -263,6 +389,9 @@ function verificationQueue() {
   let queue = allOrders.filter(
     (order) => order.status === "placed" && (!order.paymentIssue || order.paymentIssue.resolvedByCustomerAt)
   );
+
+  if (verificationTypeFilter === "rx") queue = queue.filter((order) => order.requiresPrescription);
+  if (verificationTypeFilter === "regular") queue = queue.filter((order) => !order.requiresPrescription);
 
   if (verificationSearchTerm) {
     const term = verificationSearchTerm.toLowerCase();
@@ -295,9 +424,10 @@ function renderVerificationQueue() {
         (order) => `
           <button type="button" class="verification-queue-item ${order.id === selectedVerificationId ? "active" : ""}" data-id="${order.id}">
             <div>
-              <p class="fw-bold mb-0">${order.orderNumber}</p>
-              <p class="text-muted mb-0" style="font-size:0.85rem;">${customerName(order)}</p>
+              <p class="fw-bold mb-0">${escapeHtml(order.orderNumber)}</p>
+              <p class="text-muted mb-0" style="font-size:0.85rem;">${escapeHtml(customerName(order))}</p>
               <p class="text-muted mb-0" style="font-size:0.78rem;">${formatOrderDate(order.createdAt)}</p>
+              ${order.requiresPrescription ? '<span class="badge rounded-pill text-bg-info mt-1 me-1">RX - Pick-up</span>' : ""}
               ${order.paymentIssue && order.paymentIssue.resolvedByCustomerAt ? '<span class="badge rounded-pill text-bg-warning mt-1">Customer Resubmitted</span>' : ""}
               ${!order.proofOfPaymentUrl ? '<p class="text-muted mb-0" style="font-size:0.75rem;">No payment made</p>' : ""}
             </div>
@@ -352,13 +482,36 @@ function renderReviewPanel(order) {
   document.getElementById("reviewSubmittedAt").textContent = formatOrderDateTime(order.createdAt);
   reviewReferenceNumber.textContent = order.paymentReferenceNumber || "-";
 
+  // The database can't check an order's prices, so flag any that don't
+  // match the catalog (or don't add up) before staff approve it.
+  const priceWarning = document.getElementById("reviewPriceWarning");
+  const problems = [];
+  (order.items || []).forEach((item) => {
+    const product = getProductById(item.id);
+    if (!product) problems.push(`${item.name || item.id} is no longer in the catalog`);
+    else if (Math.abs((item.price || 0) - (product.price || 0)) > 0.001) problems.push(`${product.name} is ${formatPeso(item.price || 0)} on this order but ${formatPeso(product.price || 0)} in the catalog`);
+  });
+  const itemsTotal = (order.items || []).reduce((n, i) => n + (i.price || 0) * (i.qty || 0), 0);
+  if (Math.abs(itemsTotal - ((order.total || 0) + (order.creditApplied || 0))) > 0.001) {
+    problems.push(`the items add up to ${formatPeso(itemsTotal)}, not the order total`);
+  }
+  priceWarning.textContent = problems.length ? `Check before approving: ${problems.join("; ")}.` : "";
+  priceWarning.classList.toggle("d-none", problems.length === 0);
+
   const issueNote = document.getElementById("reviewPaymentIssueNote");
   const previousIssueBreakdown = document.getElementById("reviewPreviousIssueBreakdown");
   if (order.paymentIssue && order.paymentIssue.resolvedByCustomerAt) {
     const issue = order.paymentIssue;
     const originalIssue =
-      issue.type === "invalid_payment" ? `flagged as invalid (${issue.reasonLabel || "unspecified reason"})` : "flagged as underpaid";
-    issueNote.innerHTML = `<i class="bi bi-arrow-repeat me-1"></i>This order was previously ${originalIssue}. The customer has resubmitted a corrected proof of payment and reference number below.`;
+      issue.type === "invalid_payment"
+        ? `flagged as invalid (${issue.reasonLabel || "unspecified reason"})`
+        : issue.type === "prescription_rejected"
+        ? `rejected for its prescription (${issue.reasonLabel || "unspecified reason"})`
+        : issue.type === "payment_not_received"
+        ? "flagged as payment not received"
+        : "flagged as underpaid";
+    const resubmitted = issue.type === "prescription_rejected" ? "a new prescription photo" : "a corrected proof of payment and reference number";
+    issueNote.innerHTML = `<i class="bi bi-arrow-repeat me-1"></i>This order was previously ${escapeHtml(originalIssue)}. The customer has resubmitted ${resubmitted} below.`;
     issueNote.classList.remove("d-none");
 
     if (issue.type === "underpayment") {
@@ -377,18 +530,56 @@ function renderReviewPanel(order) {
   document.getElementById("reviewNoProofNotice").classList.toggle("d-none", hasProof);
   document.getElementById("reviewProofSection").classList.toggle("d-none", !hasProof);
   if (hasProof) {
-    document.getElementById("reviewProofImageLink").href = order.proofOfPaymentUrl;
+    document.getElementById("reviewProofImageLink").href = safeUrl(order.proofOfPaymentUrl);
     document.getElementById("reviewProofImage").src = order.proofOfPaymentUrl;
   }
 
+  const isRx = !!order.requiresPrescription;
+  document.getElementById("reviewPanelHeading").textContent = isRx ? "Prescription & Payment Review" : "Proof of Payment Review";
+  document.getElementById("reviewRxChecklist").classList.toggle("d-none", !isRx);
+  rejectPrescriptionBtn.classList.toggle("d-none", !isRx);
+  approvePaymentBtn.innerHTML = isRx
+    ? '<i class="bi bi-check-circle me-1"></i>Approve Prescription & Payment'
+    : '<i class="bi bi-check-circle me-1"></i>Approve Payment';
+
   const prescriptionSection = document.getElementById("reviewPrescriptionSection");
   if (order.prescriptionPhotoUrl) {
-    document.getElementById("reviewPrescriptionLink").href = order.prescriptionPhotoUrl;
+    document.getElementById("reviewPrescriptionLink").href = safeUrl(order.prescriptionPhotoUrl);
     document.getElementById("reviewPrescriptionImage").src = order.prescriptionPhotoUrl;
     prescriptionSection.classList.remove("d-none");
   } else {
     prescriptionSection.classList.add("d-none");
   }
+}
+
+// Deducts an online order's stock (FEFO), assigns its SI#, records which
+// batch each item came from, and applies buildUpdate's status change - all
+// in one transaction.
+async function confirmOrderSale(order, buildUpdate, alsoWrite = null) {
+  const lineItems = order.items || [];
+  let itemsWithBatches = lineItems;
+  const { invoiceNo } = await deductStockFEFOMultiple(
+    lineItems.map((item) => ({ productId: item.id, qty: item.qty })),
+    {
+      record: {
+        ref: db.collection("orders").doc(order.id),
+        mode: "update",
+        build: (allocations, invoiceNo) => {
+          itemsWithBatches = lineItems.map((item, idx) => ({ ...item, ...batchFieldsFromAllocation(allocations[idx]) }));
+          return buildUpdate(allocations, invoiceNo, itemsWithBatches);
+        },
+        alsoWrite,
+        // Two staff approving at once must not deduct stock twice.
+        check: (doc) => {
+          const fresh = doc.exists ? doc.data() : null;
+          if (!fresh || fresh.status !== "placed" || fresh.invoiceNo) {
+            throw new Error("This order was already processed by someone else. Refresh the page to see its current status.");
+          }
+        },
+      },
+    }
+  );
+  return { invoiceNo, itemsWithBatches };
 }
 
 approvePaymentBtn.addEventListener("click", async () => {
@@ -401,35 +592,28 @@ approvePaymentBtn.addEventListener("click", async () => {
   reviewAlert.classList.add("d-none");
 
   try {
-    await deductStockFEFOMultiple((order.items || []).map((item) => ({ productId: item.id, qty: item.qty })));
-
-    if (order.requiresPrescription) {
-      // Pick-up orders have no courier leg - go straight to "ready for pick-up".
-      await db.collection("orders").doc(orderId).update({
-        status: "delivered",
-        "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
-        "statusTimestamps.delivered": firebase.firestore.FieldValue.serverTimestamp(),
-        paymentIssue: firebase.firestore.FieldValue.delete(),
-      });
-      order.status = "delivered";
-      delete order.paymentIssue;
-    } else {
-      await db.collection("orders").doc(orderId).update({
-        status: "payment_confirmed",
+    // Pick-up (prescription) orders have no courier leg - go straight to
+    // "ready for pick-up". The stock deduction, SI# and status change are
+    // one transaction.
+    const newStatus = order.requiresPrescription ? "delivered" : "payment_confirmed";
+    const { invoiceNo, itemsWithBatches } = await confirmOrderSale(order, (allocations, invoiceNo, itemsWithBatches) => {
+      const update = {
+        status: newStatus,
+        invoiceNo,
+        items: itemsWithBatches,
         "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
         paymentIssue: firebase.firestore.FieldValue.delete(),
-      });
-      order.status = "payment_confirmed";
-      delete order.paymentIssue;
-    }
+        verification: verificationStamp(order.requiresPrescription ? "prescription_and_payment_approved" : "payment_approved"),
+      };
+      if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
+      return update;
+    });
+    order.status = newStatus;
+    order.invoiceNo = invoiceNo;
+    order.items = itemsWithBatches;
+    delete order.paymentIssue;
 
-    notifyCustomer(
-      order.customerId,
-      `Payment confirmed for order ${order.orderNumber}`,
-      "We've verified your payment. Your order is now being prepared.",
-      `order-details.html?id=${orderId}`,
-      "success"
-    );
+    notifyOrderApproved(order);
 
     selectedVerificationId = null;
 
@@ -479,6 +663,95 @@ approvePaymentBtn.addEventListener("click", async () => {
   }
 });
 
+/* ---------- Prescription rejection (REQ079) ---------- */
+// The order goes On Hold like a payment issue: the customer gets the reason
+// and 7 days to upload a valid prescription. If they don't, it closes, and
+// a payment staff already confirmed is kept as store credit (no refunds).
+const rejectPrescriptionBtn = document.getElementById("rejectPrescriptionBtn");
+
+rejectPrescriptionBtn.addEventListener("click", async () => {
+  const order = allOrders.find((o) => o.id === selectedVerificationId);
+  if (!order) return;
+
+  const reasonOptions = Object.entries(PRESCRIPTION_REJECTION_LABELS)
+    .map(([value, label]) => `<option value="${value}">${label}</option>`)
+    .join("");
+  const ok = await showAppConfirm(`Reject the prescription for order ${order.orderNumber}? The customer will be asked to upload a valid one within 7 days.`, {
+    title: "Reject Prescription",
+    confirmLabel: "Reject Prescription",
+    fieldHtml: `
+      <label class="form-label" for="rxRejectReasonSelect">Reason *</label>
+      <select class="form-select mb-3" id="rxRejectReasonSelect">${reasonOptions}</select>
+      <label class="form-label" for="rxRejectNoteInput">Message to the customer *</label>
+      <textarea class="form-control mb-3" id="rxRejectNoteInput" rows="3">${escapeHtml(PRESCRIPTION_REJECTION_REASONS.unclear_photo)}</textarea>
+      <div class="form-check">
+        <input class="form-check-input" type="checkbox" id="rxRejectPaymentOkCheck">
+        <label class="form-check-label" for="rxRejectPaymentOkCheck">Payment was checked and received in full</label>
+      </div>
+      <p class="text-muted mt-1 mb-0" style="font-size:0.78rem;">If ticked and the order later closes unresolved, the payment is kept as store credit.</p>
+    `,
+    onRender: () => {
+      const select = document.getElementById("rxRejectReasonSelect");
+      const note = document.getElementById("rxRejectNoteInput");
+      select.addEventListener("change", () => {
+        note.value = PRESCRIPTION_REJECTION_REASONS[select.value] || "";
+      });
+    },
+  });
+  if (!ok) return;
+
+  const reason = document.getElementById("rxRejectReasonSelect").value;
+  const note = document.getElementById("rxRejectNoteInput").value.trim();
+  const paymentVerified = document.getElementById("rxRejectPaymentOkCheck").checked;
+  if (!note) {
+    await showAppAlert("A message explaining the rejection is required. Nothing was changed.");
+    return;
+  }
+
+  rejectPrescriptionBtn.disabled = true;
+  try {
+    const paymentIssue = {
+      type: "prescription_rejected",
+      reason,
+      reasonLabel: PRESCRIPTION_REJECTION_LABELS[reason],
+      note,
+      paymentVerified,
+      flaggedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
+    };
+    await db.collection("orders").doc(order.id).update({ paymentIssue, verification: verificationStamp("prescription_rejected") });
+    notifyCustomer(
+      order.customerId,
+      `Prescription not accepted for order ${order.orderNumber}`,
+      `${PRESCRIPTION_REJECTION_LABELS[reason]}: ${note}`,
+      `order-details.html?id=${order.id}`,
+      "danger"
+    );
+    logAuditEvent({
+      action: "Prescription Rejected",
+      details: `Order ${order.orderNumber} - ${PRESCRIPTION_REJECTION_LABELS[reason]}: ${note}`,
+      actor: currentStaffName,
+    });
+
+    order.paymentIssue = paymentIssue;
+    selectedVerificationId = null;
+    renderVerificationQueue();
+    renderOrdersTable();
+    bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
+  } catch (error) {
+    reviewAlert.textContent = error.message || "Something went wrong rejecting this prescription. Please try again.";
+    reviewAlert.classList.remove("d-none");
+  } finally {
+    rejectPrescriptionBtn.disabled = false;
+  }
+});
+
+const verificationTypeFilterSelect = document.getElementById("verificationTypeFilter");
+verificationTypeFilterSelect.addEventListener("change", () => {
+  verificationTypeFilter = verificationTypeFilterSelect.value;
+  renderVerificationQueue();
+});
+
 paymentIssueSelect.addEventListener("change", () => {
   const type = paymentIssueSelect.value;
   paymentIssueSelect.value = "";
@@ -525,8 +798,9 @@ function openPaymentIssueModal(type) {
   }
   issueConfirmBtn.textContent = config.confirmLabel;
 
+  const isAmountIssue = type === "underpayment" || type === "overpayment";
   issueReasonGroup.classList.toggle("d-none", type !== "invalid_payment");
-  issueAmountGroup.classList.toggle("d-none", type === "invalid_payment");
+  issueAmountGroup.classList.toggle("d-none", !isAmountIssue);
 
   issueAmountError.classList.add("d-none");
   issueAmountReceivedInput.classList.remove("is-invalid");
@@ -534,6 +808,8 @@ function openPaymentIssueModal(type) {
   if (type === "invalid_payment") {
     issueReasonSelect.value = "unclear_screenshot";
     issueNoteInput.value = REJECTION_REASON_NOTES.unclear_screenshot;
+  } else if (type === "payment_not_received") {
+    issueNoteInput.value = REJECTION_REASON_NOTES.payment_not_received;
   } else {
     issueAmountReceivedInput.value = "";
     updateIssueAmountResult(order);
@@ -572,7 +848,7 @@ issueConfirmBtn.addEventListener("click", async () => {
   // outstanding balance or the excess credited to the customer is computed
   // directly from it, so it can't be left blank (which used to silently
   // fall back to 0 outstanding / the full order total as "received").
-  if (issueType !== "invalid_payment") {
+  if (issueType === "underpayment" || issueType === "overpayment") {
     const receivedRaw = issueAmountReceivedInput.value.trim();
     const receivedAmount = parseFloat(receivedRaw);
     const receivedValid = receivedRaw !== "" && receivedAmount >= 0;
@@ -612,18 +888,22 @@ issueConfirmBtn.addEventListener("click", async () => {
       if (issueType === "invalid_payment") {
         paymentIssue.reason = issueReasonSelect.value;
         paymentIssue.reasonLabel = issueReasonSelect.selectedOptions[0].textContent;
+      } else if (issueType === "payment_not_received") {
+        paymentIssue.reasonLabel = "Payment Not Received";
       } else {
         const received = parseFloat(issueAmountReceivedInput.value) || 0;
         paymentIssue.amountReceived = received;
         paymentIssue.outstandingBalance = Math.max(0, order.total - received);
       }
 
-      await db.collection("orders").doc(orderId).update({ paymentIssue });
+      await db.collection("orders").doc(orderId).update({ paymentIssue, verification: verificationStamp(`hold_${issueType}`) });
       notifyCustomer(
         order.customerId,
         `Payment issue on order ${order.orderNumber}`,
         issueType === "invalid_payment"
           ? REJECTION_REASON_NOTES[paymentIssue.reason] || "Please check your order for details."
+          : issueType === "payment_not_received"
+          ? note || REJECTION_REASON_NOTES.payment_not_received
           : UNDERPAYMENT_NOTE,
         `order-details.html?id=${orderId}`,
         "danger"
@@ -638,29 +918,39 @@ issueConfirmBtn.addEventListener("click", async () => {
       bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
     } else {
       const received = parseFloat(issueAmountReceivedInput.value) || order.total;
-
-      await deductStockFEFOMultiple((order.items || []).map((item) => ({ productId: item.id, qty: item.qty })));
-
       const excessAmount = Math.max(0, received - order.total);
-      const update = {
-        status: order.requiresPrescription ? "delivered" : "payment_confirmed",
-        "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
-        paymentOverage: {
-          amountReceived: received,
-          excessAmount,
-          note,
-        },
-      };
-      if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
+      const newStatus = order.requiresPrescription ? "delivered" : "payment_confirmed";
+      const paymentOverage = { amountReceived: received, excessAmount, note };
 
-      const batch = db.batch();
-      batch.update(db.collection("orders").doc(orderId), update);
-      if (excessAmount > 0 && order.customerId) {
-        batch.update(db.collection("users").doc(order.customerId), {
-          creditBalance: firebase.firestore.FieldValue.increment(excessAmount),
-        });
-      }
-      await batch.commit();
+      // Clearing paymentIssue matters here too: an order the customer
+      // resubmitted still carries its old hold record, and leaving it behind
+      // kept the approved order stuck "On Hold" in the Online Orders table.
+      const { invoiceNo, itemsWithBatches } = await confirmOrderSale(
+        order,
+        (allocations, invoiceNo, itemsWithBatches) => {
+          const update = {
+            status: newStatus,
+            invoiceNo,
+            items: itemsWithBatches,
+            "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
+            paymentOverage,
+            paymentIssue: firebase.firestore.FieldValue.delete(),
+            verification: verificationStamp(order.requiresPrescription ? "prescription_and_payment_approved" : "payment_approved_overpaid"),
+          };
+          if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
+          return update;
+        },
+        (transaction) => {
+          if (excessAmount > 0 && order.customerId) {
+            transaction.update(db.collection("users").doc(order.customerId), {
+              creditBalance: firebase.firestore.FieldValue.increment(excessAmount),
+            });
+          }
+        }
+      );
+
+      order.invoiceNo = invoiceNo;
+      notifyOrderApproved(order);
 
       if (excessAmount > 0 && order.customerId) {
         notifyCustomer(
@@ -672,8 +962,11 @@ issueConfirmBtn.addEventListener("click", async () => {
         );
       }
 
-      order.status = update.status;
-      order.paymentOverage = update.paymentOverage;
+      order.status = newStatus;
+      order.paymentOverage = paymentOverage;
+      order.invoiceNo = invoiceNo;
+      order.items = itemsWithBatches;
+      delete order.paymentIssue;
       selectedVerificationId = null;
 
       renderVerificationQueue();
@@ -729,6 +1022,9 @@ function openApprovedModal(order) {
   document.getElementById("approvedCustomerName").textContent = customerName(order);
   document.getElementById("approvedContactNo").textContent = order.contact ? order.contact.contactNumber : "";
   document.getElementById("approvedDeliveryNotes").textContent = shipping.deliveryNotes || "None";
+  document.getElementById("approvedOrderNumber").textContent = order.orderNumber || "";
+  document.getElementById("approvedSchedule").textContent = formatDeliverySchedule(order.deliverySchedule);
+  document.getElementById("internalDeliveryNotesInput").value = order.internalDeliveryNotes || "";
   trackingLinkInput.value = order.trackingLink || "";
   trackingLinkInput.classList.remove("is-invalid");
   trackingLinkError.textContent = "";
@@ -738,6 +1034,27 @@ function openApprovedModal(order) {
 
   bootstrap.Modal.getOrCreateInstance(approvedModalEl).show();
 }
+
+// One paste into Lalamove's notes/booking form (REQ103).
+document.getElementById("copyAllDeliveryBtn").addEventListener("click", (e) => {
+  const text = (id) => document.getElementById(id).textContent;
+  const all = [
+    `Order No.: ${text("approvedOrderNumber")}`,
+    `Name: ${text("approvedCustomerName")}`,
+    `Contact No.: ${text("approvedContactNo")}`,
+    `Address: ${text("approvedAddress")}`,
+    `Schedule: ${text("approvedSchedule")}`,
+    `Notes: ${text("approvedDeliveryNotes")}`,
+  ].join("\n");
+  const btn = e.currentTarget;
+  navigator.clipboard.writeText(all).then(() => {
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+    setTimeout(() => {
+      btn.innerHTML = originalHtml;
+    }, 1500);
+  });
+});
 
 approvedModalEl.addEventListener("click", (e) => {
   const btn = e.target.closest(".copy-btn");
@@ -753,56 +1070,40 @@ approvedModalEl.addEventListener("click", (e) => {
   });
 });
 
-// Emailed to the customer right after Mark as Dispatched - the itemized
-// order, what they already paid online, and the Lalamove fee the rider
-// collects on delivery, so there's no surprise about what's still owed.
-// Needs EMAILJS_DISPATCH_RECEIPT_TEMPLATE_ID (emailjs-config.js) set up on
-// the EmailJS dashboard - same account/service as the OTP template - with
-// these template variables: to_email, to_name, first_name, order_number,
-// items_list, subtotal, credit_applied, amount_paid_online, delivery_fee,
-// grand_total, delivery_address, tracking_link.
-async function sendDispatchReceiptEmail(order, lalamoveFee, trackingLink) {
-  if (
-    typeof emailjs === "undefined" ||
-    EMAILJS_DISPATCH_RECEIPT_TEMPLATE_ID === "YOUR_EMAILJS_DISPATCH_RECEIPT_TEMPLATE_ID"
-  ) {
-    console.warn("EmailJS dispatch receipt template isn't configured yet - receipt email was not sent.");
-    return;
-  }
-
-  const contact = order.contact || {};
-  if (!contact.email) return;
-
+// A plain-text itemized receipt - products, what was paid online, and the
+// Lalamove fee the rider collects on delivery - used as the body of the
+// "order dispatched" notification below. Rides the existing
+// notifyCustomer()/sendOrderEmail() pipeline (orders.js) instead of a
+// separate EmailJS template, so it goes out through the one template
+// that's already configured and still respects the customer's
+// email-notifications toggle (REQ042).
+function buildDispatchReceiptText(order, lalamoveFee, trackingLink) {
   const itemsList = (order.items || [])
-    .map((item) => `${item.name} x${item.qty} - ${formatPeso(item.price * item.qty)}`)
+    .map((item) => `- ${item.name} x${item.qty} - ${formatPeso(item.price * item.qty)}`)
     .join("\n");
-
-  const shipping = order.shipping || {};
-  const deliveryAddress = [shipping.streetAddress, shipping.city, shipping.province, shipping.zipCode]
-    .filter(Boolean)
-    .join(", ");
 
   const amountPaidOnline = order.total || 0;
   const deliveryFee = lalamoveFee || 0;
 
-  try {
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_DISPATCH_RECEIPT_TEMPLATE_ID, {
-      to_email: contact.email,
-      to_name: contact.firstName || "",
-      first_name: contact.firstName || "",
-      order_number: order.orderNumber,
-      items_list: itemsList,
-      subtotal: formatPeso(order.subtotal != null ? order.subtotal : amountPaidOnline),
-      credit_applied: order.creditApplied > 0 ? formatPeso(order.creditApplied) : "",
-      amount_paid_online: formatPeso(amountPaidOnline),
-      delivery_fee: formatPeso(deliveryFee),
-      grand_total: formatPeso(amountPaidOnline + deliveryFee),
-      delivery_address: deliveryAddress,
-      tracking_link: trackingLink,
-    });
-  } catch (error) {
-    console.error("Failed to send dispatch receipt email:", error);
+  const lines = [
+    `Great news - your order ${order.orderNumber} is on its way! Here's a quick summary for your records:`,
+    "",
+    itemsList,
+    "",
+  ];
+  if (order.creditApplied > 0) {
+    lines.push(`Subtotal: ${formatPeso(order.subtotal != null ? order.subtotal : amountPaidOnline)}`);
+    lines.push(`Store Credit Applied: -${formatPeso(order.creditApplied)}`);
   }
+  lines.push(`Amount Paid Online: ${formatPeso(amountPaidOnline)}`);
+  lines.push(`Lalamove Delivery Fee (payable to the rider): ${formatPeso(deliveryFee)}`);
+  lines.push(`Total: ${formatPeso(amountPaidOnline + deliveryFee)}`);
+  lines.push("");
+  lines.push(`Track your rider here: ${trackingLink}`);
+  lines.push("");
+  lines.push("Thank you for choosing Amson Pharmaceuticals - we hope it reaches you safely and on time!");
+
+  return lines.join("\n");
 }
 
 markDispatchedBtn.addEventListener("click", async () => {
@@ -837,14 +1138,20 @@ markDispatchedBtn.addEventListener("click", async () => {
       "statusTimestamps.dispatched": firebase.firestore.FieldValue.serverTimestamp(),
       trackingLink,
       lalamoveFee,
+      internalDeliveryNotes: document.getElementById("internalDeliveryNotesInput").value.trim(),
     });
 
     order.status = "dispatched";
     order.trackingLink = trackingLink;
     order.lalamoveFee = lalamoveFee;
+    notifyCustomer(
+      order.customerId,
+      `Order ${order.orderNumber} is on the way`,
+      buildDispatchReceiptText(order, lalamoveFee, trackingLink),
+      `order-details.html?id=${orderId}`,
+      "success"
+    );
     approvedModalOrderId = null;
-
-    sendDispatchReceiptEmail(order, lalamoveFee, trackingLink);
 
     bootstrap.Modal.getInstance(approvedModalEl).hide();
     renderOrdersTable();
@@ -1014,9 +1321,9 @@ function renderOrderRow(order) {
 
   return `
     <tr>
-      <td class="fw-medium">${order.orderNumber}</td>
+      <td class="fw-medium">${escapeHtml(order.orderNumber)}</td>
       <td>${formatOrderDateTime(order.createdAt)}</td>
-      <td>${customerName(order)}</td>
+      <td>${escapeHtml(customerName(order))}</td>
       <td>${itemCount}</td>
       <td class="product-price">
         ${formatPeso(order.total)}
@@ -1155,5 +1462,33 @@ verificationSortBtn.addEventListener("click", () => {
 });
 
 ordersExportBtn.addEventListener("click", () => {
-  exportBlankPdf("amson-online-orders");
+  exportTable({
+    title: "Online Orders",
+    subtitle: ordersFilter === "all" ? "All orders" : `Filter: ${ordersFilter}`,
+    filenamePrefix: "amson-online-orders",
+    rows: filteredOrders(),
+    columns: [
+      { label: "Order No.", value: (o) => o.orderNumber, width: 1.3 },
+      { label: "SI No.", value: (o) => o.invoiceNo || "" },
+      { label: "Date", value: (o) => formatDateMDY(o.createdAt, true), width: 1.3 },
+      { label: "Customer", value: (o) => customerName(o), width: 1.5 },
+      { label: "Items", value: (o) => (o.items || []).map((i) => `${i.name} x${i.qty}`).join(", "), width: 3.5 },
+      { label: "Total", value: (o) => (o.total || 0).toFixed(2), width: 0.9 },
+      { label: "Credit Applied", value: (o) => (o.creditApplied ? o.creditApplied.toFixed(2) : ""), width: 0.9 },
+      {
+        label: "Status",
+        value: (o) => (o.paymentIssue ? `On Hold - ${(PAYMENT_ISSUE_TYPES[o.paymentIssue.type] || {}).label || "Payment Issue"}` : orderBadgeLabel(o)),
+        width: 1.6,
+      },
+    ],
+  });
 });
+
+// Linked from a customer's order history: open the Online Orders tab
+// filtered to that order number.
+const linkedOrderSearch = new URLSearchParams(window.location.search).get("search");
+if (linkedOrderSearch) {
+  ordersSearchTerm = linkedOrderSearch;
+  ordersSearchInput.value = linkedOrderSearch;
+  setActiveTab("orders");
+}

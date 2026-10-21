@@ -56,7 +56,7 @@ function renderProductChecklist(checkedIds = []) {
     (p) => `
       <div class="form-check">
         <input class="form-check-input supplier-product-checkbox" type="checkbox" value="${p.id}" id="supplierProduct-${p.id}" ${checkedIds.includes(p.id) ? "checked" : ""}>
-        <label class="form-check-label" for="supplierProduct-${p.id}">${p.name}</label>
+        <label class="form-check-label" for="supplierProduct-${p.id}">${escapeHtml(p.name)}</label>
       </div>
     `
   ).join("");
@@ -116,17 +116,17 @@ function renderSupplierCard(supplier) {
           <div class="d-flex gap-3">
             <div class="supplier-icon"><i class="bi bi-building"></i></div>
             <div>
-              <p class="fw-bold mb-0">${supplier.name}</p>
-              <p class="text-muted mb-0" style="font-size:0.88rem;">${supplier.contactPerson || "-"}</p>
+              <p class="fw-bold mb-0">${escapeHtml(supplier.name)}</p>
+              <p class="text-muted mb-0" style="font-size:0.88rem;">${escapeHtml(supplier.contactPerson || "-")}</p>
             </div>
           </div>
           <span class="badge rounded-pill ${supplier.status === "active" ? "text-bg-success" : "text-bg-secondary"}">
             ${supplier.status === "active" ? "Active" : "Inactive"}
           </span>
         </div>
-        <p class="contact-line"><i class="bi bi-telephone"></i> ${supplier.phone || "-"}</p>
-        <p class="contact-line"><i class="bi bi-envelope"></i> ${supplier.email || "-"}</p>
-        <p class="contact-line mb-3"><i class="bi bi-geo-alt"></i> ${supplier.address || "-"}</p>
+        <p class="contact-line"><i class="bi bi-telephone"></i> ${escapeHtml(supplier.phone || "-")}</p>
+        <p class="contact-line"><i class="bi bi-envelope"></i> ${escapeHtml(supplier.email || "-")}</p>
+        <p class="contact-line mb-3"><i class="bi bi-geo-alt"></i> ${escapeHtml(supplier.address || "-")}</p>
         <div class="d-flex gap-2 align-items-center">
           <button type="button" class="icon-btn view-supplier-btn" data-id="${supplier.id}" aria-label="View"><i class="bi bi-eye"></i></button>
           <button type="button" class="btn btn-outline-dark-amson flex-fill edit-supplier-btn" data-id="${supplier.id}"><i class="bi bi-pencil me-1"></i>Edit</button>
@@ -321,5 +321,22 @@ async function deleteSupplier(id) {
 
 /* ---------- Export ---------- */
 exportSuppliersBtn.addEventListener("click", () => {
-  exportBlankPdf("amson-suppliers");
+  exportTable({
+    title: "Suppliers",
+    filenamePrefix: "amson-suppliers",
+    rows: filteredSuppliers(),
+    columns: [
+      { label: "Supplier", value: (s) => s.name, width: 1.8 },
+      { label: "Contact Person", value: (s) => s.contactPerson || "", width: 1.4 },
+      { label: "Phone", value: (s) => s.phone || "" },
+      { label: "Email", value: (s) => s.email || "", width: 1.6 },
+      { label: "Address", value: (s) => s.address || "", width: 2 },
+      { label: "Status", value: (s) => (s.status === "active" ? "Active" : "Inactive"), width: 0.7 },
+      {
+        label: "Products",
+        value: (s) => (s.productIds || []).map((id) => (getProductById(id) || {}).name).filter(Boolean).join(", "),
+        width: 3,
+      },
+    ],
+  });
 });

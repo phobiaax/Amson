@@ -97,6 +97,21 @@ async function verifyCode(enteredCode) {
     });
 
     sessionStorage.removeItem("amsonPendingVerificationEmail");
+    // The emailed code proves this device too (REQ005).
+    try {
+      await trustThisDevice(user.uid);
+    } catch (error) {
+      console.warn("Couldn't save this device:", error);
+    }
+    // Just registered: sign out and log in with the new account.
+    if (sessionStorage.getItem("amsonFromRegistration")) {
+      sessionStorage.removeItem("amsonFromRegistration");
+      sessionStorage.setItem("amsonLoginSuccess", "Your account is verified. Please log in to continue.");
+      sessionStorage.setItem("amsonLoginEmail", user.email || pendingEmail);
+      await auth.signOut();
+      window.location.href = "login.html";
+      return;
+    }
     window.location.href = "shop/index.html";
   } catch (error) {
     showAlert(error.message || "Something went wrong. Please try again.");
@@ -136,7 +151,8 @@ resendCodeLink.addEventListener("click", async (e) => {
     });
     const userDoc = await userDocRef.get();
     const firstName = userDoc.exists ? userDoc.data().firstName : "";
-    await sendOtpEmail(pendingEmail || user.email, code, firstName);
+    const sent = await sendOtpEmail(pendingEmail || user.email, code, firstName);
+    if (!sent) throw new Error("We couldn't send the code right now. Please try again in a moment.");
     showAlert("A new code has been sent.", "success");
   } catch (error) {
     showAlert(error.message || "Could not resend the code.");
@@ -146,8 +162,15 @@ resendCodeLink.addEventListener("click", async (e) => {
 // ---- Wrong email: back to registration ----
 backToRegisterBtn.addEventListener("click", async () => {
   sessionStorage.removeItem("amsonPendingVerificationEmail");
+  sessionStorage.removeItem("amsonFromRegistration");
   try {
     await auth.signOut();
   } catch (error) {}
   window.location.href = "register.html";
 });
+
+// Sign-up couldn't send the first code.
+if (sessionStorage.getItem("amsonOtpSendFailed")) {
+  sessionStorage.removeItem("amsonOtpSendFailed");
+  showAlert("We couldn't send your code. Tap \"Resend\" below to try again.");
+}

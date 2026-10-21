@@ -86,10 +86,6 @@
     <div class="container">
       <ul class="nav flex-nowrap flex-md-wrap justify-content-md-center">
         <li class="nav-item"><a class="nav-link" href="products.html">All Products</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=otc">OTC Medicines</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=vitamins">Vitamins &amp; Supplements</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=personal-care">Personal Care</a></li>
-        <li class="nav-item"><a class="nav-link" href="products.html?category=health-wellness">Health &amp; Wellness</a></li>
       </ul>
     </div>
   </nav>
@@ -98,7 +94,8 @@
 <!-- ===== Product Catalog ===== -->
 <main class="section-block bg-light-gray">
   <div class="container">
-    <h1 class="section-title mb-4">All Products</h1>
+    <h1 class="section-title mb-2" id="productsHeading">All Products</h1>
+    <p class="text-muted mb-4 d-none" id="searchSummary"></p>
 
     <div class="row g-4">
       <!-- Filter sidebar -->
@@ -111,22 +108,21 @@
             <input class="form-check-input" type="checkbox" id="catAll" value="all" checked>
             <label class="form-check-label" for="catAll">All Products</label>
           </div>
-          <div class="form-check">
-            <input class="form-check-input category-filter" type="checkbox" id="catOtc" value="otc">
-            <label class="form-check-label" for="catOtc">OTC Medicines</label>
+          <div id="categoryFilterList"></div>
+
+          <label class="form-label mt-3">Price Range (&#8369;)</label>
+          <div class="d-flex gap-2 align-items-center">
+            <input type="number" min="0" step="1" class="form-control form-control-sm" id="priceMinInput" placeholder="Min" aria-label="Minimum price">
+            <span class="text-muted">-</span>
+            <input type="number" min="0" step="1" class="form-control form-control-sm" id="priceMaxInput" placeholder="Max" aria-label="Maximum price">
           </div>
-          <div class="form-check">
-            <input class="form-check-input category-filter" type="checkbox" id="catVitamins" value="vitamins">
-            <label class="form-check-label" for="catVitamins">Vitamins &amp; Supplements</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input category-filter" type="checkbox" id="catPersonalCare" value="personal-care">
-            <label class="form-check-label" for="catPersonalCare">Personal Care</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input category-filter" type="checkbox" id="catHealthWellness" value="health-wellness">
-            <label class="form-check-label" for="catHealthWellness">Health &amp; Wellness</label>
-          </div>
+
+          <label for="stockFilterSelect" class="form-label mt-3">Availability</label>
+          <select class="form-select" id="stockFilterSelect">
+            <option value="all">All products</option>
+            <option value="in">In stock only</option>
+            <option value="out">Out of stock</option>
+          </select>
 
           <label for="sortBy" class="form-label mt-3">Sort By</label>
           <select class="form-select mb-3" id="sortBy">
@@ -151,32 +147,9 @@
 </main>
 
 <!-- ===== Footer ===== -->
-<footer class="site-footer pt-5">
-  <div class="container">
-    <div class="row gy-4">
-      <div class="col-md-3">
-        <h6>About Amson</h6>
-        <p>Amson about description sample text</p>
-      </div>
-      <div class="col-md-3">
-        <h6>Information</h6>
-        <a href="#" class="d-block">Privacy Policy</a>
-        <a href="#" class="d-block">Terms &amp; Conditions</a>
-      </div>
-      <div class="col-md-3 offset-md-3">
-        <h6>Contact Us</h6>
-        <p class="mb-1">Hotline: +63 (02) 8123-4567</p>
-        <p class="mb-1">Email: support@amson.ph</p>
-        <p class="mb-1">Mon-Sun: 8:00 AM - 8:00 PM</p>
-      </div>
-    </div>
-  </div>
-  <div class="footer-bottom text-center py-3 mt-4">
-    © 2026 Amson Pharmaceuticals. All rights reserved. FDA LTO No. XXXXX-XXXX
-  </div>
-</footer>
+<footer class="site-footer pt-5"></footer>
 
-<a href="#" class="floating-chat-btn"><i class="bi bi-chat-square-text-fill"></i>Chat with us</a>
+<a href="#" class="floating-chat-btn d-none" data-chat-entry><i class="bi bi-chat-square-text-fill"></i>Chat with us</a>
 
 <!-- Product quick-view popup (instead of a full page navigation) -->
 <div class="modal fade" id="productQuickViewModal" tabindex="-1" aria-hidden="true">
@@ -201,8 +174,12 @@
 <!-- App scripts -->
 <script src="../js/firebase-config.js"></script>
 <script src="../js/products-data.js"></script>
+<script src="../js/device-trust.js"></script>
 <script src="../js/shop-header.js"></script>
 <script src="../js/cart.js"></script>
 <script src="../js/products.js"></script>
+<script src="../js/store-info.js"></script>
+<script src="../js/chat-config.js"></script>
+<script src="../js/live-chat.js"></script>
 </body>
 </html>

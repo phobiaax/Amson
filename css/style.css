@@ -1811,3 +1811,206 @@ a {
 .choices__list--single .choices__item {
   padding-right: 1.25rem;
 }
+
+/* ---------- Public legal page (legal.html) ---------- */
+.legal-page-body h6 {
+  font-weight: 700;
+  margin-top: 1.25rem;
+}
+.legal-page-body p {
+  line-height: 1.65;
+}
+
+/* ---------- Printing a sale receipt (58mm thermal paper) ---------- */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #posReceiptModal,
+  #posReceiptModal * {
+    visibility: visible !important;
+  }
+  #posReceiptModal {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    overflow: visible !important;
+  }
+  #posReceiptModal .modal-dialog {
+    margin: 0 !important;
+    width: 58mm !important;
+    max-width: 58mm !important;
+    transform: none !important;
+  }
+  #posReceiptModal .modal-content {
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 9pt;
+  }
+  #posReceiptModal .modal-footer,
+  #posReceiptModal .btn-close,
+  .modal-backdrop {
+    display: none !important;
+  }
+}
+
+/* ---------- Live chat (customer widget + staff console) ---------- */
+.chat-panel {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  height: min(560px, calc(100vh - 3rem));
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  border: 1px solid var(--amson-border);
+  border-radius: 16px;
+  box-shadow: 0 12px 36px rgba(18, 18, 27, 0.25);
+  z-index: 1040;
+  overflow: hidden;
+}
+.chat-panel.d-none {
+  display: none !important;
+}
+.floating-chat-btn.chat-open {
+  display: none !important;
+}
+.chat-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background-color: var(--amson-red);
+  color: #fff;
+}
+.chat-status-text {
+  font-size: 0.78rem;
+  opacity: 0.9;
+}
+.chat-close-btn {
+  background: none;
+  border: 0;
+  color: #fff;
+  font-size: 1.1rem;
+}
+.chat-messages {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  background-color: var(--amson-gray-bg);
+}
+.chat-messages-admin {
+  height: 55vh;
+  border: 1px solid var(--amson-border);
+  border-radius: 10px;
+}
+.chat-msg {
+  max-width: 85%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.chat-msg-customer {
+  align-self: flex-end;
+  background-color: var(--amson-red);
+  color: #fff;
+}
+.chat-msg-assistant {
+  align-self: flex-start;
+  background-color: #fff;
+  border: 1px solid var(--amson-border);
+}
+.chat-msg-staff {
+  align-self: flex-start;
+  background-color: #fff7e0;
+  border: 1px solid #f2d78a;
+}
+.chat-msg-system {
+  align-self: center;
+  max-width: 95%;
+  background: none;
+  color: var(--amson-text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+.chat-msg-who {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  opacity: 0.8;
+  margin-bottom: 0.15rem;
+}
+.chat-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem 0;
+}
+.chat-quick button {
+  border: 1px solid var(--amson-border);
+  background-color: #fff;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+}
+.chat-input-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}
+.chat-disclaimer {
+  font-size: 0.7rem;
+  color: var(--amson-text-muted);
+  padding: 0 0.75rem 0.6rem;
+  margin: 0;
+}
+@media (max-width: 575.98px) {
+  .chat-panel {
+    right: 16px;
+    left: 16px;
+    bottom: 16px;
+    width: auto;
+    max-width: none;
+    height: calc(100vh - 32px);
+  }
+}
+
+/* ---------- Reports ---------- */
+.report-table {
+  font-size: 0.82rem;
+}
+.report-table thead th {
+  background-color: var(--amson-gray-bg);
+  white-space: nowrap;
+}
+.report-total-row td {
+  border-top: 2px solid var(--amson-dark);
+}
+.report-blank-row td {
+  padding: 0.25rem;
+  border: 0;
+}
+
+/* ---------- Store announcement banner ---------- */
+.store-banner {
+  padding: 0.6rem 1rem;
+  text-align: center;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+.store-banner-announcement {
+  background-color: #fff7e0;
+  color: #7a5b00;
+  border-bottom: 1px solid #f2d78a;
+}
+.store-banner-promotion {
+  background-color: var(--amson-red);
+  color: #fff;
+}

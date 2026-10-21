@@ -37,8 +37,9 @@
       <li><a href="customer-accounts.html" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
       <li><a href="wholesale-accounts.html" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
       <li><a href="staff-management.html" class="admin-nav-link" id="staffManagementNavLink"><i class="bi bi-people"></i>Staff Management</a></li>
-      <li><a href="#" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
+      <li><a href="live-chat.html" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
       <li><a href="notifications.html" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="reports.html" class="admin-nav-link"><i class="bi bi-file-earmark-bar-graph"></i>Reports</a></li>
       <li><a href="audit-log.html" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
     </ul>
   </aside>
@@ -91,12 +92,21 @@
                 <input type="text" class="form-control form-control-sm" id="verificationSearchInput" placeholder="Search order # or customer">
                 <button type="button" class="btn btn-outline-dark-amson btn-sm" id="verificationSortBtn" aria-label="Toggle sort order"><i class="bi bi-arrow-down-up"></i></button>
               </div>
+              <select class="form-select form-select-sm mb-2" id="verificationTypeFilter" aria-label="Filter queue">
+                <option value="all">All orders</option>
+                <option value="rx">Prescription (RX) pre-orders only</option>
+                <option value="regular">Non-prescription orders only</option>
+              </select>
               <div id="verificationQueueList" class="d-flex flex-column gap-2"></div>
               <p class="text-muted text-center py-4 d-none" id="verificationQueueEmpty">No orders awaiting payment verification.</p>
             </div>
             <div class="col-lg-8">
               <div id="verificationReviewPanel" class="d-none">
-                <h2 class="h5 fw-bold mb-3">Proof of Payment Review</h2>
+                <h2 class="h5 fw-bold mb-3" id="reviewPanelHeading">Proof of Payment Review</h2>
+                <div class="alert alert-info d-none mb-3" id="reviewRxChecklist" role="alert" style="font-size:0.85rem;">
+                  <p class="fw-bold mb-1"><i class="bi bi-file-medical me-1"></i>Prescription pre-order (in-store pick-up)</p>
+                  Check that the prescription is clear, current, signed by a licensed doctor, and matches the items ordered before approving. Approving reserves the stock and tells the customer the order is ready for pick-up.
+                </div>
                 <div class="alert alert-warning d-none mb-2" id="reviewPaymentIssueNote" role="alert"></div>
                 <div class="d-none mb-3 ps-3 border-start" id="reviewPreviousIssueBreakdown" style="border-color:var(--amson-border) !important;">
                   <p class="detail-label mb-0">Amount Previously Received</p>
@@ -148,15 +158,20 @@
                   </div>
                 </div>
 
+                <div id="reviewPriceWarning" class="alert alert-warning auth-alert d-none mt-3" role="alert"></div>
                 <div id="reviewAlert" class="alert alert-danger auth-alert d-none mt-3" role="alert"></div>
 
                 <div class="d-flex gap-2 flex-wrap mt-3">
                   <select class="form-select" id="paymentIssueSelect" style="max-width:240px;">
                     <option value="">Payment Issue</option>
                     <option value="invalid_payment">Invalid payment</option>
+                    <option value="payment_not_received">Payment not received</option>
                     <option value="underpayment">Underpayment</option>
                     <option value="overpayment">Overpayment</option>
                   </select>
+                  <button type="button" class="btn btn-outline-danger d-none" id="rejectPrescriptionBtn">
+                    <i class="bi bi-x-circle me-1"></i>Reject Prescription
+                  </button>
                   <button type="button" class="btn btn-approve-payment flex-fill" id="approvePaymentBtn">
                     <i class="bi bi-check-circle me-1"></i>Approve Payment
                   </button>
@@ -177,6 +192,7 @@
             </div>
             <div class="d-flex gap-2 flex-wrap">
               <button type="button" class="btn btn-outline-dark-amson btn-sm" id="ordersExportBtn"><i class="bi bi-box-arrow-up-right me-1"></i>Export Report</button>
+              <a href="reports.html?type=daily_sales" class="btn btn-outline-dark-amson btn-sm"><i class="bi bi-file-earmark-bar-graph me-1"></i>Daily Sales Report</a>
               <input type="text" class="form-control form-control-sm" id="ordersSearchInput" placeholder="Search orders" style="width:180px;">
               <select class="form-select form-select-sm" id="ordersSortFieldSelect" style="width:160px;">
                 <option value="createdAt">Sort: Date Created</option>
@@ -209,14 +225,16 @@
         <!-- ===== Walk-in Orders panel (read-only POS sales log) ===== -->
         <div id="walkinPanel" class="p-4 d-none">
           <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-            <input type="text" class="form-control form-control-sm" id="walkinSearchInput" placeholder="Search by cashier or product" style="width:240px;">
+            <input type="text" class="form-control form-control-sm" id="walkinSearchInput" placeholder="Search SI no., customer, cashier or product" style="width:280px;">
           </div>
 
           <div class="table-responsive">
             <table class="table admin-orders-table align-middle">
               <thead>
                 <tr>
+                  <th>SI No.</th>
                   <th>Date &amp; Time</th>
+                  <th>Customer</th>
                   <th>Items</th>
                   <th>Total</th>
                   <th>Payment Method</th>
@@ -315,7 +333,13 @@
         <h2 class="mb-2">Payment approved!</h2>
         <p class="text-muted mb-3">Please book the delivery using the customer details below.</p>
       </div>
-      <a href="https://web.lalamove.com/" target="_blank" rel="noopener" class="btn btn-amson w-100 mb-3">Go to Lalamove Web Portal</a>
+      <a href="https://web.lalamove.com/" target="_blank" rel="noopener" class="btn btn-amson w-100 mb-2">Go to Lalamove Web Portal</a>
+      <button type="button" class="btn btn-outline-dark-amson w-100 mb-3" id="copyAllDeliveryBtn"><i class="bi bi-clipboard-check me-1"></i>Copy All Delivery Details</button>
+
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div><p class="detail-label mb-0">Order No.</p><p class="detail-value" id="approvedOrderNumber"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedOrderNumber"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
 
       <div class="d-flex justify-content-between align-items-start mb-2">
         <div><p class="detail-label mb-0">Address</p><p class="detail-value" id="approvedAddress"></p></div>
@@ -329,9 +353,18 @@
         <div><p class="detail-label mb-0">Contact No.</p><p class="detail-value" id="approvedContactNo"></p></div>
         <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedContactNo"><i class="bi bi-clipboard"></i> Copy</button>
       </div>
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div><p class="detail-label mb-0">Preferred Schedule</p><p class="detail-value" id="approvedSchedule"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedSchedule"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
       <div class="d-flex justify-content-between align-items-start mb-3">
         <div><p class="detail-label mb-0">Delivery Notes</p><p class="detail-value" id="approvedDeliveryNotes"></p></div>
         <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedDeliveryNotes"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
+
+      <div class="mb-3">
+        <label for="internalDeliveryNotesInput" class="form-label">Internal Notes <span class="text-muted">(staff only, optional)</span></label>
+        <textarea class="form-control" id="internalDeliveryNotesInput" rows="2" placeholder="e.g. Rider: Juan, booked 2:15 PM, fee ₱120"></textarea>
       </div>
 
       <div class="mb-3">
@@ -364,7 +397,7 @@
     <div class="modal-content text-center p-4">
       <div class="icon-circle" style="background-color: rgba(26,156,75,0.12); color:#1a9c4b;"><i class="bi bi-shop"></i></div>
       <h2 class="mb-2">Ready for pick-up!</h2>
-      <p class="text-muted mb-4">Payment approved and stock reserved. Please notify the customer their order is ready to pick up in-store - remind them to bring a valid ID (and the original prescription, if applicable).</p>
+      <p class="text-muted mb-4">Prescription and payment approved, and the stock is reserved. The customer has been notified that the order is ready to pick up - they must bring the original prescription and a valid ID.</p>
       <button type="button" class="btn btn-amson w-100" data-bs-dismiss="modal">Got it</button>
     </div>
   </div>
@@ -392,8 +425,12 @@
           <span class="fw-medium" id="posReceiptTime">-</span>
         </div>
         <div class="d-flex justify-content-between mb-1">
-          <span class="text-muted">Reference No.</span>
+          <span class="text-muted">SI No.</span>
           <span class="fw-medium" id="posReceiptRef">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Customer</span>
+          <span class="fw-medium" id="posReceiptCustomer">Walk-in</span>
         </div>
         <div class="d-flex justify-content-between mb-3">
           <span class="text-muted">Cashier</span>
@@ -406,7 +443,7 @@
               <tr>
                 <th>Product</th>
                 <th class="text-end">Qty</th>
-                <th class="text-end">Cost</th>
+                <th class="text-end">Price</th>
                 <th class="text-end">Total</th>
               </tr>
             </thead>
@@ -443,6 +480,7 @@
 
 <!-- jsPDF (Export Report) -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <!-- EmailJS (dispatch receipt email to the customer) -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -453,6 +491,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <!-- App scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script src="../js/firebase-config.js"></script>
 <script src="../js/emailjs-config.js"></script>
 <script src="../js/products-data.js"></script>
@@ -460,6 +499,7 @@
 <script src="../js/admin-sidebar.js"></script>
 <script src="../js/admin-online-orders.js"></script>
 <script src="../js/admin-roles.js"></script>
+<script src="../js/device-trust.js"></script>
 <script src="../js/admin-header.js"></script>
 </body>
 </html>

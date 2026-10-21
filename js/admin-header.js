@@ -29,10 +29,21 @@ auth.onAuthStateChanged(async (user) => {
     }
 
     const admin = doc.data();
+    // Deactivated in Staff Management: signed out even if "Remember me" kept them in.
+    if (admin.accountStatus === "deactivated") {
+      try {
+        sessionStorage.setItem("amsonLoginNotice", "This account has been deactivated. Please contact the Branch Manager.");
+      } catch (error) {}
+      await auth.signOut();
+      window.location.href = "../login.html";
+      return;
+    }
+    // Staff need a confirmed device too (REQ044).
+    if (typeof enforceRecognizedDevice === "function" && !(await enforceRecognizedDevice(admin))) return;
 
     if (!roleCanAccessPage(admin.role, currentAdminPageName())) {
       await showAppAlert("You don't have access to that page.");
-      window.location.href = "dashboard.html";
+      window.location.href = homePageForRole(admin.role);
       return;
     }
 
@@ -52,7 +63,8 @@ auth.onAuthStateChanged(async (user) => {
     });
 
     document.dispatchEvent(new CustomEvent("admin:ready", { detail: { uid: user.uid, admin } }));
-    refreshAdminNotifBell(user.uid);
+    // Staff alerts (orders, stock, expiry) aren't part of Sales Staff's job.
+    if (roleCanAccessPage(admin.role, "notifications.html")) refreshAdminNotifBell(user.uid);
   } catch (error) {
     window.location.href = "../login.html";
   }
@@ -93,6 +105,7 @@ async function refreshAdminNotifBell(uid) {
   try {
     const [notifications, readMap] = await Promise.all([computeStaffNotifications(), getStaffNotifReadMap(uid)]);
     const unread = notifications.filter((n) => !isStaffNotifRead(readMap, n));
+    showBrowserAlerts(unread);
 
     const badge = document.getElementById("adminNotifBadge");
     if (badge) {
@@ -136,7 +149,7 @@ async function refreshAdminNotifBell(uid) {
                 <li>
                   <a class="dropdown-item d-flex align-items-start gap-2 py-2 admin-notif-item" href="${n.link}" data-key="${n.key}" data-signature="${n.signature}" style="white-space:normal; border-left:5px solid ${severityColor}; background-color:${severityBg}; ${isRead ? "opacity:0.6;" : "font-weight:600;"}">
                     <i class="bi ${n.icon} mt-1"></i>
-                    <span class="flex-grow-1" style="font-size:0.85rem;">${n.message}</span>
+                    <span class="flex-grow-1" style="font-size:0.85rem;">${escapeHtml(n.message)}</span>
                   </a>
                 </li>
               `;
@@ -168,4 +181,33 @@ if (adminLogoutBtn) {
     await auth.signOut();
     window.location.href = "../login.html";
   });
+}
+
+// ---- Browser (desktop) alerts for staff ----
+// Turned on from the Notifications page. Each unread alert pops up once per
+// browser; it shows again only when its contents change.
+const BROWSER_ALERTED_KEY = "amsonBrowserAlerted";
+
+function showBrowserAlerts(unread) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  let alerted = {};
+  try {
+    alerted = JSON.parse(localStorage.getItem(BROWSER_ALERTED_KEY)) || {};
+  } catch (error) {}
+  unread.forEach((n) => {
+    if (alerted[n.key] === n.signature) return;
+    try {
+      const popup = new Notification("Amson Pharmaceuticals", { body: n.message, icon: "../assets/logo-transp.png", tag: n.key });
+      popup.onclick = () => {
+        window.focus();
+        window.location.href = n.link;
+      };
+    } catch (error) {
+      return;
+    }
+    alerted[n.key] = n.signature;
+  });
+  try {
+    localStorage.setItem(BROWSER_ALERTED_KEY, JSON.stringify(alerted));
+  } catch (error) {}
 }

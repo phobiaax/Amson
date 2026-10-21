@@ -47,7 +47,7 @@ function filteredAuditEntries() {
   }
 
   if (auditDateFrom) {
-    const from = new Date(auditDateFrom);
+    const from = new Date(`${auditDateFrom}T00:00:00`); // local midnight, not UTC
     filtered = filtered.filter((e) => e.createdAt && e.createdAt.toDate() >= from);
   }
 
@@ -62,13 +62,7 @@ function filteredAuditEntries() {
 
 function formatTimestamp(timestamp) {
   if (!timestamp) return "-";
-  return timestamp.toDate().toLocaleString("en-PH", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDateMDY(timestamp, true);
 }
 
 function renderAuditTable() {
@@ -94,10 +88,10 @@ function renderAuditRow(entry) {
   return `
     <tr>
       <td>${formatTimestamp(entry.createdAt)}</td>
-      <td>${entry.user || "-"}</td>
-      <td>${entry.action || "-"}</td>
-      <td>${entry.details || "-"}</td>
-      <td>${entry.ipAddress || "-"}</td>
+      <td>${escapeHtml(entry.user || "-")}</td>
+      <td>${escapeHtml(entry.action || "-")}</td>
+      <td>${escapeHtml(entry.details || "-")}</td>
+      <td>${escapeHtml(entry.ipAddress || "-")}</td>
     </tr>
   `;
 }
@@ -157,5 +151,16 @@ auditClearFiltersBtn.addEventListener("click", () => {
 
 /* ---------- Export ---------- */
 exportAuditLogBtn.addEventListener("click", () => {
-  exportBlankPdf("amson-audit-log");
+  exportTable({
+    title: "Audit Log",
+    subtitle: auditDateFrom || auditDateTo ? `${auditDateFrom || "start"} to ${auditDateTo || "today"}` : "All entries",
+    filenamePrefix: "amson-audit-log",
+    rows: filteredAuditEntries(),
+    columns: [
+      { label: "Date & Time", value: (e) => formatDateMDY(e.createdAt, true), width: 1.3 },
+      { label: "User", value: (e) => e.user || "", width: 1.2 },
+      { label: "Action", value: (e) => e.action || "", width: 1.5 },
+      { label: "Details", value: (e) => e.details || "", width: 5 },
+    ],
+  });
 });

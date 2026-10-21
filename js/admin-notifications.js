@@ -54,7 +54,7 @@ function renderNotifications(notifications, readMap) {
           <div class="d-flex align-items-center gap-3">
             ${isRead ? "" : '<span class="rounded-circle bg-primary flex-shrink-0" style="width:8px; height:8px; display:inline-block;"></span>'}
             <i class="bi ${n.icon}" style="font-size:1.2rem;"></i>
-            <span style="${isRead ? "" : "font-weight:600;"}">${n.message}</span>
+            <span style="${isRead ? "" : "font-weight:600;"}">${escapeHtml(n.message)}</span>
           </div>
           <span class="badge rounded-pill ${SEVERITY_CLASS[n.severity]}">${n.severity === "danger" ? "Urgent" : n.severity === "warning" ? "Warning" : "Info"}</span>
         </a>
@@ -91,5 +91,16 @@ if (markAllNotifsReadBtn) {
     } finally {
       markAllNotifsReadBtn.disabled = false;
     }
+  });
+}
+
+// Desktop alerts: the browser asks the staff member once.
+const enableBrowserAlertsBtn = document.getElementById("enableBrowserAlertsBtn");
+if (enableBrowserAlertsBtn && typeof Notification !== "undefined" && Notification.permission === "default") {
+  enableBrowserAlertsBtn.classList.remove("d-none");
+  enableBrowserAlertsBtn.addEventListener("click", async () => {
+    const result = await Notification.requestPermission();
+    enableBrowserAlertsBtn.classList.add("d-none");
+    if (result === "granted") showAppAlert("Desktop alerts are on. New alerts will pop up when you open any staff page.", { title: "Desktop Alerts" });
   });
 }
