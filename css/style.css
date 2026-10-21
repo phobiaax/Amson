@@ -1986,3 +1986,20 @@ a {
   padding: 0.25rem;
   border: 0;
 }
+
+/* ---------- Store announcement banner ---------- */
+.store-banner {
+  padding: 0.6rem 1rem;
+  text-align: center;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+.store-banner-announcement {
+  background-color: #fff7e0;
+  color: #7a5b00;
+  border-bottom: 1px solid #f2d78a;
+}
+.store-banner-promotion {
+  background-color: var(--amson-red);
+  color: #fff;
+}

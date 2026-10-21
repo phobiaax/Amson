@@ -70,3 +70,26 @@ document.querySelectorAll(".site-header .search-input").forEach((input) => {
   const current = new URLSearchParams(window.location.search).get("q");
   if (current) input.value = current;
 });
+
+// ---- Store announcement / promotion banner (REQ008) ----
+// Set by staff in Admin -> Settings. Shown under the header on shop pages.
+(async function renderStoreBanner() {
+  const header = document.querySelector(".site-header");
+  if (!header || typeof db === "undefined") return;
+  try {
+    const doc = await db.collection("storeSettings").doc("homeBanner").get();
+    if (!doc.exists) return;
+    const b = doc.data();
+    if (!b.active || !b.message) return;
+    const bar = document.createElement("div");
+    bar.className = `store-banner store-banner-${b.kind === "promotion" ? "promotion" : "announcement"}`;
+    bar.setAttribute("role", "status");
+    const icon = document.createElement("i");
+    icon.className = `bi ${b.kind === "promotion" ? "bi-tag-fill" : "bi-megaphone-fill"} me-2`;
+    bar.appendChild(icon);
+    bar.appendChild(document.createTextNode(b.message));
+    header.insertAdjacentElement("afterend", bar);
+  } catch (error) {
+    console.warn("Store announcement unavailable:", error);
+  }
+})();

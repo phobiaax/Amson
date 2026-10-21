@@ -93,6 +93,13 @@ service cloud.firestore {
       allow delete: if isProductEditor();
     }
 
+    // Shop announcement banner (Settings) - public read, set by the Branch
+    // Manager or Technical Staff.
+    match /storeSettings/{settingId} {
+      allow read: if true;
+      allow write: if isSignedIn() && myRole() in ["admin", "branch_manager", "technical_staff"];
+    }
+
     match /categories/{categoryId} {
       allow read: if true;
       allow write: if isStaff();

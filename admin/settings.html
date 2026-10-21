@@ -114,6 +114,32 @@
             <button type="button" class="btn btn-amson" id="updatePasswordBtn">Update Password</button>
           </div>
         </div>
+
+        <div class="col-12 d-none" id="storeBannerCard">
+          <div class="checkout-card p-4">
+            <h2 class="h5 fw-bold mb-1">Store Announcement</h2>
+            <p class="text-muted mb-3" style="font-size:0.85rem;">Shown at the top of every shop page - for promotions or notices like closure days.</p>
+            <div class="form-check form-switch mb-3">
+              <input class="form-check-input" type="checkbox" id="storeBannerActive">
+              <label class="form-check-label" for="storeBannerActive">Show on the shop</label>
+            </div>
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label" for="storeBannerKind">Type</label>
+                <select class="form-select" id="storeBannerKind">
+                  <option value="announcement">Announcement</option>
+                  <option value="promotion">Promotion</option>
+                </select>
+              </div>
+              <div class="col-md-9">
+                <label class="form-label" for="storeBannerMessage">Message</label>
+                <input type="text" class="form-control" id="storeBannerMessage" maxlength="200" placeholder="e.g. The store is closed on April 1 for the month-end inventory count.">
+              </div>
+            </div>
+            <div id="storeBannerAlert" class="alert auth-alert d-none mt-3 mb-0" role="alert"></div>
+            <button type="button" class="btn btn-amson mt-3" id="saveStoreBannerBtn">Save Announcement</button>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -133,6 +159,7 @@
 <script src="../js/admin-sidebar.js"></script>
 <script src="../js/validators.js"></script>
 <script src="../js/admin-settings.js"></script>
+<script src="../js/admin-store-banner.js"></script>
 <script src="../js/admin-roles.js"></script>
 <script src="../js/admin-header.js"></script>
 </body>
