@@ -175,6 +175,12 @@ service cloud.firestore {
       allow read: if isSignedIn() && resource.data.customerId == myUid();
 
       allow create: if isStaff();
+      // The customer's own "order placed" confirmation, written at checkout.
+      allow create: if isSignedIn() &&
+        request.resource.data.customerId == myUid() &&
+        request.resource.data.kind == "order_placed" &&
+        request.resource.data.read == false &&
+        request.resource.data.keys().hasOnly(["customerId", "title", "detail", "link", "severity", "read", "createdAt", "kind"]);
 
       allow update: if isSignedIn() && resource.data.customerId == myUid() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);

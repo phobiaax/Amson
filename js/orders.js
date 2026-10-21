@@ -135,10 +135,10 @@ function orderStatusIndex(status, steps = ORDER_STATUS_STEPS) {
 // firestore.rules). shop-header.js reads these directly instead of trying
 // to re-derive "did something happen" from live order state on every
 // page load.
-async function notifyCustomer(customerId, title, detail, link, severity = "info") {
+async function notifyCustomer(customerId, title, detail, link, severity = "info", kind = null) {
   if (!customerId) return;
   try {
-    await db.collection("customerNotifications").add({
+    const notif = {
       customerId,
       title,
       detail,
@@ -146,7 +146,9 @@ async function notifyCustomer(customerId, title, detail, link, severity = "info"
       severity,
       read: false,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
+    };
+    if (kind) notif.kind = kind;
+    await db.collection("customerNotifications").add(notif);
   } catch (error) {
     console.error("Failed to write customer notification:", error);
   }

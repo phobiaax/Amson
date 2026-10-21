@@ -274,6 +274,20 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
 
+      // Order submission notification (Fig 2.10).
+      if (user) {
+        notifyCustomer(
+          user.uid,
+          `Order ${orderNumber} placed`,
+          requiresPrescription
+            ? "We received your prescription pre-order. Our pharmacist will check your prescription and payment, and we'll tell you when it's ready for pick-up."
+            : "We received your order and payment proof. We'll let you know once our staff verify your payment.",
+          "orders.html",
+          "info",
+          "order_placed"
+        );
+      }
+
       removeItemsFromCart(pendingOrder.cart.map((item) => item.id));
       sessionStorage.removeItem("amsonPendingOrder");
       sessionStorage.removeItem("amsonCheckoutSelectedIds");

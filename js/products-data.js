@@ -427,6 +427,30 @@ async function computeStaffNotifications() {
     console.warn("Bad Order alerts unavailable:", error);
   }
 
+  // Wholesale buyers whose LTO or Business Permit has expired or expires
+  // within 30 days (REQ086).
+  try {
+    const accounts = await db.collection("wholesaleAccounts").get();
+    const soon = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    const flagged = accounts.docs.filter((d) => {
+      const a = d.data();
+      if (a.status === "inactive") return false;
+      return [a.ltoValidUntil, a.permitValidUntil].some((v) => v && new Date(`${v}T23:59:59`).getTime() < soon);
+    });
+    if (flagged.length) {
+      notifications.push({
+        key: "wholesale_documents",
+        signature: flagged.map((d) => `${d.id}:${d.data().ltoValidUntil}:${d.data().permitValidUntil}`).sort().join(","),
+        severity: "warning",
+        icon: "bi-file-earmark-text",
+        message: `${flagged.length} wholesale buyer${flagged.length === 1 ? " has" : "s have"} an LTO or Business Permit that is expired or expires within 30 days.`,
+        link: "wholesale-accounts.html",
+      });
+    }
+  } catch (error) {
+    console.warn("Wholesale document alerts unavailable:", error);
+  }
+
   // Chats the assistant handed to staff (REQ038). Never blocks the other
   // alerts if chat isn't set up yet.
   try {
