@@ -215,26 +215,17 @@ async function generateRcnNumber() {
 /* ---------- Formatting ---------- */
 function formatExpiryLabel(isoDate) {
   if (!isoDate) return "-";
-  const date = new Date(isoDate);
-  return date.toLocaleDateString("en-PH", { month: "long", year: "numeric" });
+  return formatDateMDY(isoDate);
 }
 
 function formatDateAdded(timestamp) {
   if (!timestamp) return "-";
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
+  return formatDateMDY(timestamp);
 }
 
 function formatDateTime(timestamp) {
   if (!timestamp) return "-";
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date.toLocaleString("en-PH", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatDateMDY(timestamp, true);
 }
 
 function inventorySortMillis(batch) {

@@ -628,12 +628,8 @@ function showSaleReceipt({
   const titleEl = document.getElementById("posReceiptModalTitle");
   if (titleEl) titleEl.textContent = title;
   document.getElementById("posReceiptBranch").textContent = branch;
-  document.getElementById("posReceiptDate").textContent = completedAt.toLocaleDateString("en-PH", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-  document.getElementById("posReceiptTime").textContent = completedAt.toLocaleTimeString("en-PH", {
+  document.getElementById("posReceiptDate").textContent = formatDateMDY(completedAt);
+  document.getElementById("posReceiptTime").textContent = completedAt.toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -835,7 +831,7 @@ async function voidPosSale(sale, { reason, exchange }, voidedBy) {
 
 function voidSummary(sale) {
   if (!sale.voided) return null;
-  const when = sale.voidedAt && sale.voidedAt.toDate ? sale.voidedAt.toDate().toLocaleString("en-PH") : "";
+  const when = sale.voidedAt && sale.voidedAt.toDate ? formatDateMDY(sale.voidedAt, true) : "";
   return `${sale.voidReason || ""}${sale.voidedBy ? ` (by ${sale.voidedBy}${when ? `, ${when}` : ""})` : ""}`;
 }
 
@@ -901,7 +897,7 @@ async function exportTable({ title, subtitle = "", filenamePrefix, columns, rows
   doc.setFont(undefined, "normal");
   doc.setFontSize(9);
   y += 6;
-  doc.text(`${subtitle ? `${subtitle}  |  ` : ""}Generated ${new Date().toLocaleString("en-PH")}  |  ${rows.length} row(s)`, marginX, y);
+  doc.text(`${subtitle ? `${subtitle}  |  ` : ""}Generated ${formatDateMDY(new Date(), true)}  |  ${rows.length} row(s)`, marginX, y);
   y += 7;
 
   const drawRow = (values, bold) => {

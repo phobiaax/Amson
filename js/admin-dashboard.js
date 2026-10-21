@@ -508,7 +508,7 @@ document.getElementById("exportAnalyticsPdfBtn").addEventListener("click", () =>
   y += 7;
   doc.setFontSize(10);
   doc.setTextColor(100);
-  doc.text(`Period: ${dashboardPeriodLabel(period)}  |  Generated: ${new Date().toLocaleString("en-PH")}`, marginX, y);
+  doc.text(`Period: ${dashboardPeriodLabel(period)}  |  Generated: ${formatDateMDY(new Date(), true)}`, marginX, y);
   doc.setTextColor(0);
   y += 10;
 

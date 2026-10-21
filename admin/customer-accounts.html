@@ -135,6 +135,14 @@
       <p class="detail-label mb-1">Shipping Address</p>
       <p class="text-muted mb-3" id="viewCustomerAddress">-</p>
 
+      <p class="detail-label mb-1">Order History</p>
+      <div class="table-responsive mb-3" style="max-height:220px; overflow-y:auto;">
+        <table class="table table-sm align-middle mb-0" style="font-size:0.85rem;">
+          <thead><tr><th>Order No.</th><th>Date</th><th>Total</th><th>Status</th></tr></thead>
+          <tbody id="viewCustomerOrdersBody"></tbody>
+        </table>
+      </div>
+
       <div id="customerModalAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
 
       <div class="d-flex gap-2">
@@ -157,6 +165,7 @@
 <script src="../js/firebase-config.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/admin-sidebar.js"></script>
+<script src="../js/orders.js"></script>
 <script src="../js/admin-customer-accounts.js"></script>
 <script src="../js/admin-roles.js"></script>
 <script src="../js/admin-header.js"></script>

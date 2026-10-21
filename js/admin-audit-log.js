@@ -62,13 +62,7 @@ function filteredAuditEntries() {
 
 function formatTimestamp(timestamp) {
   if (!timestamp) return "-";
-  return timestamp.toDate().toLocaleString("en-PH", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatDateMDY(timestamp, true);
 }
 
 function renderAuditTable() {

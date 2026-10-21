@@ -57,6 +57,7 @@ const HOLD_REASON_LABELS = {
   underpayment: "Payment Issue - Underpayment",
   out_of_stock: "Item Out of Stock",
   prescription_rejected: "Prescription Not Accepted",
+  payment_not_received: "Payment Issue - Payment Not Received",
 };
 
 function computeUnappliedCredit(order) {
@@ -209,14 +210,7 @@ function formatOrderDate(timestamp) {
 
 function formatOrderDateTime(timestamp) {
   if (!timestamp) return "";
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return date.toLocaleString("en-PH", {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatDateMDY(timestamp, true);
 }
 
 // Redeems as much of the customer's store credit balance as the order

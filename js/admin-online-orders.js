@@ -18,6 +18,12 @@ const PAYMENT_ISSUE_TYPES = {
     confirmLabel: "Confirm & place on hold",
     mode: "hold",
   },
+  payment_not_received: {
+    label: "Payment Not Received",
+    banner: "Customer will be notified that no matching payment was received and asked to upload proof of a completed QR PH transaction.",
+    confirmLabel: "Confirm & place on hold",
+    mode: "hold",
+  },
   overpayment: {
     label: "Overpayment",
     banner: "Customer will be notified that the excess payment will be applied automatically to their next order.",
@@ -447,6 +453,8 @@ function renderReviewPanel(order) {
         ? `flagged as invalid (${issue.reasonLabel || "unspecified reason"})`
         : issue.type === "prescription_rejected"
         ? `rejected for its prescription (${issue.reasonLabel || "unspecified reason"})`
+        : issue.type === "payment_not_received"
+        ? "flagged as payment not received"
         : "flagged as underpaid";
     const resubmitted = issue.type === "prescription_rejected" ? "a new prescription photo" : "a corrected proof of payment and reference number";
     issueNote.innerHTML = `<i class="bi bi-arrow-repeat me-1"></i>This order was previously ${escapeHtml(originalIssue)}. The customer has resubmitted ${resubmitted} below.`;
@@ -729,8 +737,9 @@ function openPaymentIssueModal(type) {
   }
   issueConfirmBtn.textContent = config.confirmLabel;
 
+  const isAmountIssue = type === "underpayment" || type === "overpayment";
   issueReasonGroup.classList.toggle("d-none", type !== "invalid_payment");
-  issueAmountGroup.classList.toggle("d-none", type === "invalid_payment");
+  issueAmountGroup.classList.toggle("d-none", !isAmountIssue);
 
   issueAmountError.classList.add("d-none");
   issueAmountReceivedInput.classList.remove("is-invalid");
@@ -738,6 +747,8 @@ function openPaymentIssueModal(type) {
   if (type === "invalid_payment") {
     issueReasonSelect.value = "unclear_screenshot";
     issueNoteInput.value = REJECTION_REASON_NOTES.unclear_screenshot;
+  } else if (type === "payment_not_received") {
+    issueNoteInput.value = REJECTION_REASON_NOTES.payment_not_received;
   } else {
     issueAmountReceivedInput.value = "";
     updateIssueAmountResult(order);
@@ -776,7 +787,7 @@ issueConfirmBtn.addEventListener("click", async () => {
   // outstanding balance or the excess credited to the customer is computed
   // directly from it, so it can't be left blank (which used to silently
   // fall back to 0 outstanding / the full order total as "received").
-  if (issueType !== "invalid_payment") {
+  if (issueType === "underpayment" || issueType === "overpayment") {
     const receivedRaw = issueAmountReceivedInput.value.trim();
     const receivedAmount = parseFloat(receivedRaw);
     const receivedValid = receivedRaw !== "" && receivedAmount >= 0;
@@ -816,6 +827,8 @@ issueConfirmBtn.addEventListener("click", async () => {
       if (issueType === "invalid_payment") {
         paymentIssue.reason = issueReasonSelect.value;
         paymentIssue.reasonLabel = issueReasonSelect.selectedOptions[0].textContent;
+      } else if (issueType === "payment_not_received") {
+        paymentIssue.reasonLabel = "Payment Not Received";
       } else {
         const received = parseFloat(issueAmountReceivedInput.value) || 0;
         paymentIssue.amountReceived = received;
@@ -828,6 +841,8 @@ issueConfirmBtn.addEventListener("click", async () => {
         `Payment issue on order ${order.orderNumber}`,
         issueType === "invalid_payment"
           ? REJECTION_REASON_NOTES[paymentIssue.reason] || "Please check your order for details."
+          : issueType === "payment_not_received"
+          ? note || REJECTION_REASON_NOTES.payment_not_received
           : UNDERPAYMENT_NOTE,
         `order-details.html?id=${orderId}`,
         "danger"
@@ -1350,3 +1365,12 @@ ordersExportBtn.addEventListener("click", () => {
     ],
   });
 });
+
+// Linked from a customer's order history: open the Online Orders tab
+// filtered to that order number.
+const linkedOrderSearch = new URLSearchParams(window.location.search).get("search");
+if (linkedOrderSearch) {
+  ordersSearchTerm = linkedOrderSearch;
+  ordersSearchInput.value = linkedOrderSearch;
+  setActiveTab("orders");
+}
