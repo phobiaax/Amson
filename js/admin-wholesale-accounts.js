@@ -113,10 +113,19 @@ async function loadWholesaleAccounts() {
     allWholesaleAccounts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     await loadPendingReleaseCounts();
     renderWholesaleGrid();
+    // Opened from the Dashboard's "Find a sale by SI No.": show that
+    // buyer's purchase history once.
+    const historyFor = new URLSearchParams(window.location.search).get("history");
+    if (historyFor && !openedLinkedHistory) {
+      openedLinkedHistory = true;
+      const account = allWholesaleAccounts.find((w) => w.id === historyFor);
+      if (account) openHistoryModal(account);
+    }
   } catch (error) {
     console.error("Failed to load wholesale accounts:", error);
   }
 }
+let openedLinkedHistory = false;
 
 /* ---------- Grid ---------- */
 function filteredWholesaleAccounts() {

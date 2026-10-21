@@ -410,6 +410,7 @@ function verificationQueue() {
       (order) =>
         (order.orderNumber || "").toLowerCase().includes(term) ||
         (order.paymentReferenceNumber || "").toLowerCase().includes(term) ||
+        (order.invoiceNo || "").includes(term) ||
         customerName(order).toLowerCase().includes(term)
     );
   }
@@ -1208,6 +1209,7 @@ function filteredOrders() {
       (order) =>
         (order.orderNumber || "").toLowerCase().includes(term) ||
         (order.paymentReferenceNumber || "").toLowerCase().includes(term) ||
+        (order.invoiceNo || "").includes(term) ||
         customerName(order).toLowerCase().includes(term)
     );
   }
@@ -1349,6 +1351,7 @@ function renderOrderRow(order) {
   return `
     <tr>
       <td class="fw-medium">${escapeHtml(order.orderNumber)}</td>
+      <td>${escapeHtml(order.invoiceNo || "-")}</td>
       <td>${formatOrderDateTime(order.createdAt)}</td>
       <td>${escapeHtml(customerName(order))}</td>
       <td>${itemCount}</td>
@@ -1501,8 +1504,15 @@ verificationSortBtn.addEventListener("click", () => {
 
 // Linked from a customer's order history: open the Online Orders tab
 // filtered to that order number.
-const linkedOrderSearch = new URLSearchParams(window.location.search).get("search");
-if (linkedOrderSearch) {
+// Also used by the Dashboard's "Find a sale by SI No.": ?tab=walkin opens
+// the Walk-in Orders tab with that search instead.
+const linkedParams = new URLSearchParams(window.location.search);
+const linkedOrderSearch = linkedParams.get("search");
+if (linkedOrderSearch && linkedParams.get("tab") === "walkin" && walkinSearchInput) {
+  walkinSearchTerm = linkedOrderSearch;
+  walkinSearchInput.value = linkedOrderSearch;
+  setActiveTab("walkin");
+} else if (linkedOrderSearch) {
   ordersSearchTerm = linkedOrderSearch;
   ordersSearchInput.value = linkedOrderSearch;
   setActiveTab("orders");

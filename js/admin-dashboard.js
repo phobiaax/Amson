@@ -664,3 +664,100 @@ document.getElementById("exportAnalyticsExcelBtn").addEventListener("click", () 
 
   XLSX.writeFile(wb, `amson-sales-analytics-${period}-${localDayKey(periodRange(period).start)}.xlsx`);
 });
+
+// ---- Find a sale by SI No. ----
+// One SI series covers walk-in, online and wholesale sales, so the number is
+// looked up in all three; the result links to where the sale is kept.
+const SI_ORDER_STATUS_LABELS = {
+  payment_confirmed: "Payment confirmed",
+  dispatched: "Dispatched",
+  delivered: "Delivered / ready for pick-up",
+  received: "Received by customer",
+  closed_unresolved: "Closed (unresolved)",
+};
+const siLookupForm = document.getElementById("siLookupForm");
+if (siLookupForm) {
+  siLookupForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const resultEl = document.getElementById("siLookupResult");
+    const digits = document.getElementById("siLookupInput").value.replace(/\D/g, "");
+    if (!digits) {
+      resultEl.innerHTML = '<p class="text-danger mb-0">Type the SI No. (numbers only).</p>';
+      return;
+    }
+    const si = formatInvoiceNo(Number(digits));
+    const btn = document.getElementById("siLookupBtn");
+    btn.disabled = true;
+    resultEl.innerHTML = '<p class="text-muted mb-0">Searching...</p>';
+    try {
+      const [pos, online, wholesale] = await Promise.all([
+        db.collection("posSales").where("invoiceNo", "==", si).get(),
+        db.collection("orders").where("invoiceNo", "==", si).get(),
+        db.collection("wholesaleOrders").where("invoiceNo", "==", si).get(),
+      ]);
+      const found = [];
+      pos.docs.forEach((d) => {
+        const x = d.data();
+        found.push({
+          kind: "Walk-in (POS)",
+          when: x.createdAt,
+          who: x.customerName || "Walk-in",
+          total: x.total,
+          status: x.voided ? "Voided" : x.partialVoids && x.partialVoids.length ? "Some items voided" : "Completed",
+          extra: `${SALE_RECEIPT_PAYMENT_METHOD_LABELS[x.paymentMethod] || x.paymentMethod || ""}${x.referenceNo ? ` - Ref ${x.referenceNo}` : ""}${x.cashier ? ` - Cashier ${x.cashier}` : ""}`,
+          link: `online-orders.html?tab=walkin&search=${encodeURIComponent(si)}`,
+          linkLabel: "Open in Walk-in Orders",
+        });
+      });
+      online.docs.forEach((d) => {
+        const x = d.data();
+        found.push({
+          kind: "Online order",
+          when: (x.statusTimestamps && x.statusTimestamps.payment_confirmed) || x.createdAt,
+          who: x.contact ? `${x.contact.firstName || ""} ${x.contact.lastName || ""}`.trim() : "Online customer",
+          total: (x.total || 0) + (x.creditApplied || 0),
+          status: x.paymentIssue ? "On hold" : SI_ORDER_STATUS_LABELS[x.status] || x.status,
+          extra: `Order ${x.orderNumber || ""}${x.paymentReferenceNumber ? ` - Ref ${x.paymentReferenceNumber}` : ""}`,
+          link: `online-orders.html?search=${encodeURIComponent(si)}`,
+          linkLabel: "Open in Online Orders",
+        });
+      });
+      wholesale.docs.forEach((d) => {
+        const x = d.data();
+        found.push({
+          kind: x.freeOfCost ? "Wholesale (free of cost)" : "Wholesale",
+          when: x.createdAt,
+          who: x.buyerName || "Wholesale buyer",
+          total: x.total,
+          status: x.releaseStatus === "pending" ? "Pending release" : "Released",
+          extra: x.poRefNumber ? `Buyer PO ${x.poRefNumber}` : "",
+          link: `wholesale-accounts.html?history=${encodeURIComponent(x.wholesaleAccountId || "")}`,
+          linkLabel: "Open buyer's purchase history",
+        });
+      });
+      if (!found.length) {
+        resultEl.innerHTML = `<p class="text-muted mb-0">No sale has SI No. ${escapeHtml(si)}. An online order only gets one once its payment is approved.</p>`;
+        return;
+      }
+      resultEl.innerHTML = found
+        .map(
+          (f) => `
+          <div class="p-3 mb-2" style="border:1px solid var(--amson-border); border-radius:10px;">
+            <div class="d-flex justify-content-between flex-wrap gap-2">
+              <div>
+                <p class="fw-bold mb-1">SI No. ${escapeHtml(si)} - ${escapeHtml(f.kind)}</p>
+                <p class="mb-1" style="font-size:0.9rem;">${escapeHtml(f.who)} - ${formatDateMDY(f.when, true)} - ${formatPeso(f.total || 0)}</p>
+                <p class="text-muted mb-0" style="font-size:0.82rem;">${escapeHtml(f.status)}${f.extra ? ` - ${escapeHtml(f.extra)}` : ""}</p>
+              </div>
+              <a class="btn btn-outline-dark-amson btn-sm align-self-center" href="${f.link}">${escapeHtml(f.linkLabel)}</a>
+            </div>
+          </div>`
+        )
+        .join("");
+    } catch (error) {
+      resultEl.innerHTML = '<p class="text-danger mb-0">Couldn\'t search right now. Please try again.</p>';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}

@@ -183,6 +183,17 @@
         </div>
       </div>
 
+      <!-- Find any sale (walk-in, online or wholesale) by its SI No. -->
+      <div class="chart-card mb-4">
+        <h2 class="mb-1">Find a Sale by SI No.</h2>
+        <p class="text-muted mb-3" style="font-size:0.85rem;">Every completed sale - walk-in, online or wholesale - has one SI No. Type it to see which sale it is.</p>
+        <form class="d-flex gap-2 flex-wrap" id="siLookupForm">
+          <input type="text" class="form-control" id="siLookupInput" placeholder="e.g. 00008247 or 8247" inputmode="numeric" style="max-width:240px;">
+          <button type="submit" class="btn btn-amson" id="siLookupBtn">Find</button>
+        </form>
+        <div id="siLookupResult" class="mt-3"></div>
+      </div>
+
       <!-- Reports: every report the branch submits, opened from here -->
       <div class="chart-card mb-4">
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
