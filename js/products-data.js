@@ -765,6 +765,28 @@ async function generateProductSku() {
   return `MED-${String(nextCount).padStart(4, "0")}`;
 }
 
+// jsPDF's built-in fonts can't draw some characters - the peso sign came
+// out as "±" - so every PDF is created through createPdf(), which swaps
+// them for plain text as the PDF is written.
+const PDF_TEXT_SWAPS = [
+  [/₱\s?/g, "PHP "],
+  [/→/g, "->"],
+  [/[✓✔]/g, "(ok)"],
+];
+function pdfSafeText(text) {
+  if (Array.isArray(text)) return text.map(pdfSafeText);
+  if (typeof text !== "string") return text;
+  return PDF_TEXT_SWAPS.reduce((t, [pattern, plain]) => t.replace(pattern, plain), text);
+}
+function createPdf(options) {
+  const doc = new window.jspdf.jsPDF(options);
+  const text = doc.text.bind(doc);
+  doc.text = (value, ...rest) => text(pdfSafeText(value), ...rest);
+  const split = doc.splitTextToSize.bind(doc);
+  doc.splitTextToSize = (value, ...rest) => split(pdfSafeText(value), ...rest);
+  return doc;
+}
+
 function formatPeso(amount) {
   return `₱${(amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -1214,8 +1236,7 @@ async function exportTable({ title, subtitle = "", filenamePrefix, columns, rows
     showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
     return;
   }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: "landscape" });
+  const doc = createPdf({ orientation: "landscape" });
   const marginX = 10;
   const pageWidth = doc.internal.pageSize.getWidth() - marginX * 2;
   const pageHeight = doc.internal.pageSize.getHeight();

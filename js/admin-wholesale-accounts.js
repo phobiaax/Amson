@@ -929,8 +929,7 @@ function downloadExchangeDocument(ex) {
     showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
     return;
   }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = createPdf();
   let y = 18;
   doc.setFontSize(15);
   doc.setFont(undefined, "bold");
@@ -989,8 +988,7 @@ function downloadWholesaleInvoice(order) {
     showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
     return;
   }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = createPdf();
   let y = 18;
   doc.setFontSize(15);
   doc.setFont(undefined, "bold");

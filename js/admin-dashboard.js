@@ -571,8 +571,7 @@ document.getElementById("exportAnalyticsPdfBtn").addEventListener("click", () =>
   }
 
   const { period, timeSeries, categories, mostBought } = buildSalesAnalyticsReport();
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = createPdf();
   const marginX = 14;
   let y = 18;
 

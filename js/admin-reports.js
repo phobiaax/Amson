@@ -683,8 +683,7 @@ function downloadReportPdf(report) {
     showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
     return;
   }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: "landscape" });
+  const doc = createPdf({ orientation: "landscape" });
   const marginX = 10;
   const pageWidth = doc.internal.pageSize.getWidth() - marginX * 2;
   const pageHeight = doc.internal.pageSize.getHeight();

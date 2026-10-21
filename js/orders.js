@@ -355,8 +355,7 @@ function downloadOrderReceipt(order) {
     return;
   }
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc = createPdf();
   let y = 20;
 
   doc.setFontSize(16);
