@@ -492,16 +492,16 @@ function populateSupplierSelect(selectEl) {
   selectEl._choices = makeSearchableSelect(selectEl);
 }
 
-// A batch number belongs to one delivery of a product: it can't repeat a
-// batch already received for that product (any status), or another line in
-// the same delivery. Returns the duplicated batch numbers.
+// Every batch has its own expiry date, so a batch number is used once only:
+// it can't repeat any batch already received (any product, any status) or
+// another line in the same delivery. Returns the duplicated batch numbers.
 function findDuplicateBatchNos(items) {
   const seen = new Set();
   const dupes = [];
   items.forEach((it) => {
-    if (!it.productId || !it.batchNo) return;
-    const key = `${it.productId}|${it.batchNo.toLowerCase()}`;
-    const existing = allBatches.some((b) => b.productId === it.productId && (b.batchNo || "").toLowerCase() === it.batchNo.toLowerCase());
+    if (!it.batchNo) return;
+    const key = it.batchNo.toLowerCase();
+    const existing = allBatches.some((b) => (b.batchNo || "").toLowerCase() === key);
     if (existing || seen.has(key)) dupes.push(it.batchNo);
     seen.add(key);
   });
@@ -618,7 +618,7 @@ saveReceiveStockBtn.addEventListener("click", async () => {
   }
   const dupes = findDuplicateBatchNos(items);
   if (dupes.length) {
-    return showReceiveError(`Batch no. ${dupes.join(", ")} was already used for this product. Each delivery needs its own batch number.`);
+    return showReceiveError(`Batch no. ${dupes.join(", ")} is already used by another batch. Each batch needs its own batch number.`);
   }
 
   saveReceiveStockBtn.disabled = true;
@@ -778,7 +778,7 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
     return;
   }
   if (hasDuplicate) {
-    receiveBatchReviewAlert.textContent = "The highlighted rows use a batch number already received for that product (or repeated in this file). Each delivery needs its own batch number.";
+    receiveBatchReviewAlert.textContent = "The highlighted rows use a batch number that's already used by another batch (or repeated in this file). Each batch needs its own batch number.";
     receiveBatchReviewAlert.classList.remove("d-none");
     return;
   }
@@ -1773,7 +1773,7 @@ async function submitPoReceiving(po) {
   }
   const poDupes = findDuplicateBatchNos(receivedItems.filter((it) => it.receivedQty > 0));
   if (poDupes.length) {
-    alertEl.textContent = `Batch no. ${poDupes.join(", ")} was already used for this product. Each delivery needs its own batch number.`;
+    alertEl.textContent = `Batch no. ${poDupes.join(", ")} is already used by another batch. Each batch needs its own batch number.`;
     alertEl.classList.remove("d-none");
     return;
   }
