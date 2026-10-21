@@ -312,9 +312,39 @@ function renderInventoryTable() {
     inventoryTableBody.querySelectorAll(".delete-orphan-batch-btn").forEach((btn) => {
       btn.addEventListener("click", () => deleteOrphanBatch(btn.dataset.id));
     });
+    inventoryTableBody.querySelectorAll(".mark-disposed-btn").forEach((btn) => {
+      btn.addEventListener("click", () => markBatchDisposed(btn.dataset.id));
+    });
   }
 
   renderInventoryPagination(totalPages);
+}
+
+// Staff confirm a Bad Order batch was physically pulled out and disposed of.
+async function markBatchDisposed(batchId) {
+  const batch = allBatches.find((b) => b.id === batchId);
+  if (!batch) return;
+  const product = getProductById(batch.productId);
+  const note = await showAppPrompt(`Confirm that batch ${batch.batchNo || "-"} of ${product ? product.name : "this product"} (${batch.badOrderQty || 0} units) was pulled out and disposed of. How was it disposed of?`, {
+    title: "Mark Bad Order Disposed",
+    confirmLabel: "Mark disposed",
+    defaultValue: "",
+  });
+  if (note === null) return;
+  try {
+    await db.collection("stockBatches").doc(batchId).update({
+      disposedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      disposedBy: currentAdminName,
+      disposalNote: note.trim(),
+    });
+    await logAuditEvent({
+      action: "Bad Order Disposed",
+      details: `${product ? product.name : batch.productId} - Batch ${batch.batchNo || "-"}, ${batch.badOrderQty || 0} units${note.trim() ? `. ${note.trim()}` : ""}`,
+    });
+    await loadInventory();
+  } catch (error) {
+    showAppAlert("Something went wrong saving this. Please try again.");
+  }
 }
 
 async function deleteOrphanBatch(batchId) {
@@ -371,9 +401,11 @@ function renderBatchRow(batch) {
       <td>
         ${batch.computedStatuses.map((s) => `<span class="batch-status-pill ${s}">${BATCH_STATUS_LABELS[s]}</span>`).join(" ")}
         ${batch.status === "wholesale_only" ? '<span class="badge rounded-pill text-bg-secondary ms-1">Wholesale Only</span>' : ""}
+        ${batch.status === "bad_order" ? `<span class="badge rounded-pill text-bg-danger ms-1">Bad Order${batch.badOrderQty ? ` (${batch.badOrderQty} written off)` : ""}</span>${batch.disposedAt ? '<span class="badge rounded-pill text-bg-light border ms-1">Disposed</span>' : ""}` : ""}
       </td>
       <td>${formatDateTime(batch.lastAdjustedAt || batch.createdAt)}</td>
       <td>
+        ${batch.status === "bad_order" && !batch.disposedAt ? `<button type="button" class="btn btn-outline-dark-amson btn-sm mark-disposed-btn" data-id="${batch.id}">Mark disposed</button>` : ""}
         ${product ? "" : `<button type="button" class="icon-btn delete-orphan-batch-btn" data-id="${batch.id}" aria-label="Delete orphaned batch" title="This batch's product was deleted - remove this leftover record"><i class="bi bi-trash text-danger"></i></button>`}
       </td>
     </tr>

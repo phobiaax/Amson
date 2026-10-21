@@ -204,6 +204,13 @@ async function loadDashboardStats() {
     const pendingVerification = orders.filter((o) => o.status === "placed").length;
     // Still being worked on: verified but not yet handed over.
     const activeOrders = orders.filter((o) => ["payment_confirmed", "dispatched"].includes(o.status)).length;
+    // Apply the expiry rules (Wholesale Only, Bad Order) here too, so they
+    // don't wait for someone to open Inventory.
+    try {
+      await enforceExpiryStatus();
+    } catch (error) {
+      console.warn("Expiry rules couldn't run:", error);
+    }
     const { lowStock, nearExpiry, outOfStock } = await computeInventoryAlertCounts();
 
     document.getElementById("pendingVerificationCount").textContent = pendingVerification;

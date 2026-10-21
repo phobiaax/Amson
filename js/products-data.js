@@ -410,6 +410,24 @@ async function computeStaffNotifications() {
     });
   }
 
+  // Bad Order batches still waiting to be physically disposed of (REQ067).
+  try {
+    const bo = await db.collection("stockBatches").where("status", "==", "bad_order").get();
+    const pending = bo.docs.filter((d) => !d.data().disposedAt);
+    if (pending.length) {
+      notifications.push({
+        key: "bad_order_disposal",
+        signature: pending.map((d) => d.id).sort().join(","),
+        severity: "danger",
+        icon: "bi-trash",
+        message: `${pending.length} Bad Order batch${pending.length === 1 ? " needs" : "es need"} to be pulled out and disposed of.`,
+        link: "inventory.html",
+      });
+    }
+  } catch (error) {
+    console.warn("Bad Order alerts unavailable:", error);
+  }
+
   // Chats the assistant handed to staff (REQ038). Never blocks the other
   // alerts if chat isn't set up yet.
   try {
@@ -467,20 +485,72 @@ async function markAllStaffNotifsRead(uid, notifications) {
 // Stock this close to expiry is flagged wholesale_only so it doesn't get
 // sold retail - quantity is never touched automatically; staff decide
 // whether to write it off themselves.
+const BAD_ORDER_MONTHS = 2;
+
+// Expiry rules, run whenever staff open Inventory or the Dashboard:
+//   - within 6 months: Wholesale Only (no retail sale) - REQ066
+//   - within 2 months (or expired): Bad Order - the remaining units are
+//     written off automatically, recorded as a write-off and in the Audit
+//     Log, and staff get a disposal alert until someone marks the batch
+//     disposed - REQ067
 async function enforceExpiryStatus() {
-  const snapshot = await db.collection("stockBatches").where("status", "==", "active").get();
+  const snapshot = await db.collection("stockBatches").where("status", "in", ["active", "wholesale_only"]).get();
   const batches = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
   const wholesaleOnlyThreshold = new Date();
   wholesaleOnlyThreshold.setMonth(wholesaleOnlyThreshold.getMonth() + NEAR_EXPIRY_MONTHS);
+  const badOrderThreshold = new Date();
+  badOrderThreshold.setMonth(badOrderThreshold.getMonth() + BAD_ORDER_MONTHS);
 
   for (const batch of batches) {
     if (batch.quantity <= 0) continue;
     const expiry = new Date(batch.expirationDate);
+    if (isNaN(expiry)) continue;
 
-    if (expiry <= wholesaleOnlyThreshold) {
+    if (expiry <= badOrderThreshold) {
+      await markBatchBadOrder(batch.id);
+    } else if (batch.status === "active" && expiry <= wholesaleOnlyThreshold) {
       await db.collection("stockBatches").doc(batch.id).update({ status: "wholesale_only" });
     }
+  }
+}
+
+async function markBatchBadOrder(batchId) {
+  const ref = db.collection("stockBatches").doc(batchId);
+  const writeOffRef = db.collection("writeOffs").doc();
+  let result = null;
+  await db.runTransaction(async (tx) => {
+    const doc = await tx.get(ref);
+    if (!doc.exists) return;
+    const b = doc.data();
+    // Another staff page may have done it a moment ago.
+    if (b.status === "bad_order" || (b.quantity || 0) <= 0) return;
+    const reason = `Bad Order - within ${BAD_ORDER_MONTHS} months of expiry (${formatDateMDY(b.expirationDate)}), deducted automatically`;
+    tx.update(ref, {
+      status: "bad_order",
+      quantity: 0,
+      badOrderQty: b.quantity,
+      badOrderAt: firebase.firestore.FieldValue.serverTimestamp(),
+      lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    tx.set(writeOffRef, {
+      batchId,
+      productId: b.productId,
+      batchNo: b.batchNo || "",
+      quantity: b.quantity,
+      reason,
+      automatic: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    result = { productId: b.productId, batchNo: b.batchNo, quantity: b.quantity, reason };
+  });
+  if (result) {
+    const product = getProductById(result.productId);
+    await logAuditEvent({
+      action: "Bad Order (Automatic Write-Off)",
+      details: `${product ? product.name : result.productId} - Batch ${result.batchNo || "-"}, Qty ${result.quantity}. ${result.reason}`,
+      actor: "System",
+    });
   }
 }
 
