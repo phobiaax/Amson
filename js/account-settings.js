@@ -66,6 +66,7 @@ auth.onAuthStateChanged(async (user) => {
     contactNumberInput.value = data.contactNumber || "";
     accountEmailInput.value = data.email || "";
     showProfilePhoto(data.photoUrl);
+    document.getElementById("emailNotificationsToggle").checked = data.emailNotifications !== false;
 
     if (data.shippingAddress) {
       streetAddressInput.value = data.shippingAddress.streetAddress || "";
@@ -382,5 +383,24 @@ profilePhotoInput.addEventListener("change", async () => {
     profileAlert.classList.remove("d-none");
   } finally {
     profilePhotoBtn.disabled = false;
+  }
+});
+
+// ---- Email notifications on/off (REQ042) ----
+document.getElementById("emailNotificationsToggle").addEventListener("change", async (e) => {
+  const toggle = e.currentTarget;
+  const status = document.getElementById("emailNotificationsStatus");
+  if (!signedInUid) return;
+  toggle.disabled = true;
+  try {
+    await db.collection("users").doc(signedInUid).update({ emailNotifications: toggle.checked });
+    status.textContent = toggle.checked
+      ? "Email updates are on. Updates also appear in the bell at the top of the page."
+      : "Email updates are off. Updates still appear in the bell at the top of the page.";
+  } catch (error) {
+    toggle.checked = !toggle.checked;
+    status.textContent = "Couldn't save that setting. Please try again.";
+  } finally {
+    toggle.disabled = false;
   }
 });

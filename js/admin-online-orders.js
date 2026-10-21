@@ -1069,6 +1069,13 @@ markDispatchedBtn.addEventListener("click", async () => {
 
     order.status = "dispatched";
     order.trackingLink = trackingLink;
+    notifyCustomer(
+      order.customerId,
+      `Order ${order.orderNumber} is on the way`,
+      `Your order was booked with Lalamove. Track the rider here: ${trackingLink} . The delivery fee is paid to the rider.`,
+      `order-details.html?id=${orderId}`,
+      "success"
+    );
     approvedModalOrderId = null;
 
     bootstrap.Modal.getInstance(approvedModalEl).hide();

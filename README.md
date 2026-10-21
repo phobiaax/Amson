@@ -67,6 +67,32 @@ replies (Google Gemini, free tier, no API key in the code):
 Set `aiProvider: "none"` in `js/chat-config.js` to run the chat with
 built-in answers and staff only.
 
+## Order update emails (EmailJS)
+
+Customers get an email for each order update (placed, payment confirmed,
+on hold, prescription result, dispatched with the tracking link, ready for
+pick-up, store credit). They can turn emails off in Account Settings; the
+in-site bell always shows them.
+
+1. EmailJS dashboard → Email Templates → Create New Template.
+2. Set **To Email** to `{{to_email}}` and **Subject** to `{{subject}}`.
+3. Body, for example:
+
+   ```
+   Hi {{to_name}},
+
+   {{message}}
+
+   View your order: {{link}}
+
+   Amson Pharmaceuticals - Las Piñas
+   ```
+4. Save, then paste the template ID into `EMAILJS_ORDER_TEMPLATE_ID` in
+   `js/emailjs-config.js`. Until then no order emails are sent.
+
+The free EmailJS plan allows 200 emails a month (OTP codes included); a
+typical order sends 2 to 3 emails.
+
 ## First-time store setup
 
 1. Create the first Branch Manager account in Firebase Authentication, then

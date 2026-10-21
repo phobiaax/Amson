@@ -149,8 +149,40 @@ async function notifyCustomer(customerId, title, detail, link, severity = "info"
     };
     if (kind) notif.kind = kind;
     await db.collection("customerNotifications").add(notif);
+    sendOrderEmail(customerId, title, detail, link);
   } catch (error) {
     console.error("Failed to write customer notification:", error);
+  }
+}
+
+// Email copy of a customer notification (REQ039), through EmailJS. Skipped
+// when EmailJS or the order template isn't set up on this page, or when the
+// customer turned email updates off in Account Settings (REQ042). Never
+// blocks or fails the action that triggered it.
+async function sendOrderEmail(customerId, title, detail, link) {
+  try {
+    if (
+      typeof emailjs === "undefined" ||
+      typeof EMAILJS_ORDER_TEMPLATE_ID === "undefined" ||
+      EMAILJS_ORDER_TEMPLATE_ID === "YOUR_ORDER_TEMPLATE_ID"
+    ) {
+      return;
+    }
+    const doc = await db.collection("users").doc(customerId).get();
+    if (!doc.exists) return;
+    const user = doc.data();
+    if (!user.email || user.emailNotifications === false) return;
+    // Links are relative to the shop folder; make them absolute for email.
+    const url = new URL(`${/\/shop\//.test(window.location.pathname) ? "" : "../shop/"}${link || "orders.html"}`, window.location.href).href;
+    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_ORDER_TEMPLATE_ID, {
+      to_email: user.email,
+      to_name: user.firstName || "Customer",
+      subject: title,
+      message: detail,
+      link: url,
+    });
+  } catch (error) {
+    console.warn("Order email not sent:", error);
   }
 }
 
