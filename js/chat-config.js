@@ -14,10 +14,10 @@ const CHAT_CONFIG = {
   aiProvider: "gemini",
   geminiModel: "gemini-3.5-flash-lite",
   firebaseModularSdkVersion: "12.17.1",
-  // Google's free tier (Gemini Developer API) allows about 1,500 requests a
-  // day and 15 a minute for the Flash-Lite model - check the project's
-  // limits in Google AI Studio and keep this below the daily figure.
-  dailyAiLimit: 1000,
+  // Google's free tier for this project allows 500 requests a day for
+  // gemini-3.5-flash-lite (Google Cloud -> Generative Language API ->
+  // Quotas). 400 leaves room for retries and staff "Test AI" checks.
+  dailyAiLimit: 400,
   // How many earlier messages of the conversation the AI sees.
   historyMessages: 8,
 };
