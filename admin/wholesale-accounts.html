@@ -142,6 +142,9 @@
         </div>
       </div>
 
+      <label class="form-label d-block">Agreed Prices</label>
+      <div class="mb-3" id="wholesaleAgreedPrices"></div>
+
       <label class="form-label d-block">Status</label>
       <div class="segmented-toggle mb-3" id="wholesaleStatusToggle">
         <button type="button" class="segmented-toggle-btn active" data-value="active">Active</button>
@@ -212,6 +215,11 @@
       <div class="d-flex justify-content-between align-items-center mb-3">
         <p class="detail-label mb-0">Order Total</p>
         <p class="product-price mb-0" id="processOrderTotal">₱0</p>
+      </div>
+
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="processOrderSavePricesCheck">
+        <label class="form-check-label" for="processOrderSavePricesCheck">Save these prices as this buyer's agreed prices</label>
       </div>
 
       <div id="processOrderAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>

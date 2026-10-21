@@ -233,6 +233,32 @@ function getToggleValue(container) {
   return container.querySelector(".segmented-toggle-btn.active").dataset.value;
 }
 
+// Agreed prices (REQ085) are set from Process Order; here they can be
+// reviewed and removed.
+let editingAgreedPrices = {};
+
+function renderAgreedPrices() {
+  const el = document.getElementById("wholesaleAgreedPrices");
+  const entries = Object.entries(editingAgreedPrices);
+  if (!entries.length) {
+    el.innerHTML = '<p class="text-muted mb-0" style="font-size:0.82rem;">None yet. Tick "Save these prices" when processing an order to set them.</p>';
+    return;
+  }
+  el.innerHTML = entries
+    .map(([pid, price]) => `
+      <div class="d-flex justify-content-between align-items-center border-bottom py-1" style="font-size:0.85rem;">
+        <span>${escapeHtml((getProductById(pid) || {}).name || pid)}</span>
+        <span>${formatPeso(price)} <button type="button" class="icon-btn agreed-price-remove-btn" data-id="${pid}" aria-label="Remove agreed price"><i class="bi bi-x-lg"></i></button></span>
+      </div>`)
+    .join("");
+  el.querySelectorAll(".agreed-price-remove-btn").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      delete editingAgreedPrices[btn.dataset.id];
+      renderAgreedPrices();
+    })
+  );
+}
+
 function resetWholesaleForm() {
   wholesaleNameInput.value = "";
   wholesaleContactPersonInput.value = "";
@@ -244,6 +270,8 @@ function resetWholesaleForm() {
   wholesalePermitInput.value = "";
   wholesaleLtoExpiryInput.value = "";
   wholesalePermitExpiryInput.value = "";
+  editingAgreedPrices = {};
+  renderAgreedPrices();
   wholesaleLtoStatus.textContent = "No file uploaded yet.";
   wholesalePermitStatus.textContent = "No file uploaded yet.";
   existingLtoUrl = null;
@@ -274,6 +302,8 @@ function openEditModal(account) {
   wholesalePhoneInput.value = account.phone || "";
   wholesaleEmailInput.value = account.email || "";
   wholesaleAddressInput.value = account.address || "";
+  editingAgreedPrices = { ...(account.agreedPrices || {}) };
+  renderAgreedPrices();
   wholesaleLtoExpiryInput.value = account.ltoValidUntil || "";
   wholesalePermitExpiryInput.value = account.permitValidUntil || "";
   setToggleValue(wholesaleStatusToggle, account.status || "active");
@@ -331,6 +361,7 @@ saveWholesaleBtn.addEventListener("click", async () => {
       address: wholesaleAddressInput.value.trim(),
       ltoDocumentUrl: ltoDocumentUrl || null,
       permitDocumentUrl: permitDocumentUrl || null,
+      agreedPrices: editingAgreedPrices,
       ltoValidUntil: wholesaleLtoExpiryInput.value || null,
       permitValidUntil: wholesalePermitExpiryInput.value || null,
       status: getToggleValue(wholesaleStatusToggle),
@@ -451,9 +482,19 @@ function addProcessOrderItemRow() {
   populateOrderProductSelect(productSelect);
 
   const priceInput = row.querySelector(".order-price-input");
+  const priceNote = document.createElement("p");
+  priceNote.className = "text-muted mb-0 mt-1";
+  priceNote.style.fontSize = "0.75rem";
+  priceInput.insertAdjacentElement("afterend", priceNote);
+  // This buyer's agreed price (REQ085) when there is one, else the
+  // product's standard wholesale price.
   const setDefaultPrice = () => {
     const product = getProductById(productSelect.value);
-    priceInput.value = product ? product.wholesalePrice || 0 : 0;
+    const account = allWholesaleAccounts.find((w) => w.id === processingAccountId);
+    const agreed = account && account.agreedPrices ? account.agreedPrices[productSelect.value] : undefined;
+    if (processOrderFreeCheck.checked) priceInput.value = 0;
+    else priceInput.value = agreed != null ? agreed : product ? product.wholesalePrice || 0 : 0;
+    priceNote.textContent = agreed != null ? "Agreed price for this buyer" : "Standard wholesale price";
     recalcProcessOrderTotal();
   };
   setDefaultPrice();
@@ -496,6 +537,7 @@ function openProcessOrderModal(account) {
   processOrderNotesInput.value = "";
   processOrderPaymentSelect.value = "cash";
   processOrderFreeCheck.checked = false;
+  document.getElementById("processOrderSavePricesCheck").checked = false;
   processOrderFreeReasonInput.value = "";
   processOrderFreeReasonInput.classList.add("d-none");
 
@@ -619,6 +661,22 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
             details: `SI ${invoiceNo} - ${account ? account.name : ""} - ${orderItems.length} item(s), Total ${formatPeso(total)}, ${SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod}`,
           }
     );
+
+    // Remember the prices used as this buyer's agreed prices (REQ085).
+    if (!freeOfCost && document.getElementById("processOrderSavePricesCheck").checked && account) {
+      const agreedPrices = { ...(account.agreedPrices || {}) };
+      items.forEach((it) => (agreedPrices[it.productId] = it.unitPrice));
+      try {
+        await db.collection("wholesaleAccounts").doc(account.id).update({ agreedPrices });
+        account.agreedPrices = agreedPrices;
+        await logAuditEvent({
+          action: "Wholesale Agreed Prices Saved",
+          details: `${account.name}: ${items.map((it) => `${(getProductById(it.productId) || {}).name || it.productId} ${formatPeso(it.unitPrice)}`).join(", ")}`,
+        });
+      } catch (error) {
+        console.error("Failed to save agreed prices:", error);
+      }
+    }
 
     bootstrap.Modal.getInstance(processOrderModalEl).hide();
     const saved = await orderRef.get();
