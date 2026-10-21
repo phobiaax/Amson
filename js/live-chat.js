@@ -50,11 +50,6 @@ function chatFaqAnswers() {
         "Paid orders can't be cancelled or refunded. If we sent the wrong item, tell us and we'll exchange it. If a payment can't be verified, the order goes on hold for up to 7 days; anything we verified is kept as store credit for your next order.",
     },
     {
-      keys: ["track", "order status", "where is my order", "nasaan", "my order"],
-      answer:
-        "You can see your order's status in My Orders. Once it's dispatched, the Lalamove tracking link appears on the order page. If something looks wrong, type \"talk to staff\" and our team will check it.",
-    },
-    {
       keys: ["store hours", "open", "location", "address", "where are you", "contact", "saan"],
       answer:
         `We're Amson Pharmaceuticals, Las Piñas branch.${info.address ? ` Address: ${info.address}.` : ""}${info.hours ? ` Hours: ${info.hours}.` : ""}${contact ? ` You can also ${contact}.` : ""} The store details are also at the bottom of every page.`,
@@ -122,7 +117,7 @@ function chatIsHealthQuestion(text) {
 }
 
 const CHAT_HEALTH_ANSWER =
-  "I'm sorry, I can't recommend medicines or give advice about symptoms or doses. Our pharmacist can help - tap \"Talk to staff\" to ask them here. If your symptoms are severe or don't improve, please see a doctor.";
+  "I'm sorry, I can't recommend medicines or give advice about symptoms or doses. Our pharmacist can help - tap \"Ask our pharmacist\" to ask them here. If your symptoms are severe or don't improve, please see a doctor.";
 
 const CHAT_STOPWORDS = new Set([
   "the", "and", "for", "you", "your", "have", "has", "are", "how", "much", "many", "what", "whats", "can", "may", "does",
@@ -152,6 +147,104 @@ function chatProductMatches(text, limit = 8) {
     .map(({ p }) =>
       `${p.name}${p.genericName ? ` (${p.genericName})` : ""} - ${formatPeso(p.price)} - ${p.inStock ? `${p.totalStock} in stock` : "out of stock"}${p.rxRequired ? " - prescription required, pick-up only" : ""}`
     );
+}
+
+// ---- "What we carry for this" (health questions) ----
+// The assistant never picks a medicine for anyone. For a recognized
+// symptom it lists the store's non-prescription products whose own label
+// text (description and Dosage / Usage notes, written by the pharmacy)
+// mentions it - like a shelf sign - with a see-a-doctor warning and a
+// button to ask the pharmacist. No AI is used, and nothing about the
+// customer's health is sent anywhere.
+const CHAT_SYMPTOMS = [
+  { name: "fever", say: ["fever", "lagnat", "nilalagnat", "sinat", "temperature"], label: ["fever", "pyrexia", "antipyretic"] },
+  { name: "headache", say: ["headache", "sakit ng ulo", "masakit ang ulo", "migraine"], label: ["headache", "migraine"] },
+  { name: "body pain", say: ["body pain", "muscle pain", "sakit ng katawan", "pananakit ng katawan", "joint pain", "sprain", "ngalay"], label: ["body pain", "muscle pain", "muscular", "joint pain", "sprain", "aches"] },
+  { name: "toothache", say: ["toothache", "sakit ng ngipin", "masakit ang ngipin"], label: ["toothache", "dental pain"] },
+  { name: "cough", say: ["cough", "ubo", "inuubo", "plema", "phlegm"], label: ["cough", "phlegm", "mucus", "expectorant"] },
+  { name: "colds", say: ["colds", "cold", "sipon", "sinisipon", "runny nose", "stuffy nose", "barado ang ilong", "clogged nose"], label: ["colds", "common cold", "nasal congestion", "runny nose", "decongestant"] },
+  { name: "flu", say: ["flu", "trangkaso"], label: ["flu", "influenza"] },
+  { name: "allergy", say: ["allergy", "allergies", "allergic", "makati", "kati", "itchy", "rashes", "pantal", "hives"], label: ["allergy", "allergies", "allergic", "itch", "rashes", "hives", "antihistamine"] },
+  { name: "diarrhea", say: ["diarrhea", "diarrhoea", "lbm", "pagtatae", "nagtatae", "loose bowel"], label: ["diarrhea", "diarrhoea", "loose bowel"] },
+  { name: "acidity", say: ["hyperacidity", "acidity", "heartburn", "kabag", "bloating", "masakit ang sikmura", "sikmura"], label: ["hyperacidity", "acidity", "heartburn", "antacid", "bloating", "flatulence"] },
+  { name: "menstrual pain", say: ["dysmenorrhea", "menstrual cramps", "period pain", "regla", "puson"], label: ["dysmenorrhea", "menstrual"] },
+  { name: "sore throat", say: ["sore throat", "masakit ang lalamunan", "lalamunan"], label: ["sore throat", "throat"] },
+  { name: "motion sickness", say: ["motion sickness", "travel sickness", "hilo sa biyahe", "nahihilo sa sasakyan"], label: ["motion sickness", "travel sickness"] },
+  { name: "constipation", say: ["constipation", "constipated", "tibi", "hindi makadumi"], label: ["constipation", "laxative"] },
+];
+
+// Questions about doses, children, pregnancy, other medicines or long-term
+// conditions always go to the pharmacist - no product list at all.
+const CHAT_HEALTH_CAUTION = [
+  "dose", "dosage", "how many", "how much should", "ilang", "ilan ang", "gaano", "safe for", "safe ba", "pwede ba sa",
+  "baby", "sanggol", "infant", "child", "children", "kid", "kids", "bata", "anak", "pregnant", "buntis",
+  "breastfeeding", "nagpapasuso", "interaction", "together with", "kasabay", "maintenance", "high blood",
+  "hypertension", "diabetes", "asthma", "hika", "kidney", "liver", "heart", "allergic to",
+];
+
+function chatSymptomsIn(text) {
+  const t = chatNormalize(text);
+  return CHAT_SYMPTOMS.filter((s) => s.say.some((w) => t.includes(` ${w} `)));
+}
+
+function chatHasHealthCaution(text) {
+  const t = chatNormalize(text);
+  // Whole words only ("heart" must not catch "heartburn").
+  return CHAT_HEALTH_CAUTION.some((w) => t.includes(` ${w} `));
+}
+
+// Over-the-counter products sold online whose label text mentions the symptom.
+function chatProductsForSymptoms(symptoms, limit = 4) {
+  if (typeof SAMPLE_PRODUCTS === "undefined") return [];
+  const keys = symptoms.flatMap((s) => s.label);
+  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false && !p.rxRequired)
+    .filter((p) => {
+      const label = chatNormalize(`${p.description || ""} ${p.dosageNotes || ""}`);
+      return keys.some((k) => label.includes(` ${k}`));
+    })
+    .sort((a, b) => (b.inStock ? 1 : 0) - (a.inStock ? 1 : 0) || a.name.localeCompare(b.name))
+    .slice(0, limit);
+}
+
+// ---- Order cards ----
+function chatWantsOrders(text) {
+  const t = chatNormalize(text);
+  return (
+    /amp \d{4} \d+/.test(t) ||
+    ["my order", "my orders", "order status", "track", "tracking", "where is my order", "nasaan ang order", "nasaan na", "order ko", "status ng order", "on hold", "naka hold", "rider"].some((w) =>
+      t.includes(` ${w}`)
+    )
+  );
+}
+
+const CHAT_ORDER_STATUS = {
+  placed: "Waiting for payment check",
+  payment_confirmed: "Payment confirmed - being prepared",
+  dispatched: "On the way",
+  delivered: "Delivered",
+  received: "Received",
+  closed_unresolved: "Closed (not resolved in 7 days)",
+};
+const CHAT_HOLD_LABELS = {
+  invalid_payment: "On hold: payment screenshot couldn't be verified",
+  underpayment: "On hold: payment is less than the total",
+  payment_not_received: "On hold: payment not received",
+  out_of_stock: "On hold: an item is out of stock",
+  prescription_rejected: "On hold: prescription not accepted",
+};
+
+// The order as the customer should see it now: a hold whose 7 days have run
+// out reads as closed (staff pages record the closure).
+function chatOrderView(o) {
+  const holdOver = o.paymentIssue && o.paymentIssue.holdUntil && o.paymentIssue.holdUntil.toMillis && o.paymentIssue.holdUntil.toMillis() < Date.now();
+  const issue = holdOver ? null : o.paymentIssue || null;
+  const status = holdOver ? "closed_unresolved" : o.status;
+  const label = issue
+    ? CHAT_HOLD_LABELS[issue.type] || "On hold"
+    : status === "delivered" && o.requiresPrescription
+    ? "Ready for pick-up"
+    : CHAT_ORDER_STATUS[status] || status;
+  return { issue, status, label };
 }
 
 function chatSystemInstruction() {
@@ -287,6 +380,9 @@ async function chatAiReply(history, question) {
   let unsubscribeThread = null;
   let sending = false;
   let lastSentAt = 0;
+  // The signed-in customer's orders, for order cards (read live, not copied
+  // into the chat).
+  let myOrders = null;
 
   const panel = document.createElement("div");
   panel.className = "chat-panel d-none";
@@ -303,6 +399,7 @@ async function chatAiReply(history, question) {
     </div>
     <div class="chat-messages" id="chatMessages" aria-live="polite"></div>
     <div class="chat-quick" id="chatQuick">
+      <button type="button" data-q="Where is my order?">My orders</button>
       <button type="button" data-q="How do I pay?">How do I pay?</button>
       <button type="button" data-q="How much is the delivery fee?">Delivery fee</button>
       <button type="button" data-q="How do prescription orders work?">Prescription orders</button>
@@ -411,18 +508,141 @@ async function chatAiReply(history, question) {
           if (m.sender === "system") return `<div class="chat-msg chat-msg-system">${escapeHtml(m.text)}</div>`;
           const cls = m.sender === "customer" ? "chat-msg-customer" : m.sender === "staff" ? "chat-msg-staff" : "chat-msg-assistant";
           const who = m.sender === "staff" ? `<span class="chat-msg-who">${escapeHtml(m.staffName || "Staff")}</span>` : "";
-          return `<div class="chat-msg ${cls}">${who}${escapeHtml(m.text)}</div>`;
+          const cards = Array.isArray(m.cards) && m.cards.length ? `<div class="chat-cards">${m.cards.map(cardHtml).join("")}</div>` : "";
+          return `<div class="chat-msg ${cls}">${who}${escapeHtml(m.text)}</div>${cards}`;
         })
         .join("");
     messagesEl.scrollTop = messagesEl.scrollHeight;
+    // Order cards need the customer's orders; load them once, then redraw.
+    if (myOrders === null && customerId && messages.some((m) => (m.cards || []).some((c) => c.type === "order"))) {
+      loadMyOrders().then(renderMessages);
+    }
   }
 
-  async function addMessage(sender, text) {
-    await threadRef.collection("messages").add({
-      sender,
-      text,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
+  async function loadMyOrders() {
+    if (!customerId) return [];
+    try {
+      const snap = await db.collection("orders").where("customerId", "==", customerId).get();
+      myOrders = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0) - (a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0));
+    } catch (error) {
+      console.warn("Chat: couldn't load orders:", error);
+      myOrders = [];
+    }
+    return myOrders;
+  }
+
+  const shopPath = (page) => `${/\/shop\//.test(window.location.pathname) ? "" : "shop/"}${page}`;
+
+  // Cards under a message. Product and order cards show live data.
+  function cardHtml(card) {
+    if (card.type === "button") {
+      return `<button type="button" class="chat-card-btn" data-chat-q="${escapeHtml(card.q || card.label)}">${escapeHtml(card.label)}</button>`;
+    }
+    if (card.type === "login") {
+      return `<a class="chat-card-btn" href="${/\/shop\//.test(window.location.pathname) ? "../" : ""}login.html">Log in to see your orders</a>`;
+    }
+    if (card.type === "product") {
+      const p = typeof getProductById === "function" ? getProductById(card.id) : null;
+      if (!p) return "";
+      return `
+        <div class="chat-card">
+          <a class="fw-medium d-block" href="${shopPath(`product-details.html?id=${encodeURIComponent(p.id)}`)}">${escapeHtml(p.name)}</a>
+          <div class="text-muted" style="font-size:0.78rem;">${formatPeso(p.price)} - ${p.inStock ? `${p.totalStock} in stock` : "Out of stock"}</div>
+          ${p.dosageNotes ? `<div style="font-size:0.75rem;" class="mt-1">${escapeHtml(p.dosageNotes)}</div>` : ""}
+          ${p.inStock ? `<button type="button" class="btn btn-amson btn-sm mt-2 btn-add-cart" data-id="${escapeHtml(p.id)}">+ Add to Cart</button>` : ""}
+        </div>`;
+    }
+    if (card.type === "order") {
+      const o = (myOrders || []).find((x) => x.id === card.id);
+      if (!o) return myOrders === null ? `<div class="chat-card text-muted" style="font-size:0.78rem;">Loading order...</div>` : "";
+      const { issue, status: liveStatus, label: status } = chatOrderView(o);
+      const deadline = issue && issue.holdUntil && issue.holdUntil.toDate ? ` - fix by ${formatDateMDY(issue.holdUntil)}` : "";
+      const itemCount = (o.items || []).reduce((n, i) => n + (i.qty || 0), 0);
+      const tracking = liveStatus === "dispatched" && o.trackingLink ? `<a class="chat-card-btn" href="${escapeHtml(safeUrl(o.trackingLink))}" target="_blank" rel="noopener">Track rider</a>` : "";
+      return `
+        <div class="chat-card">
+          <div class="d-flex justify-content-between gap-2"><span class="fw-bold">${escapeHtml(o.orderNumber || "")}</span><span style="font-size:0.78rem;">${formatPeso(o.total || 0)}</span></div>
+          <div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(o.createdAt)} - ${itemCount} item${itemCount === 1 ? "" : "s"}</div>
+          <div class="mt-1 ${issue ? "text-danger" : ""}" style="font-size:0.8rem; font-weight:600;">${escapeHtml(status)}${escapeHtml(deadline)}</div>
+          ${issue && issue.note ? `<div style="font-size:0.75rem;">${escapeHtml(issue.note)}</div>` : ""}
+          <div class="d-flex gap-1 flex-wrap mt-2">
+            <a class="chat-card-btn" href="${shopPath(`order-details.html?id=${encodeURIComponent(o.id)}`)}">${issue ? "Fix this order" : "View order"}</a>
+            ${tracking}
+          </div>
+        </div>`;
+    }
+    return "";
+  }
+
+  messagesEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-chat-q]");
+    if (btn) send(btn.dataset.chatQ);
+  });
+
+  async function addMessage(sender, text, cards = null) {
+    const msg = { sender, text, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+    if (cards && cards.length) msg.cards = cards;
+    await threadRef.collection("messages").add(msg);
+  }
+
+  async function answerOrders(text) {
+    if (!customerId) {
+      await addMessage("assistant", "Log in to see your orders here. You can also check them anytime in My Orders.", [{ type: "login" }]);
+      return;
+    }
+    const orders = await loadMyOrders();
+    const numberMatch = String(text).toUpperCase().match(/AMP-\d{4}-\d+/);
+    let picked;
+    if (numberMatch) {
+      picked = orders.filter((o) => (o.orderNumber || "").toUpperCase() === numberMatch[0]);
+      if (!picked.length) {
+        await addMessage("assistant", `I couldn't find order ${numberMatch[0]} on your account. Here are your recent orders instead.`);
+      }
+    }
+    if (!picked || !picked.length) {
+      // Orders still in progress first, then the latest ones.
+      const open = orders.filter((o) => !["received", "closed_unresolved"].includes(chatOrderView(o).status));
+      picked = (open.length ? open : orders).slice(0, 3);
+    }
+    if (!picked.length) {
+      await addMessage("assistant", "You don't have any orders yet. Browse the shop to place your first one.");
+      return;
+    }
+    const held = picked.some((o) => chatOrderView(o).issue);
+    const summary = picked.map((o) => `${o.orderNumber}: ${chatOrderView(o).label}`).join("; ");
+    await addMessage(
+      "assistant",
+      `${picked.length === 1 ? "Here's your order" : "Here are your recent orders"}: ${summary}.${held ? " Open the order to fix the hold before its deadline." : ""}`,
+      picked.map((o) => ({ type: "order", id: o.id })).concat([{ type: "button", label: "Talk to staff", q: "I want to talk to staff" }])
+    );
+  }
+
+  async function answerHealth(text) {
+    const pharmacistButton = { type: "button", label: "Ask our pharmacist", q: "I want to ask the pharmacist" };
+    const symptoms = chatSymptomsIn(text);
+    if (!symptoms.length || chatHasHealthCaution(text)) {
+      await addMessage("assistant", CHAT_HEALTH_ANSWER, [pharmacistButton]);
+      return;
+    }
+    if (typeof loadCatalogCache === "function") {
+      try {
+        await loadCatalogCache();
+      } catch (error) {}
+    }
+    const products = chatProductsForSymptoms(symptoms);
+    if (!products.length) {
+      await addMessage("assistant", CHAT_HEALTH_ANSWER, [pharmacistButton]);
+      return;
+    }
+    const names = symptoms.map((sx) => sx.name).join(" and ");
+    await addMessage(
+      "assistant",
+      `I can't tell you which medicine is right for you, but here's what we carry for ${names}, going by the product labels: ${products.map((p) => p.name).join(", ")}.\n\n` +
+        "Please read the label before use. See a doctor right away if symptoms are severe, last more than 3 days, or are for a baby or young child, or if you're pregnant or breastfeeding.",
+      products.map((p) => ({ type: "product", id: p.id })).concat([pharmacistButton])
+    );
   }
 
   // Creates the thread on the first message, reopens a resolved one.
@@ -476,8 +696,13 @@ async function chatAiReply(history, question) {
       return;
     }
 
-    if (chatIsHealthQuestion(text)) {
-      await addMessage("assistant", CHAT_HEALTH_ANSWER);
+    if (chatWantsOrders(text)) {
+      await answerOrders(text);
+      return;
+    }
+
+    if (chatIsHealthQuestion(text) || chatSymptomsIn(text).length) {
+      await answerHealth(text);
       return;
     }
 

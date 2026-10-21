@@ -1947,6 +1947,35 @@ a {
   opacity: 0.8;
   margin-bottom: 0.15rem;
 }
+.chat-cards {
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: 85%;
+  width: 85%;
+}
+.chat-card {
+  background-color: #fff;
+  border: 1px solid var(--amson-border);
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.85rem;
+}
+.chat-card a {
+  color: inherit;
+}
+.chat-card-btn {
+  display: inline-block;
+  border: 1px solid var(--amson-red);
+  color: var(--amson-red) !important;
+  background-color: #fff;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
+  text-decoration: none;
+  align-self: flex-start;
+}
 .chat-quick {
   display: flex;
   flex-wrap: wrap;
