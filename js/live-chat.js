@@ -105,18 +105,46 @@ function chatMatchFaq(text) {
   return best ? best.answer : null;
 }
 
-// Catalog lines for products the message mentions (public info only).
+// Questions about symptoms, dosage or what to take get a fixed, safe
+// answer: only a pharmacist or doctor may recommend medicine.
+const CHAT_HEALTH_PATTERNS = [
+  "good for", "medicine for", "gamot sa", "gamot para", "what to take", "what should i take", "pwede bang inumin",
+  "pwede ba inumin", "safe to take", "dose", "dosage", "how many tablets", "ilang beses", "ilan ang iinumin",
+  "side effect", "interaction", "symptom", "cough", "ubo", "fever", "lagnat", "headache", "sakit ng ulo", "migraine",
+  "sore throat", "sipon", "colds", "flu", "trangkaso", "allergy", "allergies", "rash", "pantal", "diarrhea", "pagtatae",
+  "nausea", "nahihilo", "hilo", "vomit", "suka", "stomach ache", "sakit ng tiyan", "toothache", "high blood",
+  "hypertension", "diabetes", "asthma", "hika", "pregnant", "buntis", "breastfeeding", "infection", "pain", "masakit",
+];
+
+function chatIsHealthQuestion(text) {
+  const t = chatNormalize(text);
+  return CHAT_HEALTH_PATTERNS.some((p) => t.includes(` ${p} `) || t.includes(` ${p}s `));
+}
+
+const CHAT_HEALTH_ANSWER =
+  "I'm sorry, I can't recommend medicines or give advice about symptoms or doses. Our pharmacist can help - tap \"Talk to staff\" to ask them here. If your symptoms are severe or don't improve, please see a doctor.";
+
+const CHAT_STOPWORDS = new Set([
+  "the", "and", "for", "you", "your", "have", "has", "are", "how", "much", "many", "what", "whats", "can", "may", "does",
+  "with", "this", "that", "there", "any", "available", "stock", "price", "pesos", "need", "want", "buy", "order", "sell",
+  "meron", "mayroon", "kayo", "ninyo", "nyo", "ang", "mga", "magkano", "ilan", "para", "sana", "pwede", "paano", "yung",
+]);
+
+// Catalog lines for products the message names (public info only). Words
+// match whole product words (or their start), so "for" never matches
+// "Forte".
 function chatProductMatches(text, limit = 8) {
   if (typeof SAMPLE_PRODUCTS === "undefined") return [];
   const words = chatNormalize(text)
     .trim()
     .split(" ")
-    .filter((w) => w.length >= 3);
+    .filter((w) => w.length >= 3 && !CHAT_STOPWORDS.has(w));
   if (!words.length) return [];
   return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false)
     .map((p) => {
-      const hay = chatNormalize(`${p.name} ${p.genericName || ""} ${p.brand || ""}`);
-      return { p, score: words.filter((w) => hay.includes(w)).length };
+      const tokens = chatNormalize(`${p.name} ${p.genericName || ""} ${p.brand || ""}`).trim().split(" ");
+      const hit = (w) => tokens.some((t) => t === w || (w.length >= 4 && t.startsWith(w)));
+      return { p, score: words.filter(hit).length };
     })
     .filter((m) => m.score > 0)
     .sort((a, b) => b.score - a.score)
@@ -434,6 +462,11 @@ async function chatAiReply(history, question) {
 
     if (chatWantsStaff(text)) {
       await handOffToStaff("customer_asked");
+      return;
+    }
+
+    if (chatIsHealthQuestion(text)) {
+      await addMessage("assistant", CHAT_HEALTH_ANSWER);
       return;
     }
 
