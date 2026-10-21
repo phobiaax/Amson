@@ -184,7 +184,10 @@ auth.onAuthStateChanged(async (user) => {
     const doc = await db.collection("users").doc(user.uid).get();
     if (!doc.exists) return;
     const userData = doc.data();
-    if (userData.accountStatus === "deactivated") return;
+    if (userData.accountStatus === "deactivated") {
+      await auth.signOut();
+      return;
+    }
     const needsEmailVerification = !STAFF_ROLES.includes(userData.role) && !userData.emailVerified;
     if (!needsEmailVerification && !isDeviceTrusted(userData)) {
       // Signed in from before, but this device was never confirmed.

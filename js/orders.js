@@ -330,9 +330,13 @@ async function generateOrderNumber() {
   const year = new Date().getFullYear();
   const counterRef = db.collection("counters").doc(`orders-${year}`);
 
-  const counterDoc = await counterRef.get();
-  const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
-  await counterRef.set({ count: nextCount }, { merge: true });
+  // In a transaction so two checkouts at the same moment never share a number.
+  const nextCount = await db.runTransaction(async (transaction) => {
+    const counterDoc = await transaction.get(counterRef);
+    const next = (counterDoc.exists ? counterDoc.data().count || 0 : 0) + 1;
+    transaction.set(counterRef, { count: next }, { merge: true });
+    return next;
+  });
   return `AMP-${year}-${String(nextCount).padStart(4, "0")}`;
 }
 

@@ -22,6 +22,22 @@ auth.onAuthStateChanged(async (user) => {
   try {
     const doc = await db.collection("users").doc(user.uid).get();
     const data = doc.exists ? doc.data() : {};
+    if (doc.exists && data.accountStatus === "deactivated") {
+      try {
+        sessionStorage.setItem("amsonLoginNotice", "Your account has been deactivated. Please contact support.");
+      } catch (error) {}
+      await auth.signOut();
+      window.location.href = "../login.html";
+      return;
+    }
+    // Customers who haven't entered their sign-up code yet finish that first.
+    if (doc.exists && data.role === "customer" && !data.emailVerified) {
+      try {
+        sessionStorage.setItem("amsonPendingVerificationEmail", data.email || user.email || "");
+      } catch (error) {}
+      window.location.href = "../verify-email.html";
+      return;
+    }
     // Verified customers on a device they never confirmed go back to log in
     // (REQ005). Unverified accounts are still finishing sign-up.
     if (doc.exists && data.role === "customer" && data.emailVerified && typeof enforceRecognizedDevice === "function") {

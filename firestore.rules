@@ -15,9 +15,12 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(myUid())).data.role;
     }
 
+    // A deactivated staff account loses access at once, even if it is
+    // still signed in somewhere.
     function isStaff() {
       return isSignedIn() &&
-        myRole() in ["admin", "branch_manager", "technical_staff", "sales_staff"];
+        myRole() in ["admin", "branch_manager", "technical_staff", "sales_staff"] &&
+        get(/databases/$(database)/documents/users/$(myUid())).data.get("accountStatus", "active") != "deactivated";
     }
 
     // ---- users ----
@@ -27,8 +30,10 @@ service cloud.firestore {
       allow read: if isStaff();
 
       // Self-registration as a customer.
+      // A new account starts with no store credit.
       allow create: if isSignedIn() && myUid() == uid &&
-        request.resource.data.role == "customer";
+        request.resource.data.role == "customer" &&
+        request.resource.data.get("creditBalance", 0) == 0;
 
       // Branch Manager (or the legacy admin role) creating a staff account.
       allow create: if isSignedIn() && myRole() in ["admin", "branch_manager"] &&
@@ -114,20 +119,26 @@ service cloud.firestore {
       // createOrderWithCreditRedemption) can never exceed the balance the
       // customer had going into this write, so a crafted order can't claim
       // more discount than they actually have.
+      // A new order is always "placed" with nothing staff-only on it, and
+      // any credit applied must come off the balance in the same write.
       allow create: if isSignedIn() &&
         request.resource.data.customerId == myUid() &&
-        request.resource.data.get("creditApplied", 0) <=
-          get(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0);
+        request.resource.data.status == "placed" &&
+        request.resource.data.get("total", 0) >= 0 &&
+        !request.resource.data.keys().hasAny(["paymentIssue", "invoiceNo", "unappliedCredit", "paymentOverage", "verification", "closedReason"]) &&
+        (request.resource.data.get("creditApplied", 0) == 0 ||
+         (request.resource.data.creditApplied > 0 &&
+          getAfter(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) ==
+            get(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) - request.resource.data.creditApplied));
 
       // A signed-in customer may only ever move their own order through
       // three specific transitions - never edit items/total/status freely:
       //   1. Confirming receipt (delivered -> received) - the only
       //      customer-initiated step in the normal lifecycle.
-      //   2. The lazy 7-day hold-expiry close (enforceOrderDeadline in
-      //      orders.js), which can run from the customer's own order page
-      //      and only ever closes a genuinely expired hold. It only ever
-      //      records the credit amount on the order itself - crediting the
-      //      users/{uid} ledger is staff/system-only (see above).
+      //   2. The 3-day auto-deliver of a dispatched order (enforceOrderDeadline
+      //      in orders.js), checked against the server's clock.
+      //      (Expired holds are closed from staff pages only, together
+      //      with the store credit.)
       //   3. Resubmitting a corrected proof of payment/reference number on
       //      an active hold (order-details.js's issueResubmitBtn handler) -
       //      (or a new prescription photo after a rejected prescription) -
@@ -138,15 +149,21 @@ service cloud.firestore {
          request.resource.data.status == "received" &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "statusTimestamps"]))
         ||
-        (resource.data.get("paymentIssue", null) != null &&
-         resource.data.paymentIssue.holdUntil < request.time &&
-         request.resource.data.status == "closed_unresolved" &&
-         request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(["status", "statusTimestamps", "paymentIssue", "closedReason", "unappliedCredit"]))
+        (resource.data.status == "dispatched" &&
+         request.resource.data.status == "delivered" &&
+         resource.data.statusTimestamps.dispatched < request.time - duration.value(3, "d") &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "statusTimestamps"]))
         ||
         (resource.data.get("paymentIssue", null) != null &&
+         request.resource.data.get("paymentIssue", null) != null &&
          request.resource.data.diff(resource.data).affectedKeys()
-           .hasOnly(["proofOfPaymentUrl", "paymentReferenceNumber", "paymentIssue", "prescriptionPhotoUrl"]))
+           .hasOnly(["proofOfPaymentUrl", "paymentReferenceNumber", "paymentIssue", "prescriptionPhotoUrl"]) &&
+         // Within the hold record the customer may only mark it resolved
+         // (and clear its deadline) - never change its type or amounts.
+         request.resource.data.paymentIssue.diff(resource.data.paymentIssue).affectedKeys()
+           .hasOnly(["resolvedByCustomerAt", "holdUntil"]) &&
+         (!("holdUntil" in request.resource.data.paymentIssue) ||
+          request.resource.data.paymentIssue.holdUntil == resource.data.paymentIssue.get("holdUntil", null)))
       );
       allow update: if isStaff();
 
@@ -263,7 +280,11 @@ service cloud.firestore {
     match /counters/{counterId} {
       allow read: if isSignedIn();
       allow write: if isStaff();
-      allow write: if isSignedIn() && counterId.matches("orders-[0-9]{4}");
+      // Customers may only move the order-number counter up by one.
+      allow create: if isSignedIn() && counterId.matches("orders-[0-9]{4}") &&
+        request.resource.data.count == 1;
+      allow update: if isSignedIn() && counterId.matches("orders-[0-9]{4}") &&
+        request.resource.data.count == resource.data.count + 1;
     }
 
     // ---- pre-auth login lockout tracking ----

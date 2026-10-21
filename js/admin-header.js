@@ -29,6 +29,15 @@ auth.onAuthStateChanged(async (user) => {
     }
 
     const admin = doc.data();
+    // Deactivated in Staff Management: signed out even if "Remember me" kept them in.
+    if (admin.accountStatus === "deactivated") {
+      try {
+        sessionStorage.setItem("amsonLoginNotice", "This account has been deactivated. Please contact the Branch Manager.");
+      } catch (error) {}
+      await auth.signOut();
+      window.location.href = "../login.html";
+      return;
+    }
     // Staff need a confirmed device too (REQ044).
     if (typeof enforceRecognizedDevice === "function" && !(await enforceRecognizedDevice(admin))) return;
 
