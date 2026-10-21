@@ -106,7 +106,20 @@ function orderStepLabels(order) {
   return order.requiresPrescription ? PICKUP_ORDER_STATUS_STEP_LABELS : ORDER_STATUS_STEP_LABELS;
 }
 
+// What the customer sees while an order is on hold and waiting on them.
+const CUSTOMER_HOLD_BADGE_LABELS = {
+  invalid_payment: "Payment Rejected - Re-upload Needed",
+  payment_not_received: "Payment Rejected - Re-upload Needed",
+  underpayment: "On Hold - Balance Due",
+  out_of_stock: "On Hold - Out of Stock",
+  prescription_rejected: "Prescription Rejected - Re-upload Needed",
+};
+
 function orderBadgeLabel(order) {
+  if (order.paymentIssue && order.status === "placed") {
+    if (order.paymentIssue.resolvedByCustomerAt) return "Resubmitted - Under Review";
+    return CUSTOMER_HOLD_BADGE_LABELS[order.paymentIssue.type] || "On Hold";
+  }
   const labels = order.requiresPrescription ? PICKUP_ORDER_STATUS_BADGE_LABELS : ORDER_STATUS_BADGE_LABELS;
   return labels[order.status] || order.status;
 }

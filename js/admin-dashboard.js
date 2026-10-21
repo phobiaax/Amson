@@ -136,7 +136,8 @@ async function loadDashboardStats() {
     const posSales = posSalesSnapshot.docs.map((doc) => doc.data()).filter((s) => !s.voided);
 
     const pendingVerification = orders.filter((o) => o.status === "placed").length;
-    const activeOrders = orders.filter((o) => o.status !== "received").length;
+    // Still being worked on: verified but not yet handed over.
+    const activeOrders = orders.filter((o) => ["payment_confirmed", "dispatched"].includes(o.status)).length;
     const { lowStock, nearExpiry, outOfStock } = await computeInventoryAlertCounts();
 
     document.getElementById("pendingVerificationCount").textContent = pendingVerification;

@@ -199,8 +199,14 @@ service cloud.firestore {
     match /notifications/{notifId} { allow read, write: if isStaff(); }
 
     // ---- shared counters ----
+    // Customers only ever bump the yearly order-number counter
+    // (generateOrderNumber at checkout). Everything else - the Sales Invoice
+    // sequence above all - is staff-only, so a customer can't reset or
+    // skip SI numbers.
     match /counters/{counterId} {
-      allow read, write: if isSignedIn();
+      allow read: if isSignedIn();
+      allow write: if isStaff();
+      allow write: if isSignedIn() && counterId.matches("orders-[0-9]{4}");
     }
 
     // ---- pre-auth login lockout tracking ----

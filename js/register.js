@@ -203,7 +203,7 @@ registerForm.addEventListener("submit", async (e) => {
       firstName: firstNameInput.value.trim(),
       lastName: lastNameInput.value.trim(),
       email: email,
-      contactNumber: contactNumberInput.value.trim(),
+      contactNumber: normalizePhPhone(contactNumberInput.value),
       role: "customer",
       emailVerified: false,
       emailVerificationCode: otpCode,
