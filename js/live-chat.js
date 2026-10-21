@@ -116,9 +116,6 @@ function chatIsHealthQuestion(text) {
   return CHAT_HEALTH_PATTERNS.some((p) => t.includes(` ${p} `) || t.includes(` ${p}s `));
 }
 
-const CHAT_HEALTH_ANSWER =
-  "I'm sorry, I can't recommend medicines or give advice about symptoms or doses. Our pharmacist can help - tap \"Ask our pharmacist\" to ask them here. If your symptoms are severe or don't improve, please see a doctor.";
-
 const CHAT_STOPWORDS = new Set([
   "the", "and", "for", "you", "your", "have", "has", "are", "how", "much", "many", "what", "whats", "can", "may", "does",
   "with", "this", "that", "there", "any", "available", "stock", "price", "pesos", "need", "want", "buy", "order", "sell",
@@ -157,20 +154,20 @@ function chatProductMatches(text, limit = 8) {
 // button to ask the pharmacist. No AI is used, and nothing about the
 // customer's health is sent anywhere.
 const CHAT_SYMPTOMS = [
-  { name: "fever", say: ["fever", "lagnat", "nilalagnat", "sinat", "temperature"], label: ["fever", "pyrexia", "antipyretic"] },
-  { name: "headache", say: ["headache", "sakit ng ulo", "masakit ang ulo", "migraine"], label: ["headache", "migraine"] },
-  { name: "body pain", say: ["body pain", "muscle pain", "sakit ng katawan", "pananakit ng katawan", "joint pain", "sprain", "ngalay"], label: ["body pain", "muscle pain", "muscular", "joint pain", "sprain", "aches"] },
-  { name: "toothache", say: ["toothache", "sakit ng ngipin", "masakit ang ngipin"], label: ["toothache", "dental pain"] },
-  { name: "cough", say: ["cough", "ubo", "inuubo", "plema", "phlegm"], label: ["cough", "phlegm", "mucus", "expectorant"] },
-  { name: "colds", say: ["colds", "cold", "sipon", "sinisipon", "runny nose", "stuffy nose", "barado ang ilong", "clogged nose"], label: ["colds", "common cold", "nasal congestion", "runny nose", "decongestant"] },
-  { name: "flu", say: ["flu", "trangkaso"], label: ["flu", "influenza"] },
-  { name: "allergy", say: ["allergy", "allergies", "allergic", "makati", "kati", "itchy", "rashes", "pantal", "hives"], label: ["allergy", "allergies", "allergic", "itch", "rashes", "hives", "antihistamine"] },
-  { name: "diarrhea", say: ["diarrhea", "diarrhoea", "lbm", "pagtatae", "nagtatae", "loose bowel"], label: ["diarrhea", "diarrhoea", "loose bowel"] },
-  { name: "acidity", say: ["hyperacidity", "acidity", "heartburn", "kabag", "bloating", "masakit ang sikmura", "sikmura"], label: ["hyperacidity", "acidity", "heartburn", "antacid", "bloating", "flatulence"] },
-  { name: "menstrual pain", say: ["dysmenorrhea", "menstrual cramps", "period pain", "regla", "puson"], label: ["dysmenorrhea", "menstrual"] },
-  { name: "sore throat", say: ["sore throat", "masakit ang lalamunan", "lalamunan"], label: ["sore throat", "throat"] },
-  { name: "motion sickness", say: ["motion sickness", "travel sickness", "hilo sa biyahe", "nahihilo sa sasakyan"], label: ["motion sickness", "travel sickness"] },
-  { name: "constipation", say: ["constipation", "constipated", "tibi", "hindi makadumi"], label: ["constipation", "laxative"] },
+  { name: "fever", fil: "lagnat", say: ["fever", "lagnat", "nilalagnat", "sinat", "temperature"], label: ["fever", "pyrexia", "antipyretic"] },
+  { name: "headache", fil: "sakit ng ulo", say: ["headache", "sakit ng ulo", "masakit ang ulo", "migraine"], label: ["headache", "migraine"] },
+  { name: "body pain", fil: "pananakit ng katawan", say: ["body pain", "muscle pain", "sakit ng katawan", "pananakit ng katawan", "joint pain", "sprain", "ngalay"], label: ["body pain", "muscle pain", "muscular", "joint pain", "sprain", "aches"] },
+  { name: "toothache", fil: "sakit ng ngipin", say: ["toothache", "sakit ng ngipin", "masakit ang ngipin"], label: ["toothache", "dental pain"] },
+  { name: "cough", fil: "ubo", say: ["cough", "ubo", "inuubo", "plema", "phlegm"], label: ["cough", "phlegm", "mucus", "expectorant"] },
+  { name: "colds", fil: "sipon", say: ["colds", "cold", "sipon", "sinisipon", "runny nose", "stuffy nose", "barado ang ilong", "clogged nose"], label: ["colds", "common cold", "nasal congestion", "runny nose", "decongestant"] },
+  { name: "flu", fil: "trangkaso", say: ["flu", "trangkaso"], label: ["flu", "influenza"] },
+  { name: "allergy", fil: "allergy o pangangati", say: ["allergy", "allergies", "allergic", "makati", "kati", "itchy", "rashes", "pantal", "hives"], label: ["allergy", "allergies", "allergic", "itch", "rashes", "hives", "antihistamine"] },
+  { name: "diarrhea", fil: "pagtatae", say: ["diarrhea", "diarrhoea", "lbm", "pagtatae", "nagtatae", "loose bowel"], label: ["diarrhea", "diarrhoea", "loose bowel"] },
+  { name: "acidity", fil: "hyperacidity o heartburn", say: ["hyperacidity", "acidity", "heartburn", "kabag", "bloating", "masakit ang sikmura", "sikmura"], label: ["hyperacidity", "acidity", "heartburn", "antacid", "bloating", "flatulence"] },
+  { name: "menstrual pain", fil: "sakit ng puson tuwing may regla", say: ["dysmenorrhea", "menstrual cramps", "period pain", "regla", "puson"], label: ["dysmenorrhea", "menstrual"] },
+  { name: "sore throat", fil: "masakit na lalamunan", say: ["sore throat", "masakit ang lalamunan", "lalamunan"], label: ["sore throat", "throat"] },
+  { name: "motion sickness", fil: "hilo sa biyahe", say: ["motion sickness", "travel sickness", "hilo sa biyahe", "nahihilo sa sasakyan"], label: ["motion sickness", "travel sickness"] },
+  { name: "constipation", fil: "tibi", say: ["constipation", "constipated", "tibi", "hindi makadumi"], label: ["constipation", "laxative"] },
 ];
 
 // Questions about doses, children, pregnancy, other medicines or long-term
@@ -193,11 +190,15 @@ function chatHasHealthCaution(text) {
   return CHAT_HEALTH_CAUTION.some((w) => t.includes(` ${w} `));
 }
 
-// Over-the-counter products sold online whose label text mentions the symptom.
-function chatProductsForSymptoms(symptoms, limit = 4) {
+function chatOtcProducts() {
   if (typeof SAMPLE_PRODUCTS === "undefined") return [];
-  const keys = symptoms.flatMap((s) => s.label);
-  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false && !p.rxRequired)
+  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false && !p.rxRequired);
+}
+
+// Over-the-counter products sold online whose label text mentions any of
+// the given label words.
+function chatProductsForLabelWords(keys, limit = 4) {
+  return chatOtcProducts()
     .filter((p) => {
       const label = chatNormalize(`${p.description || ""} ${p.dosageNotes || ""}`);
       return keys.some((k) => label.includes(` ${k}`));
@@ -205,6 +206,66 @@ function chatProductsForSymptoms(symptoms, limit = 4) {
     .sort((a, b) => (b.inStock ? 1 : 0) - (a.inStock ? 1 : 0) || a.name.localeCompare(b.name))
     .slice(0, limit);
 }
+
+// The words the pharmacy uses on its over-the-counter labels - what Gemini
+// may map a customer's description onto (it can't add words of its own).
+const CHAT_LABEL_STOPWORDS = new Set([
+  "relief", "relieves", "relieve", "tablet", "tablets", "capsule", "capsules", "syrup", "mild", "moderate", "severe", "such",
+  "used", "uses", "take", "taken", "each", "every", "hours", "daily", "with", "from", "this", "that", "used", "temporary",
+  "temporarily", "treatment", "treat", "treats", "symptoms", "symptom", "other", "adults", "adult", "children", "years",
+  "older", "water", "food", "after", "before", "meals", "dose", "doses", "dosage", "label", "read", "only", "also", "help",
+  "helps", "provides", "fast", "acting", "effective", "brand", "generic", "pack", "pieces", "piece", "box", "bottle",
+]);
+// Common over-the-counter medicine names, kept out of the label words even
+// when a product's Generic Name field is empty.
+const CHAT_MEDICINE_WORDS = new Set([
+  "paracetamol", "acetaminophen", "ibuprofen", "mefenamic", "naproxen", "aspirin", "diclofenac", "loratadine", "cetirizine",
+  "diphenhydramine", "chlorphenamine", "chlorpheniramine", "phenylephrine", "pseudoephedrine", "ambroxol", "carbocisteine",
+  "guaifenesin", "dextromethorphan", "bromhexine", "loperamide", "simethicone", "aluminum", "aluminium", "magnesium",
+  "hydroxide", "bisacodyl", "senna", "lactulose", "meclizine", "dimenhydrinate", "ranitidine", "famotidine", "omeprazole",
+  "oxymetazoline", "clotrimazole", "hydrocortisone", "zinc", "ascorbic", "vitamin", "vitamins", "multivitamins",
+]);
+
+function chatLabelVocabulary(max = 300) {
+  // Medicine, generic and brand names are left out, so Gemini can only ever
+  // return what the customer describes - never a medicine.
+  const productWords = new Set();
+  (typeof SAMPLE_PRODUCTS !== "undefined" ? SAMPLE_PRODUCTS : []).forEach((p) =>
+    chatNormalize(`${p.name || ""} ${p.genericName || ""} ${p.brand || ""}`).trim().split(" ").forEach((w) => productWords.add(w))
+  );
+  const counts = new Map();
+  chatOtcProducts().forEach((p) => {
+    new Set(chatNormalize(`${p.description || ""} ${p.dosageNotes || ""}`).trim().split(" ")).forEach((w) => {
+      if (w.length >= 4 && !/^\d+$/.test(w) && !CHAT_LABEL_STOPWORDS.has(w) && !productWords.has(w) && !CHAT_MEDICINE_WORDS.has(w)) counts.set(w, (counts.get(w) || 0) + 1);
+    });
+  });
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, max).map(([w]) => w);
+}
+
+const CHAT_FILIPINO_WORDS = ["po", "ang", "ng", "ba", "ako", "ko", "sa", "ano", "anong", "pwede", "puwede", "gamot", "mayroon", "meron", "kayo", "para", "yung", "mga", "masakit", "sakit", "ako", "nyo", "niyo", "lang"];
+function chatLooksFilipino(text) {
+  const t = chatNormalize(text);
+  return CHAT_FILIPINO_WORDS.filter((w) => t.includes(` ${w} `)).length >= 2;
+}
+
+// Filipino for common label words that aren't a symptom group's name.
+const CHAT_WORD_FIL = { pain: "pananakit", aches: "pananakit", itch: "pangangati", itching: "pangangati", swelling: "pamamaga", inflammation: "pamamaga", nausea: "pagduduwal", vomiting: "pagsusuka", dizziness: "pagkahilo", wounds: "sugat", burns: "paso" };
+
+// Fixed wording for health replies - the AI never writes these.
+const CHAT_HEALTH_TEXT = {
+  en: {
+    none: "I'm sorry, I can't recommend medicines or give advice about symptoms or doses. Our pharmacist can help - tap \"Ask our pharmacist\" to ask them here. If your symptoms are severe or don't improve, please see a doctor.",
+    intro: (names, list) => `I can't tell you which medicine is right for you, but here's what we carry for ${names}, going by the product labels: ${list}.`,
+    warn: "Please read the label before use. See a doctor right away if symptoms are severe, last more than 3 days, or are for a baby or young child, or if you're pregnant or breastfeeding.",
+    and: " and ",
+  },
+  fil: {
+    none: "Pasensya na po, hindi po ako makapagbibigay ng payo tungkol sa gamot, sintomas o dosis. Matutulungan po kayo ng aming pharmacist - pindutin ang \"Ask our pharmacist\" para makausap sila dito. Kung malala o hindi gumagaling, magpatingin po sa doktor.",
+    intro: (names, list) => `Hindi ko po masasabi kung aling gamot ang tama para sa inyo, pero ito po ang mayroon kami para sa ${names}, ayon sa label ng produkto: ${list}.`,
+    warn: "Basahin po ang label bago gamitin. Magpatingin agad sa doktor kung malala, higit 3 araw na, para sa sanggol o bata, o kung kayo ay buntis o nagpapasuso.",
+    and: " at ",
+  },
+};
 
 // ---- Order cards ----
 function chatWantsOrders(text) {
@@ -260,6 +321,7 @@ function chatSystemInstruction() {
     "Only mention products, prices and stock from the product list given with the question. If a product isn't listed, say you couldn't find it and suggest searching the shop or asking staff. Never invent prices.",
     "Never ask for passwords, payment details or personal information.",
     "If the customer needs help with their specific order or payment, has a complaint, asks for a person, or you are not sure, answer briefly and end your reply with the exact text [[STAFF]].",
+    "If the customer describes symptoms or a health condition, or asks what medicine to take or buy for one, reply with only the exact text [[HEALTH]] and nothing else.",
   ].join(" ");
 }
 
@@ -287,6 +349,72 @@ function getChatModel() {
     });
   }
   return chatModelPromise;
+}
+
+// A second Gemini model used only to READ health questions: it returns
+// JSON (symptom words from the pharmacy's own labels, plus caution flags)
+// and never writes anything the customer sees.
+let chatReaderPromise = null;
+function getChatReaderModel() {
+  if (CHAT_CONFIG.aiProvider !== "gemini") return Promise.reject(new Error("AI disabled"));
+  if (!chatReaderPromise) {
+    chatReaderPromise = (async () => {
+      const v = CHAT_CONFIG.firebaseModularSdkVersion;
+      const appMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`);
+      const aiMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-ai.js`);
+      const app = appMod.getApps().find((a) => a.name === "amson-chat") || appMod.initializeApp(firebaseConfig, "amson-chat");
+      const ai = aiMod.getAI(app, { backend: new aiMod.GoogleAIBackend() });
+      return aiMod.getGenerativeModel(ai, {
+        model: CHAT_CONFIG.geminiModel,
+        systemInstruction: [
+          "You read one message sent to a Philippine pharmacy's online chat and return JSON only, never a reply to the customer.",
+          'Return exactly: {"health": boolean, "symptoms": string[], "caution": boolean, "language": "en" | "fil"}.',
+          "health: true if the customer describes symptoms or a condition, or asks what to take or buy for one.",
+          "symptoms: the words from the VOCABULARY list (and only from it) that name what the customer describes. Understand English, Filipino, Taglish, typos and descriptions (for example 'mainit ang noo' or 'nilalagnat' -> 'fever'; 'kumikirot ang tuhod' -> 'pain'). Use [] if nothing in the list fits. Never name a medicine and never diagnose beyond the customer's own words.",
+          "caution: true if it is about a baby or child, pregnancy or breastfeeding, doses or how many or how often to take, another medicine or maintenance medicine, a long-term condition, or a serious sign (chest pain, trouble breathing, fainting, bleeding, seizures, a fever over 3 days, very high fever).",
+          "language: fil if the message is in Filipino or Taglish, otherwise en.",
+        ].join(" "),
+        generationConfig: { maxOutputTokens: 150, temperature: 0, responseMimeType: "application/json" },
+      });
+    })();
+    chatReaderPromise.catch(() => {
+      chatReaderPromise = null;
+    });
+  }
+  return chatReaderPromise;
+}
+
+// Resolves { health, symptoms, caution, language }, { limitReached: true },
+// or null when the AI isn't available. Only the message itself is sent -
+// no name, account, orders or earlier messages.
+async function chatAiReadHealth(question, vocabulary) {
+  let model;
+  try {
+    model = await getChatReaderModel();
+  } catch (error) {
+    console.warn("Chat AI unavailable:", error);
+    return null;
+  }
+  try {
+    if (!(await claimChatAiQuota())) return { limitReached: true };
+  } catch (error) {
+    return null;
+  }
+  try {
+    const result = await model.generateContent(`VOCABULARY: ${vocabulary.join(", ")}\n\nMESSAGE: ${question}`);
+    const raw = (result.response.text() || "").trim().replace(/^```(?:json)?|```$/g, "");
+    const data = JSON.parse(raw);
+    const allowed = new Set(vocabulary);
+    return {
+      health: !!data.health,
+      symptoms: (Array.isArray(data.symptoms) ? data.symptoms : []).map((w) => String(w).toLowerCase().trim()).filter((w) => allowed.has(w)),
+      caution: !!data.caution,
+      language: data.language === "fil" ? "fil" : "en",
+    };
+  } catch (error) {
+    console.warn("Chat AI couldn't read the question:", error);
+    return null;
+  }
 }
 
 function chatTodayKey() {
@@ -355,6 +483,7 @@ async function chatAiReply(history, question) {
       result = await model.generateContent({ contents });
     }
     let text = (result.response.text() || "").trim();
+    if (text.includes("[[HEALTH]]")) return { health: true };
     const handoff = text.includes("[[STAFF]]");
     text = text.replace(/\[\[STAFF\]\]/g, "").trim();
     if (!text) return handoff ? { text: "", handoff } : null;
@@ -619,31 +748,56 @@ async function chatAiReply(history, question) {
     );
   }
 
-  async function answerHealth(text) {
+  // Health questions (see "What we carry for this" above). Returns true
+  // when it answered; false when it wasn't a health question after all.
+  async function answerHealth(text, { viaAi = false } = {}) {
     const pharmacistButton = { type: "button", label: "Ask our pharmacist", q: "I want to ask the pharmacist" };
-    const symptoms = chatSymptomsIn(text);
-    if (!symptoms.length || chatHasHealthCaution(text)) {
-      await addMessage("assistant", CHAT_HEALTH_ANSWER, [pharmacistButton]);
-      return;
-    }
+    let lang = chatLooksFilipino(text) ? "fil" : "en";
+    const reply = async (key) => {
+      await addMessage("assistant", CHAT_HEALTH_TEXT[lang][key], [pharmacistButton]);
+      return true;
+    };
+    if (chatHasHealthCaution(text)) return reply("none");
     if (typeof loadCatalogCache === "function") {
       try {
         await loadCatalogCache();
       } catch (error) {}
     }
-    const products = chatProductsForSymptoms(symptoms);
-    if (!products.length) {
-      await addMessage("assistant", CHAT_HEALTH_ANSWER, [pharmacistButton]);
-      return;
+
+    // 1. The built-in symptom list (free, no AI).
+    let names = [];
+    let labelWords = [];
+    const known = chatSymptomsIn(text);
+    if (known.length) {
+      names = known.map((sx) => (lang === "fil" ? sx.fil : sx.name));
+      labelWords = known.flatMap((sx) => sx.label);
+    } else {
+      // 2. Gemini only reads the question and maps it onto the words on
+      // the pharmacy's labels; products still come from those labels.
+      const vocabulary = chatLabelVocabulary();
+      const read = vocabulary.length ? await chatAiReadHealth(text, vocabulary) : null;
+      if (!read || read.limitReached) return reply("none");
+      if (!read.health) return viaAi ? reply("none") : false;
+      lang = read.language;
+      if (read.caution) return reply("none");
+      labelWords = read.symptoms;
+      names = read.symptoms.map((w) => {
+        const group = CHAT_SYMPTOMS.find((sx) => sx.label.includes(w));
+        if (group) return lang === "fil" ? group.fil : group.name;
+        return lang === "fil" ? CHAT_WORD_FIL[w] || w : w;
+      });
     }
-    const names = symptoms.map((sx) => sx.name).join(" and ");
+    const products = labelWords.length ? chatProductsForLabelWords(labelWords) : [];
+    if (!products.length) return reply("none");
+    const t = CHAT_HEALTH_TEXT[lang];
     await addMessage(
       "assistant",
-      `I can't tell you which medicine is right for you, but here's what we carry for ${names}, going by the product labels: ${products.map((p) => p.name).join(", ")}.\n\n` +
-        "Please read the label before use. See a doctor right away if symptoms are severe, last more than 3 days, or are for a baby or young child, or if you're pregnant or breastfeeding.",
+      `${t.intro([...new Set(names)].join(t.and), products.map((p) => p.name).join(", "))}\n\n${t.warn}`,
       products.map((p) => ({ type: "product", id: p.id })).concat([pharmacistButton])
     );
+    return true;
   }
+
 
   // Creates the thread on the first message, reopens a resolved one.
   async function touchThread(text) {
@@ -702,8 +856,7 @@ async function chatAiReply(history, question) {
     }
 
     if (chatIsHealthQuestion(text) || chatSymptomsIn(text).length) {
-      await answerHealth(text);
-      return;
+      if (await answerHealth(text)) return;
     }
 
     const faq = chatMatchFaq(text);
@@ -725,6 +878,11 @@ async function chatAiReply(history, question) {
     const history = earlier.slice(-CHAT_CONFIG.historyMessages).map((m) => ({ sender: m.sender, text: m.text }));
     const reply = await chatAiReply(history, text);
 
+    // The AI spotted a health question the word lists missed.
+    if (reply && reply.health) {
+      await answerHealth(text, { viaAi: true });
+      return;
+    }
     if (reply && reply.text) {
       await addMessage("assistant", reply.text);
       if (reply.handoff) await handOffToStaff("assistant_unsure");
