@@ -413,7 +413,8 @@ function openPosSaleReceipt(sale, afterVoid) {
     onVoid:
       !sale.voided && roleCanVoidSales(currentStaffRole)
         ? async () => {
-            const details = await promptVoidDetails(sale);
+            // Technical Staff need a Branch Manager to approve (client rule).
+            const details = await promptVoidDetails(sale, { requireApproval: currentStaffRole === "technical_staff" });
             if (!details) return;
             try {
               const result = await voidPosSale(sale, details, currentCashierName);

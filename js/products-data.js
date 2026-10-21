@@ -829,7 +829,10 @@ function roleCanVoidSales(role) {
 // and, if the customer is exchanging, what they're taking instead and the
 // price difference. Resolves the details or null if cancelled. Leaving every
 // item at its full quantity voids the whole sale.
-async function promptVoidDetails(sale) {
+// requireApproval: the client's rule that a void is never done by one
+// junior staff member alone - a Branch Manager signs off with their own
+// email and password (checked without signing anyone out).
+async function promptVoidDetails(sale, { requireApproval = false } = {}) {
   const items = sale.items || [];
   const rows = items
     .map((item, idx) =>
@@ -859,9 +862,27 @@ async function promptVoidDetails(sale) {
       <input type="text" class="form-control mb-2" id="voidExchangeItemsInput" placeholder="Replacement item(s), e.g. Biogesic 500mg x10">
       <input type="number" step="0.01" class="form-control" id="voidExchangeDiffInput" placeholder="Price difference paid by customer (₱)">
       <p class="text-muted mt-2 mb-0" style="font-size:0.78rem;">Ring up the replacement as a new sale in the POS.</p>
+      ${
+        requireApproval
+          ? `
+      <hr>
+      <p class="detail-label mb-2">Branch Manager approval *</p>
+      <input type="email" class="form-control mb-2" id="voidApproverEmail" placeholder="Branch Manager's email" autocomplete="off">
+      <input type="password" class="form-control" id="voidApproverPassword" placeholder="Branch Manager's password" autocomplete="new-password">`
+          : ""
+      }
     `,
   });
   if (!ok) return null;
+  let approvedBy = null;
+  if (requireApproval) {
+    try {
+      approvedBy = await verifyVoidApprover(document.getElementById("voidApproverEmail").value.trim(), document.getElementById("voidApproverPassword").value);
+    } catch (error) {
+      await showAppAlert(`${error.message} Nothing was changed.`);
+      return null;
+    }
+  }
 
   const lines = [];
   let invalidQty = false;
@@ -891,6 +912,7 @@ async function promptVoidDetails(sale) {
   return {
     reason,
     lines,
+    approvedBy,
     exchange: exchanging
       ? {
           replacementItems: document.getElementById("voidExchangeItemsInput").value.trim(),
@@ -900,13 +922,35 @@ async function promptVoidDetails(sale) {
   };
 }
 
+// Checks a Branch Manager's email and password on a separate Firebase app
+// instance, so the signed-in staff member stays signed in. Resolves the
+// approver's name.
+async function verifyVoidApprover(email, password) {
+  if (!email || !password) throw new Error("The Branch Manager's email and password are required to approve this void.");
+  const app = firebase.initializeApp(firebaseConfig, `VoidApproval${Date.now()}`);
+  try {
+    const cred = await app.auth().signInWithEmailAndPassword(email, password);
+    const doc = await db.collection("users").doc(cred.user.uid).get();
+    const data = doc.exists ? doc.data() : {};
+    await app.auth().signOut();
+    if (!["branch_manager", "admin"].includes(data.role)) throw new Error("That account isn't a Branch Manager, so it can't approve voids.");
+    if (data.accountStatus === "deactivated") throw new Error("That Branch Manager account is deactivated.");
+    return `${data.firstName || ""} ${data.lastName || ""}`.trim() || email;
+  } catch (error) {
+    if (error && error.code && String(error.code).startsWith("auth/")) throw new Error("The Branch Manager's email or password is incorrect.");
+    throw error;
+  } finally {
+    await app.delete();
+  }
+}
+
 // Voids the given lines ([{ index, qty }], or every remaining unit when
 // omitted), all in one transaction. Units go back to the exact batches
 // they were taken from, latest-expiring first. Voiding everything left
 // marks the whole sale voided; anything less is a partial void: the item
 // quantities and the sale total drop by what was voided (so every report
 // counts only what was really sold) and the void is kept in partialVoids.
-async function voidPosSale(sale, { reason, exchange, lines = null }, voidedBy) {
+async function voidPosSale(sale, { reason, exchange, lines = null, approvedBy = null }, voidedBy) {
   const saleRef = db.collection("posSales").doc(sale.id);
   const requested = lines || (sale.items || []).map((item, index) => ({ index, qty: item.qty }));
 
@@ -983,6 +1027,7 @@ async function voidPosSale(sale, { reason, exchange, lines = null }, voidedBy) {
         voidReason: reason,
         voidExchange: exchange,
         voidedBy,
+        voidApprovedBy: approvedBy,
         voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
     } else {
@@ -992,7 +1037,7 @@ async function voidPosSale(sale, { reason, exchange, lines = null }, voidedBy) {
         originalTotal: data.originalTotal != null ? data.originalTotal : data.total || 0,
         voidedAmount: Math.round(((data.voidedAmount || 0) + voidedAmount) * 100) / 100,
         partialVoids: (data.partialVoids || []).concat([
-          { lines: voidedLines, amount: voidedAmount, reason, exchange, voidedBy, voidedAt: new Date() },
+          { lines: voidedLines, amount: voidedAmount, reason, exchange, voidedBy, approvedBy, voidedAt: new Date() },
         ]),
       });
     }
@@ -1002,6 +1047,7 @@ async function voidPosSale(sale, { reason, exchange, lines = null }, voidedBy) {
     action: fullVoid ? "Walk-in Sale Voided" : "Walk-in Sale Items Voided",
     details:
       `SI ${sale.invoiceNo || sale.id} - ${formatPeso(voidedAmount)} voided - Reason: ${reason}` +
+      (approvedBy ? ` - Approved by ${approvedBy}` : "") +
       (exchange ? ` - Exchange: ${exchange.replacementItems || "unspecified"}, price difference ${formatPeso(exchange.priceDifference)}` : "") +
       ` - Items returned to stock: ${voidedLines.map((l) => `${l.name} x${l.qty}`).join(", ")}`,
   });
@@ -1015,7 +1061,7 @@ function partialVoidSummary(sale) {
   return sale.partialVoids
     .map((v) => {
       const when = v.voidedAt ? formatDateMDY(v.voidedAt, true) : "";
-      return `${v.lines.map((l) => `${l.name} x${l.qty}`).join(", ")} (${formatPeso(v.amount)}) - ${v.reason}${v.voidedBy ? ` (by ${v.voidedBy}${when ? `, ${when}` : ""})` : ""}`;
+      return `${v.lines.map((l) => `${l.name} x${l.qty}`).join(", ")} (${formatPeso(v.amount)}) - ${v.reason}${v.voidedBy ? ` (by ${v.voidedBy}${when ? `, ${when}` : ""})` : ""}${v.approvedBy ? `, approved by ${v.approvedBy}` : ""}`;
     })
     .join("; ");
 }
@@ -1023,7 +1069,7 @@ function partialVoidSummary(sale) {
 function voidSummary(sale) {
   if (!sale.voided) return null;
   const when = sale.voidedAt && sale.voidedAt.toDate ? formatDateMDY(sale.voidedAt, true) : "";
-  return `${sale.voidReason || ""}${sale.voidedBy ? ` (by ${sale.voidedBy}${when ? `, ${when}` : ""})` : ""}`;
+  return `${sale.voidReason || ""}${sale.voidedBy ? ` (by ${sale.voidedBy}${when ? `, ${when}` : ""})` : ""}${sale.voidApprovedBy ? `, approved by ${sale.voidApprovedBy}` : ""}`;
 }
 
 // MM/DD/YYYY (REQNF028) for a Firestore Timestamp, Date, or ISO string.
