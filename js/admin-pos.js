@@ -66,6 +66,7 @@ function populatePosProductSelect() {
   }
   posProductChoices = new Choices(posProductSelect, {
     searchEnabled: true,
+    allowHTML: false,
     itemSelectText: "",
     shouldSort: false,
     searchResultLimit: 50,
@@ -139,7 +140,7 @@ function renderPosCart() {
     .map(
       (item, idx) => `
         <tr>
-          <td>${item.name}</td>
+          <td>${escapeHtml(item.name)}</td>
           <td>
             <div class="input-group input-group-sm" style="width:110px;">
               <button type="button" class="btn btn-outline-secondary pos-qty-decrement-btn" data-idx="${idx}" aria-label="Decrease quantity"><i class="bi bi-dash-lg"></i></button>

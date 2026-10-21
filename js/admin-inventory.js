@@ -408,7 +408,7 @@ function renderBatchRow(batch) {
       <tr class="text-muted">
         <td colspan="2" class="fst-italic">Never received</td>
         <td>-</td>
-        <td>${product ? product.name : "Unknown product"}</td>
+        <td>${escapeHtml(product ? product.name : "Unknown product")}</td>
         <td>${product ? CATEGORY_LABELS[product.category] || "-" : "-"}</td>
         <td>-</td>
         <td>0</td>
@@ -424,10 +424,10 @@ function renderBatchRow(batch) {
 
   return `
     <tr>
-      <td class="fw-medium">${batch.batchNo}</td>
+      <td class="fw-medium">${escapeHtml(batch.batchNo)}</td>
       <td>${formatDateAdded(batch.createdAt)}</td>
       <td>${formatExpiryLabel(batch.expirationDate)}</td>
-      <td>${product ? product.name : "Unknown product"}</td>
+      <td>${escapeHtml(product ? product.name : "Unknown product")}</td>
       <td>${product ? CATEGORY_LABELS[product.category] || "-" : "-"}</td>
       <td>${batchSupplierCell(batch)}</td>
       <td>${batch.quantity}</td>
@@ -500,6 +500,7 @@ inventorySortFieldSelect.addEventListener("change", () => {
 function makeSearchableSelect(selectEl) {
   return new Choices(selectEl, {
     searchEnabled: true,
+    allowHTML: false,
     itemSelectText: "",
     shouldSort: false,
     searchResultLimit: 50,
@@ -517,13 +518,13 @@ function destroyChoicesIn(container) {
 }
 
 function populateProductSelect(selectEl) {
-  selectEl.innerHTML = SAMPLE_PRODUCTS.map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
+  selectEl.innerHTML = SAMPLE_PRODUCTS.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
   selectEl._choices = makeSearchableSelect(selectEl);
 }
 
 function populateSupplierSelect(selectEl) {
   const options = ['<option value="">No supplier / unspecified</option>'].concat(
-    allSuppliers.map((s) => `<option value="${s.id}">${s.name}</option>`)
+    allSuppliers.map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`)
   );
   selectEl.innerHTML = options.join("");
   selectEl._choices = makeSearchableSelect(selectEl);
@@ -703,7 +704,7 @@ function receiveBatchReviewRowHtml(row = {}) {
       <td><input type="date" class="form-control form-control-sm rbr-expirydate" value="${row.expirydate || ""}"></td>
       <td><input type="number" min="1" step="1" class="form-control form-control-sm rbr-qty" value="${row.qtyreceived || ""}"></td>
       <td><input type="number" min="0" step="0.01" class="form-control form-control-sm rbr-unitcost" value="${row.unitcost || ""}"></td>
-      <td><input type="text" class="form-control form-control-sm rbr-supplier" value="${row.suppliername || ""}"></td>
+      <td><input type="text" class="form-control form-control-sm rbr-supplier" value="${escapeHtml(row.suppliername || "")}"></td>
       <td><input type="text" class="form-control form-control-sm rbr-receiptno" value="${row.receiptno || ""}"></td>
       <td><input type="date" class="form-control form-control-sm rbr-datereceived" value="${row.datereceived || todayISO()}"></td>
       <td><button type="button" class="icon-btn rbr-remove" aria-label="Remove row"><i class="bi bi-trash text-danger"></i></button></td>
@@ -867,7 +868,7 @@ quickAddProductModalEl.addEventListener("hidden.bs.modal", () => {
 
 function populateQuickProductCategorySelect() {
   quickProductCategorySelect.innerHTML = Object.entries(CATEGORY_LABELS)
-    .map(([id, name]) => `<option value="${id}">${name}</option>`)
+    .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
     .join("");
 }
 
@@ -1224,8 +1225,8 @@ function renderReconciliationItemsBody(session) {
       const product = getProductById(item.productId);
       return `
         <tr data-idx="${idx}">
-          <td>${product ? product.name : "Unknown product"}</td>
-          <td>${item.batchNo}</td>
+          <td>${escapeHtml(product ? product.name : "Unknown product")}</td>
+          <td>${escapeHtml(item.batchNo)}</td>
           <td>${formatExpiryLabel(item.expirationDate)}</td>
           <td>${item.systemQty}</td>
           <td><input type="number" min="0" class="form-control form-control-sm reconciliation-counted-input" style="max-width:100px;" value="${item.countedQty || 0}"></td>
@@ -1507,8 +1508,8 @@ function renderPoRow(po) {
   const supplier = allSuppliers.find((s) => s.id === po.supplierId);
   return `
     <tr>
-      <td class="fw-medium">${po.poNumber}</td>
-      <td>${supplier ? supplier.name : "-"}</td>
+      <td class="fw-medium">${escapeHtml(po.poNumber)}</td>
+      <td>${escapeHtml(supplier ? supplier.name : "-")}</td>
       <td>${formatExpiryLabel(po.expectedDeliveryDate)}</td>
       <td>${po.items.length} item${po.items.length === 1 ? "" : "s"}</td>
       <td><span class="badge rounded-pill ${PO_STATUS_BADGE_CLASS[po.status]}">${PO_STATUS_LABELS[po.status]}</span></td>
@@ -1694,7 +1695,7 @@ function renderPoReceivingForm(po) {
             const product = getProductById(item.productId);
             return `
               <tr data-index="${idx}">
-                <td>${product ? product.name : "Unknown product"}</td>
+                <td>${escapeHtml(product ? product.name : "Unknown product")}</td>
                 <td>${item.expectedQty}</td>
                 <td><input type="number" min="0" class="form-control form-control-sm po-received-qty-input" style="max-width:100px;" value="${item.expectedQty}"></td>
                 <td><input type="text" class="form-control form-control-sm po-received-batchno-input" placeholder="e.g. BIO-500-100"></td>
@@ -1813,7 +1814,7 @@ function renderPoDiscrepancyReport(po) {
             const diffLabel = diff === 0 ? "-" : diff > 0 ? `+${diff}` : String(diff);
             return `
               <tr>
-                <td>${product ? product.name : "Unknown product"}</td>
+                <td>${escapeHtml(product ? product.name : "Unknown product")}</td>
                 <td>${item.expectedQty}</td>
                 <td>${item.receivedQty}</td>
                 <td style="${diff !== 0 ? "color:var(--amson-red); font-weight:600;" : ""}">${diffLabel}</td>
@@ -1870,10 +1871,10 @@ function renderPoReadOnlySummary(po) {
             const product = getProductById(item.productId);
             return `
               <tr>
-                <td>${product ? product.name : "Unknown product"}</td>
+                <td>${escapeHtml(product ? product.name : "Unknown product")}</td>
                 <td>${item.expectedQty}</td>
                 <td>${item.receivedQty}</td>
-                <td>${item.batchNo || "-"}</td>
+                <td>${escapeHtml(item.batchNo || "-")}</td>
               </tr>
             `;
           })

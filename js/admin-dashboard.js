@@ -517,7 +517,7 @@ function renderMostBoughtItems(orders, posSales) {
     .map(
       (item, idx) => `
         <div class="d-flex justify-content-between align-items-center">
-          <span><strong>#${idx + 1}</strong> ${item.name}</span>
+          <span><strong>#${idx + 1}</strong> ${escapeHtml(item.name)}</span>
           <span class="text-muted">${item.qty} sold</span>
         </div>
       `

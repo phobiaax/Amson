@@ -149,7 +149,7 @@ async function refreshAdminNotifBell(uid) {
                 <li>
                   <a class="dropdown-item d-flex align-items-start gap-2 py-2 admin-notif-item" href="${n.link}" data-key="${n.key}" data-signature="${n.signature}" style="white-space:normal; border-left:5px solid ${severityColor}; background-color:${severityBg}; ${isRead ? "opacity:0.6;" : "font-weight:600;"}">
                     <i class="bi ${n.icon} mt-1"></i>
-                    <span class="flex-grow-1" style="font-size:0.85rem;">${n.message}</span>
+                    <span class="flex-grow-1" style="font-size:0.85rem;">${escapeHtml(n.message)}</span>
                   </a>
                 </li>
               `;

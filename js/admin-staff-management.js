@@ -101,8 +101,8 @@ function renderStaffRow(staff) {
   const status = computedStaffStatus(staff);
   return `
     <tr>
-      <td>${staff.firstName || ""} ${staff.lastName || ""}</td>
-      <td>${staff.email || "-"}</td>
+      <td>${escapeHtml(`${staff.firstName || ""} ${staff.lastName || ""}`)}</td>
+      <td>${escapeHtml(staff.email || "-")}</td>
       <td>${STAFF_ROLE_LABELS[staff.role] || staff.role}</td>
       <td><span class="badge rounded-pill ${status === "active" ? "text-bg-success" : "text-bg-secondary"}">${status === "active" ? "Active" : "Deactivated"}</span></td>
       <td class="d-flex gap-2">

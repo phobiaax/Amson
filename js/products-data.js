@@ -651,6 +651,12 @@ async function loadCatalogCache() {
 // Built from the categories collection, so a category staff add or rename
 // in Manage Categories shows up in the shop header (and on the home page)
 // without editing every page's HTML.
+// Only http(s) links from uploaded files are used as links; anything else
+// (e.g. a "javascript:" address written straight to the database) isn't.
+function safeUrl(url) {
+  return typeof url === "string" && /^https?:\/\//i.test(url) ? url : "#";
+}
+
 function escapeHtml(text) {
   return String(text == null ? "" : text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
@@ -774,7 +780,7 @@ function showSaleReceipt({
     .map(
       (item) => `
         <tr>
-          <td>${item.name}${item.voidedQty ? `<div class="text-danger" style="font-size:0.75rem;">${item.voidedQty} voided</div>` : ""}</td>
+          <td>${escapeHtml(item.name)}${item.voidedQty ? `<div class="text-danger" style="font-size:0.75rem;">${item.voidedQty} voided</div>` : ""}</td>
           <td class="text-end">${item.qty}</td>
           <td class="text-end">${formatPeso(item.price)}</td>
           <td class="text-end">${formatPeso(item.price * item.qty)}</td>
@@ -1524,9 +1530,9 @@ function renderProductCard(product) {
           </div>
         </a>
         <a href="product-details.html?id=${product.id}" class="product-name-link product-quickview-trigger" data-product-id="${product.id}">
-          <h3 class="product-name">${product.name}</h3>
+          <h3 class="product-name">${escapeHtml(product.name)}</h3>
         </a>
-        <p class="product-desc">${product.description || ""}</p>
+        <p class="product-desc">${escapeHtml(product.description || "")}</p>
         <p class="product-price">${formatPeso(product.price)}</p>
         ${product.inStock ? `<p class="text-muted mb-1" style="font-size:0.78rem;">${product.totalStock} in stock</p>` : ""}
         ${product.rxRequired ? `<p class="text-muted mb-2" style="font-size:0.78rem;"><i class="bi bi-file-medical me-1"></i>Prescription required</p>` : ""}
@@ -1579,8 +1585,8 @@ async function showProductQuickView(productId) {
         <div class="product-detail-image" ${product.imageUrl ? `style="background-image:url('${product.imageUrl}'); background-size:cover; background-position:center;"` : ""}></div>
       </div>
       <div class="col-md-7">
-        <h2 class="h4 fw-bold mb-1">${product.name}</h2>
-        ${product.genericName ? `<p class="text-muted mb-3">Generic Name: ${product.genericName}</p>` : ""}
+        <h2 class="h4 fw-bold mb-1">${escapeHtml(product.name)}</h2>
+        ${product.genericName ? `<p class="text-muted mb-3">Generic Name: ${escapeHtml(product.genericName)}</p>` : ""}
         <p class="product-detail-price mb-2">${formatPeso(product.price)}</p>
         <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
           <p class="stock-badge ${product.inStock ? "in-stock" : "out-of-stock"} mb-0">
@@ -1618,7 +1624,7 @@ async function showProductQuickView(productId) {
 
     <div class="product-about mt-4">
       <h3 class="h6 fw-bold">About the Product</h3>
-      <p class="mb-0">${product.description || "No description available yet."}</p>
+      <p class="mb-0">${escapeHtml(product.description || "No description available yet.")}</p>
       ${product.dosageNotes ? `<h3 class="h6 fw-bold mt-3">Dosage / Usage</h3><p class="mb-0">${escapeHtml(product.dosageNotes)}</p>` : ""}
     </div>
   `;

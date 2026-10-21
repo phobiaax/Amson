@@ -290,16 +290,16 @@ function renderWalkinTable() {
   walkinTableEmpty.classList.add("d-none");
   walkinTableBody.innerHTML = sales
     .map((sale) => {
-      const itemsSummary = (sale.items || []).map((item) => `${item.name} (x${item.qty})`).join(", ");
+      const itemsSummary = (sale.items || []).map((item) => `${escapeHtml(item.name)} (x${item.qty})`).join(", ");
       return `
         <tr class="walkin-sale-row" data-id="${sale.id}">
-          <td class="fw-medium">${sale.invoiceNo || "-"}</td>
+          <td class="fw-medium">${escapeHtml(sale.invoiceNo || "-")}</td>
           <td>${formatOrderDateTime(sale.createdAt)}</td>
-          <td>${sale.customerName || "Walk-in"}</td>
+          <td>${escapeHtml(sale.customerName || "Walk-in")}</td>
           <td>${itemsSummary}</td>
           <td>${formatPeso(sale.total)}</td>
           <td>${SALE_RECEIPT_PAYMENT_METHOD_LABELS[sale.paymentMethod] || sale.paymentMethod || "-"}</td>
-          <td>${sale.cashier || "-"}${sale.voided ? ' <span class="badge rounded-pill text-bg-danger ms-1">Voided</span>' : sale.partialVoids && sale.partialVoids.length ? ' <span class="badge rounded-pill text-bg-warning ms-1">Items Voided</span>' : ""}</td>
+          <td>${escapeHtml(sale.cashier || "-")}${sale.voided ? ' <span class="badge rounded-pill text-bg-danger ms-1">Voided</span>' : sale.partialVoids && sale.partialVoids.length ? ' <span class="badge rounded-pill text-bg-warning ms-1">Items Voided</span>' : ""}</td>
           <td><button type="button" class="btn btn-outline-dark-amson btn-sm walkin-view-btn" data-id="${sale.id}">View</button></td>
         </tr>
       `;
@@ -422,8 +422,8 @@ function renderVerificationQueue() {
         (order) => `
           <button type="button" class="verification-queue-item ${order.id === selectedVerificationId ? "active" : ""}" data-id="${order.id}">
             <div>
-              <p class="fw-bold mb-0">${order.orderNumber}</p>
-              <p class="text-muted mb-0" style="font-size:0.85rem;">${customerName(order)}</p>
+              <p class="fw-bold mb-0">${escapeHtml(order.orderNumber)}</p>
+              <p class="text-muted mb-0" style="font-size:0.85rem;">${escapeHtml(customerName(order))}</p>
               <p class="text-muted mb-0" style="font-size:0.78rem;">${formatOrderDate(order.createdAt)}</p>
               ${order.requiresPrescription ? '<span class="badge rounded-pill text-bg-info mt-1 me-1">RX - Pick-up</span>' : ""}
               ${order.paymentIssue && order.paymentIssue.resolvedByCustomerAt ? '<span class="badge rounded-pill text-bg-warning mt-1">Customer Resubmitted</span>' : ""}
@@ -512,7 +512,7 @@ function renderReviewPanel(order) {
   document.getElementById("reviewNoProofNotice").classList.toggle("d-none", hasProof);
   document.getElementById("reviewProofSection").classList.toggle("d-none", !hasProof);
   if (hasProof) {
-    document.getElementById("reviewProofImageLink").href = order.proofOfPaymentUrl;
+    document.getElementById("reviewProofImageLink").href = safeUrl(order.proofOfPaymentUrl);
     document.getElementById("reviewProofImage").src = order.proofOfPaymentUrl;
   }
 
@@ -526,7 +526,7 @@ function renderReviewPanel(order) {
 
   const prescriptionSection = document.getElementById("reviewPrescriptionSection");
   if (order.prescriptionPhotoUrl) {
-    document.getElementById("reviewPrescriptionLink").href = order.prescriptionPhotoUrl;
+    document.getElementById("reviewPrescriptionLink").href = safeUrl(order.prescriptionPhotoUrl);
     document.getElementById("reviewPrescriptionImage").src = order.prescriptionPhotoUrl;
     prescriptionSection.classList.remove("d-none");
   } else {
@@ -1253,9 +1253,9 @@ function renderOrderRow(order) {
 
   return `
     <tr>
-      <td class="fw-medium">${order.orderNumber}</td>
+      <td class="fw-medium">${escapeHtml(order.orderNumber)}</td>
       <td>${formatOrderDateTime(order.createdAt)}</td>
-      <td>${customerName(order)}</td>
+      <td>${escapeHtml(customerName(order))}</td>
       <td>${itemCount}</td>
       <td class="product-price">
         ${formatPeso(order.total)}

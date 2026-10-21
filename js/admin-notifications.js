@@ -54,7 +54,7 @@ function renderNotifications(notifications, readMap) {
           <div class="d-flex align-items-center gap-3">
             ${isRead ? "" : '<span class="rounded-circle bg-primary flex-shrink-0" style="width:8px; height:8px; display:inline-block;"></span>'}
             <i class="bi ${n.icon}" style="font-size:1.2rem;"></i>
-            <span style="${isRead ? "" : "font-weight:600;"}">${n.message}</span>
+            <span style="${isRead ? "" : "font-weight:600;"}">${escapeHtml(n.message)}</span>
           </div>
           <span class="badge rounded-pill ${SEVERITY_CLASS[n.severity]}">${n.severity === "danger" ? "Urgent" : n.severity === "warning" ? "Warning" : "Info"}</span>
         </a>

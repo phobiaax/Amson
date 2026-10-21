@@ -118,6 +118,7 @@ function renderCategorySelect() {
       .join("");
     categorySelectChoices = new Choices(productCategorySelect, {
       searchEnabled: true,
+      allowHTML: false,
       itemSelectText: "",
       shouldSort: false,
       fuseOptions: { threshold: 0.3 },
@@ -191,10 +192,10 @@ function renderProductRow(product) {
       <td>
         <div class="d-flex align-items-center gap-2">
           <div class="product-thumb" ${product.imageUrl ? `style="background-image:url('${product.imageUrl}');"` : ""}></div>
-          <span>${product.name}</span>
+          <span>${escapeHtml(product.name)}</span>
         </div>
       </td>
-      <td>${product.brand || "-"}</td>
+      <td>${escapeHtml(product.brand || "-")}</td>
       <td>${CATEGORY_LABELS[product.category] || "-"}</td>
       <td class="product-price">${formatPeso(product.retailPrice)}</td>
       <td>${product.rxRequired ? '<span class="badge rounded-pill text-bg-danger">Yes</span>' : '<span class="badge rounded-pill text-bg-light text-dark">No</span>'}</td>
@@ -577,14 +578,14 @@ function batchReviewRowHtml(row = {}) {
         <div class="br-image-preview" style="width:40px;height:40px;border-radius:6px;background-color:#f2f2f4;background-size:cover;background-position:center;cursor:pointer;" title="Click to upload an image"></div>
         <input type="file" class="d-none br-image-input" accept="image/png,image/jpeg">
       </td>
-      <td><input type="text" class="form-control form-control-sm br-name" value="${row.name || ""}"></td>
-      <td><input type="text" class="form-control form-control-sm br-genericname" value="${row.genericname || ""}"></td>
-      <td><input type="text" class="form-control form-control-sm br-brand" value="${row.brand || ""}"></td>
+      <td><input type="text" class="form-control form-control-sm br-name" value="${escapeHtml(row.name || "")}"></td>
+      <td><input type="text" class="form-control form-control-sm br-genericname" value="${escapeHtml(row.genericname || "")}"></td>
+      <td><input type="text" class="form-control form-control-sm br-brand" value="${escapeHtml(row.brand || "")}"></td>
       <td><input type="text" class="form-control form-control-sm br-category" value="${row.category || ""}"></td>
       <td><input type="number" min="0" step="0.01" class="form-control form-control-sm br-costingprice" value="${row.costingprice || ""}"></td>
       <td><input type="number" min="0" step="0.01" class="form-control form-control-sm br-retailprice" value="${row.retailprice || ""}"></td>
       <td><input type="number" min="0" step="0.01" class="form-control form-control-sm br-wholesaleprice" value="${row.wholesaleprice || ""}"></td>
-      <td><input type="text" class="form-control form-control-sm br-description" value="${row.description || ""}"></td>
+      <td><input type="text" class="form-control form-control-sm br-description" value="${escapeHtml(row.description || "")}"></td>
       <td class="text-center"><input type="checkbox" class="form-check-input br-pos" ${!row.availableinpos || yes(row.availableinpos) ? "checked" : ""}></td>
       <td class="text-center"><input type="checkbox" class="form-check-input br-online" ${!row.availableinonlinestore || yes(row.availableinonlinestore) ? "checked" : ""}></td>
       <td class="text-center"><input type="checkbox" class="form-check-input br-rx" ${yes(row.rxrequired) ? "checked" : ""}></td>
@@ -794,7 +795,7 @@ function renderCategoriesList() {
     .map(
       ([id, name]) => `
         <div class="d-flex justify-content-between align-items-center border rounded p-2" style="border-color:var(--amson-border) !important;">
-          <span>${name}</span>
+          <span>${escapeHtml(name)}</span>
           <div class="d-flex gap-2">
             <button type="button" class="icon-btn rename-category-btn" data-id="${id}" aria-label="Rename"><i class="bi bi-pencil"></i></button>
             <button type="button" class="icon-btn delete-category-btn" data-id="${id}" aria-label="Delete"><i class="bi bi-trash"></i></button>

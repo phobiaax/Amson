@@ -88,10 +88,10 @@ function renderAuditRow(entry) {
   return `
     <tr>
       <td>${formatTimestamp(entry.createdAt)}</td>
-      <td>${entry.user || "-"}</td>
-      <td>${entry.action || "-"}</td>
-      <td>${entry.details || "-"}</td>
-      <td>${entry.ipAddress || "-"}</td>
+      <td>${escapeHtml(entry.user || "-")}</td>
+      <td>${escapeHtml(entry.action || "-")}</td>
+      <td>${escapeHtml(entry.details || "-")}</td>
+      <td>${escapeHtml(entry.ipAddress || "-")}</td>
     </tr>
   `;
 }

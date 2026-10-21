@@ -122,9 +122,9 @@ function renderCustomerRow(customer) {
   const status = computedStatus(customer);
   return `
     <tr>
-      <td>${customer.firstName || ""} ${customer.lastName || ""}</td>
-      <td>${customer.email || "-"}</td>
-      <td>${customer.contactNumber || "-"}</td>
+      <td>${escapeHtml(`${customer.firstName || ""} ${customer.lastName || ""}`)}</td>
+      <td>${escapeHtml(customer.email || "-")}</td>
+      <td>${escapeHtml(customer.contactNumber || "-")}</td>
       <td>${formatDate(customer.createdAt)}</td>
       <td>${customer.totalOrders}</td>
       <td><span class="badge rounded-pill ${status === "active" ? "text-bg-success" : "text-bg-secondary"}">${status === "active" ? "Active" : "Deactivated"}</span></td>

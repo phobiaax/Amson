@@ -175,8 +175,8 @@ function renderWholesaleCard(account) {
           <div class="d-flex gap-3">
             <div class="supplier-icon"><i class="bi bi-shop"></i></div>
             <div>
-              <p class="fw-bold mb-0">${account.name}</p>
-              <p class="text-muted mb-0" style="font-size:0.88rem;">${account.contactPerson || "-"}</p>
+              <p class="fw-bold mb-0">${escapeHtml(account.name)}</p>
+              <p class="text-muted mb-0" style="font-size:0.88rem;">${escapeHtml(account.contactPerson || "-")}</p>
             </div>
           </div>
           <span class="badge rounded-pill ${account.status === "active" ? "text-bg-success" : "text-bg-secondary"}">
@@ -184,9 +184,9 @@ function renderWholesaleCard(account) {
           </span>
         </div>
         <p class="contact-line"><i class="bi bi-briefcase"></i> ${BUSINESS_TYPE_LABELS[account.businessType] || "-"}</p>
-        <p class="contact-line"><i class="bi bi-telephone"></i> ${account.phone || "-"}</p>
-        <p class="contact-line"><i class="bi bi-envelope"></i> ${account.email || "-"}</p>
-        <p class="contact-line mb-2"><i class="bi bi-geo-alt"></i> ${account.address || "-"}</p>
+        <p class="contact-line"><i class="bi bi-telephone"></i> ${escapeHtml(account.phone || "-")}</p>
+        <p class="contact-line"><i class="bi bi-envelope"></i> ${escapeHtml(account.email || "-")}</p>
+        <p class="contact-line mb-2"><i class="bi bi-geo-alt"></i> ${escapeHtml(account.address || "-")}</p>
         <div class="mb-3" style="font-size:0.75rem;">${documentBadges(account)}${
           pendingReleaseByAccount[account.id]
             ? ` <span class="badge text-bg-warning">${pendingReleaseByAccount[account.id]} order${pendingReleaseByAccount[account.id] === 1 ? "" : "s"} pending release</span>`
@@ -432,6 +432,7 @@ async function deleteWholesaleAccount(id) {
 function makeSearchableSelect(selectEl) {
   return new Choices(selectEl, {
     searchEnabled: true,
+    allowHTML: false,
     itemSelectText: "",
     shouldSort: false,
     searchResultLimit: 50,
@@ -449,7 +450,7 @@ function destroyChoicesIn(container) {
 }
 
 function populateOrderProductSelect(selectEl) {
-  selectEl.innerHTML = SAMPLE_PRODUCTS.map((p) => `<option value="${p.id}">${p.name}</option>`).join("");
+  selectEl.innerHTML = SAMPLE_PRODUCTS.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
   selectEl._choices = makeSearchableSelect(selectEl);
 }
 
