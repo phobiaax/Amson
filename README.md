@@ -56,7 +56,8 @@ straight to the database, and what cuts off a deactivated staff account.
 
 ## Clearing test data before go-live (temporary)
 
-The Branch Manager can open Admin → Settings → Clear Test Data
+The Branch Manager (or an Administrator account) can open Admin →
+Settings → Clear Test Data
 (`admin/clear-test-data.html`) to delete the orders, sales, stock, chats,
 logs and test accounts made while testing, and to set the next SI number.
 It needs the latest `firestore.rules` published, and both the page and its

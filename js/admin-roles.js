@@ -29,7 +29,7 @@ const ADMIN_PAGE_ACCESS = {
   "settings.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "staff-management.html": ["admin", "branch_manager"],
   // Temporary, for go-live only (see js/admin-clear-test-data.js).
-  "clear-test-data.html": ["branch_manager"],
+  "clear-test-data.html": ["admin", "branch_manager"],
 };
 
 // Where each role lands after login (and when sent away from a page it

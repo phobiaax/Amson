@@ -32,7 +32,7 @@ document.addEventListener("admin:ready", (e) => {
     document.getElementById("emailTestAddress").value = admin.email || "";
   }
   // Temporary go-live tool (see js/admin-clear-test-data.js).
-  if (admin.role === "branch_manager" && new Date() < new Date(2026, 10, 15)) {
+  if (["admin", "branch_manager"].includes(admin.role) && new Date() < new Date(2026, 10, 15)) {
     document.getElementById("clearTestDataCard").classList.remove("d-none");
   }
 });

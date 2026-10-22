@@ -296,11 +296,12 @@ service cloud.firestore {
     }
 
     // ---- TEMPORARY: clearing test data before go-live ----
-    // Lets the Branch Manager delete records from admin/clear-test-data.html.
+    // Lets the Branch Manager (or Administrator) delete records from
+    // admin/clear-test-data.html.
     // It switches itself off on the date below; remove this block (and that
     // page) once the live data is in.
     match /{document=**} {
-      allow delete: if isStaff() && myRole() == "branch_manager" &&
+      allow delete: if isStaff() && myRole() in ["admin", "branch_manager"] &&
         request.time < timestamp.date(2026, 11, 15);
     }
 
