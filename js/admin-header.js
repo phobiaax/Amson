@@ -50,10 +50,11 @@ auth.onAuthStateChanged(async (user) => {
     if (adminProfileName) {
       adminProfileName.textContent = `${admin.firstName} ${admin.lastName}`;
     }
-    const roleLabel = document.querySelector(".admin-profile .role");
-    if (roleLabel) {
-      roleLabel.textContent = STAFF_ROLE_LABELS[admin.role] || admin.role;
-    }
+    // The topbar and the sidebar both name the signed-in role (the pages'
+    // HTML says "Administrator" until this runs).
+    document.querySelectorAll(".admin-profile .role, .admin-sidebar-brand p").forEach((el) => {
+      el.textContent = STAFF_ROLE_LABELS[admin.role] || admin.role;
+    });
 
     document.querySelectorAll(".admin-nav-link").forEach((link) => {
       const pageName = link.getAttribute("href").split("/").pop();
