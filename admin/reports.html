@@ -128,11 +128,14 @@
 <script src="../js/firebase-config.js"></script>
 <script src="../js/products-data.js"></script>
 <script src="../js/admin-sidebar.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="../js/admin-reports.js"></script>
 <script src="../js/admin-roles.js"></script>
 <script src="../js/device-trust.js"></script>
 <script src="../js/admin-header.js"></script>
+
+<!-- PDF / Excel export libraries: loaded last, since they're only used
+     when someone exports or prints, so the page doesn't wait for them. -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </body>
 </html>

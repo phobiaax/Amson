@@ -317,9 +317,6 @@
 <!-- Choices.js -->
 <script src="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/scripts/choices.min.js"></script>
 
-<!-- SheetJS (Upload Batch File - reads real .xlsx/.xls workbooks, not just .csv) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
 <!-- Firebase (compat SDK) -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -335,5 +332,9 @@
 <script src="../js/admin-roles.js"></script>
 <script src="../js/device-trust.js"></script>
 <script src="../js/admin-header.js"></script>
+
+<!-- PDF / Excel export libraries: loaded last, since they're only used
+     when someone exports or prints, so the page doesn't wait for them. -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </body>
 </html>

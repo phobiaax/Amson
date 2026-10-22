@@ -154,11 +154,13 @@ async function loadInventory() {
     }
     // The live listener's first snapshot doubles as this page's batch read
     // (a separate get() as well would read every batch twice).
-    await listenToBatches();
-    const supplierSnapshot = await db.collection("suppliers").get();
-    const writeOffSnapshot = await db.collection("writeOffs").get();
-    const poSnapshot = await db.collection("purchaseOrders").get();
-    const reconciliationSnapshot = await db.collection("reconciliations").get();
+    const [, supplierSnapshot, writeOffSnapshot, poSnapshot, reconciliationSnapshot] = await Promise.all([
+      listenToBatches(),
+      db.collection("suppliers").get(),
+      db.collection("writeOffs").get(),
+      db.collection("purchaseOrders").get(),
+      db.collection("reconciliations").get(),
+    ]);
 
     allSuppliers = supplierSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allWriteOffs = writeOffSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));

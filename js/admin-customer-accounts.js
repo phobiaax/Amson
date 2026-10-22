@@ -30,8 +30,10 @@ let ordersByCustomer = {};
 /* ---------- Load ---------- */
 async function loadCustomers() {
   try {
-    const usersSnapshot = await db.collection("users").where("role", "==", "customer").get();
-    const ordersSnapshot = await db.collection("orders").get();
+    const [usersSnapshot, ordersSnapshot] = await Promise.all([
+      db.collection("users").where("role", "==", "customer").get(),
+      db.collection("orders").get(),
+    ]);
 
     const orderCounts = {};
     ordersByCustomer = {};

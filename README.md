@@ -10,7 +10,10 @@ free Spark plan. There is no build step.
 1. Install [Node.js](https://nodejs.org/) (any current LTS).
 2. On Windows, double-click `start-server.bat`. It starts `http-server` on
    port 8080 and opens `http://localhost:8080/shop/index.html`.
-   On other systems run `npx http-server -p 8080` in this folder.
+   On other systems run `npx http-server -p 8080 -c-1` in this folder
+   (`-c-1` turns off browser caching, so after pulling new code the pages
+   run it straight away - no hard refresh needed). If a page still looks
+   old, close the server window and start it again.
 3. Staff sign in at `login.html` and land on their role's home page
    (Sales Staff go straight to the POS).
 
@@ -132,4 +135,6 @@ While testing with made-up emails, set `REQUIRE_DEVICE_CODE = false` in
 
 The site is static and is meant to be hosted on Netlify: publish this folder
 as-is (no build command). Add the Netlify domain to Firebase Authentication →
-Settings → Authorized domains.
+Settings → Authorized domains. The `_headers` file tells browsers to check for a
+newer copy of each file on every visit, so a new deploy shows up without a
+hard refresh.

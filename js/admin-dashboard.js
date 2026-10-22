@@ -194,9 +194,11 @@ document.querySelectorAll("#dashboardPeriodGroup .dashboard-period-btn").forEach
 
 async function loadDashboardStats() {
   try {
-    await loadCatalogCache();
-    const ordersSnapshot = await db.collection("orders").get();
-    const posSalesSnapshot = await db.collection("posSales").get();
+    const [, ordersSnapshot, posSalesSnapshot] = await Promise.all([
+      loadCatalogCache(),
+      db.collection("orders").get(),
+      db.collection("posSales").get(),
+    ]);
     const orders = ordersSnapshot.docs.map((doc) => doc.data());
     // A voided walk-in sale was reversed - it isn't revenue.
     const posSales = posSalesSnapshot.docs.map((doc) => doc.data()).filter((s) => !s.voided);

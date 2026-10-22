@@ -6,6 +6,8 @@ echo.
 
 start "" cmd /c "timeout /t 2 >nul && start http://localhost:8080/shop/index.html"
 
-npx.cmd http-server -p 8080
+REM -c-1 turns off browser caching, so a page always runs the code you just
+REM pulled (no hard refresh needed after "pull-latest").
+npx.cmd http-server -p 8080 -c-1
 
 pause

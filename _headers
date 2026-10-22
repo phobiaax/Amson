@@ -1,0 +1,5 @@
+# Netlify: browsers must check for a newer copy of every page, script and
+# stylesheet on each visit (a quick "not modified" when nothing changed),
+# so a new deploy shows up without a hard refresh.
+/*
+  Cache-Control: public, max-age=0, must-revalidate

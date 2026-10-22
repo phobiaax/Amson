@@ -739,9 +739,12 @@ async function loadCatalogCache() {
   }
 
   catalogLoadPromise = (async () => {
-    const categorySnapshot = await db.collection("categories").get();
-    const productSnapshot = await db.collection("products").get();
-    const batchSnapshot = await db.collection("stockBatches").where("status", "==", "active").get();
+    // In parallel: three round trips one after another made every page wait.
+    const [categorySnapshot, productSnapshot, batchSnapshot] = await Promise.all([
+      db.collection("categories").get(),
+      db.collection("products").get(),
+      db.collection("stockBatches").where("status", "==", "active").get(),
+    ]);
 
     CATEGORY_LABELS = {};
     categorySnapshot.docs.forEach((doc) => {
