@@ -233,6 +233,8 @@ let ordersRefreshTimer = null;
 
 // Resolves with the first snapshot; later ones redraw the queue and table.
 function listenToOrders() {
+  // One listener per page: a second call reuses what the first one keeps live.
+  if (unsubscribeOrders) return Promise.resolve(allOrders);
   return new Promise((resolve, reject) => {
     let first = true;
     unsubscribeOrders = db.collection("orders").onSnapshot(
@@ -252,6 +254,7 @@ function listenToOrders() {
       },
       (error) => {
         console.warn("Live orders unavailable:", error);
+        unsubscribeOrders = null; // a later call starts a new listener
         // Without the listener, read once so the page still works.
         if (first) db.collection("orders").get().then((snap) => resolve(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))), reject);
       }

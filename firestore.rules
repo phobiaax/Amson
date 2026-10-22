@@ -102,7 +102,8 @@ service cloud.firestore {
     // Manager or Technical Staff.
     match /storeSettings/{settingId} {
       allow read: if true;
-      allow write: if isSignedIn() && myRole() in ["admin", "branch_manager", "technical_staff"];
+      // Saved, never deleted (turn the banner off instead).
+      allow create, update: if isStaff() && myRole() in ["admin", "branch_manager", "technical_staff"];
     }
 
     match /categories/{categoryId} {
@@ -287,7 +288,9 @@ service cloud.firestore {
     // skip SI numbers.
     match /counters/{counterId} {
       allow read: if isSignedIn();
-      allow write: if isStaff();
+      // Create/update only: deleting a counter (the SI sequence above all)
+      // would restart its numbering.
+      allow create, update: if isStaff();
       // Customers may only move the order-number counter up by one.
       allow create: if isSignedIn() && counterId.matches("orders-[0-9]{4}") &&
         request.resource.data.count == 1;
@@ -296,13 +299,32 @@ service cloud.firestore {
     }
 
     // ---- TEMPORARY: clearing test data before go-live ----
-    // Lets the Branch Manager (or Administrator) delete records from
-    // admin/clear-test-data.html.
-    // It switches itself off on the date below; remove this block (and that
-    // page) once the live data is in.
-    match /{document=**} {
-      allow delete: if isStaff() && myRole() in ["admin", "branch_manager"] &&
+    // Lets the Branch Manager (or Administrator) delete what
+    // admin/clear-test-data.html clears - only those records, never another
+    // manager's account, store settings, the SI counter or chat usage.
+    // It switches itself off on the date below (UTC); remove this block (and
+    // that page) once the live data is in.
+    function canClearTestData() {
+      return isStaff() && myRole() in ["admin", "branch_manager"] &&
         request.time < timestamp.date(2026, 11, 15);
+    }
+    match /{collectionId}/{docId} {
+      allow delete: if canClearTestData() && collectionId in [
+        "orders", "prescriptionOrders", "posSales", "wholesaleOrders", "wholesaleExchanges",
+        "customerNotifications", "stockBatches", "purchaseOrders", "reconciliations", "writeOffs",
+        "chatThreads", "notifications", "auditLog", "loginAttempts",
+        "products", "categories", "suppliers", "wholesaleAccounts"];
+    }
+    match /chatThreads/{threadId}/messages/{messageId} {
+      allow delete: if canClearTestData();
+    }
+    match /users/{uid} {
+      allow delete: if canClearTestData() && uid != myUid() &&
+        !(resource.data.get("role", "") in ["admin", "branch_manager"]);
+    }
+    match /counters/{counterId} {
+      allow delete: if canClearTestData() &&
+        (counterId.matches("(orders|purchaseOrders|reconciliations)-[0-9]{4}") || counterId in ["wholesaleExchanges", "products"]);
     }
 
     // ---- pre-auth login lockout tracking ----

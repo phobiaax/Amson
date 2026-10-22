@@ -323,11 +323,23 @@ async function getStaffNotificationsCached() {
 
 // Lets a page that just read the alerts fresh (Notifications) share them
 // with the bell, so the two never disagree.
-function rememberStaffNotifications(notifications) {
+// `savedAt` stays the time of the last full read when the bell's live
+// listeners swap in fresh order/chat alerts, so stock alerts still get a
+// full re-read every two minutes on a busy day.
+function rememberStaffNotifications(notifications, savedAt = Date.now()) {
   try {
-    sessionStorage.setItem(STAFF_NOTIF_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), notifications }));
+    sessionStorage.setItem(STAFF_NOTIF_CACHE_KEY, JSON.stringify({ savedAt, notifications }));
   } catch (error) {}
   return notifications;
+}
+
+function staffNotificationsSavedAt() {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(STAFF_NOTIF_CACHE_KEY));
+    return cached && cached.savedAt ? cached.savedAt : Date.now();
+  } catch (error) {
+    return Date.now();
+  }
 }
 
 // Order and chat alerts are built the same way here and by the bell's live
@@ -614,9 +626,12 @@ const BAD_ORDER_MONTHS = 2;
 //     written off automatically, recorded as a write-off and in the Audit
 //     Log, and staff get a disposal alert until someone marks the batch
 //     disposed - REQ067
-async function enforceExpiryStatus() {
-  const snapshot = await db.collection("stockBatches").where("status", "in", ["active", "wholesale_only"]).get();
-  const batches = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+// `batchesOverride`: a page that already holds every batch live (Inventory)
+// passes them in, so the check costs no extra reads.
+async function enforceExpiryStatus(batchesOverride = null) {
+  const batches = batchesOverride
+    ? batchesOverride.filter((b) => b.status === "active" || b.status === "wholesale_only")
+    : (await db.collection("stockBatches").where("status", "in", ["active", "wholesale_only"]).get()).docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
   const wholesaleOnlyThreshold = new Date();
   wholesaleOnlyThreshold.setMonth(wholesaleOnlyThreshold.getMonth() + NEAR_EXPIRY_MONTHS);

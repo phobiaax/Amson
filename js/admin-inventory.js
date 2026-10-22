@@ -147,11 +147,6 @@ async function loadInventory() {
     // had just gone low/out of stock didn't get flagged until then.
     catalogLoadPromise = null;
     await loadCatalogCache();
-    // Expiry moves are by date, so once per page visit is enough.
-    if (!expiryCheckedThisVisit) {
-      await enforceExpiryStatus();
-      expiryCheckedThisVisit = true;
-    }
     // The live listener's first snapshot doubles as this page's batch read
     // (a separate get() as well would read every batch twice).
     const [, supplierSnapshot, writeOffSnapshot, poSnapshot, reconciliationSnapshot] = await Promise.all([
@@ -162,6 +157,9 @@ async function loadInventory() {
       db.collection("reconciliations").get(),
     ]);
 
+    // Wholesale Only / Bad Order moves, on every refresh, from the batches
+    // already in hand; the listener redraws the page with any changes.
+    await enforceExpiryStatus(allBatches);
     allSuppliers = supplierSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allWriteOffs = writeOffSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allPurchaseOrders = poSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -190,7 +188,6 @@ async function loadInventory() {
 let unsubscribeBatches = null;
 let batchRefreshTimer = null;
 let batchesReady = null;
-let expiryCheckedThisVisit = false;
 
 // Resolves once allBatches holds the first snapshot; later snapshots keep
 // it current and redraw the table and tiles.
@@ -222,10 +219,11 @@ function listenToBatches() {
       },
       (error) => {
         console.warn("Live inventory unavailable:", error);
+        // The next refresh (loadInventory) starts a new listener.
+        batchesReady = null;
+        unsubscribeBatches = null;
         if (first) {
           // Without the listener, read once so the page still works.
-          batchesReady = null;
-          unsubscribeBatches = null;
           db.collection("stockBatches").get().then((snap) => {
             allBatches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
             resolve(allBatches);

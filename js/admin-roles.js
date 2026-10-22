@@ -32,6 +32,11 @@ const ADMIN_PAGE_ACCESS = {
   "clear-test-data.html": ["admin", "branch_manager"],
 };
 
+// When the temporary Clear Test Data page and its Settings card switch off.
+// UTC midnight, the same moment as timestamp.date(2026, 11, 15) in the
+// TEMPORARY block of firestore.rules - change both together.
+const CLEAR_TEST_DATA_UNTIL = new Date(Date.UTC(2026, 10, 15));
+
 // Where each role lands after login (and when sent away from a page it
 // can't open).
 function homePageForRole(role) {

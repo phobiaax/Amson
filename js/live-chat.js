@@ -640,6 +640,7 @@ async function chatAiReply(history, question) {
     auth.onAuthStateChanged(async (user) => {
       let nextId = null;
       customerId = null;
+      stopMyOrders();
       displayName = "Guest";
       if (user) {
         try {
@@ -719,12 +720,24 @@ async function chatAiReply(history, question) {
   // Listened to live, so an order card's status moves on its own when staff
   // confirm, dispatch or flag the order.
   let myOrdersReady = null;
+  let myOrdersFor = null;
+  let unsubscribeMyOrders = null;
+  function stopMyOrders() {
+    if (unsubscribeMyOrders) unsubscribeMyOrders();
+    unsubscribeMyOrders = null;
+    myOrdersReady = null;
+    myOrdersFor = null;
+    myOrders = null;
+  }
   function loadMyOrders() {
     if (!customerId) return Promise.resolve([]);
+    // A different account signed in on this page: drop the old listener.
+    if (myOrdersFor && myOrdersFor !== customerId) stopMyOrders();
     if (myOrdersReady) return myOrdersReady;
+    myOrdersFor = customerId;
     myOrdersReady = new Promise((resolve) => {
       let first = true;
-      db.collection("orders").where("customerId", "==", customerId).onSnapshot(
+      unsubscribeMyOrders = db.collection("orders").where("customerId", "==", customerId).onSnapshot(
         (snap) => {
           myOrders = snap.docs
             .map((d) => ({ id: d.id, ...d.data() }))
@@ -738,8 +751,11 @@ async function chatAiReply(history, question) {
         },
         (error) => {
           console.warn("Chat: couldn't load orders:", error);
-          myOrders = myOrders || [];
-          resolve(myOrders);
+          const last = myOrders || [];
+          // Not kept: the next order question tries again.
+          stopMyOrders();
+          myOrders = last;
+          resolve(last);
         }
       );
     });

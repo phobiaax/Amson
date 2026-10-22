@@ -202,7 +202,7 @@ function watchStaffAlertsLive(uid) {
         .filter((n) => !replaced(n.key))
         .concat(live.orders ? staffOrderNotifications(live.orders) : [], live.chat ? staffChatNotifications(live.chat) : [])
         .sort((a, b) => (b.at || 0) - (a.at || 0));
-      refreshAdminNotifBell(uid, rememberStaffNotifications(merged));
+      refreshAdminNotifBell(uid, rememberStaffNotifications(merged, staffNotificationsSavedAt()));
     }, 300);
   };
   const watch = (name, query) =>

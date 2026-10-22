@@ -8,7 +8,7 @@
  * go-live.
  */
 
-const CLEAR_TEST_DATA_UNTIL = new Date(2026, 10, 15); // must match firestore.rules
+// CLEAR_TEST_DATA_UNTIL (the switch-off date) is in admin-roles.js.
 
 // checked: whether the box starts ticked. Groups that usually hold Amson's
 // real setup (catalog, suppliers, wholesale buyers) start unticked.
@@ -63,9 +63,19 @@ function logClearProgress(line) {
   clearProgressLog.scrollTop = clearProgressLog.scrollHeight;
 }
 
+// A count query costs about one read per 1,000 records instead of one per
+// record; older SDKs without count() fall back to reading them.
 async function countCollection(name) {
-  const snapshot = await db.collection(name).get();
-  return snapshot.size;
+  const ref = db.collection(name);
+  if (typeof ref.count === "function") {
+    try {
+      const snapshot = await ref.count().get();
+      return snapshot.data().count;
+    } catch (error) {
+      console.warn(`Count query failed for ${name}; reading instead.`, error);
+    }
+  }
+  return (await ref.get()).size;
 }
 
 async function loadClearGroups() {
@@ -150,14 +160,11 @@ async function deleteRefs(refs) {
 
 async function clearCollection(name) {
   const snapshot = await db.collection(name).get();
-  const refs = [];
-  for (const doc of snapshot.docs) {
-    for (const sub of CLEAR_SUBCOLLECTIONS[name] || []) {
-      const subSnapshot = await doc.ref.collection(sub).get();
-      subSnapshot.docs.forEach((subDoc) => refs.push(subDoc.ref));
-    }
-    refs.push(doc.ref);
-  }
+  // Records inside each document (chat messages) are fetched in parallel.
+  const subSnapshots = await Promise.all(
+    snapshot.docs.flatMap((doc) => (CLEAR_SUBCOLLECTIONS[name] || []).map((sub) => doc.ref.collection(sub).get()))
+  );
+  const refs = subSnapshots.flatMap((sub) => sub.docs.map((subDoc) => subDoc.ref)).concat(snapshot.docs.map((doc) => doc.ref));
   await deleteRefs(refs);
   return snapshot.size;
 }
