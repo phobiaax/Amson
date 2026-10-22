@@ -330,6 +330,44 @@ function rememberStaffNotifications(notifications) {
   return notifications;
 }
 
+// Order and chat alerts are built the same way here and by the bell's live
+// listeners (admin-header.js), which swap just these in as they change.
+function staffNotifMillis(v) {
+  return v && v.toMillis ? v.toMillis() : v ? new Date(v).getTime() || 0 : 0;
+}
+
+function staffOrderNotifications(orderDocs) {
+  return orderDocs
+    .filter((doc) => doc.data().status === "placed")
+    .map((doc) => {
+      const o = doc.data();
+      return {
+        key: `payment_verification:${doc.id}`,
+        category: "orders",
+        at: Math.max(staffNotifMillis(o.createdAt), staffNotifMillis(o.paymentIssue && o.paymentIssue.resolvedByCustomerAt)),
+        signature: o.status,
+        severity: "info",
+        icon: "bi-credit-card",
+        message: `Order ${o.orderNumber} is awaiting payment verification.`,
+        link: "online-orders.html",
+      };
+    });
+}
+
+function staffChatNotifications(waitingDocs) {
+  if (!waitingDocs.length) return [];
+  return [{
+    key: "chat_waiting",
+    category: "chat",
+    at: Math.max(0, ...waitingDocs.map((d) => staffNotifMillis(d.data().handoffAt || d.data().lastMessageAt))),
+    signature: waitingDocs.map((d) => d.id).sort().join(","),
+    severity: "warning",
+    icon: "bi-chat-dots",
+    message: `${waitingDocs.length} chat${waitingDocs.length === 1 ? " is" : "s are"} waiting for a staff reply.`,
+    link: "live-chat.html",
+  }];
+}
+
 async function computeStaffNotifications() {
   await loadCatalogCache();
   const [batchSnapshot, orderSnapshot, poSnapshot] = await Promise.all([
@@ -416,20 +454,7 @@ async function computeStaffNotifications() {
     }
   });
 
-  orderSnapshot.docs.forEach((doc) => {
-    const o = doc.data();
-    if (o.status !== "placed") return;
-    notifications.push({
-      key: `payment_verification:${doc.id}`,
-      category: "orders",
-      at: Math.max(ms(o.createdAt), ms(o.paymentIssue && o.paymentIssue.resolvedByCustomerAt)),
-      signature: o.status,
-      severity: "info",
-      icon: "bi-credit-card",
-      message: `Order ${o.orderNumber} is awaiting payment verification.`,
-      link: "online-orders.html",
-    });
-  });
+  notifications.push(...staffOrderNotifications(orderSnapshot.docs));
 
   poSnapshot.docs.forEach((doc) => {
     const po = doc.data();
@@ -534,18 +559,7 @@ async function computeStaffNotifications() {
   // alerts if chat isn't set up yet.
   try {
     const waiting = await db.collection("chatThreads").where("status", "==", "waiting_staff").get();
-    if (!waiting.empty) {
-      notifications.push({
-        key: "chat_waiting",
-        category: "chat",
-        at: Math.max(0, ...waiting.docs.map((d) => ms(d.data().handoffAt || d.data().lastMessageAt))),
-        signature: waiting.docs.map((d) => d.id).sort().join(","),
-        severity: "warning",
-        icon: "bi-chat-dots",
-        message: `${waiting.size} chat${waiting.size === 1 ? " is" : "s are"} waiting for a staff reply.`,
-        link: "live-chat.html",
-      });
-    }
+    notifications.push(...staffChatNotifications(waiting.docs));
   } catch (error) {
     console.warn("Chat alerts unavailable:", error);
   }

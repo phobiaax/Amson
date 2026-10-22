@@ -64,7 +64,9 @@ auth.onAuthStateChanged(async (user) => {
 
     document.dispatchEvent(new CustomEvent("admin:ready", { detail: { uid: user.uid, admin } }));
     // Staff alerts (orders, stock, expiry) aren't part of Sales Staff's job.
-    if (roleCanAccessPage(admin.role, "notifications.html")) refreshAdminNotifBell(user.uid);
+    if (roleCanAccessPage(admin.role, "notifications.html")) {
+      refreshAdminNotifBell(user.uid).then(() => watchStaffAlertsLive(user.uid));
+    }
   } catch (error) {
     window.location.href = "../login.html";
   }
@@ -98,12 +100,17 @@ function ensureAdminNotifBell() {
   return document.getElementById("adminNotifBellBtn");
 }
 
-async function refreshAdminNotifBell(uid) {
+// `notificationsOverride`: the live listeners below pass the list with
+// their fresh order/chat alerts swapped in.
+async function refreshAdminNotifBell(uid, notificationsOverride = null) {
   if (typeof computeStaffNotifications !== "function") return;
   if (!ensureAdminNotifBell()) return;
 
   try {
-    const [notifications, readMap] = await Promise.all([getStaffNotificationsCached(), getStaffNotifReadMap(uid)]);
+    const [notifications, readMap] = await Promise.all([
+      notificationsOverride ? Promise.resolve(notificationsOverride) : getStaffNotificationsCached(),
+      getStaffNotifReadMap(uid),
+    ]);
     const unread = notifications.filter((n) => !isStaffNotifRead(readMap, n));
     showBrowserAlerts(unread);
 
@@ -173,6 +180,44 @@ async function refreshAdminNotifBell(uid) {
   } catch (error) {
     console.error("Failed to load admin notification bell:", error);
   }
+}
+
+// New orders waiting for verification and chats handed to staff show on the
+// bell (and as desktop alerts) the moment they happen, without a refresh.
+// Only those small sets are listened to; stock alerts refresh on page load.
+function watchStaffAlertsLive(uid) {
+  // undefined = waiting for the first snapshot; null = that listener failed,
+  // so its alerts stay as the last full read had them.
+  const live = { orders: undefined, chat: undefined };
+  let timer = null;
+  const merge = () => {
+    if (live.orders === undefined || live.chat === undefined) return;
+    if (live.orders === null && live.chat === null) return;
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const replaced = (key) =>
+        (live.orders !== null && String(key).startsWith("payment_verification:")) || (live.chat !== null && key === "chat_waiting");
+      const merged = (await getStaffNotificationsCached())
+        .filter((n) => !replaced(n.key))
+        .concat(live.orders ? staffOrderNotifications(live.orders) : [], live.chat ? staffChatNotifications(live.chat) : [])
+        .sort((a, b) => (b.at || 0) - (a.at || 0));
+      refreshAdminNotifBell(uid, rememberStaffNotifications(merged));
+    }, 300);
+  };
+  const watch = (name, query) =>
+    query.onSnapshot(
+      (snap) => {
+        live[name] = snap.docs;
+        merge();
+      },
+      (error) => {
+        console.warn(`Live ${name} alerts unavailable:`, error);
+        live[name] = null;
+        merge();
+      }
+    );
+  watch("orders", db.collection("orders").where("status", "==", "placed"));
+  watch("chat", db.collection("chatThreads").where("status", "==", "waiting_staff"));
 }
 
 if (adminLogoutBtn) {

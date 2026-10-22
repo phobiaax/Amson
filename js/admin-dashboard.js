@@ -6,8 +6,27 @@ let lastLoadedStats = null;
 
 document.addEventListener("admin:ready", (e) => {
   document.getElementById("welcomeName").textContent = e.detail.admin.firstName || "Admin";
-  loadDashboardStats();
+  loadDashboardStats().then(watchOrderTilesLive);
 });
+
+// The two order tiles change all day (new orders, verifications,
+// dispatches), so they follow only the orders still in progress live.
+// Sales totals and stock tiles refresh when the page is opened.
+let orderTilesWatched = false;
+function watchOrderTilesLive() {
+  if (orderTilesWatched) return;
+  orderTilesWatched = true;
+  db.collection("orders")
+    .where("status", "in", ["placed", "payment_confirmed", "dispatched"])
+    .onSnapshot(
+      (snap) => {
+        const statuses = snap.docs.map((doc) => doc.data().status);
+        document.getElementById("pendingVerificationCount").textContent = statuses.filter((st) => st === "placed").length;
+        document.getElementById("activeOrdersCount").textContent = statuses.filter((st) => st !== "placed").length;
+      },
+      (error) => console.warn("Live order tiles unavailable:", error)
+    );
+}
 
 const tabTodayOnlineBtn = document.getElementById("tabTodayOnlineBtn");
 const tabTodayWalkinBtn = document.getElementById("tabTodayWalkinBtn");
