@@ -1962,6 +1962,11 @@ a {
   padding: 0.5rem 0.65rem;
   font-size: 0.85rem;
 }
+.chat-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
 .chat-card a {
   color: inherit;
 }
@@ -1975,6 +1980,88 @@ a {
   padding: 0.15rem 0.6rem;
   text-decoration: none;
   align-self: flex-start;
+}
+/* Order card in the chat: items, progress steps, next step */
+.chat-order-thumb {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  background-color: #f2f2f4;
+}
+.chat-order-thumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.chat-order-thumbs .chat-order-thumb {
+  width: 28px;
+  height: 28px;
+}
+.chat-order-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  margin-bottom: 0.35rem;
+}
+.chat-order-steps {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+}
+.chat-order-steps::before {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 8%;
+  right: 8%;
+  border-top: 2px solid var(--amson-border);
+}
+.chat-order-step {
+  position: relative;
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-size: 0.65rem;
+  color: var(--amson-text-muted);
+}
+.chat-order-step .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #fff;
+  border: 2px solid var(--amson-border);
+  margin-bottom: 0.2rem;
+}
+.chat-order-step.done .dot,
+.chat-order-step.now .dot {
+  background-color: var(--amson-red);
+  border-color: var(--amson-red);
+}
+.chat-order-step.now .dot {
+  box-shadow: 0 0 0 3px rgba(238, 49, 55, 0.2);
+}
+.chat-order-step.done,
+.chat-order-step.now {
+  color: inherit;
+}
+.chat-order-step.now .lbl {
+  font-weight: 700;
+}
+.chat-order-step .when {
+  font-size: 0.6rem;
+  color: var(--amson-text-muted);
+}
+.chat-order-next {
+  background-color: #f7f7f9;
+  border-radius: 8px;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.75rem;
 }
 .chat-quick {
   display: flex;

@@ -272,7 +272,7 @@ function chatWantsOrders(text) {
   const t = chatNormalize(text);
   return (
     /amp \d{4} \d+/.test(t) ||
-    ["my order", "my orders", "order status", "track", "tracking", "where is my order", "nasaan ang order", "nasaan na", "order ko", "status ng order", "on hold", "naka hold", "rider"].some((w) =>
+    ["my order", "my orders", "order status", "track", "tracking", "where is my order", "nasaan ang order", "nasaan na", "order ko", "status ng order", "on hold", "naka hold", "rider", "binili ko", "asan na", "kailan darating", "darating na", "delivery ko", "my parcel"].some((w) =>
       t.includes(` ${w}`)
     )
   );
@@ -308,6 +308,67 @@ function chatOrderView(o) {
   return { issue, status, label };
 }
 
+// Progress steps for the order card. Prescription orders are picked up, so
+// "delivered" there means ready at the store.
+function chatOrderSteps(o, status) {
+  const pickup = !!o.requiresPrescription || !o.shipping;
+  const steps = pickup
+    ? [["placed", "Placed"], ["payment_confirmed", "Paid"], ["delivered", "Ready"], ["received", "Picked up"]]
+    : [["placed", "Placed"], ["payment_confirmed", "Paid"], ["dispatched", "On the way"], ["delivered", "Delivered"], ["received", "Received"]];
+  const at = steps.findIndex(([key]) => key === status);
+  return { pickup, steps, current: at };
+}
+
+const CHAT_SLOT_LABELS = { morning: "morning (8AM-12PM)", afternoon: "afternoon (12PM-4PM)", evening: "evening (4PM-8PM)" };
+
+function chatDeliverySchedule(schedule) {
+  if (!schedule || schedule.asap || !schedule.date) return "same day";
+  const [y, m, d] = schedule.date.split("-");
+  return `${m}/${d}/${y}${schedule.slot ? `, ${CHAT_SLOT_LABELS[schedule.slot] || schedule.slot}` : ""}`;
+}
+
+// Same check as the order page: only a Lalamove share link is shown.
+function chatTrackingLink(o) {
+  return o.trackingLink && /^https:\/\/share\.lalamove\.com\/\S+$/i.test(o.trackingLink) ? o.trackingLink : null;
+}
+
+// What happens next / what the customer should do, in plain words.
+function chatOrderNextStep(o, view) {
+  const { pickup } = chatOrderSteps(o, view.status);
+  if (view.issue) {
+    const by = view.issue.holdUntil && view.issue.holdUntil.toDate ? ` by ${formatDateMDY(view.issue.holdUntil)}` : " within 7 days";
+    return view.issue.type === "prescription_rejected"
+      ? `Open the order and upload a clearer, valid prescription${by}.`
+      : view.issue.type === "out_of_stock"
+      ? `Open the order to choose what to do${by}, or talk to staff.`
+      : `Open the order and upload a new payment screenshot and reference number${by}.`;
+  }
+  switch (view.status) {
+    case "placed":
+      return o.requiresPrescription
+        ? "Our pharmacist is checking your prescription and staff are verifying your payment. We'll notify you once it's confirmed."
+        : "Staff are verifying your payment. We'll notify you once it's confirmed.";
+    case "payment_confirmed":
+      return pickup
+        ? "Your order is being prepared. We'll tell you here when it's ready for pick-up."
+        : `Your order is being prepared for delivery (${chatDeliverySchedule(o.deliverySchedule)}). The rider tracking link appears here once it's on the way.`;
+    case "dispatched":
+      return chatTrackingLink(o)
+        ? "Tap Track rider to follow it on Lalamove. Pay the delivery fee to the rider when it arrives."
+        : "It's with the rider. The tracking link will show here as soon as staff add it. Pay the delivery fee to the rider.";
+    case "delivered":
+      return pickup
+        ? "Ready at the store. Bring the original prescription and a valid ID, then mark it as picked up in your order."
+        : "Delivered. Got everything? Open the order and tap Mark as Received.";
+    case "received":
+      return "Completed. Thank you! Your receipt is in the order page.";
+    case "closed_unresolved":
+      return "This order was closed because the hold wasn't resolved in 7 days. Talk to staff if you need help.";
+    default:
+      return "";
+  }
+}
+
 function chatSystemInstruction() {
   return [
     "You are the online assistant of Amson Pharmaceuticals, Las Piñas branch, a pharmacy in the Philippines.",
@@ -322,6 +383,7 @@ function chatSystemInstruction() {
     "Never ask for passwords, payment details or personal information.",
     "If the customer needs help with their specific order or payment, has a complaint, asks for a person, or you are not sure, answer briefly and end your reply with the exact text [[STAFF]].",
     "If the customer describes symptoms or a health condition, or asks what medicine to take or buy for one, reply with only the exact text [[HEALTH]] and nothing else.",
+    "If the customer asks about their own order (where it is, its status, tracking, the rider, what they bought), reply with only the exact text [[ORDERS]] and nothing else.",
   ].join(" ");
 }
 
@@ -484,6 +546,7 @@ async function chatAiReply(history, question) {
     }
     let text = (result.response.text() || "").trim();
     if (text.includes("[[HEALTH]]")) return { health: true };
+    if (text.includes("[[ORDERS]]")) return { orders: true };
     const handoff = text.includes("[[STAFF]]");
     text = text.replace(/\[\[STAFF\]\]/g, "").trim();
     if (!text) return handoff ? { text: "", handoff } : null;
@@ -637,7 +700,12 @@ async function chatAiReply(history, question) {
           if (m.sender === "system") return `<div class="chat-msg chat-msg-system">${escapeHtml(m.text)}</div>`;
           const cls = m.sender === "customer" ? "chat-msg-customer" : m.sender === "staff" ? "chat-msg-staff" : "chat-msg-assistant";
           const who = m.sender === "staff" ? `<span class="chat-msg-who">${escapeHtml(m.staffName || "Staff")}</span>` : "";
-          const cards = Array.isArray(m.cards) && m.cards.length ? `<div class="chat-cards">${m.cards.map(cardHtml).join("")}</div>` : "";
+          // Buttons sit side by side under the cards.
+          const list = Array.isArray(m.cards) ? m.cards : [];
+          const buttons = list.filter((c) => c.type === "button").map(cardHtml).join("");
+          const cards = list.length
+            ? `<div class="chat-cards">${list.filter((c) => c.type !== "button").map(cardHtml).join("")}${buttons ? `<div class="chat-card-actions">${buttons}</div>` : ""}</div>`
+            : "";
           return `<div class="chat-msg ${cls}">${who}${escapeHtml(m.text)}</div>${cards}`;
         })
         .join("");
@@ -648,18 +716,34 @@ async function chatAiReply(history, question) {
     }
   }
 
-  async function loadMyOrders() {
-    if (!customerId) return [];
-    try {
-      const snap = await db.collection("orders").where("customerId", "==", customerId).get();
-      myOrders = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0) - (a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0));
-    } catch (error) {
-      console.warn("Chat: couldn't load orders:", error);
-      myOrders = [];
-    }
-    return myOrders;
+  // Listened to live, so an order card's status moves on its own when staff
+  // confirm, dispatch or flag the order.
+  let myOrdersReady = null;
+  function loadMyOrders() {
+    if (!customerId) return Promise.resolve([]);
+    if (myOrdersReady) return myOrdersReady;
+    myOrdersReady = new Promise((resolve) => {
+      let first = true;
+      db.collection("orders").where("customerId", "==", customerId).onSnapshot(
+        (snap) => {
+          myOrders = snap.docs
+            .map((d) => ({ id: d.id, ...d.data() }))
+            .sort((a, b) => (b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0) - (a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0));
+          if (first) {
+            first = false;
+            resolve(myOrders);
+          } else {
+            renderMessages();
+          }
+        },
+        (error) => {
+          console.warn("Chat: couldn't load orders:", error);
+          myOrders = myOrders || [];
+          resolve(myOrders);
+        }
+      );
+    });
+    return myOrdersReady;
   }
 
   const shopPath = (page) => `${/\/shop\//.test(window.location.pathname) ? "" : "shop/"}${page}`;
@@ -686,18 +770,70 @@ async function chatAiReply(history, question) {
     if (card.type === "order") {
       const o = (myOrders || []).find((x) => x.id === card.id);
       if (!o) return myOrders === null ? `<div class="chat-card text-muted" style="font-size:0.78rem;">Loading order...</div>` : "";
-      const { issue, status: liveStatus, label: status } = chatOrderView(o);
-      const deadline = issue && issue.holdUntil && issue.holdUntil.toDate ? ` - fix by ${formatDateMDY(issue.holdUntil)}` : "";
-      const itemCount = (o.items || []).reduce((n, i) => n + (i.qty || 0), 0);
-      const tracking = liveStatus === "dispatched" && o.trackingLink ? `<a class="chat-card-btn" href="${escapeHtml(safeUrl(o.trackingLink))}" target="_blank" rel="noopener">Track rider</a>` : "";
+      const view = chatOrderView(o);
+      const { issue, status: liveStatus, label: status } = view;
+      const items = o.items || [];
+      const itemCount = items.reduce((n, i) => n + (i.qty || 0), 0);
+      const link = chatTrackingLink(o);
+      const tracking = link && ["dispatched", "delivered", "received"].includes(liveStatus)
+        ? `<a class="chat-card-btn" href="${escapeHtml(safeUrl(link))}" target="_blank" rel="noopener"><i class="bi bi-geo-alt"></i> Track rider</a>`
+        : "";
+      const orderLink = `<a class="chat-card-btn" href="${shopPath(`order-details.html?id=${encodeURIComponent(o.id)}`)}">${issue ? "Fix this order" : "View order"}</a>`;
+      const thumb = (item) => {
+        const imageUrl = item.imageUrl || ((typeof getProductById === "function" && getProductById(item.id)) || {}).imageUrl;
+        const url = safeUrl(imageUrl) === "#" ? "" : imageUrl;
+        return `<span class="chat-order-thumb" style="${escapeHtml(cartItemImageCss(url))}"></span>`;
+      };
+      const head = `
+          <div class="d-flex justify-content-between gap-2"><span class="fw-bold">${escapeHtml(o.orderNumber || "")}</span><span style="font-size:0.78rem;">${formatPeso(o.total || 0)}</span></div>
+          <div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(o.createdAt)} - ${itemCount} item${itemCount === 1 ? "" : "s"}</div>`;
+
+      // Several orders: a short card each, with a button for the details.
+      if (!card.detail) {
+        return `
+        <div class="chat-card">
+          ${head}
+          <div class="chat-order-thumbs mt-1">${items.slice(0, 4).map(thumb).join("")}${items.length > 4 ? `<span class="text-muted" style="font-size:0.72rem;">+${items.length - 4}</span>` : ""}</div>
+          <div class="mt-1 ${issue ? "text-danger" : ""}" style="font-size:0.8rem; font-weight:600;">${escapeHtml(status)}</div>
+          <div class="d-flex gap-1 flex-wrap mt-2">
+            <button type="button" class="chat-card-btn" data-chat-q="${escapeHtml(`Track order ${o.orderNumber || ""}`)}">Show details</button>
+            ${tracking}
+          </div>
+        </div>`;
+      }
+
+      const { pickup, steps, current } = chatOrderSteps(o, liveStatus);
+      const stamps = o.statusTimestamps || {};
+      const stepper = issue || liveStatus === "closed_unresolved"
+        ? ""
+        : `<div class="chat-order-steps mt-2">${steps
+            .map(([key, label], i) => {
+              const state = i < current ? "done" : i === current ? "now" : "";
+              const when = stamps[key] && stamps[key].toDate ? formatDateMDY(stamps[key]) : "";
+              return `<div class="chat-order-step ${state}"><span class="dot"></span><span class="lbl">${escapeHtml(label)}</span>${when && state ? `<span class="when">${escapeHtml(when)}</span>` : ""}</div>`;
+            })
+            .join("")}</div>`;
+      const shown = items.slice(0, 3);
       return `
         <div class="chat-card">
-          <div class="d-flex justify-content-between gap-2"><span class="fw-bold">${escapeHtml(o.orderNumber || "")}</span><span style="font-size:0.78rem;">${formatPeso(o.total || 0)}</span></div>
-          <div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(o.createdAt)} - ${itemCount} item${itemCount === 1 ? "" : "s"}</div>
-          <div class="mt-1 ${issue ? "text-danger" : ""}" style="font-size:0.8rem; font-weight:600;">${escapeHtml(status)}${escapeHtml(deadline)}</div>
-          ${issue && issue.note ? `<div style="font-size:0.75rem;">${escapeHtml(issue.note)}</div>` : ""}
+          ${head}
+          <div class="mt-2">
+            ${shown
+              .map((item) => `
+            <div class="chat-order-item">
+              ${thumb(item)}
+              <span class="flex-grow-1">${escapeHtml(item.name || "")}<span class="text-muted d-block" style="font-size:0.72rem;">Qty ${item.qty || 0} x ${formatPeso(item.price || 0)}</span></span>
+            </div>`)
+              .join("")}
+            ${items.length > shown.length ? `<div class="text-muted" style="font-size:0.72rem;">+${items.length - shown.length} more item${items.length - shown.length === 1 ? "" : "s"}</div>` : ""}
+          </div>
+          <div class="mt-2 ${issue ? "text-danger" : ""}" style="font-size:0.82rem; font-weight:700;">${escapeHtml(status)}</div>
+          ${stepper}
+          <div class="text-muted mt-1" style="font-size:0.75rem;">${pickup ? "Pick-up at the Amson Pharmaceuticals store" : `Delivery by Lalamove to ${escapeHtml([o.shipping.city, o.shipping.province].filter(Boolean).join(", "))}`}</div>
+          ${issue && issue.note ? `<div class="mt-1" style="font-size:0.75rem;">Staff note: ${escapeHtml(issue.note)}</div>` : ""}
+          <div class="chat-order-next mt-2">${escapeHtml(chatOrderNextStep(o, view))}</div>
           <div class="d-flex gap-1 flex-wrap mt-2">
-            <a class="chat-card-btn" href="${shopPath(`order-details.html?id=${encodeURIComponent(o.id)}`)}">${issue ? "Fix this order" : "View order"}</a>
+            ${orderLink}
             ${tracking}
           </div>
         </div>`;
@@ -732,19 +868,43 @@ async function chatAiReply(history, question) {
     }
     if (!picked || !picked.length) {
       // Orders still in progress first, then the latest ones.
+      // "Show all my orders" skips that and lists the latest five.
       const open = orders.filter((o) => !["received", "closed_unresolved"].includes(chatOrderView(o).status));
-      picked = (open.length ? open : orders).slice(0, 3);
+      picked = /\ball\b|lahat/i.test(text) ? orders.slice(0, 5) : (open.length ? open : orders).slice(0, 3);
     }
     if (!picked.length) {
       await addMessage("assistant", "You don't have any orders yet. Browse the shop to place your first one.");
       return;
     }
-    const held = picked.some((o) => chatOrderView(o).issue);
-    const summary = picked.map((o) => `${o.orderNumber}: ${chatOrderView(o).label}`).join("; ");
+    const staffButton = { type: "button", label: "Talk to staff", q: "I want to talk to staff" };
+    if (picked.length > 1) {
+      const held = picked.some((o) => chatOrderView(o).issue);
+      await addMessage(
+        "assistant",
+        `Here are your recent orders. Tap Show details on one to see its items, status and tracking.${held ? " One needs your attention before its deadline." : ""}`,
+        picked.map((o) => ({ type: "order", id: o.id })).concat([staffButton])
+      );
+      return;
+    }
+
+    // One order: the full card, plus follow-ups that fit where it is.
+    const o = picked[0];
+    const view = chatOrderView(o);
+    const { pickup } = chatOrderSteps(o, view.status);
+    const followUps = [];
+    if (!view.issue && !pickup && ["payment_confirmed", "dispatched"].includes(view.status)) {
+      followUps.push({ type: "button", label: "Delivery fee?", q: "How much is the delivery fee?" });
+    }
+    if (!view.issue && pickup && ["payment_confirmed", "delivered"].includes(view.status)) {
+      followUps.push({ type: "button", label: "What to bring for pick-up", q: "What do I bring for prescription pick-up?" });
+    }
+    if (orders.length > 1) followUps.push({ type: "button", label: "My other orders", q: "Show all my orders" });
+    followUps.push(staffButton);
     await addMessage(
       "assistant",
-      `${picked.length === 1 ? "Here's your order" : "Here are your recent orders"}: ${summary}.${held ? " Open the order to fix the hold before its deadline." : ""}`,
-      picked.map((o) => ({ type: "order", id: o.id })).concat([{ type: "button", label: "Talk to staff", q: "I want to talk to staff" }])
+      // The card shows the live status; this line stays true as it changes.
+      `Here's order ${o.orderNumber}. The card below updates as your order moves.`,
+      [{ type: "order", id: o.id, detail: true }].concat(followUps)
     );
   }
 
@@ -881,6 +1041,11 @@ async function chatAiReply(history, question) {
     // The AI spotted a health question the word lists missed.
     if (reply && reply.health) {
       await answerHealth(text, { viaAi: true });
+      return;
+    }
+    // ...or an order question worded in a way the word list doesn't know.
+    if (reply && reply.orders) {
+      await answerOrders(text);
       return;
     }
     if (reply && reply.text) {
