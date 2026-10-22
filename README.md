@@ -54,6 +54,17 @@ Publish the current file before the branch uses the system: it is what
 stops a customer from writing their own orders, holds or store credit
 straight to the database, and what cuts off a deactivated staff account.
 
+## Clearing test data before go-live (temporary)
+
+The Branch Manager can open Admin → Settings → Clear Test Data
+(`admin/clear-test-data.html`) to delete the orders, sales, stock, chats,
+logs and test accounts made while testing, and to set the next SI number.
+It needs the latest `firestore.rules` published, and both the page and its
+delete rule switch off on November 15, 2026. Logins of deleted accounts
+must still be removed in Firebase console → Authentication → Users. After
+go-live, delete the page, `js/admin-clear-test-data.js`, its Settings card
+and the "TEMPORARY" block in `firestore.rules`.
+
 ## Live chat setup (AI assistant)
 
 The chat works without any setup: common questions get built-in answers

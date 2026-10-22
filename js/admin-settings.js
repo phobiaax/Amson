@@ -31,6 +31,10 @@ document.addEventListener("admin:ready", (e) => {
     document.getElementById("emailTestCard").classList.remove("d-none");
     document.getElementById("emailTestAddress").value = admin.email || "";
   }
+  // Temporary go-live tool (see js/admin-clear-test-data.js).
+  if (admin.role === "branch_manager" && new Date() < new Date(2026, 10, 15)) {
+    document.getElementById("clearTestDataCard").classList.remove("d-none");
+  }
 });
 
 // ---- Email Test: sends one sample order email and shows EmailJS's reply ----

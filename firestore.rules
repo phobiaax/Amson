@@ -295,6 +295,15 @@ service cloud.firestore {
         request.resource.data.count == resource.data.count + 1;
     }
 
+    // ---- TEMPORARY: clearing test data before go-live ----
+    // Lets the Branch Manager delete records from admin/clear-test-data.html.
+    // It switches itself off on the date below; remove this block (and that
+    // page) once the live data is in.
+    match /{document=**} {
+      allow delete: if isStaff() && myRole() == "branch_manager" &&
+        request.time < timestamp.date(2026, 11, 15);
+    }
+
     // ---- pre-auth login lockout tracking ----
     match /loginAttempts/{email} {
       allow read, create, update, delete: if true;

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clear Test Data | Amson Pharmaceuticals</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+<!-- Custom styles -->
+<link rel="icon" type="image/png" href="../assets/logo-transp.png">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="admin-body">
+  <!-- ===== Sidebar ===== -->
+  <aside class="admin-sidebar">
+    <div class="admin-sidebar-brand">
+      <h1>Amson Pharmaceuticals</h1>
+      <p>Administrator</p>
+    </div>
+    <ul class="admin-nav">
+      <li><a href="dashboard.html" class="admin-nav-link"><i class="bi bi-house-door"></i>Dashboard</a></li>
+      <li><a href="pos.html" class="admin-nav-link"><i class="bi bi-credit-card"></i>POS</a></li>
+      <li><a href="online-orders.html" class="admin-nav-link"><i class="bi bi-globe"></i>Orders</a></li>
+      <li><a href="inventory.html" class="admin-nav-link"><i class="bi bi-box-seam"></i>Inventory</a></li>
+      <li><a href="products.html" class="admin-nav-link"><i class="bi bi-capsule"></i>Products</a></li>
+      <li><a href="suppliers.html" class="admin-nav-link"><i class="bi bi-truck"></i>Suppliers</a></li>
+      <li><a href="customer-accounts.html" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
+      <li><a href="wholesale-accounts.html" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
+      <li><a href="staff-management.html" class="admin-nav-link" id="staffManagementNavLink"><i class="bi bi-people"></i>Staff Management</a></li>
+      <li><a href="live-chat.html" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
+      <li><a href="notifications.html" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="reports.html" class="admin-nav-link"><i class="bi bi-file-earmark-bar-graph"></i>Reports</a></li>
+      <li><a href="audit-log.html" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
+    </ul>
+  </aside>
+  <div class="admin-sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- ===== Main ===== -->
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <button type="button" class="admin-sidebar-toggle" id="sidebarToggleBtn" aria-label="Open menu">
+        <i class="bi bi-list"></i>
+      </button>
+      <span class="date-label" id="adminDateLabel"></span>
+      <div class="admin-profile">
+        <i class="bi bi-person-circle" style="font-size:1.8rem; color: var(--amson-text-muted);"></i>
+        <div>
+          <p class="name" id="adminProfileName">Admin</p>
+          <p class="role">Administrator</p>
+        </div>
+        <a href="settings.html" class="admin-logout-btn" aria-label="Settings" style="text-decoration:none;">
+          <i class="bi bi-gear"></i>
+        </a>
+        <button type="button" class="admin-logout-btn" id="adminLogoutBtn" aria-label="Log out">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div class="mb-4">
+        <h1 class="mb-1" style="font-weight:800;">Clear Test Data</h1>
+        <p class="text-muted mb-0">Temporary page for go-live: deletes the records made while testing. <strong>Deleted records cannot be brought back.</strong> Download any reports you want to keep first.</p>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-12 col-lg-7">
+          <div class="checkout-card p-4 mb-4">
+            <h2 class="h5 fw-bold mb-1">1. Records to delete</h2>
+            <p class="text-muted mb-3" style="font-size:0.85rem;">The number beside each one is how many records it has right now.</p>
+            <div id="clearGroupList"><p class="text-muted mb-0">Counting records...</p></div>
+          </div>
+
+          <div class="checkout-card p-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+              <h2 class="h5 fw-bold mb-0">2. Accounts to delete</h2>
+              <button type="button" class="btn btn-outline-dark-amson btn-sm" id="selectTestCustomersBtn">Select all customers</button>
+            </div>
+            <p class="text-muted mb-3" style="font-size:0.85rem;">Tick only test accounts. Your own account is not listed. This removes the account's details here; also delete the same emails in Firebase console &rarr; Authentication &rarr; Users so they can't log in.</p>
+            <div id="clearAccountList" style="max-height:360px; overflow:auto;"><p class="text-muted mb-0">Loading accounts...</p></div>
+          </div>
+        </div>
+
+        <div class="col-12 col-lg-5">
+          <div class="checkout-card p-4 mb-4">
+            <h2 class="h5 fw-bold mb-1">3. Numbering</h2>
+            <div class="form-check mb-3">
+              <input class="form-check-input" type="checkbox" id="resetNumberingCheck" checked>
+              <label class="form-check-label" for="resetNumberingCheck">Restart order, purchase order, reconciliation and exchange numbers at 0001</label>
+            </div>
+            <label class="form-label" for="lastSiNumberInput">Last Sales Invoice (SI) No. Amson used</label>
+            <input type="number" class="form-control" id="lastSiNumberInput" min="0" step="1" placeholder="e.g. 4520" style="max-width:220px;">
+            <p class="text-muted mt-1 mb-0" style="font-size:0.8rem;">The next sale gets this number + 1. Leave blank to keep the current SI number (last used: <span id="currentSiLabel">-</span>).</p>
+          </div>
+
+          <div class="checkout-card p-4">
+            <h2 class="h5 fw-bold mb-1">4. Confirm</h2>
+            <label class="form-label" for="clearConfirmInput">Type <strong>DELETE</strong> to continue</label>
+            <input type="text" class="form-control" id="clearConfirmInput" autocomplete="off" style="max-width:220px;">
+            <div id="clearAlert" class="alert auth-alert d-none mt-3 mb-0" role="alert" style="white-space:pre-line;"></div>
+            <button type="button" class="btn btn-danger mt-3" id="clearTestDataBtn" disabled>Delete Selected Data</button>
+            <pre id="clearProgressLog" class="mt-3 mb-0 d-none" style="font-size:0.8rem; white-space:pre-wrap; max-height:260px; overflow:auto;"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Firebase (compat SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- App scripts -->
+<script src="../js/firebase-config.js"></script>
+<script src="../js/products-data.js"></script>
+<script src="../js/admin-sidebar.js"></script>
+<script src="../js/admin-clear-test-data.js"></script>
+<script src="../js/admin-roles.js"></script>
+<script src="../js/device-trust.js"></script>
+<script src="../js/admin-header.js"></script>
+</body>
+</html>
