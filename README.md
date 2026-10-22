@@ -119,7 +119,8 @@ While testing with made-up emails, set `REQUIRE_DEVICE_CODE = false` in
 1. Create the first Branch Manager account in Firebase Authentication, then
    set `role: "branch_manager"` on their `users/{uid}` document.
 2. In Admin → Products → Manage Categories, add the branch's categories
-   (Generics, Branded, Drugstore (Per Piece), Medical Supplies, Grocery).
+   (Generics, Branded, Drugstore (Per Piece), Medical Supplies). The branch
+   sells medicines and medical supplies only - no grocery items.
 3. Fill in the store contact details and FDA LTO number in `js/store-info.js`.
 4. Put the branch's QR Ph image at `assets/payment-qr.png`.
 

@@ -689,7 +689,6 @@ const DEFAULT_CATEGORIES = {
   branded: "Branded",
   drugstore: "Drugstore (Per Piece)",
   "medical-supplies": "Medical Supplies",
-  grocery: "Grocery",
 };
 
 // Shop pages keep a copy of the catalog in the browser for a few minutes,

@@ -5,7 +5,7 @@
  *   Daily Sales            - sales, retail, wholesale, payment method, items
  *   Customer File          - every sold line per customer with SI#, batch, expiry
  *   Monthly Inventory      - one sheet per category, POS stock vs physical count
- *   Supplier Purchases     - stock received per supplier (drugstore / grocery)
+ *   Supplier Purchases     - stock received per supplier
  *   Pull-Out               - write-offs (expired, damaged, unsellable)
  *   PO Discrepancy         - purchase orders received short or over
  *
@@ -497,10 +497,6 @@ async function buildSupplierPurchasesReport(year, month) {
     })
     .filter((b) => b.when && b.when >= start && b.when < end);
 
-  const isGrocery = (b) => {
-    const p = getProductById(b.productId);
-    return !!(p && /grocery/i.test(CATEGORY_LABELS[p.category] || ""));
-  };
   const columns = [
     { label: "Supplier Name", width: 1.6 }, { label: "Date Received" }, { label: "Receipt #" }, { label: "Product Name", width: 2.6 },
     { label: "Brand Name", width: 1.1 }, { label: "Batch #" }, { label: "Expiry Date" }, { label: "Qty", align: "right", width: 0.7 },
@@ -541,7 +537,9 @@ async function buildSupplierPurchasesReport(year, month) {
     subtitle: monthName,
     filename: `supplier-purchases-${localISODate(start).slice(0, 7)}`,
     notes: ["Stock received during the month, per supplier. Price is the unit cost entered at receiving; blank when it wasn't entered."],
-    sheets: [sheetFor("SUPPLIER DRUGSTORE", received.filter((b) => !isGrocery(b))), sheetFor("SUPPLIER GROCERY", received.filter(isGrocery))],
+    // One sheet: the branch sells medicines and medical supplies only (the
+    // old report's separate grocery sheet isn't needed).
+    sheets: [sheetFor("SUPPLIER DRUGSTORE", received)],
   };
 }
 
