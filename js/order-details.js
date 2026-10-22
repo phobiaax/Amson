@@ -184,7 +184,7 @@ issueResubmitBtn.addEventListener("click", async () => {
   issueResubmitBtn.textContent = "Uploading...";
 
   try {
-    const uploadedUrl = await uploadToCloudinary(file);
+    const uploadedUrl = await uploadToCloudinary(file, { kind: rxIssue ? "document" : "payment" });
     const update = {
       "paymentIssue.resolvedByCustomerAt": firebase.firestore.FieldValue.serverTimestamp(),
       "paymentIssue.holdUntil": firebase.firestore.FieldValue.delete(),

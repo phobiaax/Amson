@@ -147,14 +147,19 @@ async function loadInventory() {
     // had just gone low/out of stock didn't get flagged until then.
     catalogLoadPromise = null;
     await loadCatalogCache();
-    await enforceExpiryStatus();
-    const batchSnapshot = await db.collection("stockBatches").get();
+    // Expiry moves are by date, so once per page visit is enough.
+    if (!expiryCheckedThisVisit) {
+      await enforceExpiryStatus();
+      expiryCheckedThisVisit = true;
+    }
+    // The live listener's first snapshot doubles as this page's batch read
+    // (a separate get() as well would read every batch twice).
+    await listenToBatches();
     const supplierSnapshot = await db.collection("suppliers").get();
     const writeOffSnapshot = await db.collection("writeOffs").get();
     const poSnapshot = await db.collection("purchaseOrders").get();
     const reconciliationSnapshot = await db.collection("reconciliations").get();
 
-    allBatches = batchSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allSuppliers = supplierSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allWriteOffs = writeOffSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allPurchaseOrders = poSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -164,7 +169,7 @@ async function loadInventory() {
     // only need recomputing when the underlying data changes, not on every
     // filter/search/page click, so this stays separate from the table
     // re-render below.
-    const alertCounts = await computeInventoryAlertCounts();
+    const alertCounts = await computeInventoryAlertCounts(allBatches);
     document.getElementById("lowStockCount").textContent = alertCounts.lowStock;
     document.getElementById("outOfStockCount").textContent = alertCounts.outOfStock;
     document.getElementById("nearExpiryCount").textContent = alertCounts.nearExpiry;
@@ -173,7 +178,6 @@ async function loadInventory() {
     renderInventoryTable();
     renderPoTable();
     renderReconciliationTab();
-    listenToBatches();
   } catch (error) {
     console.error("Failed to load inventory:", error);
   }
@@ -183,33 +187,52 @@ async function loadInventory() {
 // table and the tiles without a refresh.
 let unsubscribeBatches = null;
 let batchRefreshTimer = null;
+let batchesReady = null;
+let expiryCheckedThisVisit = false;
 
+// Resolves once allBatches holds the first snapshot; later snapshots keep
+// it current and redraw the table and tiles.
 function listenToBatches() {
-  if (unsubscribeBatches) return;
+  if (batchesReady) return batchesReady;
   let first = true;
-  unsubscribeBatches = db.collection("stockBatches").onSnapshot(
-    (snap) => {
-      if (first) {
-        first = false;
-        return; // loadInventory already has this data
-      }
-      allBatches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      clearTimeout(batchRefreshTimer);
-      batchRefreshTimer = setTimeout(async () => {
-        renderInventoryTable();
-        try {
-          const counts = await computeInventoryAlertCounts(allBatches);
-          document.getElementById("lowStockCount").textContent = counts.lowStock;
-          document.getElementById("outOfStockCount").textContent = counts.outOfStock;
-          document.getElementById("nearExpiryCount").textContent = counts.nearExpiry;
-          document.getElementById("expiredCount").textContent = counts.expired;
-        } catch (error) {
-          console.warn("Inventory tiles couldn't refresh:", error);
+  batchesReady = new Promise((resolve, reject) => {
+    unsubscribeBatches = db.collection("stockBatches").onSnapshot(
+      (snap) => {
+        allBatches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        if (first) {
+          first = false;
+          resolve(allBatches);
+          return; // loadInventory draws the page from this
         }
-      }, 400);
-    },
-    (error) => console.warn("Live inventory unavailable:", error)
-  );
+        clearTimeout(batchRefreshTimer);
+        batchRefreshTimer = setTimeout(async () => {
+          renderInventoryTable();
+          try {
+            const counts = await computeInventoryAlertCounts(allBatches);
+            document.getElementById("lowStockCount").textContent = counts.lowStock;
+            document.getElementById("outOfStockCount").textContent = counts.outOfStock;
+            document.getElementById("nearExpiryCount").textContent = counts.nearExpiry;
+            document.getElementById("expiredCount").textContent = counts.expired;
+          } catch (error) {
+            console.warn("Inventory tiles couldn't refresh:", error);
+          }
+        }, 400);
+      },
+      (error) => {
+        console.warn("Live inventory unavailable:", error);
+        if (first) {
+          // Without the listener, read once so the page still works.
+          batchesReady = null;
+          unsubscribeBatches = null;
+          db.collection("stockBatches").get().then((snap) => {
+            allBatches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+            resolve(allBatches);
+          }, reject);
+        }
+      }
+    );
+  });
+  return batchesReady;
 }
 
 /* ---------- Tabs ---------- */

@@ -191,7 +191,7 @@ function renderProductRow(product) {
       <td class="fw-medium">${product.sku || "-"}</td>
       <td>
         <div class="d-flex align-items-center gap-2">
-          <div class="product-thumb" ${product.imageUrl ? `style="background-image:url('${product.imageUrl}');"` : ""}></div>
+          <div class="product-thumb" ${product.imageUrl ? `style="background-image:url('${cloudinaryImageUrl(product.imageUrl, 120)}');"` : ""}></div>
           <span>${escapeHtml(product.name)}</span>
         </div>
       </td>
@@ -370,7 +370,7 @@ function openEditModal(product) {
 
   if (product.imageUrl) {
     existingImageUrl = product.imageUrl;
-    productImagePreview.style.backgroundImage = `url('${product.imageUrl}')`;
+    productImagePreview.style.backgroundImage = `url('${cloudinaryImageUrl(product.imageUrl, 400)}')`;
     productImageEmptyState.classList.add("d-none");
     productImagePreviewState.classList.remove("d-none");
   }
@@ -424,7 +424,7 @@ saveProductBtn.addEventListener("click", async () => {
   try {
     let imageUrl = existingImageUrl;
     if (selectedImageFile) {
-      imageUrl = await uploadToCloudinary(selectedImageFile);
+      imageUrl = await uploadToCloudinary(selectedImageFile, { kind: "product" });
     }
 
     const productData = {
@@ -694,7 +694,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
     try {
       const categoryId = await resolveCategoryByName(row.category);
       const sku = await generateProductSku();
-      const imageUrl = row.imageFile ? await uploadToCloudinary(row.imageFile) : null;
+      const imageUrl = row.imageFile ? await uploadToCloudinary(row.imageFile, { kind: "product" }) : null;
       // Same price rule as the form: only a Branch Manager's import sets prices.
       const pricesAllowed = canEditPrices();
       await db.collection("products").add({

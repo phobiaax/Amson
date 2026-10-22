@@ -356,7 +356,7 @@ const profilePhotoInput = document.getElementById("profilePhotoInput");
 const profilePhotoBtn = document.getElementById("profilePhotoBtn");
 
 function showProfilePhoto(url) {
-  profilePhotoPreview.style.backgroundImage = url ? `url('${url}')` : "";
+  profilePhotoPreview.style.backgroundImage = url ? `url('${cloudinaryImageUrl(url, 300)}')` : "";
   profilePhotoPlaceholder.classList.toggle("d-none", !!url);
 }
 
@@ -375,7 +375,7 @@ profilePhotoInput.addEventListener("change", async () => {
   }
   profilePhotoBtn.disabled = true;
   try {
-    const photoUrl = await uploadToCloudinary(file);
+    const photoUrl = await uploadToCloudinary(file, { kind: "profile" });
     await db.collection("users").doc(signedInUid).update({ photoUrl });
     showProfilePhoto(photoUrl);
     profileSuccess.textContent = "Profile photo updated.";

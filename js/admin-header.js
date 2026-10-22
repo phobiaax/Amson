@@ -103,7 +103,7 @@ async function refreshAdminNotifBell(uid) {
   if (!ensureAdminNotifBell()) return;
 
   try {
-    const [notifications, readMap] = await Promise.all([computeStaffNotifications(), getStaffNotifReadMap(uid)]);
+    const [notifications, readMap] = await Promise.all([getStaffNotificationsCached(), getStaffNotifReadMap(uid)]);
     const unread = notifications.filter((n) => !isStaffNotifRead(readMap, n));
     showBrowserAlerts(unread);
 

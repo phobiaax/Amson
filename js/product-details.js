@@ -28,7 +28,7 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
     <div class="product-detail-card">
       <div class="row g-4">
         <div class="col-lg-5">
-          <div class="product-detail-image" ${product.imageUrl ? `style="background-image:url('${product.imageUrl}'); background-size:cover; background-position:center;"` : ""}></div>
+          <div class="product-detail-image" ${product.imageUrl ? `style="background-image:url('${cloudinaryImageUrl(product.imageUrl, 800)}'); background-size:cover; background-position:center;"` : ""}></div>
         </div>
         <div class="col-lg-7">
           <h1 class="h3 fw-bold mb-1">${product.name}</h1>

@@ -47,7 +47,7 @@ async function loadNotifications() {
       computeStaffNotifications(),
       currentNotifUid ? getStaffNotifReadMap(currentNotifUid) : Promise.resolve({}),
     ]);
-    currentNotifications = notifications;
+    currentNotifications = rememberStaffNotifications(notifications);
     currentReadMap = readMap;
     renderNotifications(notifications, readMap);
   } catch (error) {

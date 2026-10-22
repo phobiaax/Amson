@@ -207,8 +207,9 @@ document.addEventListener("admin:ready", loadOrders);
 
 async function loadOrders() {
   try {
-    const snapshot = await db.collection("orders").get();
-    allOrders = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    // The live listener's first snapshot is this page's order read (a
+    // separate get() as well would read every order twice).
+    allOrders = await listenToOrders();
 
     for (const order of allOrders) {
       await enforceOrderDeadline(order.id, order, { grantCreditToBalance: true });
@@ -220,7 +221,6 @@ async function loadOrders() {
     const posSnapshot = await db.collection("posSales").get();
     allPosSales = posSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     renderWalkinTable();
-    listenToOrders();
   } catch (error) {
     console.error("Failed to load orders:", error);
   }
@@ -231,25 +231,32 @@ async function loadOrders() {
 let unsubscribeOrders = null;
 let ordersRefreshTimer = null;
 
+// Resolves with the first snapshot; later ones redraw the queue and table.
 function listenToOrders() {
-  if (unsubscribeOrders) return;
-  let first = true;
-  unsubscribeOrders = db.collection("orders").onSnapshot(
-    (snap) => {
-      if (first) {
-        first = false;
-        return; // loadOrders already has this data
+  return new Promise((resolve, reject) => {
+    let first = true;
+    unsubscribeOrders = db.collection("orders").onSnapshot(
+      (snap) => {
+        const fresh = snap.docs.map((doc) => ({ id: doc.id, ...doc.data({ serverTimestamps: "estimate" }) }));
+        if (first) {
+          first = false;
+          resolve(fresh);
+          return; // loadOrders draws the page from this
+        }
+        clearTimeout(ordersRefreshTimer);
+        ordersRefreshTimer = setTimeout(() => {
+          allOrders = fresh;
+          renderVerificationQueue();
+          renderOrdersTable();
+        }, 300);
+      },
+      (error) => {
+        console.warn("Live orders unavailable:", error);
+        // Without the listener, read once so the page still works.
+        if (first) db.collection("orders").get().then((snap) => resolve(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))), reject);
       }
-      const fresh = snap.docs.map((doc) => ({ id: doc.id, ...doc.data({ serverTimestamps: "estimate" }) }));
-      clearTimeout(ordersRefreshTimer);
-      ordersRefreshTimer = setTimeout(() => {
-        allOrders = fresh;
-        renderVerificationQueue();
-        renderOrdersTable();
-      }, 300);
-    },
-    (error) => console.warn("Live orders unavailable:", error)
-  );
+    );
+  });
 }
 
 /* ---------- Tabs ---------- */

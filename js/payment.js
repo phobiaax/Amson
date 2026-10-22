@@ -210,7 +210,7 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     // bought it, or it just hasn't been received yet) - re-check against
     // live numbers right before the order is created, not the possibly
     // stale numbers from when checkout started.
-    catalogLoadPromise = null;
+    clearCatalogCache();
     await loadCatalogCache();
 
     // A product taken off the online store since it was added to the cart
@@ -265,7 +265,7 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     try {
       const user = auth.currentUser;
       const proofOfPaymentUrl = file ? await uploadToCloudinary(file) : null;
-      const prescriptionPhotoUrl = prescriptionFile ? await uploadToCloudinary(prescriptionFile) : null;
+      const prescriptionPhotoUrl = prescriptionFile ? await uploadToCloudinary(prescriptionFile, { kind: "document" }) : null;
       const orderNumber = await generateOrderNumber();
 
       const items = pendingOrder.cart.map((item) => {
@@ -318,6 +318,7 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
 
       removeItemsFromCart(pendingOrder.cart.map((item) => item.id));
       sessionStorage.removeItem("amsonPendingOrder");
+      clearCatalogCache(); // stock just went down
       sessionStorage.removeItem("amsonCheckoutSelectedIds");
       document.getElementById("confirmedOrderNumber").textContent = `Order Number: ${orderNumber}`;
       if (user) {

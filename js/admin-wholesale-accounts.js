@@ -377,10 +377,10 @@ saveWholesaleBtn.addEventListener("click", async () => {
 
   try {
     let ltoDocumentUrl = existingLtoUrl;
-    if (selectedLtoFile) ltoDocumentUrl = await uploadToCloudinary(selectedLtoFile);
+    if (selectedLtoFile) ltoDocumentUrl = await uploadToCloudinary(selectedLtoFile, { kind: "document" });
 
     let permitDocumentUrl = existingPermitUrl;
-    if (selectedPermitFile) permitDocumentUrl = await uploadToCloudinary(selectedPermitFile);
+    if (selectedPermitFile) permitDocumentUrl = await uploadToCloudinary(selectedPermitFile, { kind: "document" });
 
     const accountData = {
       name,
@@ -638,7 +638,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
   try {
     // Upload first: a failed upload shouldn't leave stock already deducted.
     let poDocumentUrl = null;
-    if (selectedPoDocFile) poDocumentUrl = await uploadToCloudinary(selectedPoDocFile);
+    if (selectedPoDocFile) poDocumentUrl = await uploadToCloudinary(selectedPoDocFile, { kind: "document" });
 
     let total = 0;
     for (const it of items) {

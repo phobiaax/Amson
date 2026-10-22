@@ -306,12 +306,36 @@ async function computeInventoryAlertCounts(batchesOverride = null) {
 // unread again - marking read never permanently silences a recurring
 // problem. ----
 
+// The header bell runs this on every staff page, so getStaffNotificationsCached()
+// reuses the result for two minutes within the tab (the Notifications page
+// always reads fresh). Orders and POs are read only in the one status that
+// raises an alert, not the whole history.
+const STAFF_NOTIF_CACHE_KEY = "amsonStaffNotifs";
+const STAFF_NOTIF_CACHE_MS = 2 * 60 * 1000;
+
+async function getStaffNotificationsCached() {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(STAFF_NOTIF_CACHE_KEY));
+    if (cached && Date.now() - cached.savedAt < STAFF_NOTIF_CACHE_MS && Array.isArray(cached.notifications)) return cached.notifications;
+  } catch (error) {}
+  return rememberStaffNotifications(await computeStaffNotifications());
+}
+
+// Lets a page that just read the alerts fresh (Notifications) share them
+// with the bell, so the two never disagree.
+function rememberStaffNotifications(notifications) {
+  try {
+    sessionStorage.setItem(STAFF_NOTIF_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), notifications }));
+  } catch (error) {}
+  return notifications;
+}
+
 async function computeStaffNotifications() {
   await loadCatalogCache();
   const [batchSnapshot, orderSnapshot, poSnapshot] = await Promise.all([
     db.collection("stockBatches").get(),
-    db.collection("orders").get(),
-    db.collection("purchaseOrders").get(),
+    db.collection("orders").where("status", "==", "placed").get(),
+    db.collection("purchaseOrders").where("status", "==", "discrepancy").get(),
   ]);
 
   const notifications = [];
@@ -654,8 +678,65 @@ const DEFAULT_CATEGORIES = {
   grocery: "Grocery",
 };
 
+// Shop pages keep a copy of the catalog in the browser for a few minutes,
+// so each page a customer opens doesn't re-read every product and batch
+// (Firestore's free plan allows about 50,000 reads a day). Staff pages
+// always read fresh, and checkout re-checks stock and prices live
+// (clearCatalogCache) before an order is created.
+const CATALOG_CACHE_KEY = "amsonCatalogCache";
+const CATALOG_CACHE_MS = 5 * 60 * 1000;
+
+function catalogBrowserCacheAllowed() {
+  return typeof window !== "undefined" && !/\/admin\//.test(window.location.pathname);
+}
+
+function clearCatalogCache() {
+  catalogLoadPromise = null;
+  try {
+    localStorage.removeItem(CATALOG_CACHE_KEY);
+  } catch (error) {}
+}
+
+// Timestamps are saved as {__ms} and turned back into Timestamps on read.
+function catalogCacheReplacer(key, value) {
+  return value && typeof value === "object" && typeof value.toMillis === "function" ? { __ms: value.toMillis() } : value;
+}
+function catalogCacheReviver(key, value) {
+  return value && typeof value === "object" && typeof value.__ms === "number" ? firebase.firestore.Timestamp.fromMillis(value.__ms) : value;
+}
+
+function readCatalogBrowserCache() {
+  if (!catalogBrowserCacheAllowed()) return null;
+  try {
+    const cached = JSON.parse(localStorage.getItem(CATALOG_CACHE_KEY), catalogCacheReviver);
+    if (cached && Date.now() - cached.savedAt < CATALOG_CACHE_MS && Array.isArray(cached.products)) return cached;
+  } catch (error) {}
+  return null;
+}
+
+function writeCatalogBrowserCache() {
+  if (!catalogBrowserCacheAllowed()) return;
+  try {
+    // Timestamps are converted by the replacer before JSON.stringify sees them.
+    const toJson = (v) => JSON.stringify(v, function (key, value) {
+      return catalogCacheReplacer(key, this[key]);
+    });
+    localStorage.setItem(CATALOG_CACHE_KEY, toJson({ savedAt: Date.now(), categories: CATEGORY_LABELS, products: SAMPLE_PRODUCTS }));
+  } catch (error) {
+    // Storage full or blocked - just read live next time.
+  }
+}
+
 async function loadCatalogCache() {
   if (catalogLoadPromise) return catalogLoadPromise;
+
+  const cached = readCatalogBrowserCache();
+  if (cached) {
+    CATEGORY_LABELS = cached.categories || {};
+    SAMPLE_PRODUCTS = cached.products;
+    catalogLoadPromise = Promise.resolve({ products: SAMPLE_PRODUCTS, categories: CATEGORY_LABELS });
+    return catalogLoadPromise;
+  }
 
   catalogLoadPromise = (async () => {
     const categorySnapshot = await db.collection("categories").get();
@@ -690,8 +771,13 @@ async function loadCatalogCache() {
       };
     });
 
+    writeCatalogBrowserCache();
     return { products: SAMPLE_PRODUCTS, categories: CATEGORY_LABELS };
   })();
+  // A failed load shouldn't stick for the rest of the page's life.
+  catalogLoadPromise.catch(() => {
+    catalogLoadPromise = null;
+  });
 
   return catalogLoadPromise;
 }
@@ -1599,8 +1685,18 @@ async function logAuditEvent({ action, details, actor }) {
 // the same way the catalog cards do, instead of an empty placeholder box.
 // Returns bare CSS declarations (no surrounding style="..."), so callers
 // with their own inline sizing can just append this to it.
-function cartItemImageCss(imageUrl) {
-  return imageUrl ? `background-image:url('${imageUrl}'); background-size:cover; background-position:center;` : "";
+// Cloudinary serves a resized, compressed copy when the URL asks for one
+// (f_auto = WebP/AVIF where the browser supports it, q_auto = compression,
+// w_ = width). A shop card then loads ~30 KB instead of the full photo,
+// which keeps the free plan's bandwidth for many more visits. Other URLs
+// are returned unchanged.
+function cloudinaryImageUrl(url, width) {
+  if (typeof url !== "string" || !/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(url)) return url;
+  return url.replace("/image/upload/", `/image/upload/f_auto,q_auto,c_limit,w_${width}/`);
+}
+
+function cartItemImageCss(imageUrl, width = 160) {
+  return imageUrl ? `background-image:url('${cloudinaryImageUrl(imageUrl, width)}'); background-size:cover; background-position:center;` : "";
 }
 
 function renderProductCard(product) {
@@ -1608,7 +1704,7 @@ function renderProductCard(product) {
     <div class="col">
       <div class="product-card ${product.inStock ? "" : "out-of-stock"}">
         <a href="product-details.html?id=${product.id}" class="product-image-link product-quickview-trigger" data-product-id="${product.id}">
-          <div class="product-image" ${product.imageUrl ? `style="background-image:url('${product.imageUrl}'); background-size:cover; background-position:center;"` : ""}>
+          <div class="product-image" ${product.imageUrl ? `style="background-image:url('${cloudinaryImageUrl(product.imageUrl, 400)}'); background-size:cover; background-position:center;"` : ""}>
             ${product.inStock ? "" : `<span class="product-image-badge">Out of Stock</span>`}
           </div>
         </a>
@@ -1672,7 +1768,7 @@ async function showProductQuickView(productId) {
   bodyEl.innerHTML = `
     <div class="row g-4">
       <div class="col-md-5">
-        <div class="product-detail-image" ${product.imageUrl ? `style="background-image:url('${product.imageUrl}'); background-size:cover; background-position:center;"` : ""}></div>
+        <div class="product-detail-image" ${product.imageUrl ? `style="background-image:url('${cloudinaryImageUrl(product.imageUrl, 800)}'); background-size:cover; background-position:center;"` : ""}></div>
       </div>
       <div class="col-md-7">
         <h2 class="h4 fw-bold mb-1">${escapeHtml(product.name)}</h2>
