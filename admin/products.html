@@ -76,6 +76,10 @@
           <button type="button" class="btn btn-outline-dark-amson" id="manageCategoriesBtn">
             <i class="bi bi-tags me-1"></i>Manage Categories
           </button>
+          <button type="button" class="btn btn-outline-dark-amson" id="uploadPhotosBtn" title="Add photos to many products at once">
+            <i class="bi bi-images me-1"></i>Upload Photos
+          </button>
+          <input type="file" id="photosFileInput" accept="image/*" multiple class="d-none">
           <button type="button" class="btn btn-amson" id="addProductBtn">
             <i class="bi bi-plus-lg me-1"></i>Add Products
           </button>
@@ -288,6 +292,40 @@
   </div>
 </div>
 
+<!-- Bulk photo upload: pick many photos, each is matched to a product by
+     its file name, staff check the matches, then all are saved together. -->
+<div class="modal fade" id="photosReviewModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-fullscreen-lg-down" style="max-width:1000px;">
+    <div class="modal-content p-4">
+      <h2 class="mb-1">Upload Photos</h2>
+      <p class="text-muted mb-3" style="font-size:0.85rem;">Each photo was matched to a product by its file name. Check every row; type in the product box to change it. Only ticked rows are saved.</p>
+      <div class="table-responsive" style="max-height:55vh;">
+        <table class="table align-middle" style="font-size:0.85rem;">
+          <thead>
+            <tr>
+              <th style="width:36px;"><input class="form-check-input" type="checkbox" id="photosSelectAll" checked aria-label="Select all"></th>
+              <th style="width:64px;">Photo</th>
+              <th style="min-width:160px;">File name</th>
+              <th style="min-width:320px;">Product</th>
+              <th style="min-width:150px;">Note</th>
+            </tr>
+          </thead>
+          <tbody id="photosReviewTableBody"></tbody>
+        </table>
+      </div>
+      <datalist id="photosProductOptions"></datalist>
+      <div id="photosReviewAlert" class="alert auth-alert d-none mt-3 mb-0" role="alert" style="white-space:pre-line;"></div>
+      <div class="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-2">
+        <span class="text-muted" style="font-size:0.85rem;" id="photosReviewCount"></span>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal" id="photosCancelBtn">Cancel</button>
+          <button type="button" class="btn btn-amson" id="photosSaveBtn">Save Photos</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Manage Categories modal -->
 <div class="modal fade" id="categoriesModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -329,6 +367,7 @@
 <script src="../js/cloudinary.js"></script>
 <script src="../js/admin-sidebar.js"></script>
 <script src="../js/admin-products.js"></script>
+<script src="../js/admin-product-photos.js"></script>
 <script src="../js/admin-roles.js"></script>
 <script src="../js/device-trust.js"></script>
 <script src="../js/admin-header.js"></script>

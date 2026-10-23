@@ -121,8 +121,12 @@ While testing with made-up emails, set `REQUIRE_DEVICE_CODE = false` in
 2. In Admin → Products → Manage Categories, add the branch's categories
    (Generics, Branded, Drugstore (Per Piece), Medical Supplies). The branch
    sells medicines and medical supplies only - no grocery items.
-3. Fill in the store contact details and FDA LTO number in `js/store-info.js`.
-4. Put the branch's QR Ph image at `assets/payment-qr.png`.
+3. Load the catalog: Admin → Products → Add Products → Upload Batch File
+   (Excel, one row per product), then Products → Upload Photos: pick all the
+   photos at once, named after their products (e.g. `losaar 50.jpg`); each is
+   matched by file name, staff check the list, and Save attaches them all.
+4. Fill in the store contact details and FDA LTO number in `js/store-info.js`.
+5. Put the branch's QR Ph image at `assets/payment-qr.png`.
 
 ## Staff roles
 
