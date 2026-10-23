@@ -600,12 +600,80 @@ function batchReviewRowHtml(row = {}) {
   `;
 }
 
+/* ---------- Progress / result pop-up for long jobs (batch import, photos) ---------- */
+const taskModalEl = document.getElementById("taskModal");
+const TASK_ICONS = {
+  success: '<i class="bi bi-check-circle-fill"></i>',
+  warning: '<i class="bi bi-exclamation-triangle-fill"></i>',
+  danger: '<i class="bi bi-x-circle-fill"></i>',
+};
+
+function showTaskProgress(title, message) {
+  document.getElementById("taskModalIcon").className = "task-modal-icon";
+  document.getElementById("taskModalIcon").innerHTML = '<div class="spinner-border" style="color:var(--amson-red);" role="status"></div>';
+  document.getElementById("taskModalTitle").textContent = title;
+  document.getElementById("taskModalMessage").textContent = message || "";
+  document.getElementById("taskModalProgressWrap").classList.remove("d-none");
+  document.getElementById("taskModalProgressText").classList.remove("d-none");
+  document.getElementById("taskModalList").classList.add("d-none");
+  document.getElementById("taskModalActions").classList.add("d-none");
+  updateTaskProgress(0, 1);
+  bootstrap.Modal.getOrCreateInstance(taskModalEl).show();
+}
+
+function updateTaskProgress(done, total, label = "") {
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  document.getElementById("taskModalProgressBar").style.width = `${pct}%`;
+  document.getElementById("taskModalProgressText").textContent = total > 1 || done ? `${done} of ${total}${label ? ` - ${label}` : ""}` : "";
+}
+
+// Resolves with the clicked action's key once the pop-up has closed.
+function showTaskResult({ type = "success", title, message = "", list = [], actions = [{ key: "done", label: "Done", primary: true }] }) {
+  const icon = document.getElementById("taskModalIcon");
+  icon.className = `task-modal-icon ${type}`;
+  icon.innerHTML = TASK_ICONS[type] || "";
+  document.getElementById("taskModalTitle").textContent = title;
+  document.getElementById("taskModalMessage").textContent = message;
+  document.getElementById("taskModalProgressWrap").classList.add("d-none");
+  document.getElementById("taskModalProgressText").classList.add("d-none");
+  const listEl = document.getElementById("taskModalList");
+  listEl.innerHTML = list.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  listEl.classList.toggle("d-none", list.length === 0);
+  const actionsEl = document.getElementById("taskModalActions");
+  actionsEl.innerHTML = actions
+    .map((a) => `<button type="button" class="btn ${a.primary ? "btn-amson" : "btn-outline-dark-amson"}" data-task-action="${a.key}">${escapeHtml(a.label)}</button>`)
+    .join("");
+  actionsEl.classList.remove("d-none");
+  const modal = bootstrap.Modal.getOrCreateInstance(taskModalEl);
+  modal.show();
+  return new Promise((resolve) => {
+    actionsEl.querySelectorAll("[data-task-action]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        taskModalEl.addEventListener("hidden.bs.modal", () => resolve(btn.dataset.taskAction), { once: true });
+        modal.hide();
+      })
+    );
+  });
+}
+
+// Bootstrap can't stack modals: wait until one is fully closed before the
+// next opens.
+function hideModalAndWait(el) {
+  const modal = bootstrap.Modal.getInstance(el);
+  if (!modal || !el.classList.contains("show")) return Promise.resolve();
+  return new Promise((resolve) => {
+    el.addEventListener("hidden.bs.modal", () => resolve(), { once: true });
+    modal.hide();
+  });
+}
+
 function updateBatchReviewCount() {
   const count = batchReviewTableBody.querySelectorAll("tr").length;
   batchReviewCount.textContent = `${count} product${count === 1 ? "" : "s"} ready to import`;
 }
 
-function openBatchReviewModal(rows) {
+async function openBatchReviewModal(rows) {
+  await hideModalAndWait(document.getElementById("productModal"));
   batchReviewAlert.classList.add("d-none");
   batchReviewTableBody.innerHTML = rows.map(batchReviewRowHtml).join("");
   updateBatchReviewCount();
@@ -686,11 +754,13 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
 
   batchReviewAlert.classList.add("d-none");
   batchReviewConfirmBtn.disabled = true;
-  batchReviewConfirmBtn.textContent = "Importing...";
+  await hideModalAndWait(batchReviewModalEl);
+  showTaskProgress("Importing products", "Keep this page open until it finishes.");
 
   let imported = 0;
-  let failed = 0;
-  for (const row of parsedRows) {
+  const failedRows = [];
+  for (const [index, row] of parsedRows.entries()) {
+    updateTaskProgress(index, parsedRows.length, row.name);
     try {
       const categoryId = await resolveCategoryByName(row.category);
       const sku = await generateProductSku();
@@ -716,19 +786,53 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
       imported += 1;
+      row.tr.remove(); // saved - only failed rows stay in the review table
     } catch (error) {
-      failed += 1;
+      console.error("Import failed:", row.name, error);
+      failedRows.push(row);
     }
   }
+  updateTaskProgress(parsedRows.length, parsedRows.length);
 
   batchReviewConfirmBtn.disabled = false;
-  batchReviewConfirmBtn.textContent = "Confirm Import";
-  bootstrap.Modal.getInstance(batchReviewModalEl).hide();
-
-  batchUploadStatus.textContent = `Imported ${imported} product${imported === 1 ? "" : "s"}.${failed ? ` ${failed} failed to save - please try those again.` : ""}`;
+  batchUploadStatus.textContent = `Imported ${imported} product${imported === 1 ? "" : "s"}.${failedRows.length ? ` ${failedRows.length} failed to save - please try those again.` : ""}`;
   batchFileInput.value = "";
+  if (imported) {
+    await logAuditEvent({ action: "Products Imported", details: `${imported} product${imported === 1 ? "" : "s"} from a batch file${failedRows.length ? `; ${failedRows.length} failed` : ""}` });
+  }
   catalogLoadPromise = null;
   await loadProducts();
+
+  const plural = (n) => `${n} product${n === 1 ? "" : "s"}`;
+  let choice;
+  if (!failedRows.length) {
+    choice = await showTaskResult({
+      type: "success",
+      title: "Import complete",
+      message: `${plural(imported)} added to the catalog.${canEditPrices() ? "" : "\nThey stay Inactive until the Branch Manager sets their prices."}`,
+      actions: [
+        { key: "photos", label: "Add photos" },
+        { key: "done", label: "Done", primary: true },
+      ],
+    });
+  } else {
+    choice = await showTaskResult({
+      type: imported ? "warning" : "danger",
+      title: imported ? "Import finished with problems" : "Import failed",
+      message: `${plural(imported)} added. ${plural(failedRows.length)} didn't save (check the connection); they're kept so you can try again.`,
+      list: failedRows.map((r) => r.name),
+      actions: [
+        { key: "done", label: "Close" },
+        { key: "retry", label: "Try the failed ones again", primary: true },
+      ],
+    });
+  }
+  if (choice === "retry") {
+    updateBatchReviewCount();
+    bootstrap.Modal.getOrCreateInstance(batchReviewModalEl).show();
+  } else if (choice === "photos" && typeof openPhotosModal === "function") {
+    openPhotosModal();
+  }
 });
 
 // SheetJS reads both real Excel workbooks and plain CSV through the same

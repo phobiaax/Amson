@@ -79,7 +79,6 @@
           <button type="button" class="btn btn-outline-dark-amson" id="uploadPhotosBtn" title="Add photos to many products at once">
             <i class="bi bi-images me-1"></i>Upload Photos
           </button>
-          <input type="file" id="photosFileInput" accept="image/*" multiple class="d-none">
           <button type="button" class="btn btn-amson" id="addProductBtn">
             <i class="bi bi-plus-lg me-1"></i>Add Products
           </button>
@@ -292,36 +291,85 @@
   </div>
 </div>
 
-<!-- Bulk photo upload: pick many photos, each is matched to a product by
-     its file name, staff check the matches, then all are saved together. -->
-<div class="modal fade" id="photosReviewModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-  <div class="modal-dialog modal-dialog-centered modal-fullscreen-lg-down" style="max-width:1000px;">
-    <div class="modal-content p-4">
-      <h2 class="mb-1">Upload Photos</h2>
-      <p class="text-muted mb-3" style="font-size:0.85rem;">Each photo was matched to a product by its file name. Check every row; type in the product box to change it. Only ticked rows are saved.</p>
-      <div class="table-responsive" style="max-height:55vh;">
-        <table class="table align-middle" style="font-size:0.85rem;">
-          <thead>
-            <tr>
-              <th style="width:36px;"><input class="form-check-input" type="checkbox" id="photosSelectAll" checked aria-label="Select all"></th>
-              <th style="width:64px;">Photo</th>
-              <th style="min-width:160px;">File name</th>
-              <th style="min-width:320px;">Product</th>
-              <th style="min-width:150px;">Note</th>
-            </tr>
-          </thead>
-          <tbody id="photosReviewTableBody"></tbody>
-        </table>
+<!-- Bulk photo upload. Step 1: choose photos (named after their products).
+     Step 2: check the product each photo was matched to, then save. -->
+<div class="modal fade" id="photosModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-lg-down" style="max-width:980px;">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0 px-4 pt-4">
+        <div>
+          <h2 class="mb-1">Upload Photos</h2>
+          <div class="photo-steps" aria-hidden="true">
+            <span class="photo-step active" id="photoStep1Label">1. Choose photos</span>
+            <i class="bi bi-chevron-right"></i>
+            <span class="photo-step" id="photoStep2Label">2. Check matches</span>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="photosCloseBtn"></button>
       </div>
-      <datalist id="photosProductOptions"></datalist>
-      <div id="photosReviewAlert" class="alert auth-alert d-none mt-3 mb-0" role="alert" style="white-space:pre-line;"></div>
-      <div class="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-2">
-        <span class="text-muted" style="font-size:0.85rem;" id="photosReviewCount"></span>
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal" id="photosCancelBtn">Cancel</button>
-          <button type="button" class="btn btn-amson" id="photosSaveBtn">Save Photos</button>
+
+      <!-- Step 1 -->
+      <div class="modal-body px-4" id="photosStepPick">
+        <label class="photo-dropzone" id="photoDropzone" for="photosFileInput">
+          <i class="bi bi-cloud-arrow-up"></i>
+          <span class="fw-bold">Drop photos here, or click to choose</span>
+          <span class="text-muted" style="font-size:0.85rem;">Select as many as you like - JPG, PNG or phone photos</span>
+        </label>
+        <input type="file" id="photosFileInput" accept="image/*" multiple class="d-none">
+        <p class="text-muted mt-2 mb-0" id="photosPickedSummary" style="font-size:0.85rem;"></p>
+        <div class="photo-tips mt-3">
+          <p class="fw-bold mb-1">Name each photo after its product</p>
+          <ul class="mb-0">
+            <li>Use the brand name: <code>losaar 50.jpg</code>, <code>nahalgesic.jpg</code>, <code>glycemet.jpg</code></li>
+            <li>Add the form or strength when a brand has more than one: <code>lagundi syrup.jpg</code>, <code>cetirizine 10mg tablet.jpg</code></li>
+            <li>Or use the product code from the catalog: <code>MED-0036.jpg</code></li>
+            <li>Front of the box, plain light background, square crop. Big phone photos are shrunk automatically.</li>
+          </ul>
         </div>
       </div>
+
+      <!-- Step 2 -->
+      <div class="modal-body px-4 d-none" id="photosStepReview">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <div class="d-flex gap-2 flex-wrap" id="photoFilterBtns">
+            <button type="button" class="btn order-filter-btn active" data-filter="all">All (<span id="photoCountAll">0</span>)</button>
+            <button type="button" class="btn order-filter-btn" data-filter="needs">Needs a product (<span id="photoCountNeeds">0</span>)</button>
+            <button type="button" class="btn order-filter-btn" data-filter="ready">Ready (<span id="photoCountReady">0</span>)</button>
+          </div>
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" id="photosSelectAll" checked>
+            <label class="form-check-label" for="photosSelectAll" style="font-size:0.85rem;">Tick all with a product</label>
+          </div>
+        </div>
+        <div class="photo-review-list" id="photosReviewList"></div>
+        <p class="text-muted text-center py-4 d-none mb-0" id="photosReviewEmpty">Nothing here.</p>
+      </div>
+
+      <div class="modal-footer border-0 px-4 pb-4 d-flex justify-content-between">
+        <span class="text-muted" style="font-size:0.85rem;" id="photosFooterNote"></span>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-dark-amson d-none" id="photosBackBtn"><i class="bi bi-arrow-left me-1"></i>Back</button>
+          <button type="button" class="btn btn-amson" id="photosNextBtn" disabled>Next: Check Matches</button>
+          <button type="button" class="btn btn-amson d-none" id="photosSaveBtn">Save Photos</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Shared progress / result pop-up for long jobs (batch import, photos). -->
+<div class="modal fade" id="taskModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:460px;">
+    <div class="modal-content p-4 text-center">
+      <div id="taskModalIcon" class="task-modal-icon"></div>
+      <h2 class="h4 fw-bold mb-1" id="taskModalTitle"></h2>
+      <p class="text-muted mb-3" id="taskModalMessage" style="white-space:pre-line;"></p>
+      <div class="progress mb-2 d-none" id="taskModalProgressWrap" style="height:10px;">
+        <div class="progress-bar" id="taskModalProgressBar" role="progressbar" style="width:0%; background-color:var(--amson-red);"></div>
+      </div>
+      <p class="text-muted mb-0 d-none" id="taskModalProgressText" style="font-size:0.85rem;"></p>
+      <ul class="text-start small mb-3 d-none" id="taskModalList" style="max-height:160px; overflow:auto;"></ul>
+      <div class="d-flex justify-content-center gap-2 flex-wrap d-none" id="taskModalActions"></div>
     </div>
   </div>
 </div>
