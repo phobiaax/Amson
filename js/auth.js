@@ -67,7 +67,10 @@ async function checkLoginLockout(email) {
   const doc = await docRef.get();
   if (!doc.exists) return null;
   const lockedUntil = doc.data().lockedUntil;
-  if (lockedUntil && lockedUntil > Date.now()) return lockedUntil;
+  // A lock longer than a normal one (or not a time at all) wasn't written
+  // by this page - ignore it and clear it below.
+  const valid = typeof lockedUntil === "number" && lockedUntil <= Date.now() + LOGIN_LOCKOUT_MS + 60 * 1000;
+  if (valid && lockedUntil > Date.now()) return lockedUntil;
   if (lockedUntil) {
     // Lockout period has passed - clear it so the next attempt gets a
     // fresh set of tries instead of instantly re-locking.

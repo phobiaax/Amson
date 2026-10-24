@@ -140,6 +140,8 @@ service cloud.firestore {
       // more discount than they actually have.
       // A new order is always "placed" with nothing staff-only on it, and
       // any credit applied must come off the balance in the same write.
+      // The user doc must also name this order as the one the credit went
+      // to, so two orders in one write can't both claim the same deduction.
       allow create: if isSignedIn() &&
         request.resource.data.customerId == myUid() &&
         request.resource.data.status == "placed" &&
@@ -147,6 +149,7 @@ service cloud.firestore {
         !request.resource.data.keys().hasAny(["paymentIssue", "invoiceNo", "unappliedCredit", "paymentOverage", "verification", "closedReason"]) &&
         (request.resource.data.get("creditApplied", 0) == 0 ||
          (request.resource.data.creditApplied > 0 &&
+          getAfter(/databases/$(database)/documents/users/$(myUid())).data.get("lastCreditOrderId", null) == orderId &&
           getAfter(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) ==
             get(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) - request.resource.data.creditApplied));
 
@@ -190,12 +193,11 @@ service cloud.firestore {
     }
 
     // ---- prescription pre-orders ----
+    // Nothing in the app writes here any more (prescription items go
+    // through ordinary orders). Kept readable for old records only.
     match /prescriptionOrders/{orderId} {
       allow read: if isSignedIn() && resource.data.customerId == myUid();
       allow read: if isOpsStaff();
-
-      allow create: if isSignedIn() &&
-        request.resource.data.customerId == myUid();
 
       allow update: if isOpsStaff();
       allow delete: if false;
@@ -231,15 +233,26 @@ service cloud.firestore {
     // writes stay staff-only (a POS sale takes stock out of batches).
     // Walk-in sales are the POS's own records, so Sales Staff keep them;
     // the rest is back-office data Sales Staff never use.
-    match /stockBatches/{batchId}      { allow read: if true; allow write: if isStaff(); }
-    match /posSales/{saleId}           { allow read, write: if isStaff(); }
+    // Sales Staff only take stock out (an update) and save new sales; voids
+    // (a sale update) are Branch Manager / Technical Staff only. Sales and
+    // other transaction records are never deleted (only the TEMPORARY
+    // block below, before go-live) - voids and status changes keep history.
+    match /stockBatches/{batchId} {
+      allow read: if true;
+      allow update: if isStaff();
+      allow create, delete: if isOpsStaff();
+    }
+    match /posSales/{saleId} {
+      allow read, create: if isStaff();
+      allow update: if isOpsStaff();
+    }
     match /suppliers/{supplierId}      { allow read, write: if isOpsStaff(); }
-    match /purchaseOrders/{poId}       { allow read, write: if isOpsStaff(); }
-    match /reconciliations/{reconId}   { allow read, write: if isOpsStaff(); }
-    match /writeOffs/{writeOffId}      { allow read, write: if isOpsStaff(); }
+    match /purchaseOrders/{poId}       { allow read, create, update: if isOpsStaff(); }
+    match /reconciliations/{reconId}   { allow read, create, update: if isOpsStaff(); }
+    match /writeOffs/{writeOffId}      { allow read, create, update: if isOpsStaff(); }
     match /wholesaleAccounts/{acctId}  { allow read, write: if isOpsStaff(); }
-    match /wholesaleOrders/{orderId}   { allow read, write: if isOpsStaff(); }
-    match /wholesaleExchanges/{exchangeId} { allow read, write: if isOpsStaff(); }
+    match /wholesaleOrders/{orderId}   { allow read, create, update: if isOpsStaff(); }
+    match /wholesaleExchanges/{exchangeId} { allow read, create, update: if isOpsStaff(); }
 
     // ---- audit log (append-only) ----
     match /auditLog/{entryId} {
@@ -371,8 +384,16 @@ service cloud.firestore {
     // Read and written before sign-in, by the exact address typed. Listing
     // is staff-only: the document names are email addresses, so a public
     // list would hand anyone every address that has tried to log in.
+    // Only a count and a lock no longer than a few minutes from now, so
+    // nobody can lock an address (the Branch Manager's, say) for good.
     match /loginAttempts/{email} {
-      allow get, create, update, delete: if true;
+      allow get, delete: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(["count", "lockedUntil"]) &&
+        request.resource.data.count is int &&
+        request.resource.data.count >= 0 && request.resource.data.count <= 1000 &&
+        (!("lockedUntil" in request.resource.data) ||
+         (request.resource.data.lockedUntil is number &&
+          request.resource.data.lockedUntil <= request.time.toMillis() + 10 * 60 * 1000));
       allow list: if isManager();
     }
 

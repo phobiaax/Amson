@@ -332,7 +332,11 @@ async function createOrderWithCreditRedemption(orderData, { expectFullCredit = f
 
     transaction.set(orderRef, orderPayload);
     if (appliedCredit > 0) {
-      transaction.update(userRef, { creditBalance: firebase.firestore.FieldValue.increment(-appliedCredit) });
+      // lastCreditOrderId: the rules check the deduction belongs to this order.
+      transaction.update(userRef, {
+        creditBalance: firebase.firestore.FieldValue.increment(-appliedCredit),
+        lastCreditOrderId: orderRef.id,
+      });
     }
     return { appliedCredit, finalTotal };
   });
