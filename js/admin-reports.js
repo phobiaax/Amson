@@ -491,6 +491,8 @@ async function buildSupplierPurchasesReport(year, month) {
         ? b.deliveries.map((dl) => ({ ...b, ...dl, initialQuantity: dl.qty, quantity: dl.qty }))
         : [b]
     )
+    // Opening stock was counted, not bought from a supplier.
+    .filter((b) => b.source !== "opening_stock")
     .map((b) => {
       const when = b.dateReceived ? new Date(`${b.dateReceived}T00:00:00`) : tsToDate(b.createdAt);
       return { ...b, when };

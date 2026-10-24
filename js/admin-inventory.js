@@ -132,8 +132,10 @@ document.addEventListener("admin:ready", (e) => {
   loadInventory();
 });
 
+// Today on the branch's calendar (the UTC date is still yesterday until
+// 8 AM in the Philippines).
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return sheetDateToISO(new Date());
 }
 
 /* ---------- Load ---------- */
@@ -572,6 +574,7 @@ function deliveryRecord(src, qty) {
     supplierReceiptNo: src.supplierReceiptNo || null,
     unitCost: src.unitCost == null || isNaN(src.unitCost) ? null : src.unitCost,
     poId: src.poId || null,
+    source: src.source || null,
   };
 }
 
@@ -598,6 +601,9 @@ async function applyStockReceipt(transaction, plan) {
         lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
       };
       if (line.poId) record.poId = line.poId;
+      // "opening_stock": counted on the shelf when the branch started using
+      // the system - not a purchase, so Supplier Purchases leaves it out.
+      if (line.source) record.source = line.source;
       transaction.set(db.collection("stockBatches").doc(), record);
     });
     plan.topUps.forEach((t, i) => {
@@ -944,7 +950,7 @@ receiveBatchFileInput.addEventListener("change", async () => {
       const row = {};
       Object.entries(sheetRow).forEach(([key, value]) => {
         const k = key.trim().toLowerCase();
-        row[k] = value instanceof Date ? value.toISOString().slice(0, 10) : String(value).trim();
+        row[k] = value instanceof Date ? sheetDateToISO(value) : String(value).trim();
       });
       return row;
     });

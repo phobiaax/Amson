@@ -125,6 +125,9 @@ While testing with made-up emails, set `REQUIRE_DEVICE_CODE = false` in
    (Excel, one row per product), then Products → Upload Photos: pick all the
    photos at once, named after their products (e.g. `losaar 50.jpg`); each is
    matched by file name, staff check the list, and Save attaches them all.
+   Then Inventory → Opening Stock: download the count sheet, fill in batch,
+   expiry and the quantity counted on the shelf, and upload it (once). It's
+   saved as counted stock, not a purchase, so Supplier Purchases leaves it out.
 4. Fill in the store contact details and FDA LTO number in `js/store-info.js`.
 5. Put the branch's QR Ph image at `assets/payment-qr.png`.
 

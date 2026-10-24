@@ -813,6 +813,115 @@ async function loadCatalogCache() {
   return catalogLoadPromise;
 }
 
+// ---- Progress / result pop-up for long jobs (imports, photos, stock) ----
+// Built on first use, so any staff page can call it without extra markup.
+let taskModalEl = null;
+function ensureTaskModal() {
+  if (taskModalEl) return taskModalEl;
+  document.body.insertAdjacentHTML(
+    "beforeend",
+    `<div class="modal fade" id="taskModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+      <div class="modal-dialog modal-dialog-centered" style="max-width:460px;">
+        <div class="modal-content p-4 text-center">
+          <div id="taskModalIcon" class="task-modal-icon"></div>
+          <h2 class="h4 fw-bold mb-1" id="taskModalTitle"></h2>
+          <p class="text-muted mb-3" id="taskModalMessage" style="white-space:pre-line;"></p>
+          <div class="progress mb-2 d-none" id="taskModalProgressWrap" style="height:10px;">
+            <div class="progress-bar" id="taskModalProgressBar" role="progressbar" style="width:0%; background-color:var(--amson-red);"></div>
+          </div>
+          <p class="text-muted mb-0 d-none" id="taskModalProgressText" style="font-size:0.85rem;"></p>
+          <ul class="text-start small mb-3 d-none" id="taskModalList" style="max-height:160px; overflow:auto;"></ul>
+          <div class="d-flex justify-content-center gap-2 flex-wrap d-none" id="taskModalActions"></div>
+        </div>
+      </div>
+    </div>`
+  );
+  taskModalEl = document.getElementById("taskModal");
+  return taskModalEl;
+}
+const TASK_ICONS = {
+  success: '<i class="bi bi-check-circle-fill"></i>',
+  warning: '<i class="bi bi-exclamation-triangle-fill"></i>',
+  danger: '<i class="bi bi-x-circle-fill"></i>',
+};
+
+function showTaskProgress(title, message) {
+  ensureTaskModal();
+  document.getElementById("taskModalIcon").className = "task-modal-icon";
+  document.getElementById("taskModalIcon").innerHTML = '<div class="spinner-border" style="color:var(--amson-red);" role="status"></div>';
+  document.getElementById("taskModalTitle").textContent = title;
+  document.getElementById("taskModalMessage").textContent = message || "";
+  document.getElementById("taskModalProgressWrap").classList.remove("d-none");
+  document.getElementById("taskModalProgressText").classList.remove("d-none");
+  document.getElementById("taskModalList").classList.add("d-none");
+  document.getElementById("taskModalActions").classList.add("d-none");
+  updateTaskProgress(0, 1);
+  bootstrap.Modal.getOrCreateInstance(taskModalEl).show();
+}
+
+function updateTaskProgress(done, total, label = "") {
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  document.getElementById("taskModalProgressBar").style.width = `${pct}%`;
+  document.getElementById("taskModalProgressText").textContent = total > 1 || done ? `${done} of ${total}${label ? ` - ${label}` : ""}` : "";
+}
+
+// Resolves with the clicked action's key once the pop-up has closed.
+function showTaskResult({ type = "success", title, message = "", list = [], actions = [{ key: "done", label: "Done", primary: true }] }) {
+  ensureTaskModal();
+  const icon = document.getElementById("taskModalIcon");
+  icon.className = `task-modal-icon ${type}`;
+  icon.innerHTML = TASK_ICONS[type] || "";
+  document.getElementById("taskModalTitle").textContent = title;
+  document.getElementById("taskModalMessage").textContent = message;
+  document.getElementById("taskModalProgressWrap").classList.add("d-none");
+  document.getElementById("taskModalProgressText").classList.add("d-none");
+  const listEl = document.getElementById("taskModalList");
+  listEl.innerHTML = list.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  listEl.classList.toggle("d-none", list.length === 0);
+  const actionsEl = document.getElementById("taskModalActions");
+  actionsEl.innerHTML = actions
+    .map((a) => `<button type="button" class="btn ${a.primary ? "btn-amson" : "btn-outline-dark-amson"}" data-task-action="${a.key}">${escapeHtml(a.label)}</button>`)
+    .join("");
+  actionsEl.classList.remove("d-none");
+  const modal = bootstrap.Modal.getOrCreateInstance(taskModalEl);
+  modal.show();
+  return new Promise((resolve) => {
+    actionsEl.querySelectorAll("[data-task-action]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        taskModalEl.addEventListener("hidden.bs.modal", () => resolve(btn.dataset.taskAction), { once: true });
+        modal.hide();
+      })
+    );
+  });
+}
+
+// Bootstrap can't stack modals: wait until one is fully closed before the
+// next opens.
+function hideModalAndWait(el) {
+  const modal = bootstrap.Modal.getInstance(el);
+  if (!modal || !el.classList.contains("show")) return Promise.resolve();
+  // A modal still opening ignores hide(), so keep asking until it's gone
+  // (gives up after 3 s rather than waiting forever).
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const check = () => {
+      const gone = !el.classList.contains("show") && el.style.display !== "block";
+      if (gone || Date.now() - started > 3000) return resolve();
+      modal.hide();
+      setTimeout(check, 150);
+    };
+    check();
+  });
+}
+
+// An Excel date cell read by SheetJS (cellDates) is local midnight; its
+// UTC form (toISOString) is the day before in the Philippines (UTC+8), so
+// dates are taken from the local calendar parts instead.
+function sheetDateToISO(value) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+}
+
 // ---- Duplicate product names ----
 // Two products are the same when their names match ignoring capitals,
 // spaces and punctuation ("Losaar 50 (100's)" = "LOSAAR-50 (100S)").

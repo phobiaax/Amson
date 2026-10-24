@@ -73,6 +73,9 @@
       <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
         <h1 class="mb-0" style="font-weight:800;">Inventory Management</h1>
         <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-dark-amson" id="openingStockBtn" title="Load the shelf count when the branch starts using the system">
+            <i class="bi bi-clipboard-check me-1"></i>Opening Stock
+          </button>
           <button type="button" class="btn btn-outline-dark-amson" id="exportInventoryBtn">
             <i class="bi bi-box-arrow-up-right me-1"></i>Export Report
           </button>
@@ -268,6 +271,53 @@
       </div>
     </div>
   </main>
+</div>
+
+<!-- Opening stock: download a count sheet, count the shelves, upload it -->
+<div class="modal fade" id="openingStockModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width:720px;">
+    <div class="modal-content">
+      <div class="modal-header border-0 px-4 pt-4 pb-0">
+        <div>
+          <h2 class="mb-1">Opening Stock</h2>
+          <p class="text-muted mb-0" style="font-size:0.85rem;">Load what's on the shelves when the branch starts using the system. It's counted stock, not a purchase, so it doesn't show in Supplier Purchases.</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body px-4">
+        <div class="opening-step">
+          <span class="opening-step-no">1</span>
+          <div class="flex-grow-1">
+            <p class="fw-bold mb-1">Download the count sheet</p>
+            <p class="text-muted mb-2" style="font-size:0.85rem;">An Excel list of every product. For each batch on the shelf fill in its batch no., expiry date and the quantity counted. A product with more than one batch: copy its row once per batch. Leave the quantity blank for products you don't have.</p>
+            <button type="button" class="btn btn-outline-dark-amson btn-sm" id="downloadCountSheetBtn"><i class="bi bi-download me-1"></i>Download Count Sheet</button>
+          </div>
+        </div>
+        <div class="opening-step">
+          <span class="opening-step-no">2</span>
+          <div class="flex-grow-1">
+            <p class="fw-bold mb-1">Date of the count</p>
+            <input type="date" class="form-control form-control-sm" id="openingStockDate" style="max-width:200px;">
+          </div>
+        </div>
+        <div class="opening-step">
+          <span class="opening-step-no">3</span>
+          <div class="flex-grow-1">
+            <p class="fw-bold mb-1">Upload the filled count sheet</p>
+            <button type="button" class="btn btn-outline-dark-amson btn-sm" id="uploadCountSheetBtn"><i class="bi bi-upload me-1"></i>Choose File</button>
+            <input type="file" id="countSheetFileInput" accept=".xlsx,.xls,.csv" class="d-none">
+            <span class="text-muted ms-2" id="countSheetFileName" style="font-size:0.85rem;"></span>
+          </div>
+        </div>
+        <div id="openingStockSummary" class="d-none mt-2"></div>
+        <div id="openingStockAlert" class="alert auth-alert d-none mt-3 mb-0" role="alert" style="white-space:pre-line;"></div>
+      </div>
+      <div class="modal-footer border-0 px-4 pb-4">
+        <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-amson" id="loadOpeningStockBtn" disabled>Load Opening Stock</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- View a past stock count -->
@@ -584,6 +634,7 @@
 <script src="../js/products-data.js"></script>
 <script src="../js/admin-sidebar.js"></script>
 <script src="../js/admin-inventory.js"></script>
+<script src="../js/admin-opening-stock.js"></script>
 <script src="../js/admin-roles.js"></script>
 <script src="../js/device-trust.js"></script>
 <script src="../js/admin-header.js"></script>
