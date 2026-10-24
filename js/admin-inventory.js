@@ -1362,6 +1362,28 @@ function renderReconciliationItemsBody(session) {
   });
 }
 
+// Differences on a finished count (stored on finalize; worked out for older
+// or saved-but-unfinished counts).
+function stockCountLines(session) {
+  return (session.items || []).map((item) => {
+    const counted = item.countedQty == null ? null : Number(item.countedQty);
+    const diff = item.variance != null ? Number(item.variance) : counted == null ? null : counted - (item.systemQty || 0);
+    return { ...item, countedQty: counted, diff };
+  });
+}
+
+function stockCountSummary(session) {
+  const lines = stockCountLines(session);
+  const diffs = lines.filter((l) => l.diff);
+  return {
+    lines,
+    batches: lines.length,
+    differences: diffs.length,
+    short: diffs.filter((l) => l.diff < 0).reduce((n, l) => n + l.diff, 0),
+    over: diffs.filter((l) => l.diff > 0).reduce((n, l) => n + l.diff, 0),
+  };
+}
+
 function renderPastSessions() {
   const pastSessions = allReconciliations
     .filter((r) => r.status === "finalized")
@@ -1374,21 +1396,122 @@ function renderPastSessions() {
 
   pastSessionsEmpty.classList.toggle("d-none", pastSessions.length > 0);
   pastSessionsList.innerHTML = pastSessions
-    .map(
-      (session) => `
-        <div class="checkout-card p-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    .map((session) => {
+      const sum = stockCountSummary(session);
+      return `
+        <button type="button" class="checkout-card p-3 d-flex justify-content-between align-items-center flex-wrap gap-2 text-start w-100 stock-count-card" data-session-id="${escapeHtml(session.id)}">
           <div>
-            <p class="fw-bold mb-0">${session.rcnNumber}</p>
+            <p class="fw-bold mb-0">${escapeHtml(session.rcnNumber || "")} <span class="fw-normal text-muted">- ${escapeHtml(formatPeriodLabel(session.period))}</span></p>
             <p class="text-muted mb-0" style="font-size:0.85rem;">
-              Month: ${formatPeriodLabel(session.period)} - Started by: ${session.openedBy} - Finalized by: ${session.finalizedBy}
+              ${sum.batches} batch${sum.batches === 1 ? "" : "es"} counted - ${sum.differences ? `<span class="text-danger">${sum.differences} difference${sum.differences === 1 ? "" : "s"}</span>` : "all matched"}
+              - finalized ${escapeHtml(formatDateMDY(session.finalizedAt))} by ${escapeHtml(session.finalizedBy || "-")}
             </p>
           </div>
-          <span class="badge rounded-pill text-bg-success">Finalized</span>
-        </div>
-      `
-    )
+          <span class="d-flex align-items-center gap-2">
+            <span class="badge rounded-pill text-bg-success">Finalized</span>
+            <span class="btn btn-outline-dark-amson btn-sm">View</span>
+          </span>
+        </button>
+      `;
+    })
     .join("");
 }
+
+/* ---------- View a past stock count ---------- */
+const stockCountViewModalEl = document.getElementById("stockCountViewModal");
+let viewedStockCount = null;
+let scViewFilter = "all";
+
+pastSessionsList.addEventListener("click", (e) => {
+  const card = e.target.closest("[data-session-id]");
+  if (!card) return;
+  const session = allReconciliations.find((r) => r.id === card.dataset.sessionId);
+  if (session) openStockCountView(session);
+});
+
+function openStockCountView(session) {
+  viewedStockCount = session;
+  scViewFilter = "all";
+  document.getElementById("scViewSearch").value = "";
+  const sum = stockCountSummary(session);
+  document.getElementById("scViewNumber").textContent = session.rcnNumber || "Stock count";
+  const status = document.getElementById("scViewStatus");
+  status.textContent = session.status === "finalized" ? "Finalized" : "In Progress";
+  status.className = `badge rounded-pill ${session.status === "finalized" ? "text-bg-success" : "text-bg-warning"}`;
+  document.getElementById("scViewMeta").textContent =
+    `Month: ${formatPeriodLabel(session.period)} - Started by ${session.openedBy || "-"}${session.openedAt ? ` on ${formatDateMDY(session.openedAt, true)}` : ""}` +
+    (session.finalizedAt ? ` - Finalized by ${session.finalizedBy || "-"} on ${formatDateMDY(session.finalizedAt, true)}` : "");
+  const tile = (label, value, cls = "") => `
+    <div class="col-6 col-md-3"><div class="checkout-card p-3 h-100">
+      <p class="text-muted mb-1" style="font-size:0.78rem;">${label}</p>
+      <p class="fw-bold mb-0 ${cls}" style="font-size:1.25rem;">${value}</p>
+    </div></div>`;
+  document.getElementById("scViewTiles").innerHTML =
+    tile("Batches counted", sum.batches) +
+    tile("Matched the system", sum.batches - sum.differences, "text-success") +
+    tile("Differences", sum.differences, sum.differences ? "text-danger" : "") +
+    tile("Units short / over", `${sum.short} / +${sum.over}`, sum.short || sum.over ? "text-danger" : "");
+  const reason = document.getElementById("scViewReason");
+  reason.innerHTML = session.varianceReason ? `<strong>Reason given for the differences:</strong> ${escapeHtml(session.varianceReason)}` : "";
+  reason.classList.toggle("d-none", !session.varianceReason);
+  renderStockCountView();
+  bootstrap.Modal.getOrCreateInstance(stockCountViewModalEl).show();
+}
+
+function stockCountViewRows() {
+  const q = document.getElementById("scViewSearch").value.trim().toLowerCase();
+  return stockCountLines(viewedStockCount)
+    .map((l) => ({ ...l, productName: (getProductById(l.productId) || {}).name || "Unknown product" }))
+    .filter((l) => scViewFilter === "all" || l.diff)
+    .filter((l) => !q || `${l.productName} ${l.batchNo || ""}`.toLowerCase().includes(q))
+    .sort((a, b) => Math.abs(b.diff || 0) - Math.abs(a.diff || 0) || a.productName.localeCompare(b.productName));
+}
+
+function renderStockCountView() {
+  const lines = stockCountLines(viewedStockCount);
+  document.getElementById("scViewCountAll").textContent = lines.length;
+  document.getElementById("scViewCountDiff").textContent = lines.filter((l) => l.diff).length;
+  document.querySelectorAll("#scViewFilters [data-filter]").forEach((b) => b.classList.toggle("active", b.dataset.filter === scViewFilter));
+  const rows = stockCountViewRows();
+  document.getElementById("scViewBody").innerHTML = rows
+    .map((l) => `
+      <tr class="${l.diff ? "table-warning" : ""}">
+        <td>${escapeHtml(l.productName)}</td>
+        <td>${escapeHtml(l.batchNo || "-")}</td>
+        <td>${l.expirationDate ? escapeHtml(formatDateMDY(`${l.expirationDate}T12:00:00`)) : "-"}</td>
+        <td class="text-end">${l.systemQty ?? "-"}</td>
+        <td class="text-end">${l.countedQty == null ? "-" : l.countedQty}</td>
+        <td class="text-end fw-bold ${l.diff < 0 ? "text-danger" : l.diff > 0 ? "text-success" : "text-muted"}">${l.diff == null ? "-" : l.diff > 0 ? `+${l.diff}` : l.diff}</td>
+      </tr>`)
+    .join("");
+  document.getElementById("scViewEmpty").classList.toggle("d-none", rows.length > 0);
+}
+
+document.querySelectorAll("#scViewFilters [data-filter]").forEach((btn) =>
+  btn.addEventListener("click", () => {
+    scViewFilter = btn.dataset.filter;
+    renderStockCountView();
+  })
+);
+document.getElementById("scViewSearch").addEventListener("input", renderStockCountView);
+
+document.getElementById("scViewExportBtn").addEventListener("click", () => {
+  if (!viewedStockCount) return;
+  exportTable({
+    title: `Stock Count ${viewedStockCount.rcnNumber || ""}`.trim(),
+    subtitle: `${formatPeriodLabel(viewedStockCount.period)}${viewedStockCount.finalizedBy ? ` - finalized by ${viewedStockCount.finalizedBy}` : ""}${scViewFilter === "diff" ? " - differences only" : ""}`,
+    filenamePrefix: `amson-stock-count-${viewedStockCount.rcnNumber || viewedStockCount.period}`,
+    rows: stockCountViewRows(),
+    columns: [
+      { label: "Product", value: (l) => l.productName, width: 3 },
+      { label: "Batch #", value: (l) => l.batchNo || "" },
+      { label: "Expiry", value: (l) => (l.expirationDate ? formatDateMDY(`${l.expirationDate}T12:00:00`) : "") },
+      { label: "In System", value: (l) => l.systemQty ?? "", width: 0.8 },
+      { label: "Counted", value: (l) => (l.countedQty == null ? "" : l.countedQty), width: 0.8 },
+      { label: "Difference", value: (l) => (l.diff == null ? "" : l.diff > 0 ? `+${l.diff}` : l.diff), width: 0.8 },
+    ],
+  });
+});
 
 openReconciliationSessionBtn.addEventListener("click", () => {
   const now = new Date();

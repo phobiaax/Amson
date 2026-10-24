@@ -2319,3 +2319,11 @@ a {
   color: #b7791f;
   margin-top: 0.2rem;
 }
+
+.stock-count-card {
+  border: 1px solid var(--amson-border);
+  cursor: pointer;
+}
+.stock-count-card:hover {
+  border-color: var(--amson-red);
+}
