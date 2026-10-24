@@ -813,6 +813,19 @@ async function loadCatalogCache() {
   return catalogLoadPromise;
 }
 
+// ---- Duplicate product names ----
+// Two products are the same when their names match ignoring capitals,
+// spaces and punctuation ("Losaar 50 (100's)" = "LOSAAR-50 (100S)").
+function productNameKey(name) {
+  return String(name || "").toUpperCase().replace(/[^A-Z0-9]+/g, "");
+}
+
+function findProductByName(name, exceptId = null) {
+  const key = productNameKey(name);
+  if (!key) return null;
+  return SAMPLE_PRODUCTS.find((p) => p.id !== exceptId && productNameKey(p.name) === key) || null;
+}
+
 // ---- Storefront category links ----
 // Built from the categories collection, so a category staff add or rename
 // in Manage Categories shows up in the shop header (and on the home page)
@@ -880,12 +893,24 @@ function storefrontCatalog() {
 }
 
 /* ---------- SKU generation (same pattern as order numbers) ---------- */
+// Never hands out a code that's already taken: it starts past the highest
+// MED- code in the catalog (in case the counter was reset), and the counter
+// is claimed in a transaction so two staff adding products at the same
+// moment don't get the same number.
 async function generateProductSku() {
   const counterRef = db.collection("counters").doc("products");
-  const counterDoc = await counterRef.get();
-  const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
-  await counterRef.set({ count: nextCount }, { merge: true });
-  return `MED-${String(nextCount).padStart(4, "0")}`;
+  const used = new Set(SAMPLE_PRODUCTS.map((p) => String(p.sku || "").toUpperCase()));
+  const highest = SAMPLE_PRODUCTS.reduce((max, p) => {
+    const m = String(p.sku || "").match(/^MED-(\d+)$/i);
+    return m ? Math.max(max, Number(m[1])) : max;
+  }, 0);
+  return db.runTransaction(async (tx) => {
+    const counterDoc = await tx.get(counterRef);
+    let next = Math.max(counterDoc.exists ? counterDoc.data().count || 0 : 0, highest) + 1;
+    while (used.has(`MED-${String(next).padStart(4, "0")}`)) next += 1;
+    tx.set(counterRef, { count: next }, { merge: true });
+    return `MED-${String(next).padStart(4, "0")}`;
+  });
 }
 
 // jsPDF's built-in fonts can't draw some characters - the peso sign came

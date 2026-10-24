@@ -90,7 +90,7 @@
           <i class="bi bi-clipboard-check"></i>Purchase Orders
         </button>
         <button type="button" class="admin-tab-btn" id="tabReconciliationBtn">
-          <i class="bi bi-clipboard-data"></i>Reconciliation
+          <i class="bi bi-clipboard-data"></i>Stock Count
         </button>
       </div>
 
@@ -219,7 +219,7 @@
         </div>
       </div>
 
-      <!-- ===== Reconciliation tab ===== -->
+      <!-- ===== Stock Count tab (stored as "reconciliations") ===== -->
       <div id="reconciliationPanel" class="d-none">
         <!-- Active session view -->
         <div id="reconciliationActiveView" class="checkout-card p-4 mb-4 d-none">
@@ -241,9 +241,9 @@
                   <th>Product</th>
                   <th>Batch #</th>
                   <th>Expiry</th>
-                  <th>System Qty</th>
-                  <th>Counted Qty</th>
-                  <th>Variance</th>
+                  <th>In System</th>
+                  <th>Counted</th>
+                  <th>Difference</th>
                 </tr>
               </thead>
               <tbody id="reconciliationItemsBody"></tbody>
@@ -256,39 +256,39 @@
         <!-- Empty state (no active session) -->
         <div id="reconciliationEmptyState" class="text-center py-5 mb-4" style="border:2px dashed var(--amson-border); border-radius:12px;">
           <i class="bi bi-paperclip" style="font-size:2rem; color: var(--amson-text-muted);"></i>
-          <p class="text-muted mt-2 mb-3">No Active Reconciliation Session</p>
+          <p class="text-muted mt-2 mb-3">No stock count in progress</p>
           <button type="button" class="btn btn-amson" id="openReconciliationSessionBtn">
-            <i class="bi bi-plus-lg me-1"></i>Open New Session
+            <i class="bi bi-plus-lg me-1"></i>Start Stock Count
           </button>
         </div>
 
-        <h2 class="h5 fw-bold mb-3">Past Sessions</h2>
+        <h2 class="h5 fw-bold mb-3">Past Stock Counts</h2>
         <div id="pastSessionsList" class="d-flex flex-column gap-2"></div>
-        <p class="text-muted text-center py-4 d-none" id="pastSessionsEmpty">No past reconciliation sessions yet.</p>
+        <p class="text-muted text-center py-4 d-none" id="pastSessionsEmpty">No stock counts yet.</p>
       </div>
     </div>
   </main>
 </div>
 
-<!-- Open New Reconciliation Session modal -->
+<!-- Start Stock Count modal -->
 <div class="modal fade" id="openReconciliationModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content p-4">
-      <h2 class="mb-1">Open New Reconciliation Session</h2>
-      <p class="text-muted mb-3">Select the period (month) for this physical inventory count.</p>
+      <h2 class="mb-1">Start a Stock Count</h2>
+      <p class="text-muted mb-3">Choose the month this count is for (usually the month-end count).</p>
 
-      <label class="form-label">Period</label>
+      <label class="form-label">Month</label>
       <input type="month" class="form-control mb-3" id="reconciliationPeriodInput">
 
       <div class="alert alert-warning" style="font-size:0.85rem;">
-        Only one active session can exist at a time. Opening a session will load the current system inventory for physical counting.
+        Only one stock count can be open at a time. Starting one lists every batch with the quantity the system has, for staff to count on the shelf.
       </div>
 
       <div id="openReconciliationAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
 
       <div class="d-flex gap-2">
         <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-amson flex-fill" id="confirmOpenSessionBtn">Open Session</button>
+        <button type="button" class="btn btn-amson flex-fill" id="confirmOpenSessionBtn">Start Count</button>
       </div>
     </div>
   </div>

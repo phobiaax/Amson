@@ -266,7 +266,7 @@ async function generateRcnNumber() {
   const counterDoc = await counterRef.get();
   const nextCount = (counterDoc.exists ? counterDoc.data().count : 0) + 1;
   await counterRef.set({ count: nextCount }, { merge: true });
-  return `RCN-${year}-${String(nextCount).padStart(2, "0")}`;
+  return `SC-${year}-${String(nextCount).padStart(2, "0")}`;
 }
 
 /* ---------- Formatting ---------- */
@@ -1302,7 +1302,7 @@ saveWriteOffBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Stock Reconciliation (session-based) ---------- */
+/* ---------- Stock Count (stored in "reconciliations") ---------- */
 function findActiveSession() {
   return allReconciliations.find((r) => r.status === "in_progress") || null;
 }
@@ -1322,7 +1322,7 @@ function renderReconciliationTab() {
 
   if (activeSession) {
     reconciliationRcnNumber.textContent = activeSession.rcnNumber;
-    reconciliationMeta.textContent = `Period: ${formatPeriodLabel(activeSession.period)} - Opened by: ${activeSession.openedBy}`;
+    reconciliationMeta.textContent = `Month: ${formatPeriodLabel(activeSession.period)} - Started by: ${activeSession.openedBy}`;
     renderReconciliationItemsBody(activeSession);
   }
 
@@ -1380,7 +1380,7 @@ function renderPastSessions() {
           <div>
             <p class="fw-bold mb-0">${session.rcnNumber}</p>
             <p class="text-muted mb-0" style="font-size:0.85rem;">
-              Period: ${formatPeriodLabel(session.period)} - Opened by: ${session.openedBy} - Finalized by: ${session.finalizedBy}
+              Month: ${formatPeriodLabel(session.period)} - Started by: ${session.openedBy} - Finalized by: ${session.finalizedBy}
             </p>
           </div>
           <span class="badge rounded-pill text-bg-success">Finalized</span>
@@ -1400,12 +1400,12 @@ openReconciliationSessionBtn.addEventListener("click", () => {
 confirmOpenSessionBtn.addEventListener("click", async () => {
   const period = reconciliationPeriodInput.value;
   if (!period) {
-    openReconciliationAlert.textContent = "Please select a period.";
+    openReconciliationAlert.textContent = "Please choose the month.";
     openReconciliationAlert.classList.remove("d-none");
     return;
   }
   if (findActiveSession()) {
-    openReconciliationAlert.textContent = "A reconciliation session is already in progress.";
+    openReconciliationAlert.textContent = "A stock count is already in progress - finish it first.";
     openReconciliationAlert.classList.remove("d-none");
     return;
   }
@@ -1440,7 +1440,7 @@ confirmOpenSessionBtn.addEventListener("click", async () => {
     bootstrap.Modal.getInstance(openReconciliationModalEl).hide();
     await loadInventory();
   } catch (error) {
-    openReconciliationAlert.textContent = "Something went wrong opening this session. Please try again.";
+    openReconciliationAlert.textContent = "Something went wrong starting the stock count. Please try again.";
     openReconciliationAlert.classList.remove("d-none");
   } finally {
     confirmOpenSessionBtn.disabled = false;
@@ -1487,7 +1487,7 @@ submitCountBtn.addEventListener("click", async () => {
   let varianceReason = "";
   if (variances.length > 0) {
     const reason = await showAppPrompt(
-      `${variances.length} batch${variances.length === 1 ? " has" : "es have"} a variance. Stock will be changed to the counted quantities. What's the reason for the variance?`,
+      `${variances.length} batch${variances.length === 1 ? " doesn't" : "es don't"} match the system. Stock will be changed to the counted quantities. What's the reason for the difference?`,
       { title: "Finalize Count", confirmLabel: "Finalize", defaultValue: "" }
     );
     if (reason === null) return;
@@ -1496,7 +1496,7 @@ submitCountBtn.addEventListener("click", async () => {
       await showAppAlert("A reason is required when the count differs from the system. Nothing was changed.");
       return;
     }
-  } else if (!(await showAppConfirm("Submit this count? It matches the system, so no stock changes. This finalizes the session.", { confirmLabel: "Submit" }))) {
+  } else if (!(await showAppConfirm("Submit this count? It matches the system, so no stock changes. This finalizes the stock count.", { confirmLabel: "Submit" }))) {
     return;
   }
 
@@ -1531,7 +1531,7 @@ submitCountBtn.addEventListener("click", async () => {
 
     const adjustedCount = updatedItems.filter((i) => i.variance !== 0).length;
     await logAuditEvent({
-      action: "Stock Reconciliation Finalized",
+      action: "Stock Count Finalized",
       details:
         `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)}) - ${adjustedCount} batch${adjustedCount === 1 ? "" : "es"} adjusted` +
         (variances.length
@@ -1938,7 +1938,7 @@ function renderPoDiscrepancyReport(po) {
   const record = po.receivingRecord || { items: [], discrepancies: [] };
 
   content.innerHTML = `
-    <p class="text-muted mb-3">Variance detected between what was ordered and what arrived. Acknowledge to close this record.</p>
+    <p class="text-muted mb-3">What arrived doesn't match what was ordered. Acknowledge to close this record.</p>
     <table class="table admin-orders-table align-middle mb-0">
       <thead>
         <tr><th>Product</th><th>Expected</th><th>Received</th><th>Difference</th></tr>

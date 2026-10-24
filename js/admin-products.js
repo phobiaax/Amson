@@ -418,6 +418,13 @@ saveProductBtn.addEventListener("click", async () => {
     return;
   }
 
+  const sameName = findProductByName(name, editingProductId);
+  if (sameName) {
+    productModalAlert.textContent = `"${sameName.name}" (${sameName.sku || "no SKU"}) is already in the catalog. Edit that product instead, or make this name different (for example add the brand or pack size).`;
+    productModalAlert.classList.remove("d-none");
+    return;
+  }
+
   saveProductBtn.disabled = true;
   productModalAlert.classList.add("d-none");
 
@@ -578,7 +585,7 @@ function batchReviewRowHtml(row = {}) {
         <div class="br-image-preview" style="width:40px;height:40px;border-radius:6px;background-color:#f2f2f4;background-size:cover;background-position:center;cursor:pointer;" title="Click to upload an image"></div>
         <input type="file" class="d-none br-image-input" accept="image/png,image/jpeg">
       </td>
-      <td><input type="text" class="form-control form-control-sm br-name" value="${escapeHtml(row.name || "")}"></td>
+      <td><input type="text" class="form-control form-control-sm br-name" value="${escapeHtml(row.name || "")}"><div class="br-dup-note d-none"></div></td>
       <td><input type="text" class="form-control form-control-sm br-genericname" value="${escapeHtml(row.genericname || "")}"></td>
       <td><input type="text" class="form-control form-control-sm br-brand" value="${escapeHtml(row.brand || "")}"></td>
       <td><input type="text" class="form-control form-control-sm br-category" value="${row.category || ""}"></td>
@@ -661,16 +668,72 @@ function showTaskResult({ type = "success", title, message = "", list = [], acti
 function hideModalAndWait(el) {
   const modal = bootstrap.Modal.getInstance(el);
   if (!modal || !el.classList.contains("show")) return Promise.resolve();
+  // A modal still opening ignores hide(), so keep asking until it's gone
+  // (gives up after 3 s rather than waiting forever).
   return new Promise((resolve) => {
-    el.addEventListener("hidden.bs.modal", () => resolve(), { once: true });
-    modal.hide();
+    const started = Date.now();
+    const check = () => {
+      const gone = !el.classList.contains("show") && el.style.display !== "block";
+      if (gone || Date.now() - started > 3000) return resolve();
+      modal.hide();
+      setTimeout(check, 150);
+    };
+    check();
   });
 }
 
-function updateBatchReviewCount() {
-  const count = batchReviewTableBody.querySelectorAll("tr").length;
-  batchReviewCount.textContent = `${count} product${count === 1 ? "" : "s"} ready to import`;
+// Marks rows whose product is already in the catalog, or that repeat an
+// earlier row of the same file. Those rows are skipped on import.
+function markBatchDuplicates() {
+  const seen = new Map();
+  let inCatalog = 0;
+  let repeated = 0;
+  Array.from(batchReviewTableBody.querySelectorAll("tr")).forEach((tr, index) => {
+    const nameInput = tr.querySelector(".br-name");
+    const note = tr.querySelector(".br-dup-note");
+    const key = productNameKey(nameInput.value);
+    let reason = "";
+    const existing = key ? findProductByName(nameInput.value) : null;
+    if (existing) {
+      reason = `Already in the catalog (${existing.sku || existing.name}) - will be skipped`;
+      inCatalog += 1;
+    } else if (key && seen.has(key)) {
+      reason = `Same as row ${seen.get(key) + 1} - will be skipped`;
+      repeated += 1;
+    } else if (key) {
+      seen.set(key, index);
+    }
+    tr.classList.toggle("br-duplicate", !!reason);
+    tr.dataset.duplicate = reason ? "1" : "";
+    note.textContent = reason;
+    note.classList.toggle("d-none", !reason);
+  });
+  return { inCatalog, repeated };
 }
+
+function updateBatchReviewCount() {
+  const { inCatalog, repeated } = markBatchDuplicates();
+  const rows = batchReviewTableBody.querySelectorAll("tr").length;
+  const ready = rows - inCatalog - repeated;
+  const skipped = [inCatalog ? `${inCatalog} already in the catalog` : "", repeated ? `${repeated} repeated in this file` : ""].filter(Boolean).join(", ");
+  batchReviewCount.textContent = `${ready} product${ready === 1 ? "" : "s"} ready to import${skipped ? ` - ${skipped} will be skipped` : ""}`;
+  batchReviewRemoveDupesBtn.classList.toggle("d-none", !(inCatalog + repeated));
+  batchReviewRemoveDupesBtn.textContent = `Remove ${inCatalog + repeated} duplicate${inCatalog + repeated === 1 ? "" : "s"}`;
+  batchReviewConfirmBtn.textContent = ready ? `Import ${ready} Product${ready === 1 ? "" : "s"}` : "Confirm Import";
+}
+
+const batchReviewRemoveDupesBtn = document.getElementById("batchReviewRemoveDupesBtn");
+batchReviewRemoveDupesBtn.addEventListener("click", () => {
+  batchReviewTableBody.querySelectorAll('tr[data-duplicate="1"]').forEach((tr) => tr.remove());
+  updateBatchReviewCount();
+});
+
+let batchDupTimer = null;
+batchReviewTableBody.addEventListener("input", (e) => {
+  if (!e.target.classList.contains("br-name")) return;
+  clearTimeout(batchDupTimer);
+  batchDupTimer = setTimeout(updateBatchReviewCount, 250);
+});
 
 async function openBatchReviewModal(rows) {
   await hideModalAndWait(document.getElementById("productModal"));
@@ -716,9 +779,22 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
     return;
   }
 
+  // Check against the catalog as it is now (someone may have added products
+  // since the file was opened), then leave duplicates out.
+  catalogLoadPromise = null;
+  await loadCatalogCache();
+  updateBatchReviewCount();
+  const duplicateRows = rowEls.filter((tr) => tr.dataset.duplicate === "1");
+  const importRows = rowEls.filter((tr) => tr.dataset.duplicate !== "1");
+  if (!importRows.length) {
+    batchReviewAlert.textContent = "Every product in this list is already in the catalog (or repeated) - there's nothing new to import.";
+    batchReviewAlert.classList.remove("d-none");
+    return;
+  }
+
   let hasInvalid = false;
   rowEls.forEach((tr) => tr.classList.remove("table-danger"));
-  const parsedRows = rowEls.map((tr) => {
+  const parsedRows = importRows.map((tr) => {
     const get = (cls) => tr.querySelector(`.${cls}`);
     const name = get("br-name").value.trim();
     const retailPrice = get("br-retailprice").value;
@@ -754,6 +830,8 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
 
   batchReviewAlert.classList.add("d-none");
   batchReviewConfirmBtn.disabled = true;
+  const skippedNames = duplicateRows.map((tr) => tr.querySelector(".br-name").value.trim());
+  duplicateRows.forEach((tr) => tr.remove());
   await hideModalAndWait(batchReviewModalEl);
   showTaskProgress("Importing products", "Keep this page open until it finishes.");
 
@@ -798,18 +876,20 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
   batchUploadStatus.textContent = `Imported ${imported} product${imported === 1 ? "" : "s"}.${failedRows.length ? ` ${failedRows.length} failed to save - please try those again.` : ""}`;
   batchFileInput.value = "";
   if (imported) {
-    await logAuditEvent({ action: "Products Imported", details: `${imported} product${imported === 1 ? "" : "s"} from a batch file${failedRows.length ? `; ${failedRows.length} failed` : ""}` });
+    await logAuditEvent({ action: "Products Imported", details: `${imported} product${imported === 1 ? "" : "s"} from a batch file${failedRows.length ? `; ${failedRows.length} failed` : ""}${skippedNames.length ? `; ${skippedNames.length} duplicates skipped` : ""}` });
   }
   catalogLoadPromise = null;
   await loadProducts();
 
   const plural = (n) => `${n} product${n === 1 ? "" : "s"}`;
   let choice;
+  const skippedNote = skippedNames.length ? `\n${plural(skippedNames.length)} skipped - already in the catalog or repeated.` : "";
   if (!failedRows.length) {
     choice = await showTaskResult({
       type: "success",
       title: "Import complete",
-      message: `${plural(imported)} added to the catalog.${canEditPrices() ? "" : "\nThey stay Inactive until the Branch Manager sets their prices."}`,
+      message: `${plural(imported)} added to the catalog.${skippedNote}${canEditPrices() ? "" : "\nThey stay Inactive until the Branch Manager sets their prices."}`,
+      list: skippedNames.slice(0, 50).concat(skippedNames.length > 50 ? [`...and ${skippedNames.length - 50} more`] : []),
       actions: [
         { key: "photos", label: "Add photos" },
         { key: "done", label: "Done", primary: true },
@@ -819,7 +899,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
     choice = await showTaskResult({
       type: imported ? "warning" : "danger",
       title: imported ? "Import finished with problems" : "Import failed",
-      message: `${plural(imported)} added. ${plural(failedRows.length)} didn't save (check the connection); they're kept so you can try again.`,
+      message: `${plural(imported)} added. ${plural(failedRows.length)} didn't save (check the connection); they're kept so you can try again.${skippedNote}`,
       list: failedRows.map((r) => r.name),
       actions: [
         { key: "done", label: "Close" },

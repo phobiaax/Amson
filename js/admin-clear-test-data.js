@@ -192,7 +192,7 @@ clearTestDataBtn.addEventListener("click", async () => {
   const summary = [
     ...groups.map((g) => `- ${g.label}`),
     accounts.length ? `- ${accounts.length} account(s)` : "",
-    restartNumbering ? "- Restart order/PO/reconciliation/exchange numbers" : "",
+    restartNumbering ? "- Restart order/PO/stock count/exchange numbers" : "",
     lastSi !== null ? `- Next SI No. will be ${formatInvoiceNo(lastSi + 1)}` : "",
   ].filter(Boolean).join("\n");
   const ok = await showAppConfirm(`This will permanently delete:\n${summary}\n\nThis cannot be undone.`, { title: "Delete Test Data?", confirmLabel: "Delete" });

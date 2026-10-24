@@ -2305,3 +2305,17 @@ a {
 .min-w-0 {
   min-width: 0;
 }
+
+/* Batch import: rows skipped as duplicates */
+#batchReviewTableBody tr.br-duplicate > td {
+  background-color: #fff7e6;
+}
+#batchReviewTableBody tr.br-duplicate .br-name {
+  text-decoration: line-through;
+  color: var(--amson-text-muted);
+}
+.br-dup-note {
+  font-size: 0.72rem;
+  color: #b7791f;
+  margin-top: 0.2rem;
+}
