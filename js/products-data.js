@@ -403,6 +403,9 @@ async function computeStaffNotifications() {
   const physicalStockByProduct = sumPhysicalStockByProduct(batchSnapshot.docs.map((doc) => doc.data()));
   SAMPLE_PRODUCTS.filter((p) => p.status === "active").forEach((p) => {
     const stock = physicalStockByProduct[p.id] || 0;
+    // A product that has never had a batch (just added, stock not received
+    // yet) isn't "out of stock" - only one that had stock and ran out.
+    if (stock === 0 && !(p.id in lastStockChange)) return;
     if (stock === 0) {
       notifications.push({
         key: `out_of_stock:${p.id}`,
@@ -704,6 +707,41 @@ async function markBatchBadOrder(batchId) {
       reason: result.reason,
     });
   }
+}
+
+// Shop sections: how customers browse the online store (by need), separate
+// from the branch's categories above, which drive the month-end reports.
+// A product has at most one; products without one still show under All.
+const SHOP_SECTIONS = [
+  { id: "pain-fever", label: "Pain & Fever", icon: "bi-thermometer-half" },
+  { id: "cough-colds", label: "Cough & Colds", icon: "bi-wind" },
+  { id: "allergy", label: "Allergy", icon: "bi-flower1" },
+  { id: "stomach", label: "Stomach & Digestion", icon: "bi-capsule" },
+  { id: "vitamins", label: "Vitamins & Supplements", icon: "bi-sun" },
+  { id: "skin", label: "Skin Care", icon: "bi-droplet" },
+  { id: "heart-bp", label: "Heart & Blood Pressure", icon: "bi-heart-pulse" },
+  { id: "diabetes", label: "Diabetes", icon: "bi-droplet-half" },
+  { id: "antibiotics", label: "Antibiotics (Rx)", icon: "bi-prescription2" },
+  { id: "devices", label: "Health Devices & Tests", icon: "bi-activity" },
+  { id: "first-aid", label: "First Aid & Medical Supplies", icon: "bi-bandaid" },
+  { id: "personal-care", label: "Personal Care", icon: "bi-person" },
+];
+const SHOP_SECTION_LABELS = Object.fromEntries(SHOP_SECTIONS.map((s) => [s.id, s.label]));
+
+// A section id from what someone typed in an import file: its id or its
+// name, ignoring case, spaces and "&"/"and". Unknown text -> "" (none).
+function resolveShopSection(text) {
+  const key = (v) => String(v || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "");
+  const k = key(text);
+  if (!k) return "";
+  const hit = SHOP_SECTIONS.find((s) => key(s.id) === k || key(s.label) === k);
+  return hit ? hit.id : "";
+}
+
+// Sections that have at least one product in the online store, in list order.
+function storefrontShopSections() {
+  const used = new Set(storefrontCatalog().map((p) => p.shopSection).filter(Boolean));
+  return SHOP_SECTIONS.filter((s) => used.has(s.id));
 }
 
 // The branch's own groupings (one sheet each in its month-end inventory
@@ -1073,28 +1111,36 @@ function escapeHtml(text) {
 function renderStorefrontCategoryNav() {
   const nav = document.querySelector(".category-nav .nav");
   if (!nav) return;
-  const links = Object.entries(CATEGORY_LABELS)
-    .map(([id, name]) => `<li class="nav-item"><a class="nav-link" href="products.html?category=${encodeURIComponent(id)}">${escapeHtml(name)}</a></li>`)
-    .join("");
+  // Customers browse by shop section (by need); until products have
+  // sections, the branch categories are shown instead.
+  const sections = storefrontShopSections();
+  const links = sections.length
+    ? sections.map((sec) => `<li class="nav-item"><a class="nav-link" href="products.html?section=${encodeURIComponent(sec.id)}">${escapeHtml(sec.label)}</a></li>`).join("")
+    : Object.entries(CATEGORY_LABELS)
+        .map(([id, name]) => `<li class="nav-item"><a class="nav-link" href="products.html?category=${encodeURIComponent(id)}">${escapeHtml(name)}</a></li>`)
+        .join("");
   nav.innerHTML = `<li class="nav-item"><a class="nav-link" href="products.html">All Products</a></li>${links}`;
 }
 
 function renderHomeCategoryCards() {
   const row = document.getElementById("homeCategoryCards");
   if (!row) return;
-  row.innerHTML = Object.entries(CATEGORY_LABELS)
-    .map(([id, name]) => {
-      const count = storefrontCatalog().filter((p) => p.category === id).length;
-      return `
+  const sections = storefrontShopSections();
+  const cards = sections.length
+    ? sections.map((sec) => ({ href: `products.html?section=${encodeURIComponent(sec.id)}`, name: sec.label, icon: sec.icon, count: storefrontCatalog().filter((p) => p.shopSection === sec.id).length }))
+    : Object.entries(CATEGORY_LABELS).map(([id, name]) => ({ href: `products.html?category=${encodeURIComponent(id)}`, name, icon: "bi-star-fill", count: storefrontCatalog().filter((p) => p.category === id).length }));
+  row.innerHTML = cards
+    .map(
+      (c) => `
         <div class="col">
-          <a href="products.html?category=${encodeURIComponent(id)}" class="category-card">
-            <span class="category-icon"><i class="bi bi-star-fill"></i></span>
-            <h3>${escapeHtml(name)}</h3>
-            <p>${count} product${count === 1 ? "" : "s"}</p>
+          <a href="${c.href}" class="category-card">
+            <span class="category-icon"><i class="bi ${c.icon}"></i></span>
+            <h3>${escapeHtml(c.name)}</h3>
+            <p>${c.count} product${c.count === 1 ? "" : "s"}</p>
           </a>
         </div>
-      `;
-    })
+      `
+    )
     .join("");
 }
 

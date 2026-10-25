@@ -19,6 +19,7 @@ const applyFiltersBtn = document.getElementById("applyFiltersBtn");
 const priceMinInput = document.getElementById("priceMinInput");
 const priceMaxInput = document.getElementById("priceMaxInput");
 const stockFilterSelect = document.getElementById("stockFilterSelect");
+const sectionFilterSelect = document.getElementById("sectionFilterSelect");
 const productsHeading = document.getElementById("productsHeading");
 const searchSummary = document.getElementById("searchSummary");
 
@@ -67,6 +68,7 @@ function applyFilters() {
   let filtered = selected.length
     ? storefrontCatalog().filter((p) => selected.includes(p.category))
     : storefrontCatalog();
+  if (sectionFilterSelect.value) filtered = filtered.filter((p) => p.shopSection === sectionFilterSelect.value);
 
   const minPrice = parseFloat(priceMinInput.value);
   const maxPrice = parseFloat(priceMaxInput.value);
@@ -152,6 +154,10 @@ applyFiltersBtn.addEventListener("click", applyFilters);
 (async function init() {
   await loadCatalogCache();
   renderCategoryFilters();
+  // Only sections that have products in the store.
+  sectionFilterSelect.innerHTML =
+    '<option value="">All sections</option>' +
+    storefrontShopSections().map((sec) => `<option value="${escapeHtml(sec.id)}">${escapeHtml(sec.label)}</option>`).join("");
   currentFiltered = storefrontCatalog();
 
   if (searchTerm) {
@@ -166,6 +172,13 @@ applyFiltersBtn.addEventListener("click", applyFilters);
     catAll.checked = false;
     const match = categoryFilters.find((cb) => cb.value === initialCategory);
     if (match) match.checked = true;
+  }
+
+  // ---- Pre-select shop section from query param ----
+  const initialSection = new URLSearchParams(window.location.search).get("section");
+  if (initialSection && SHOP_SECTION_LABELS[initialSection]) {
+    sectionFilterSelect.value = initialSection;
+    if (!searchTerm) productsHeading.textContent = SHOP_SECTION_LABELS[initialSection];
   }
 
   applyFilters();
