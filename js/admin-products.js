@@ -105,6 +105,11 @@ async function loadProducts() {
   }
 }
 
+const productShopSectionSelect = document.getElementById("productShopSectionSelect");
+productShopSectionSelect.innerHTML =
+  '<option value="">None (shows under All only)</option>' +
+  SHOP_SECTIONS.map((sec) => `<option value="${sec.id}">${escapeHtml(sec.label)}</option>`).join("");
+
 let categorySelectChoices = null;
 
 function renderCategorySelect() {
@@ -289,6 +294,7 @@ function resetProductForm() {
   productReorderPointInput.value = "";
   productDescriptionInput.value = "";
   productDosageNotesInput.value = "";
+  productShopSectionSelect.value = "";
   productAvailablePOS.checked = true;
   productAvailableOnline.checked = true;
   setToggleValue(productRxToggle, "no");
@@ -361,6 +367,7 @@ function openEditModal(product) {
   productReorderPointInput.value = product.reorderPoint ?? "";
   productDescriptionInput.value = product.description || "";
   productDosageNotesInput.value = product.dosageNotes || "";
+  productShopSectionSelect.value = SHOP_SECTION_LABELS[product.shopSection] ? product.shopSection : "";
   productAvailablePOS.checked = !!product.availableInPOS;
   productAvailableOnline.checked = !!product.availableInOnlineStore;
   setToggleValue(productRxToggle, product.rxRequired ? "yes" : "no");
@@ -445,6 +452,7 @@ saveProductBtn.addEventListener("click", async () => {
       reorderPoint: parseInt(productReorderPointInput.value, 10) || DEFAULT_REORDER_POINT,
       description: productDescriptionInput.value.trim(),
       dosageNotes: productDosageNotesInput.value.trim(),
+      shopSection: productShopSectionSelect.value || "",
       imageUrl: imageUrl || null,
       availableInPOS: productAvailablePOS.checked,
       availableInOnlineStore: productAvailableOnline.checked,
@@ -558,7 +566,7 @@ deleteProductBtn.addEventListener("click", async () => {
 
 /* ---------- Batch upload (Excel .xlsx/.xls or .csv, via SheetJS) ---------- */
 const BATCH_TEMPLATE_HEADERS = [
-  "name", "genericName", "brand", "category", "costingPrice", "retailPrice",
+  "name", "genericName", "brand", "category", "shopSection", "costingPrice", "retailPrice",
   "wholesalePrice", "description", "availableInPOS", "availableInOnlineStore",
   "rxRequired", "status",
 ];
@@ -567,7 +575,7 @@ uploadBatchBtn.addEventListener("click", () => batchFileInput.click());
 
 downloadTemplateBtn.addEventListener("click", () => {
   const exampleRow = {
-    name: "Biogesic 500mg", genericName: "Paracetamol", brand: "Biogesic", category: "Branded",
+    name: "Biogesic 500mg", genericName: "Paracetamol", brand: "Biogesic", category: "Branded", shopSection: "Pain & Fever",
     costingPrice: 3.5, retailPrice: 8, wholesalePrice: 6.5, description: "For fever and pain relief",
     availableInPOS: "yes", availableInOnlineStore: "yes", rxRequired: "no", status: "active",
   };
@@ -596,6 +604,12 @@ function batchReviewRowHtml(row = {}) {
       <td><input type="text" class="form-control form-control-sm br-genericname" value="${escapeHtml(row.genericname || "")}"></td>
       <td><input type="text" class="form-control form-control-sm br-brand" value="${escapeHtml(row.brand || "")}"></td>
       <td><input type="text" class="form-control form-control-sm br-category" value="${row.category || ""}"></td>
+      <td>
+        <select class="form-select form-select-sm br-shopsection">
+          <option value="">None</option>
+          ${SHOP_SECTIONS.map((sec) => `<option value="${sec.id}" ${resolveShopSection(row.shopsection || row["shop section"]) === sec.id ? "selected" : ""}>${escapeHtml(sec.label)}</option>`).join("")}
+        </select>
+      </td>
       <td><input type="number" min="0" step="0.01" class="form-control form-control-sm br-costingprice" value="${row.costingprice || ""}"></td>
       <td><input type="number" min="0" step="0.01" class="form-control form-control-sm br-retailprice" value="${row.retailprice || ""}"></td>
       <td><input type="number" min="0" step="0.01" class="form-control form-control-sm br-wholesaleprice" value="${row.wholesaleprice || ""}"></td>
@@ -741,6 +755,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
       genericName: get("br-genericname").value.trim(),
       brand: get("br-brand").value.trim(),
       category: get("br-category").value.trim(),
+      shopSection: get("br-shopsection").value,
       costingPrice: parseFloat(get("br-costingprice").value) || 0,
       retailPrice: parseFloat(retailPrice) || 0,
       wholesalePrice: parseFloat(get("br-wholesaleprice").value) || 0,
@@ -783,6 +798,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
         genericName: row.genericName,
         brand: row.brand,
         category: categoryId,
+        shopSection: row.shopSection || "",
         costingPrice: pricesAllowed ? row.costingPrice : 0,
         retailPrice: pricesAllowed ? row.retailPrice : 0,
         wholesalePrice: pricesAllowed ? row.wholesalePrice : 0,
