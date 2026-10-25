@@ -7,12 +7,9 @@ const adminProfileName = document.getElementById("adminProfileName");
 const adminLogoutBtn = document.getElementById("adminLogoutBtn");
 
 if (adminDateLabel) {
-  adminDateLabel.textContent = new Date().toLocaleDateString("en-PH", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  // Weekday + MM/DD/YYYY, the date format used everywhere else (REQNF028).
+  const today = new Date();
+  adminDateLabel.textContent = `${today.toLocaleDateString("en-PH", { weekday: "long" })}, ${formatDateMDY(today)}`;
 }
 
 auth.onAuthStateChanged(async (user) => {

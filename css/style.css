@@ -857,6 +857,28 @@ a {
 }
 .cart-item-details {
   flex-grow: 1;
+  min-width: 0;
+}
+/* Phones: quantity + Remove wrap under the name, and the line total gets
+   its own row on the right, so the cart never runs off the screen. */
+@media (max-width: 575.98px) {
+  .cart-item-row {
+    flex-wrap: wrap;
+  }
+  .cart-item-image {
+    width: 60px;
+    height: 60px;
+  }
+  .cart-item-details {
+    flex-basis: calc(100% - 60px - 1.15rem - 2rem);
+  }
+  .cart-item-details .d-flex {
+    flex-wrap: wrap;
+  }
+  .cart-item-row > .product-price {
+    width: 100%;
+    text-align: right;
+  }
 }
 .remove-item-link {
   color: var(--amson-red);

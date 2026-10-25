@@ -91,7 +91,7 @@ function renderCartPage() {
           <input type="checkbox" class="cart-item-checkbox" data-id="${product.id}" ${isSelected ? "checked" : ""} aria-label="Select ${product.name} for checkout">
           <div class="cart-item-image" style="${cartItemImageCss(product.imageUrl)}"></div>
           <div class="cart-item-details">
-            <h3 class="product-name mb-2">${product.name}</h3>
+            <h3 class="product-name mb-2">${escapeHtml(product.name)}</h3>
             <div class="d-flex align-items-center gap-3">
               <div class="qty-stepper">
                 <button type="button" class="cart-qty-minus" aria-label="Decrease quantity">&minus;</button>
