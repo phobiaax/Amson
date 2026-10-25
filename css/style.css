@@ -111,7 +111,10 @@ a {
   background-color: #fff;
   border-bottom: 1px solid var(--amson-border);
 }
+/* Always one line: centred when it fits (auto margins), scrolls sideways when it doesn't. */
 .category-nav .nav {
+  flex-wrap: nowrap !important;
+  justify-content: flex-start !important;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -121,9 +124,21 @@ a {
 }
 .category-nav .nav-link {
   color: var(--amson-dark);
-  font-size: 0.92rem;
-  padding: 0.85rem 1rem;
+  font-size: 0.78rem;
+  padding: 0.75rem 0.5rem;
   white-space: nowrap;
+}
+.category-nav .nav-item:first-child {
+  margin-left: auto;
+}
+.category-nav .nav-item:last-child {
+  margin-right: auto;
+}
+/* On laptops the bar may use the full screen width so all 9 fit on one line. */
+@media (min-width: 1200px) {
+  .category-nav .container {
+    max-width: none;
+  }
 }
 .category-nav .nav-link:hover {
   color: var(--amson-red);
