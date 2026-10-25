@@ -12,8 +12,9 @@
  * the site normally, but isn't enforced by the database itself.
  */
 
-// Set to false only while testing with accounts that have no real inbox.
-const REQUIRE_DEVICE_CODE = true;
+// New-device login codes (REQ005, REQ044). Turned off 2026-10-25 (team
+// decision) - set back to true to require a code from unrecognized devices.
+const REQUIRE_DEVICE_CODE = false;
 
 const DEVICE_ID_KEY = "amsonDeviceId";
 const DEVICE_PENDING_KEY = "amsonDeviceCheckPending";
