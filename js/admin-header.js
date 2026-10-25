@@ -1,0 +1,255 @@
+/**
+ * Shared admin shell logic.
+ */
+
+const adminDateLabel = document.getElementById("adminDateLabel");
+const adminProfileName = document.getElementById("adminProfileName");
+const adminLogoutBtn = document.getElementById("adminLogoutBtn");
+
+if (adminDateLabel) {
+  // Weekday + MM/DD/YYYY, the date format used everywhere else (REQNF028).
+  const today = new Date();
+  adminDateLabel.textContent = `${today.toLocaleDateString("en-PH", { weekday: "long" })}, ${formatDateMDY(today)}`;
+}
+
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    window.location.href = "../login.html";
+    return;
+  }
+
+  try {
+    const doc = await db.collection("users").doc(user.uid).get();
+    if (!doc.exists || !STAFF_ROLES.includes(doc.data().role)) {
+      window.location.href = "../shop/index.html";
+      return;
+    }
+
+    const admin = doc.data();
+    // Deactivated in Staff Management: signed out even if "Remember me" kept them in.
+    if (admin.accountStatus === "deactivated") {
+      try {
+        sessionStorage.setItem("amsonLoginNotice", "This account has been deactivated. Please contact the Branch Manager.");
+      } catch (error) {}
+      await auth.signOut();
+      window.location.href = "../login.html";
+      return;
+    }
+    // Staff need a confirmed device too (REQ044).
+    if (typeof enforceRecognizedDevice === "function" && !(await enforceRecognizedDevice(admin))) return;
+
+    if (!roleCanAccessPage(admin.role, currentAdminPageName())) {
+      await showAppAlert("You don't have access to that page.");
+      window.location.href = homePageForRole(admin.role);
+      return;
+    }
+
+    if (adminProfileName) {
+      adminProfileName.textContent = `${admin.firstName} ${admin.lastName}`;
+    }
+    // The topbar and the sidebar both name the signed-in role (the pages'
+    // HTML says "Administrator" until this runs).
+    document.querySelectorAll(".admin-profile .role, .admin-sidebar-brand p").forEach((el) => {
+      el.textContent = STAFF_ROLE_LABELS[admin.role] || admin.role;
+    });
+
+    document.querySelectorAll(".admin-nav-link").forEach((link) => {
+      const pageName = link.getAttribute("href").split("/").pop();
+      if (!roleCanAccessPage(admin.role, pageName)) {
+        link.closest("li").classList.add("d-none");
+      }
+    });
+
+    document.dispatchEvent(new CustomEvent("admin:ready", { detail: { uid: user.uid, admin } }));
+    // Staff alerts (orders, stock, expiry) aren't part of Sales Staff's job.
+    if (roleCanAccessPage(admin.role, "notifications.html")) {
+      refreshAdminNotifBell(user.uid).then(() => watchStaffAlertsLive(user.uid));
+    }
+  } catch (error) {
+    window.location.href = "../login.html";
+  }
+});
+
+// ---- Notification bell (topbar) + unread badge (sidebar) - built once
+// here so every admin page gets it without needing its own markup or
+// script include. See products-data.js's computeStaffNotifications /
+// getStaffNotifReadMap / markStaffNotifRead for how unread is determined. ----
+function ensureAdminNotifBell() {
+  let bellBtn = document.getElementById("adminNotifBellBtn");
+  if (bellBtn) return bellBtn;
+
+  const profileBar = document.querySelector(".admin-topbar .admin-profile");
+  if (!profileBar) return null;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "dropdown";
+  wrapper.innerHTML = `
+    <button type="button" class="admin-logout-btn position-relative" id="adminNotifBellBtn" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+      <i class="bi bi-bell"></i>
+      <span class="badge rounded-pill bg-danger position-absolute d-none" id="adminNotifBadge" style="top:-6px; right:-8px; font-size:0.6rem; padding:0.25em 0.4em;">0</span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end p-2" id="adminNotifDropdownList" style="min-width:320px; max-height:70vh; overflow-y:auto;">
+      <li class="dropdown-item text-muted text-center py-3" id="adminNotifEmptyState">No notifications</li>
+    </ul>
+  `;
+
+  const settingsLink = profileBar.querySelector('a[href="settings.html"]');
+  profileBar.insertBefore(wrapper, settingsLink || null);
+  return document.getElementById("adminNotifBellBtn");
+}
+
+// `notificationsOverride`: the live listeners below pass the list with
+// their fresh order/chat alerts swapped in.
+async function refreshAdminNotifBell(uid, notificationsOverride = null) {
+  if (typeof computeStaffNotifications !== "function") return;
+  if (!ensureAdminNotifBell()) return;
+
+  try {
+    const [notifications, readMap] = await Promise.all([
+      notificationsOverride ? Promise.resolve(notificationsOverride) : getStaffNotificationsCached(),
+      getStaffNotifReadMap(uid),
+    ]);
+    const unread = notifications.filter((n) => !isStaffNotifRead(readMap, n));
+    showBrowserAlerts(unread);
+
+    const badge = document.getElementById("adminNotifBadge");
+    if (badge) {
+      if (unread.length > 0) {
+        badge.textContent = unread.length > 9 ? "9+" : String(unread.length);
+        badge.classList.remove("d-none");
+      } else {
+        badge.classList.add("d-none");
+      }
+    }
+
+    const sidebarLink = document.querySelector('.admin-nav-link[href="notifications.html"]');
+    if (sidebarLink) {
+      let sidebarBadge = sidebarLink.querySelector(".badge-count");
+      if (!sidebarBadge) {
+        sidebarBadge = document.createElement("span");
+        sidebarBadge.className = "badge-count";
+        sidebarLink.appendChild(sidebarBadge);
+      }
+      if (unread.length > 0) {
+        sidebarBadge.textContent = unread.length > 9 ? "9+" : String(unread.length);
+        sidebarBadge.classList.remove("d-none");
+      } else {
+        sidebarBadge.classList.add("d-none");
+      }
+    }
+
+    const list = document.getElementById("adminNotifDropdownList");
+    if (list) {
+      const top = notifications.slice(0, 6);
+      if (top.length === 0) {
+        list.innerHTML = `<li class="dropdown-item text-muted text-center py-3" id="adminNotifEmptyState">No notifications</li>`;
+      } else {
+        list.innerHTML =
+          top
+            .map((n) => {
+              const isRead = isStaffNotifRead(readMap, n);
+              const severityColor = SEVERITY_COLORS[n.severity] || SEVERITY_COLORS.info;
+              return `
+                <li>
+                  <a class="dropdown-item d-flex align-items-start gap-2 py-2 admin-notif-item" href="${n.link}" data-key="${n.key}" data-signature="${n.signature}" style="white-space:normal; border-left:3px solid ${severityColor}; ${isRead ? "opacity:0.6;" : "font-weight:600;"}">
+                    <i class="bi ${n.icon} mt-1" style="color:${severityColor};"></i>
+                    <span class="flex-grow-1" style="font-size:0.85rem;">${escapeHtml(n.message)}</span>
+                  </a>
+                </li>
+              `;
+            })
+            .join("") +
+          `<li><hr class="dropdown-divider"></li><li><a class="dropdown-item text-center small" href="notifications.html">View all notifications</a></li>`;
+      }
+
+      list.querySelectorAll(".admin-notif-item").forEach((item) => {
+        item.addEventListener("click", async (ev) => {
+          ev.preventDefault();
+          const href = item.getAttribute("href");
+          try {
+            await markStaffNotifRead(uid, { key: item.dataset.key, signature: item.dataset.signature });
+          } catch (error) {
+            console.error("Failed to mark notification read:", error);
+          }
+          window.location.href = href;
+        });
+      });
+    }
+  } catch (error) {
+    console.error("Failed to load admin notification bell:", error);
+  }
+}
+
+// New orders waiting for verification and chats handed to staff show on the
+// bell (and as desktop alerts) the moment they happen, without a refresh.
+// Only those small sets are listened to; stock alerts refresh on page load.
+function watchStaffAlertsLive(uid) {
+  // undefined = waiting for the first snapshot; null = that listener failed,
+  // so its alerts stay as the last full read had them.
+  const live = { orders: undefined, chat: undefined };
+  let timer = null;
+  const merge = () => {
+    if (live.orders === undefined || live.chat === undefined) return;
+    if (live.orders === null && live.chat === null) return;
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const replaced = (key) =>
+        (live.orders !== null && String(key).startsWith("payment_verification:")) || (live.chat !== null && key === "chat_waiting");
+      const merged = (await getStaffNotificationsCached())
+        .filter((n) => !replaced(n.key))
+        .concat(live.orders ? staffOrderNotifications(live.orders) : [], live.chat ? staffChatNotifications(live.chat) : [])
+        .sort((a, b) => (b.at || 0) - (a.at || 0));
+      refreshAdminNotifBell(uid, rememberStaffNotifications(merged, staffNotificationsSavedAt()));
+    }, 300);
+  };
+  const watch = (name, query) =>
+    query.onSnapshot(
+      (snap) => {
+        live[name] = snap.docs;
+        merge();
+      },
+      (error) => {
+        console.warn(`Live ${name} alerts unavailable:`, error);
+        live[name] = null;
+        merge();
+      }
+    );
+  watch("orders", db.collection("orders").where("status", "==", "placed"));
+  watch("chat", db.collection("chatThreads").where("status", "==", "waiting_staff"));
+}
+
+if (adminLogoutBtn) {
+  adminLogoutBtn.addEventListener("click", async () => {
+    await auth.signOut();
+    window.location.href = "../login.html";
+  });
+}
+
+// ---- Browser (desktop) alerts for staff ----
+// Turned on from the Notifications page. Each unread alert pops up once per
+// browser; it shows again only when its contents change.
+const BROWSER_ALERTED_KEY = "amsonBrowserAlerted";
+
+function showBrowserAlerts(unread) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  let alerted = {};
+  try {
+    alerted = JSON.parse(localStorage.getItem(BROWSER_ALERTED_KEY)) || {};
+  } catch (error) {}
+  unread.forEach((n) => {
+    if (alerted[n.key] === n.signature) return;
+    try {
+      const popup = new Notification("Amson Pharmaceuticals", { body: n.message, icon: "../assets/logo-transp.png", tag: n.key });
+      popup.onclick = () => {
+        window.focus();
+        window.location.href = n.link;
+      };
+    } catch (error) {
+      return;
+    }
+    alerted[n.key] = n.signature;
+  });
+  try {
+    localStorage.setItem(BROWSER_ALERTED_KEY, JSON.stringify(alerted));
+  } catch (error) {}
+}

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Track Your Order | Amson Pharmaceuticals</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+<!-- Custom styles -->
+<link rel="icon" type="image/png" href="../assets/logo-transp.png">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="top-bar"></div>
+
+<!-- ===== Header ===== -->
+<header class="site-header">
+  <div class="container py-2">
+    <div class="d-flex align-items-center flex-wrap gap-3 py-2">
+      <a href="index.html" class="d-flex align-items-center text-decoration-none flex-shrink-0">
+        <img src="../assets/logo.png" alt="Amson Pharmaceuticals" class="brand-logo">
+        <span class="brand-name">Amson Pharmaceuticals</span>
+      </a>
+
+      <div class="flex-grow-1 order-3 order-md-2" style="min-width:220px;">
+        <div class="input-group">
+          <input type="text" class="form-control search-input" placeholder="Search for medicines, vitamins, supplements...">
+          <button class="btn search-btn" type="button"><i class="bi bi-search"></i></button>
+        </div>
+      </div>
+
+      <div class="d-flex align-items-center gap-3 order-2 order-md-3 ms-auto">
+        <a href="cart.html" class="cart-icon position-relative">
+          <i class="bi bi-cart3"></i>
+          <span id="cartBadge" class="cart-badge d-none">0</span>
+        </a>
+
+        <div id="guestActions" class="d-flex align-items-center gap-3">
+          <a href="../login.html" class="btn btn-outline-dark-amson btn-sm px-3">Login</a>
+          <a href="../register.html" class="btn btn-amson btn-sm px-3">Register</a>
+        </div>
+
+        <div id="accountActions" class="d-flex align-items-center gap-3 d-none">
+          <div class="dropdown">
+            <a href="#" class="bell-icon position-relative" id="notifBellBtn" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-bell"></i>
+              <span id="notifBadge" class="cart-badge d-none">0</span>
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end account-dropdown-menu" id="notifDropdownList" style="min-width:280px; max-height:340px; overflow-y:auto;">
+              <li class="px-3 py-2 text-muted" id="notifEmptyState">Nothing new right now.</li>
+            </ul>
+          </div>
+          <div class="dropdown">
+            <button class="account-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person-circle"></i>
+              <span id="accountFirstName">Account</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end account-dropdown-menu">
+              <li id="headerCreditItem" class="d-none"><a class="dropdown-item" href="account-settings.html"><i class="bi bi-wallet2"></i><span id="headerCreditAmount"></span> Credit</a></li>
+              <li><a class="dropdown-item" href="orders.html"><i class="bi bi-box-seam"></i>My Orders</a></li>
+              <li><a class="dropdown-item" href="account-settings.html"><i class="bi bi-gear"></i>Account Settings</a></li>
+              <li><a class="dropdown-item text-danger" href="#" id="logoutLink"><i class="bi bi-box-arrow-right"></i>Logout</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="category-nav">
+    <div class="container">
+      <ul class="nav flex-nowrap flex-md-wrap justify-content-md-center">
+        <li class="nav-item"><a class="nav-link" href="products.html">All Products</a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<!-- ===== Order Details ===== -->
+<main class="section-block bg-light-gray">
+  <div class="container">
+    <a href="orders.html" class="d-inline-flex align-items-center gap-1 text-decoration-none text-dark mb-3">
+      <i class="bi bi-arrow-left"></i> Back to My Orders
+    </a>
+
+    <div id="orderNotFoundNotice" class="cart-card text-center d-none">
+      <p class="text-muted mb-3">We couldn't find that order.</p>
+      <a href="orders.html" class="btn btn-amson">Back to My Orders</a>
+    </div>
+
+    <div id="orderLoading" class="cart-card text-center d-none">
+      <div class="spinner-border text-danger" role="status"></div>
+    </div>
+
+    <div id="orderDetailContent" class="checkout-card d-none">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <h1 class="section-title mb-0">Track Your Order</h1>
+        <button type="button" class="btn btn-outline-dark-amson" id="downloadReceiptBtn">
+          <i class="bi bi-file-earmark-text me-1"></i>Download Receipt
+        </button>
+      </div>
+
+      <div class="bg-light-gray rounded-3 p-3 mb-4" style="background-color: var(--amson-gray-bg); border-radius: 10px;">
+        <div class="row">
+          <div class="col-4">
+            <p class="order-meta-label mb-0">Order Number</p>
+            <p class="order-meta-value mb-0" id="detailOrderNumber"></p>
+          </div>
+          <div class="col-4">
+            <p class="order-meta-label mb-0">Date</p>
+            <p class="order-meta-value mb-0" id="detailOrderDate"></p>
+          </div>
+          <div class="col-4">
+            <p class="order-meta-label mb-0">Status</p>
+            <p class="order-status-badge mb-0" id="detailOrderStatus"></p>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="h6 fw-bold mb-3">Order Timeline</h2>
+      <div class="order-timeline mb-4" id="orderTimeline"></div>
+      <div class="alert alert-danger d-none mb-4" id="orderClosedNotice" role="alert"></div>
+
+      <div class="alert alert-info d-none mb-4" id="overpaymentNotice" role="alert"></div>
+
+      <div class="alert alert-success d-none mb-4" id="issueResubmitSuccess" role="alert">Resubmitted. Our team will review it again shortly.</div>
+
+      <div class="alert alert-danger d-none mb-4" id="paymentIssueSection" role="alert">
+        <p class="fw-bold mb-1" id="paymentIssueTitle"></p>
+        <p class="mb-2" id="paymentIssueDetail"></p>
+        <p class="mb-3" style="font-size:0.85rem;" id="paymentIssueDeadline"></p>
+
+        <div id="issueActionsContainer">
+          <div class="upload-dropzone bg-white" id="issueUploadDropzone">
+            <div id="issueUploadEmptyState">
+              <i class="bi bi-upload"></i>
+              <span id="issueUploadPrompt">Click to upload a corrected payment screenshot</span>
+              <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
+            </div>
+            <div id="issueUploadPreviewState" class="d-none">
+              <img id="issueUploadPreviewImage" src="" alt="Corrected proof of payment preview" style="max-width:100%; max-height:180px; border-radius:8px;">
+              <p class="mb-0 mt-2" id="issueUploadPreviewFilename" style="font-size:0.85rem;"></p>
+              <p class="text-muted mb-0" style="font-size:0.75rem;">Click to change</p>
+            </div>
+            <input type="file" id="issueProofInput" accept="image/png,image/jpeg" class="d-none">
+          </div>
+
+          <div id="issueReferenceGroup">
+            <label for="issueReferenceNumberInput" class="form-label mt-3">Reference Number</label>
+            <input type="text" class="form-control" id="issueReferenceNumberInput" placeholder="e.g. GC1234567890">
+          </div>
+
+          <div class="alert alert-danger d-none mt-3 mb-0" id="issueResubmitError" role="alert"></div>
+
+          <button type="button" class="btn btn-amson w-100 mt-3" id="issueResubmitBtn" disabled>Resubmit for Review</button>
+        </div>
+      </div>
+
+      <div class="checkout-card p-3 mb-4 d-none" id="detailTrackingCard">
+        <h2 class="h6 fw-bold mb-2"><i class="bi bi-truck text-danger me-1"></i>Delivery Tracking</h2>
+        <p class="text-muted mb-2" style="font-size:0.85rem;">Your order was booked with Lalamove. Follow the rider here:</p>
+        <a class="btn btn-outline-dark-amson btn-sm" id="detailTrackingLink" target="_blank" rel="noopener noreferrer">
+          <i class="bi bi-box-arrow-up-right me-1"></i>Track with Lalamove
+        </a>
+        <p class="text-muted mb-0 mt-2" style="font-size:0.78rem;">The delivery fee is paid directly to the rider.</p>
+      </div>
+
+      <h2 class="h6 fw-bold mb-3"><i class="bi bi-geo-alt text-danger me-1"></i>Shipping Address</h2>
+      <div class="detail-grid mb-4">
+        <div>
+          <p class="detail-label mb-0">Address</p>
+          <p class="detail-value" id="detailAddress"></p>
+        </div>
+        <div>
+          <p class="detail-label mb-0">Contact No.</p>
+          <p class="detail-value" id="detailContactNo"></p>
+        </div>
+        <div>
+          <p class="detail-label mb-0">Customer Name</p>
+          <p class="detail-value" id="detailCustomerName"></p>
+        </div>
+        <div>
+          <p class="detail-label mb-0">Delivery Notes</p>
+          <p class="detail-value" id="detailDeliveryNotes"></p>
+        </div>
+      </div>
+
+      <div class="mb-4 d-none" id="detailPrescriptionSection">
+        <h2 class="h6 fw-bold mb-3"><i class="bi bi-file-medical text-danger me-1"></i>Prescription</h2>
+        <a id="detailPrescriptionLink" href="#" target="_blank" rel="noopener" class="d-block" style="max-width:220px;">
+          <img id="detailPrescriptionImage" src="" alt="Prescription photo" style="width:100%; max-height:180px; object-fit:contain; display:block; border-radius:8px; border:1px solid var(--amson-border); background-color:#f2f2f4;">
+        </a>
+      </div>
+
+      <h2 class="h6 fw-bold mb-3">Order Items</h2>
+      <div id="detailItemsList" class="mb-3"></div>
+
+      <div class="summary-total-row d-none" id="detailSubtotalRow">
+        <span>Subtotal</span>
+        <span id="detailSubtotal"></span>
+      </div>
+      <div class="summary-total-row text-success d-none" id="detailCreditRow">
+        <span>Store credit applied</span>
+        <span id="detailCreditApplied"></span>
+      </div>
+      <div class="summary-total-row mb-4">
+        <span class="fw-bold">Total</span>
+        <strong class="product-price mb-0" id="detailTotal"></strong>
+      </div>
+
+      <div class="text-center">
+        <p class="text-muted mb-2">Need help with your order?</p>
+        <div class="d-flex gap-2 justify-content-center flex-wrap">
+          <a href="#" class="btn btn-outline-dark-amson d-none" data-chat-entry>Chat with Us</a>
+          <button type="button" class="btn btn-outline-dark-amson" id="markReceivedBtn" disabled>Order Marked as Received</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ===== Footer ===== -->
+<footer class="site-footer pt-5"></footer>
+
+<a href="#" class="floating-chat-btn d-none" data-chat-entry><i class="bi bi-chat-square-text-fill"></i>Chat with us</a>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Firebase (compat SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
+
+<!-- App scripts -->
+<script src="../js/firebase-config.js"></script>
+<script src="../js/cloudinary-config.js"></script>
+<script src="../js/cloudinary.js"></script>
+<script src="../js/products-data.js"></script>
+<script src="../js/device-trust.js"></script>
+<script src="../js/shop-header.js"></script>
+<script src="../js/cart.js"></script>
+<script src="../js/orders.js"></script>
+<script src="../js/order-details.js"></script>
+<script src="../js/store-info.js"></script>
+<script src="../js/chat-config.js"></script>
+<script src="../js/live-chat.js"></script>
+
+<!-- PDF / Excel export libraries: loaded last, since they're only used
+     when someone exports or prints, so the page doesn't wait for them. -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</body>
+</html>

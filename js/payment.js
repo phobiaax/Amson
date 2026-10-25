@@ -1,0 +1,338 @@
+/**
+ * Payment page.
+ */
+
+const MAX_PROOF_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+
+const noPendingOrderNotice = document.getElementById("noPendingOrderNotice");
+const paymentContent = document.getElementById("paymentContent");
+const orderConfirmation = document.getElementById("orderConfirmation");
+const paymentItemsSummary = document.getElementById("paymentItemsSummary");
+const paymentTotalText = document.getElementById("paymentTotalText");
+const uploadDropzone = document.getElementById("uploadDropzone");
+const uploadEmptyState = document.getElementById("uploadEmptyState");
+const uploadPreviewState = document.getElementById("uploadPreviewState");
+const uploadPreviewImage = document.getElementById("uploadPreviewImage");
+const uploadPreviewFilename = document.getElementById("uploadPreviewFilename");
+const uploadErrorText = document.getElementById("uploadErrorText");
+const proofOfPaymentInput = document.getElementById("proofOfPaymentInput");
+const referenceNumberInput = document.getElementById("referenceNumberInput");
+const referenceNumberErrorText = document.getElementById("referenceNumberErrorText");
+const submitOrderBtn = document.getElementById("submitOrderBtn");
+const deliveryFeeNoteSummary = document.getElementById("deliveryFeeNoteSummary");
+const pickupNoteSummary = document.getElementById("pickupNoteSummary");
+const paymentSubtotalRow = document.getElementById("paymentSubtotalRow");
+const paymentSubtotalText = document.getElementById("paymentSubtotalText");
+const paymentCreditRow = document.getElementById("paymentCreditRow");
+const paymentCreditText = document.getElementById("paymentCreditText");
+const qrBox = document.getElementById("qrBox");
+const fullyCoveredNotice = document.getElementById("fullyCoveredNotice");
+
+const prescriptionUploadBox = document.getElementById("prescriptionUploadBox");
+const rxUploadDropzone = document.getElementById("rxUploadDropzone");
+const rxUploadEmptyState = document.getElementById("rxUploadEmptyState");
+const rxUploadPreviewState = document.getElementById("rxUploadPreviewState");
+const rxUploadPreviewImage = document.getElementById("rxUploadPreviewImage");
+const rxUploadPreviewFilename = document.getElementById("rxUploadPreviewFilename");
+const rxUploadErrorText = document.getElementById("rxUploadErrorText");
+const prescriptionPhotoInput = document.getElementById("prescriptionPhotoInput");
+
+const pendingOrderRaw = sessionStorage.getItem("amsonPendingOrder");
+const pendingOrder = pendingOrderRaw ? JSON.parse(pendingOrderRaw) : null;
+
+let requiresPrescription = false;
+let cartSubtotal = null;
+let customerCreditBalance = 0;
+let fullyCoveredByCredit = false;
+
+function renderCreditPreview() {
+  if (cartSubtotal === null) return;
+  const applied = Math.max(0, Math.min(customerCreditBalance, cartSubtotal));
+  const finalTotal = cartSubtotal - applied;
+
+  paymentSubtotalRow.classList.toggle("d-none", applied <= 0);
+  paymentCreditRow.classList.toggle("d-none", applied <= 0);
+  if (applied > 0) {
+    paymentSubtotalText.textContent = formatPeso(cartSubtotal);
+    paymentCreditText.textContent = `-${formatPeso(applied)}`;
+  }
+  paymentTotalText.textContent = formatPeso(finalTotal);
+
+  // Credit can fully cover the order - there's nothing to pay via QR PH,
+  // so don't ask for a screenshot/reference number for a payment that
+  // never happens.
+  fullyCoveredByCredit = finalTotal <= 0 && cartSubtotal > 0;
+  qrBox.classList.toggle("d-none", fullyCoveredByCredit);
+  fullyCoveredNotice.classList.toggle("d-none", !fullyCoveredByCredit);
+  updateSubmitButtonState();
+}
+
+// ---- Require login (in case this page is opened directly) ----
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    window.location.href = "../login.html";
+    return;
+  }
+  try {
+    const doc = await db.collection("users").doc(user.uid).get();
+    customerCreditBalance = doc.exists ? doc.data().creditBalance || 0 : 0;
+    renderCreditPreview();
+  } catch (error) {
+    // Preview only - if it fails to load, checkout still works, the
+    // redemption itself happens authoritatively in the order transaction.
+  }
+});
+
+function updateSubmitButtonState() {
+  const hasProof = fullyCoveredByCredit || !!proofOfPaymentInput.files[0];
+  const hasReferenceNumber = fullyCoveredByCredit || !!referenceNumberInput.value.trim();
+  const hasPrescription = !requiresPrescription || !!prescriptionPhotoInput.files[0];
+  submitOrderBtn.disabled = !(hasProof && hasReferenceNumber && hasPrescription);
+}
+
+(async function init() {
+if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
+  noPendingOrderNotice.classList.remove("d-none");
+  paymentContent.classList.add("d-none");
+} else {
+  await loadCatalogCache();
+
+  requiresPrescription = pendingOrder.cart.some((item) => {
+    const product = getProductById(item.id);
+    return product && product.rxRequired;
+  });
+  prescriptionUploadBox.classList.toggle("d-none", !requiresPrescription);
+  deliveryFeeNoteSummary.classList.toggle("d-none", requiresPrescription);
+  pickupNoteSummary.classList.toggle("d-none", !requiresPrescription);
+
+  paymentItemsSummary.innerHTML = pendingOrder.cart
+    .map((item) => {
+      const product = getProductById(item.id);
+      if (!product) return "";
+      return `
+        <div class="checkout-summary-item">
+          <div class="cart-item-image" style="width:56px;height:56px;flex-shrink:0;${cartItemImageCss(product.imageUrl)}"></div>
+          <div class="flex-grow-1">
+            <p class="mb-0 fw-medium">${escapeHtml(product.name)}</p>
+            <p class="text-muted mb-0" style="font-size:0.85rem;">Qty: ${item.qty}</p>
+            <p class="product-price mb-0" style="font-size:1rem;">${formatPeso(product.price * item.qty)}</p>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  let total = 0;
+  for (const item of pendingOrder.cart) {
+    const product = getProductById(item.id);
+    if (product) total += product.price * item.qty;
+  }
+
+  paymentTotalText.textContent = formatPeso(total);
+  cartSubtotal = total;
+  renderCreditPreview();
+
+  uploadDropzone.addEventListener("click", () => proofOfPaymentInput.click());
+
+  referenceNumberInput.addEventListener("input", () => {
+    referenceNumberErrorText.classList.add("d-none");
+    updateSubmitButtonState();
+  });
+
+  proofOfPaymentInput.addEventListener("change", () => {
+    const file = proofOfPaymentInput.files[0];
+    if (!file) return;
+
+    uploadErrorText.classList.add("d-none");
+
+    if (file.size > MAX_PROOF_FILE_SIZE_BYTES) {
+      uploadErrorText.textContent = "That file is too large. Please upload an image under 10MB.";
+      uploadErrorText.classList.remove("d-none");
+      proofOfPaymentInput.value = "";
+      uploadEmptyState.classList.remove("d-none");
+      uploadPreviewState.classList.add("d-none");
+      updateSubmitButtonState();
+      return;
+    }
+
+    uploadPreviewImage.src = URL.createObjectURL(file);
+    uploadPreviewFilename.textContent = file.name;
+    uploadEmptyState.classList.add("d-none");
+    uploadPreviewState.classList.remove("d-none");
+    updateSubmitButtonState();
+  });
+
+  rxUploadDropzone.addEventListener("click", () => prescriptionPhotoInput.click());
+
+  prescriptionPhotoInput.addEventListener("change", () => {
+    const file = prescriptionPhotoInput.files[0];
+    if (!file) return;
+
+    rxUploadErrorText.classList.add("d-none");
+
+    if (file.size > MAX_PROOF_FILE_SIZE_BYTES) {
+      rxUploadErrorText.textContent = "That file is too large. Please upload an image under 10MB.";
+      rxUploadErrorText.classList.remove("d-none");
+      prescriptionPhotoInput.value = "";
+      rxUploadEmptyState.classList.remove("d-none");
+      rxUploadPreviewState.classList.add("d-none");
+      updateSubmitButtonState();
+      return;
+    }
+
+    rxUploadPreviewImage.src = URL.createObjectURL(file);
+    rxUploadPreviewFilename.textContent = file.name;
+    rxUploadEmptyState.classList.add("d-none");
+    rxUploadPreviewState.classList.remove("d-none");
+    updateSubmitButtonState();
+  });
+
+  submitOrderBtn.addEventListener("click", async () => {
+    const file = proofOfPaymentInput.files[0];
+    const prescriptionFile = prescriptionPhotoInput.files[0];
+    const referenceNumber = referenceNumberInput.value.trim();
+    if (!fullyCoveredByCredit && (!file || !referenceNumber || (requiresPrescription && !prescriptionFile))) {
+      if (!referenceNumber) {
+        referenceNumberErrorText.textContent = "Please enter the reference number from your proof of payment.";
+        referenceNumberErrorText.classList.remove("d-none");
+      }
+      return;
+    }
+    if (fullyCoveredByCredit && requiresPrescription && !prescriptionFile) return;
+
+    uploadErrorText.classList.add("d-none");
+    rxUploadErrorText.classList.add("d-none");
+    referenceNumberErrorText.classList.add("d-none");
+    submitOrderBtn.disabled = true;
+    submitOrderBtn.textContent = "Checking stock...";
+
+    // Stock may have changed since the cart was filled (another customer
+    // bought it, or it just hasn't been received yet) - re-check against
+    // live numbers right before the order is created, not the possibly
+    // stale numbers from when checkout started.
+    clearCatalogCache();
+    await loadCatalogCache();
+
+    // A product taken off the online store since it was added to the cart
+    // counts as unavailable too.
+    const onlineProduct = (id) => storefrontCatalog().find((p) => p.id === id) || null;
+    const outOfStockItems = pendingOrder.cart
+      .map((item) => ({ item, product: onlineProduct(item.id) }))
+      .filter(({ item, product }) => item.qty > (product ? product.totalStock : 0));
+
+    if (outOfStockItems.length > 0) {
+      const details = outOfStockItems
+        .map(({ item, product }) =>
+          product
+            ? `${product.name} (only ${product.totalStock} left, ${item.qty} in your cart)`
+            : "an item that's no longer available online"
+        )
+        .join("; ");
+      uploadErrorText.textContent = `Some items in your cart exceed what's currently in stock: ${details}. Please go back to your cart and adjust the quantity.`;
+      uploadErrorText.classList.remove("d-none");
+      submitOrderBtn.disabled = false;
+      submitOrderBtn.textContent = "Submit Order";
+      return;
+    }
+
+    // Prices may have changed too: charge what the catalog says now, and
+    // show the new total before submitting.
+    let freshTotal = 0;
+    pendingOrder.cart.forEach((item) => (freshTotal += getProductById(item.id).price * item.qty));
+    if (Math.abs(freshTotal - total) > 0.001) {
+      total = freshTotal;
+      cartSubtotal = total;
+      renderCreditPreview();
+      uploadErrorText.textContent = `Some prices changed since you opened this page. Your new total is ${formatPeso(total)}. Please check it and tap Submit Order again.`;
+      uploadErrorText.classList.remove("d-none");
+      submitOrderBtn.textContent = "Submit Order";
+      updateSubmitButtonState();
+      return;
+    }
+    // Prescription pre-orders are always picked up at the store.
+    requiresPrescription = pendingOrder.cart.some((item) => getProductById(item.id).rxRequired);
+    if (requiresPrescription && !prescriptionFile) {
+      prescriptionUploadBox.classList.remove("d-none");
+      rxUploadErrorText.textContent = "This order has a prescription item. Please upload a photo of your prescription.";
+      rxUploadErrorText.classList.remove("d-none");
+      submitOrderBtn.textContent = "Submit Order";
+      updateSubmitButtonState();
+      return;
+    }
+
+    submitOrderBtn.textContent = "Submitting...";
+
+    try {
+      const user = auth.currentUser;
+      const proofOfPaymentUrl = file ? await uploadToCloudinary(file) : null;
+      const prescriptionPhotoUrl = prescriptionFile ? await uploadToCloudinary(prescriptionFile, { kind: "document" }) : null;
+      const orderNumber = await generateOrderNumber();
+
+      const items = pendingOrder.cart.map((item) => {
+        const product = getProductById(item.id);
+        return {
+          id: item.id,
+          name: product ? product.name : "Unknown product",
+          price: product ? product.price : 0,
+          qty: item.qty,
+          imageUrl: product ? product.imageUrl || null : null,
+        };
+      });
+
+      await createOrderWithCreditRedemption({
+        orderNumber,
+        customerId: user ? user.uid : null,
+        contact: pendingOrder.contact,
+        shipping: requiresPrescription ? null : pendingOrder.shipping,
+        deliverySchedule: requiresPrescription ? null : pendingOrder.deliverySchedule,
+        items,
+        total,
+        proofOfPaymentUrl,
+        paymentReferenceNumber: referenceNumber || null,
+        requiresPrescription,
+        prescriptionPhotoUrl,
+        status: "placed",
+        statusTimestamps: {
+          placed: firebase.firestore.FieldValue.serverTimestamp(),
+          payment_confirmed: null,
+          dispatched: null,
+          delivered: null,
+          received: null,
+        },
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      }, { expectFullCredit: fullyCoveredByCredit });
+
+      // Order submission notification (Fig 2.10).
+      if (user) {
+        notifyCustomer(
+          user.uid,
+          `Order ${orderNumber} placed`,
+          requiresPrescription
+            ? "We received your prescription pre-order. Our pharmacist will check your prescription and payment, and we'll tell you when it's ready for pick-up."
+            : "We received your order and payment proof. We'll let you know once our staff verify your payment.",
+          "orders.html",
+          "info",
+          "order_placed"
+        );
+      }
+
+      removeItemsFromCart(pendingOrder.cart.map((item) => item.id));
+      sessionStorage.removeItem("amsonPendingOrder");
+      clearCatalogCache(); // stock just went down
+      sessionStorage.removeItem("amsonCheckoutSelectedIds");
+      document.getElementById("confirmedOrderNumber").textContent = `Order Number: ${orderNumber}`;
+      if (user) {
+        document.getElementById("viewOrdersLink").classList.remove("d-none");
+      }
+      paymentContent.classList.add("d-none");
+      orderConfirmation.classList.remove("d-none");
+    } catch (error) {
+      uploadErrorText.textContent =
+        error.message || "Something went wrong submitting your order. Please try again.";
+      uploadErrorText.classList.remove("d-none");
+      submitOrderBtn.disabled = false;
+      submitOrderBtn.textContent = "Submit Order";
+    }
+  });
+}
+})();

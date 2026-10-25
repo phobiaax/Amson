@@ -1,0 +1,404 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function myUid() {
+      return request.auth.uid;
+    }
+
+    function myRole() {
+      return get(/databases/$(database)/documents/users/$(myUid())).data.role;
+    }
+
+    // A deactivated staff account loses access at once, even if it is
+    // still signed in somewhere.
+    function isStaff() {
+      return isSignedIn() &&
+        myRole() in ["admin", "branch_manager", "technical_staff", "sales_staff"] &&
+        get(/databases/$(database)/documents/users/$(myUid())).data.get("accountStatus", "active") != "deactivated";
+    }
+
+    // Branch Manager (or the legacy admin role), still active.
+    function isManager() {
+      return isStaff() && myRole() in ["admin", "branch_manager"];
+    }
+
+    // Staff other than Sales Staff, who only use the POS and view the
+    // catalog (REQ121) - so nothing else is open to them in the database
+    // either, not only in the page menus.
+    function isOpsStaff() {
+      return isStaff() && myRole() != "sales_staff";
+    }
+
+    // ---- users ----
+    match /users/{uid} {
+      // Reading your own doc, or any doc if you're staff.
+      allow read: if isSignedIn() && myUid() == uid;
+      allow read: if isOpsStaff();
+
+      // Self-registration as a customer.
+      // A new account starts with no store credit.
+      allow create: if isSignedIn() && myUid() == uid &&
+        request.resource.data.role == "customer" &&
+        request.resource.data.get("creditBalance", 0) == 0;
+
+      // Branch Manager (or the legacy admin role) creating a staff account.
+      allow create: if isManager() &&
+        request.resource.data.role in ["admin", "branch_manager", "technical_staff", "sales_staff"];
+
+      // Updating your own doc, as long as role/accountStatus don't change,
+      // and store credit (REQ098/100) never goes UP from a customer write -
+      // only staff/admin (below) or the checkout redemption transaction
+      // (which only ever decreases it to pay for the customer's own order)
+      // may increase it. .get(key, default) avoids erroring when a field
+      // isn't set at all - a brand-new customer doc has none of these yet.
+      allow update: if isSignedIn() && myUid() == uid &&
+        request.resource.data.get("role", null) == resource.data.get("role", null) &&
+        request.resource.data.get("accountStatus", null) == resource.data.get("accountStatus", null) &&
+        request.resource.data.get("creditBalance", 0) <= resource.data.get("creditBalance", 0);
+
+      // Staff Management (roles, deactivation): Branch Manager only.
+      allow update: if isManager();
+      // Other staff only touch customer accounts (Customer Accounts status,
+      // store credit from Payment Verification) and can't make anyone staff -
+      // so nobody can raise their own role.
+      allow update: if isOpsStaff() &&
+        resource.data.get("role", "") == "customer" &&
+        request.resource.data.get("role", "") == "customer";
+
+      allow delete: if false;
+    }
+
+    // ---- catalog ----
+    // Prices (and the price lock / pending flags) are Branch Manager-only
+    // (REQ071, REQ120). Other staff may create a product only without
+    // prices, saved Inactive with pricePending, and may edit products as
+    // long as no price field changes and a price-pending product isn't
+    // made Active.
+    function isPriceManager() {
+      return isManager();
+    }
+
+    // Sales Staff only view the catalog (REQ121).
+    function isProductEditor() {
+      return isStaff() && myRole() != "sales_staff";
+    }
+
+    function priceFieldsUnchanged() {
+      return request.resource.data.get("costingPrice", 0) == resource.data.get("costingPrice", 0) &&
+        request.resource.data.get("retailPrice", 0) == resource.data.get("retailPrice", 0) &&
+        request.resource.data.get("wholesalePrice", 0) == resource.data.get("wholesalePrice", 0) &&
+        request.resource.data.get("priceLocked", false) == resource.data.get("priceLocked", false) &&
+        request.resource.data.get("pricePending", false) == resource.data.get("pricePending", false);
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+
+      allow create: if isPriceManager();
+      allow create: if isProductEditor() &&
+        request.resource.data.get("costingPrice", 0) == 0 &&
+        request.resource.data.get("retailPrice", 0) == 0 &&
+        request.resource.data.get("wholesalePrice", 0) == 0 &&
+        request.resource.data.get("pricePending", false) == true &&
+        request.resource.data.get("status", "") == "inactive";
+
+      allow update: if isPriceManager();
+      allow update: if isProductEditor() && priceFieldsUnchanged() &&
+        !(request.resource.data.get("pricePending", false) == true &&
+          request.resource.data.get("status", "") == "active");
+
+      allow delete: if isProductEditor();
+    }
+
+    // Shop announcement banner (Settings) - public read, set by the Branch
+    // Manager or Technical Staff.
+    match /storeSettings/{settingId} {
+      allow read: if true;
+      // Saved, never deleted (turn the banner off instead).
+      allow create, update: if isStaff() && myRole() in ["admin", "branch_manager", "technical_staff"];
+    }
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isOpsStaff();
+    }
+
+    // ---- retail orders ----
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && resource.data.customerId == myUid();
+      allow read: if isOpsStaff();
+
+      // creditApplied (checkout redemption - orders.js's
+      // createOrderWithCreditRedemption) can never exceed the balance the
+      // customer had going into this write, so a crafted order can't claim
+      // more discount than they actually have.
+      // A new order is always "placed" with nothing staff-only on it, and
+      // any credit applied must come off the balance in the same write.
+      // The user doc must also name this order as the one the credit went
+      // to, so two orders in one write can't both claim the same deduction.
+      allow create: if isSignedIn() &&
+        request.resource.data.customerId == myUid() &&
+        request.resource.data.status == "placed" &&
+        request.resource.data.get("total", 0) >= 0 &&
+        !request.resource.data.keys().hasAny(["paymentIssue", "invoiceNo", "unappliedCredit", "paymentOverage", "verification", "closedReason"]) &&
+        (request.resource.data.get("creditApplied", 0) == 0 ||
+         (request.resource.data.creditApplied > 0 &&
+          getAfter(/databases/$(database)/documents/users/$(myUid())).data.get("lastCreditOrderId", null) == orderId &&
+          getAfter(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) ==
+            get(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) - request.resource.data.creditApplied));
+
+      // A signed-in customer may only ever move their own order through
+      // three specific transitions - never edit items/total/status freely:
+      //   1. Confirming receipt (delivered -> received) - the only
+      //      customer-initiated step in the normal lifecycle.
+      //   2. The 3-day auto-deliver of a dispatched order (enforceOrderDeadline
+      //      in orders.js), checked against the server's clock.
+      //      (Expired holds are closed from staff pages only, together
+      //      with the store credit.)
+      //   3. Resubmitting a corrected proof of payment/reference number on
+      //      an active hold (order-details.js's issueResubmitBtn handler) -
+      //      (or a new prescription photo after a rejected prescription) -
+      //      only ever touches those fields plus marking the hold
+      //      resolvedByCustomerAt, never the order total or status.
+      allow update: if isSignedIn() && resource.data.customerId == myUid() && (
+        (resource.data.status == "delivered" &&
+         request.resource.data.status == "received" &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "statusTimestamps"]))
+        ||
+        (resource.data.status == "dispatched" &&
+         request.resource.data.status == "delivered" &&
+         resource.data.statusTimestamps.dispatched < request.time - duration.value(3, "d") &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "statusTimestamps"]))
+        ||
+        (resource.data.get("paymentIssue", null) != null &&
+         request.resource.data.get("paymentIssue", null) != null &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(["proofOfPaymentUrl", "paymentReferenceNumber", "paymentIssue", "prescriptionPhotoUrl"]) &&
+         // Within the hold record the customer may only mark it resolved
+         // (and clear its deadline) - never change its type or amounts.
+         request.resource.data.paymentIssue.diff(resource.data.paymentIssue).affectedKeys()
+           .hasOnly(["resolvedByCustomerAt", "holdUntil"]) &&
+         (!("holdUntil" in request.resource.data.paymentIssue) ||
+          request.resource.data.paymentIssue.holdUntil == resource.data.paymentIssue.get("holdUntil", null)))
+      );
+      allow update: if isOpsStaff();
+
+      allow delete: if false;
+    }
+
+    // ---- prescription pre-orders ----
+    // Nothing in the app writes here any more (prescription items go
+    // through ordinary orders). Kept readable for old records only.
+    match /prescriptionOrders/{orderId} {
+      allow read: if isSignedIn() && resource.data.customerId == myUid();
+      allow read: if isOpsStaff();
+
+      allow update: if isOpsStaff();
+      allow delete: if false;
+    }
+
+    // ---- customer-facing notifications (payment issue holds, credit
+    // grants, restock flags) ----
+    // Written only by staff-authenticated actions (Payment Verification)
+    // or the hold-expiry sweep, never by the customer - a customer can
+    // read their own and toggle `read`, nothing else.
+    match /customerNotifications/{notifId} {
+      allow read: if isOpsStaff();
+      allow read: if isSignedIn() && resource.data.customerId == myUid();
+
+      allow create: if isOpsStaff();
+      // The customer's own "order placed" confirmation, written at checkout.
+      allow create: if isSignedIn() &&
+        request.resource.data.customerId == myUid() &&
+        request.resource.data.kind == "order_placed" &&
+        request.resource.data.read == false &&
+        request.resource.data.keys().hasOnly(["customerId", "title", "detail", "link", "severity", "read", "createdAt", "kind"]);
+
+      allow update: if isSignedIn() && resource.data.customerId == myUid() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["read"]);
+      allow update: if isOpsStaff();
+
+      allow delete: if false;
+    }
+
+    // ---- staff-only operational data ----
+    // stockBatches read is public (like products/categories) because the
+    // storefront needs it to compute real available stock per product -
+    // writes stay staff-only (a POS sale takes stock out of batches).
+    // Walk-in sales are the POS's own records, so Sales Staff keep them;
+    // the rest is back-office data Sales Staff never use.
+    // Sales Staff only take stock out (an update) and save new sales; voids
+    // (a sale update) are Branch Manager / Technical Staff only. Sales and
+    // other transaction records are never deleted (only the TEMPORARY
+    // block below, before go-live) - voids and status changes keep history.
+    match /stockBatches/{batchId} {
+      allow read: if true;
+      allow update: if isStaff();
+      allow create, delete: if isOpsStaff();
+    }
+    match /posSales/{saleId} {
+      allow read, create: if isStaff();
+      allow update: if isOpsStaff();
+    }
+    match /suppliers/{supplierId}      { allow read, write: if isOpsStaff(); }
+    match /purchaseOrders/{poId}       { allow read, create, update: if isOpsStaff(); }
+    match /reconciliations/{reconId}   { allow read, create, update: if isOpsStaff(); }
+    match /writeOffs/{writeOffId}      { allow read, create, update: if isOpsStaff(); }
+    match /wholesaleAccounts/{acctId}  { allow read, write: if isOpsStaff(); }
+    match /wholesaleOrders/{orderId}   { allow read, create, update: if isOpsStaff(); }
+    match /wholesaleExchanges/{exchangeId} { allow read, create, update: if isOpsStaff(); }
+
+    // ---- audit log (append-only) ----
+    match /auditLog/{entryId} {
+      allow read: if isOpsStaff();
+      // Every staff role writes its own actions (Sales Staff: walk-in sales).
+      allow create: if isStaff();
+      // Customers' own order steps (confirming receipt, the 3-day
+      // auto-deliver) are logged from their order pages - only these two
+      // actions, in the usual shape.
+      allow create: if isSignedIn() &&
+        request.resource.data.action in ["Order Received by Customer", "Order Auto-Delivered"] &&
+        request.resource.data.keys().hasOnly(["action", "details", "user", "ipAddress", "createdAt"]) &&
+        request.resource.data.details is string && request.resource.data.details.size() <= 200 &&
+        request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    match /notifications/{notifId} { allow read, write: if isOpsStaff(); }
+
+    // ---- live chat ----
+    // Signed-in customers use the thread "cust_<their uid>"; guests use a
+    // random "guest_..." id kept in their browser (unguessable, and threads
+    // can't be listed by anyone but staff). The customer's browser also
+    // writes the assistant's replies, so customers may post as customer,
+    // assistant or system, but never as staff.
+    function chatThreadTextOk() {
+      return request.resource.data.get("lastMessage", "") is string &&
+        request.resource.data.get("lastMessage", "").size() <= 200 &&
+        request.resource.data.get("customerName", "") is string &&
+        request.resource.data.get("customerName", "").size() <= 100 &&
+        request.resource.data.get("handoffReason", "") is string &&
+        request.resource.data.get("handoffReason", "").size() <= 100;
+    }
+
+    function chatThreadIsMine(threadId) {
+      return threadId.matches("guest_[A-Za-z0-9]{24}") ||
+        (isSignedIn() && threadId == "cust_" + myUid());
+    }
+
+    match /chatThreads/{threadId} {
+      allow get: if isOpsStaff() || chatThreadIsMine(threadId);
+      allow list, update: if isOpsStaff();
+      // Only the fields the chat writes, with short strings, so a script
+      // can't fill the database through the public chat.
+      allow create: if chatThreadIsMine(threadId) &&
+        request.resource.data.status == "ai" &&
+        (request.resource.data.customerId == null || (isSignedIn() && request.resource.data.customerId == myUid())) &&
+        request.resource.data.keys().hasOnly(["lastMessage", "lastMessageAt", "customerName", "kind", "customerId", "status", "unreadByStaff", "createdAt"]) &&
+        chatThreadTextOk();
+      // A customer may only move the thread between assistant and waiting
+      // for staff - never take it over as staff or mark it resolved.
+      allow update: if chatThreadIsMine(threadId) &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["lastMessage", "lastMessageAt", "customerName", "status", "unreadByStaff", "handoffReason", "handoffAt"]) &&
+        request.resource.data.status in ["ai", "waiting_staff", resource.data.status] &&
+        (resource.data.status != "staff" || request.resource.data.status == "staff") &&
+        chatThreadTextOk();
+
+      match /messages/{messageId} {
+        allow read: if isOpsStaff() || chatThreadIsMine(threadId);
+        allow create: if isOpsStaff() ||
+          (chatThreadIsMine(threadId) &&
+           request.resource.data.sender in ["customer", "assistant", "system"] &&
+           request.resource.data.text is string &&
+           request.resource.data.text.size() <= 2000 &&
+           request.resource.data.keys().hasOnly(["sender", "text", "createdAt", "cards"]) &&
+           (!("cards" in request.resource.data) ||
+            (request.resource.data.cards is list && request.resource.data.cards.size() <= 20)));
+        allow update, delete: if false;
+      }
+    }
+
+    // One counter per day of AI replies; it can only ever go up by one.
+    match /chatUsage/{day} {
+      allow read: if true;
+      allow create: if request.resource.data.count == 1 &&
+        request.resource.data.keys().hasOnly(["count", "updatedAt"]);
+      allow update: if request.resource.data.count == resource.data.count + 1 &&
+        request.resource.data.keys().hasOnly(["count", "updatedAt"]);
+    }
+
+    // ---- shared counters ----
+    // Customers only ever bump the yearly order-number counter
+    // (generateOrderNumber at checkout). Everything else - the Sales Invoice
+    // sequence above all - is staff-only, so a customer can't reset or
+    // skip SI numbers.
+    match /counters/{counterId} {
+      allow read: if isSignedIn();
+      // Create/update only: deleting a counter (the SI sequence above all)
+      // would restart its numbering.
+      allow create, update: if isStaff();
+      // Customers may only move the order-number counter up by one.
+      allow create: if isSignedIn() && counterId.matches("orders-[0-9]{4}") &&
+        request.resource.data.count == 1;
+      allow update: if isSignedIn() && counterId.matches("orders-[0-9]{4}") &&
+        request.resource.data.count == resource.data.count + 1;
+    }
+
+    // ---- TEMPORARY: clearing test data before go-live ----
+    // Lets the Branch Manager (or Administrator) delete what
+    // admin/clear-test-data.html clears - only those records, never another
+    // manager's account, store settings, the SI counter or chat usage.
+    // It switches itself off on the date below (UTC); remove this block (and
+    // that page) once the live data is in.
+    function canClearTestData() {
+      return isStaff() && myRole() in ["admin", "branch_manager"] &&
+        request.time < timestamp.date(2026, 11, 15);
+    }
+    match /{collectionId}/{docId} {
+      allow delete: if canClearTestData() && collectionId in [
+        "orders", "prescriptionOrders", "posSales", "wholesaleOrders", "wholesaleExchanges",
+        "customerNotifications", "stockBatches", "purchaseOrders", "reconciliations", "writeOffs",
+        "chatThreads", "notifications", "auditLog", "loginAttempts",
+        "products", "categories", "suppliers", "wholesaleAccounts"];
+    }
+    match /chatThreads/{threadId}/messages/{messageId} {
+      allow delete: if canClearTestData();
+    }
+    match /users/{uid} {
+      allow delete: if canClearTestData() && uid != myUid() &&
+        !(resource.data.get("role", "") in ["admin", "branch_manager"]);
+    }
+    match /counters/{counterId} {
+      allow delete: if canClearTestData() &&
+        (counterId.matches("(orders|purchaseOrders|reconciliations)-[0-9]{4}") || counterId in ["wholesaleExchanges", "products"]);
+    }
+
+    // ---- pre-auth login lockout tracking ----
+    // Read and written before sign-in, by the exact address typed. Listing
+    // is staff-only: the document names are email addresses, so a public
+    // list would hand anyone every address that has tried to log in.
+    // Only a count and a lock no longer than a few minutes from now, so
+    // nobody can lock an address (the Branch Manager's, say) for good.
+    match /loginAttempts/{email} {
+      allow get, delete: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(["count", "lockedUntil"]) &&
+        request.resource.data.count is int &&
+        request.resource.data.count >= 0 && request.resource.data.count <= 1000 &&
+        (!("lockedUntil" in request.resource.data) ||
+         (request.resource.data.lockedUntil is number &&
+          request.resource.data.lockedUntil <= request.time.toMillis() + 10 * 60 * 1000));
+      allow list: if isManager();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

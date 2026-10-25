@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Catalog | Amson Pharmaceuticals</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<!-- Choices.js (searchable select dropdowns) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/styles/choices.min.css">
+
+<!-- Custom styles -->
+<link rel="icon" type="image/png" href="../assets/logo-transp.png">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="admin-body">
+  <!-- ===== Sidebar ===== -->
+  <aside class="admin-sidebar">
+    <div class="admin-sidebar-brand">
+      <h1>Amson Pharmaceuticals</h1>
+      <p>Administrator</p>
+    </div>
+    <ul class="admin-nav">
+      <li><a href="dashboard.html" class="admin-nav-link"><i class="bi bi-house-door"></i>Dashboard</a></li>
+      <li><a href="pos.html" class="admin-nav-link"><i class="bi bi-credit-card"></i>POS</a></li>
+      <li><a href="online-orders.html" class="admin-nav-link"><i class="bi bi-globe"></i>Orders</a></li>
+      <li><a href="inventory.html" class="admin-nav-link"><i class="bi bi-box-seam"></i>Inventory</a></li>
+      <li><a href="products.html" class="admin-nav-link active"><i class="bi bi-capsule"></i>Products</a></li>
+      <li><a href="suppliers.html" class="admin-nav-link"><i class="bi bi-truck"></i>Suppliers</a></li>
+      <li><a href="customer-accounts.html" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
+      <li><a href="wholesale-accounts.html" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
+      <li><a href="staff-management.html" class="admin-nav-link" id="staffManagementNavLink"><i class="bi bi-people"></i>Staff Management</a></li>
+      <li><a href="live-chat.html" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
+      <li><a href="notifications.html" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="reports.html" class="admin-nav-link"><i class="bi bi-file-earmark-bar-graph"></i>Reports</a></li>
+      <li><a href="audit-log.html" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
+    </ul>
+  </aside>
+  <div class="admin-sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- ===== Main ===== -->
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <button type="button" class="admin-sidebar-toggle" id="sidebarToggleBtn" aria-label="Open menu">
+        <i class="bi bi-list"></i>
+      </button>
+      <span class="date-label" id="adminDateLabel"></span>
+      <div class="admin-profile">
+        <i class="bi bi-person-circle" style="font-size:1.8rem; color: var(--amson-text-muted);"></i>
+        <div>
+          <p class="name" id="adminProfileName">Admin</p>
+          <p class="role">Administrator</p>
+        </div>
+        <a href="settings.html" class="admin-logout-btn" aria-label="Settings" style="text-decoration:none;">
+          <i class="bi bi-gear"></i>
+        </a>
+        <button type="button" class="admin-logout-btn" id="adminLogoutBtn" aria-label="Log out">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <h1 class="mb-0" style="font-weight:800;">Product Catalog</h1>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-dark-amson" id="manageCategoriesBtn">
+            <i class="bi bi-tags me-1"></i>Manage Categories
+          </button>
+          <button type="button" class="btn btn-outline-dark-amson" id="uploadPhotosBtn" title="Add photos to many products at once">
+            <i class="bi bi-images me-1"></i>Upload Photos
+          </button>
+          <button type="button" class="btn btn-amson" id="addProductBtn">
+            <i class="bi bi-plus-lg me-1"></i>Add Products
+          </button>
+        </div>
+      </div>
+
+      <div class="checkout-card p-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <div class="btn-group" role="group">
+            <button type="button" class="btn order-filter-btn active" data-filter="all">All</button>
+            <button type="button" class="btn order-filter-btn" data-filter="active">Active</button>
+            <button type="button" class="btn order-filter-btn" data-filter="inactive">Inactive</button>
+          </div>
+          <div class="d-flex gap-2 flex-wrap">
+            <input type="text" class="form-control form-control-sm" id="productsSearchInput" placeholder="Search by product name, generic name, or SKU" style="width:280px;">
+            <button type="button" class="btn btn-outline-dark-amson btn-sm" id="productsSortBtn" aria-label="Toggle sort order"><i class="bi bi-arrow-down-up"></i></button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table admin-orders-table align-middle">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Product Name</th>
+                <th>Brand/Manufacturer</th>
+                <th>Category</th>
+                <th>Unit Price</th>
+                <th>Rx?</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="productsTableBody"></tbody>
+          </table>
+        </div>
+        <p class="text-muted text-center py-4 d-none" id="productsTableEmpty">No products found. Click "Add Products" to build your catalog.</p>
+
+        <div class="catalog-pagination" id="productsPagination"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Add / Edit Product modal -->
+<div class="modal fade" id="productModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content p-4">
+      <h2 class="mb-1" id="productModalTitle">Add Product</h2>
+      <p class="text-muted mb-3" id="productModalSubtitle">Add a product to the catalog</p>
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Product Name</label>
+          <input type="text" class="form-control" id="productNameInput" placeholder="e.g. Biogesic 500mg Tablet">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Generic Name</label>
+          <input type="text" class="form-control" id="productGenericNameInput" placeholder="e.g. Paracetamol">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Brand / Manufacturer</label>
+          <input type="text" class="form-control" id="productBrandInput" placeholder="e.g. Unilab">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Category</label>
+          <select class="form-select" id="productCategorySelect"></select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Costing</label>
+          <div class="input-group">
+            <span class="input-group-text">₱</span>
+            <input type="number" min="0" step="0.01" class="form-control" id="productCostingInput" placeholder="0.00">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Retail Price</label>
+          <div class="input-group">
+            <span class="input-group-text">₱</span>
+            <input type="number" min="0" step="0.01" class="form-control" id="productRetailPriceInput" placeholder="0.00">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Wholesale Price</label>
+          <div class="input-group">
+            <span class="input-group-text">₱</span>
+            <input type="number" min="0" step="0.01" class="form-control" id="productWholesalePriceInput" placeholder="0.00">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label">Reorder Point</label>
+          <input type="number" min="0" step="1" class="form-control" id="productReorderPointInput" placeholder="e.g. 20">
+          <p class="text-muted mb-0 mt-1" style="font-size:0.75rem;">Used by Inventory to flag a batch as Low Stock.</p>
+        </div>
+        <div class="col-12 d-flex align-items-center justify-content-between gap-2 flex-wrap">
+          <p class="text-muted mb-0 d-none" style="font-size:0.78rem;" id="priceRestrictedNote"><i class="bi bi-lock-fill me-1"></i><span id="priceRestrictedText"></span></p>
+          <button type="button" class="btn btn-outline-dark-amson btn-sm d-none" id="priceLockToggleBtn"></button>
+        </div>
+        <div class="col-md-7">
+          <label class="form-label">Description</label>
+          <textarea class="form-control" id="productDescriptionInput" rows="4" placeholder="Shown to customers on the product page"></textarea>
+          <label class="form-label mt-3">Dosage / Usage Notes</label>
+          <textarea class="form-control" id="productDosageNotesInput" rows="2" placeholder="e.g. Adults: 1 tablet every 4-6 hours as needed. Do not exceed 8 tablets a day."></textarea>
+        </div>
+        <div class="col-md-5">
+          <label class="form-label">Product Image</label>
+          <div class="upload-dropzone p-2" id="productImageDropzone" style="padding:0.75rem;">
+            <div id="productImageEmptyState">
+              <i class="bi bi-upload" style="font-size:1.2rem;"></i>
+              <span style="font-size:0.85rem;">Click to upload</span>
+            </div>
+            <div id="productImagePreviewState" class="d-none w-100">
+              <div class="product-image-preview" id="productImagePreview"></div>
+              <p class="text-muted mb-0 mt-1 text-center" style="font-size:0.75rem;">Click to change</p>
+            </div>
+            <input type="file" id="productImageInput" accept="image/png,image/jpeg" class="d-none">
+          </div>
+        </div>
+
+        <div class="col-md-6 d-flex align-items-center gap-4 mt-2">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="productAvailablePOS" checked>
+            <label class="form-check-label" for="productAvailablePOS">Available in POS</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="productAvailableOnline" checked>
+            <label class="form-check-label" for="productAvailableOnline">Available in Online Store</label>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label d-block">Rx Required?</label>
+          <div class="segmented-toggle" id="productRxToggle">
+            <button type="button" class="segmented-toggle-btn active" data-value="no">No</button>
+            <button type="button" class="segmented-toggle-btn" data-value="yes">Yes</button>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label d-block">Status</label>
+          <div class="segmented-toggle" id="productStatusToggle">
+            <button type="button" class="segmented-toggle-btn active" data-value="active">Active</button>
+            <button type="button" class="segmented-toggle-btn" data-value="inactive">Inactive</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="productModalAlert" class="alert alert-danger auth-alert d-none mt-3" role="alert"></div>
+
+      <div class="d-flex justify-content-between align-items-center mt-4 flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-1">
+          <button type="button" class="btn btn-outline-dark-amson" id="uploadBatchBtn">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Upload Batch File
+          </button>
+          <button type="button" class="btn btn-link text-muted p-1" id="downloadTemplateBtn" title="Download the Excel format for batch upload" aria-label="Download the Excel format for batch upload">
+            <i class="bi bi-question-circle" style="font-size:1.1rem;"></i>
+          </button>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-dark-amson" id="deleteProductBtn" style="display:none; border-color:var(--amson-red); color:var(--amson-red);">Delete</button>
+          <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-amson" id="saveProductBtn">Add Product</button>
+        </div>
+      </div>
+      <input type="file" id="batchFileInput" accept=".csv,.xlsx,.xls" class="d-none">
+      <p class="text-muted mb-0 mt-2" style="font-size:0.78rem;" id="batchUploadStatus"></p>
+    </div>
+  </div>
+</div>
+
+<!-- Batch upload review modal - parsed rows land here for review/edits before anything is written -->
+<div class="modal fade" id="batchReviewModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-fullscreen-lg-down" style="max-width:1100px;">
+    <div class="modal-content p-4">
+      <h2 class="mb-3">Review Import</h2>
+      <div class="alert alert-danger d-none mb-3" id="batchReviewAlert" role="alert"></div>
+      <div class="table-responsive" style="max-height:55vh;">
+        <table class="table align-middle" style="font-size:0.85rem;">
+          <thead>
+            <tr>
+              <th style="min-width:56px;">Image</th>
+              <th style="min-width:160px;">Name *</th>
+              <th style="min-width:140px;">Generic Name</th>
+              <th style="min-width:120px;">Brand</th>
+              <th style="min-width:150px;">Category</th>
+              <th style="min-width:100px;">Costing</th>
+              <th style="min-width:100px;">Retail *</th>
+              <th style="min-width:100px;">Wholesale</th>
+              <th style="min-width:180px;">Description</th>
+              <th>POS</th>
+              <th>Online</th>
+              <th>Rx</th>
+              <th style="min-width:100px;">Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="batchReviewTableBody"></tbody>
+        </table>
+      </div>
+      <button type="button" class="btn btn-outline-dark-amson btn-sm mt-2" style="align-self:flex-start;width:fit-content;" id="batchReviewAddRowBtn">
+        <i class="bi bi-plus-lg me-1"></i>Add Row
+      </button>
+      <div class="d-flex justify-content-between align-items-center mt-4">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+          <span class="text-muted" style="font-size:0.85rem;" id="batchReviewCount"></span>
+          <button type="button" class="btn btn-outline-dark-amson btn-sm d-none" id="batchReviewRemoveDupesBtn"></button>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-amson" id="batchReviewConfirmBtn">Confirm Import</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk photo upload. Step 1: choose photos (named after their products).
+     Step 2: check the product each photo was matched to, then save. -->
+<div class="modal fade" id="photosModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-lg-down" style="max-width:980px;">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0 px-4 pt-4">
+        <div>
+          <h2 class="mb-1">Upload Photos</h2>
+          <div class="photo-steps" aria-hidden="true">
+            <span class="photo-step active" id="photoStep1Label">1. Choose photos</span>
+            <i class="bi bi-chevron-right"></i>
+            <span class="photo-step" id="photoStep2Label">2. Check matches</span>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" id="photosCloseBtn"></button>
+      </div>
+
+      <!-- Step 1 -->
+      <div class="modal-body px-4" id="photosStepPick">
+        <label class="photo-dropzone" id="photoDropzone" for="photosFileInput">
+          <i class="bi bi-cloud-arrow-up"></i>
+          <span class="fw-bold">Drop photos here, or click to choose</span>
+          <span class="text-muted" style="font-size:0.85rem;">Select as many as you like - JPG, PNG or phone photos</span>
+        </label>
+        <input type="file" id="photosFileInput" accept="image/*" multiple class="d-none">
+        <p class="text-muted mt-2 mb-0" id="photosPickedSummary" style="font-size:0.85rem;"></p>
+        <div class="photo-tips mt-3">
+          <p class="fw-bold mb-1">Name each photo after its product</p>
+          <ul class="mb-0">
+            <li>Use the brand name: <code>losaar 50.jpg</code>, <code>nahalgesic.jpg</code>, <code>glycemet.jpg</code></li>
+            <li>Add the form or strength when a brand has more than one: <code>lagundi syrup.jpg</code>, <code>cetirizine 10mg tablet.jpg</code></li>
+            <li>Or use the product code from the catalog: <code>MED-0036.jpg</code></li>
+            <li>Front of the box, plain light background, square crop. Big phone photos are shrunk automatically.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="modal-body px-4 d-none" id="photosStepReview">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+          <div class="d-flex gap-2 flex-wrap" id="photoFilterBtns">
+            <button type="button" class="btn order-filter-btn active" data-filter="all">All (<span id="photoCountAll">0</span>)</button>
+            <button type="button" class="btn order-filter-btn" data-filter="needs">Needs a product (<span id="photoCountNeeds">0</span>)</button>
+            <button type="button" class="btn order-filter-btn" data-filter="ready">Ready (<span id="photoCountReady">0</span>)</button>
+          </div>
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" id="photosSelectAll" checked>
+            <label class="form-check-label" for="photosSelectAll" style="font-size:0.85rem;">Tick all with a product</label>
+          </div>
+        </div>
+        <div class="photo-review-list" id="photosReviewList"></div>
+        <p class="text-muted text-center py-4 d-none mb-0" id="photosReviewEmpty">Nothing here.</p>
+      </div>
+
+      <div class="modal-footer border-0 px-4 pb-4 d-flex justify-content-between">
+        <span class="text-muted" style="font-size:0.85rem;" id="photosFooterNote"></span>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-dark-amson d-none" id="photosBackBtn"><i class="bi bi-arrow-left me-1"></i>Back</button>
+          <button type="button" class="btn btn-amson" id="photosNextBtn" disabled>Next: Check Matches</button>
+          <button type="button" class="btn btn-amson d-none" id="photosSaveBtn">Save Photos</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Categories modal -->
+<div class="modal fade" id="categoriesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content p-4">
+      <h2 class="mb-3">Manage Categories</h2>
+
+      <div id="categoriesList" class="d-flex flex-column gap-2 mb-3"></div>
+
+      <button type="button" class="btn btn-outline-dark-amson btn-sm w-100 mb-3" id="addBranchCategoriesBtn">
+        Add the branch's categories (Generics, Branded, Drugstore, Medical Supplies)
+      </button>
+
+      <div class="d-flex gap-2">
+        <input type="text" class="form-control" id="newCategoryNameInput" placeholder="New category name">
+        <button type="button" class="btn btn-amson flex-shrink-0" id="addCategoryBtn">Add</button>
+      </div>
+      <div id="categoriesAlert" class="alert alert-danger auth-alert d-none mt-3" role="alert"></div>
+
+      <button type="button" class="btn btn-outline-dark-amson w-100 mt-3" data-bs-dismiss="modal">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Choices.js -->
+<script src="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/scripts/choices.min.js"></script>
+
+<!-- Firebase (compat SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
+
+<!-- App scripts -->
+<script src="../js/firebase-config.js"></script>
+<script src="../js/products-data.js"></script>
+<script src="../js/cloudinary-config.js"></script>
+<script src="../js/cloudinary.js"></script>
+<script src="../js/admin-sidebar.js"></script>
+<script src="../js/admin-products.js"></script>
+<script src="../js/admin-product-photos.js"></script>
+<script src="../js/admin-roles.js"></script>
+<script src="../js/device-trust.js"></script>
+<script src="../js/admin-header.js"></script>
+
+<!-- PDF / Excel export libraries: loaded last, since they're only used
+     when someone exports or prints, so the page doesn't wait for them. -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</body>
+</html>

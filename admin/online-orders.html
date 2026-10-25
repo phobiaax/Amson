@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orders | Amson Pharmaceuticals</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+<!-- Custom styles -->
+<link rel="icon" type="image/png" href="../assets/logo-transp.png">
+<link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="admin-body">
+  <!-- ===== Sidebar ===== -->
+  <aside class="admin-sidebar">
+    <div class="admin-sidebar-brand">
+      <h1>Amson Pharmaceuticals</h1>
+      <p>Administrator</p>
+    </div>
+    <ul class="admin-nav">
+      <li><a href="dashboard.html" class="admin-nav-link"><i class="bi bi-house-door"></i>Dashboard</a></li>
+      <li><a href="pos.html" class="admin-nav-link"><i class="bi bi-credit-card"></i>POS</a></li>
+      <li><a href="online-orders.html" class="admin-nav-link active"><i class="bi bi-globe"></i>Orders</a></li>
+      <li><a href="inventory.html" class="admin-nav-link"><i class="bi bi-box-seam"></i>Inventory</a></li>
+      <li><a href="products.html" class="admin-nav-link"><i class="bi bi-capsule"></i>Products</a></li>
+      <li><a href="suppliers.html" class="admin-nav-link"><i class="bi bi-truck"></i>Suppliers</a></li>
+      <li><a href="customer-accounts.html" class="admin-nav-link"><i class="bi bi-person"></i>Customer Accounts</a></li>
+      <li><a href="wholesale-accounts.html" class="admin-nav-link"><i class="bi bi-cart-check"></i>Wholesale Accounts</a></li>
+      <li><a href="staff-management.html" class="admin-nav-link" id="staffManagementNavLink"><i class="bi bi-people"></i>Staff Management</a></li>
+      <li><a href="live-chat.html" class="admin-nav-link"><i class="bi bi-chat-dots"></i>Live Chat</a></li>
+      <li><a href="notifications.html" class="admin-nav-link"><i class="bi bi-bell"></i>Notifications</a></li>
+      <li><a href="reports.html" class="admin-nav-link"><i class="bi bi-file-earmark-bar-graph"></i>Reports</a></li>
+      <li><a href="audit-log.html" class="admin-nav-link"><i class="bi bi-list-check"></i>Audit Log</a></li>
+    </ul>
+  </aside>
+  <div class="admin-sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- ===== Main ===== -->
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <button type="button" class="admin-sidebar-toggle" id="sidebarToggleBtn" aria-label="Open menu">
+        <i class="bi bi-list"></i>
+      </button>
+      <span class="date-label" id="adminDateLabel"></span>
+      <div class="admin-profile">
+        <i class="bi bi-person-circle" style="font-size:1.8rem; color: var(--amson-text-muted);"></i>
+        <div>
+          <p class="name" id="adminProfileName">Admin</p>
+          <p class="role">Administrator</p>
+        </div>
+        <a href="settings.html" class="admin-logout-btn" aria-label="Settings" style="text-decoration:none;">
+          <i class="bi bi-gear"></i>
+        </a>
+        <button type="button" class="admin-logout-btn" id="adminLogoutBtn" aria-label="Log out">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="admin-content">
+      <h1 class="mb-4" style="font-weight:800;">Orders</h1>
+
+      <div class="checkout-card p-0" style="overflow:hidden;">
+        <!-- Tabs -->
+        <div class="d-flex flex-wrap" style="border-bottom:1px solid var(--amson-border);">
+          <button type="button" class="admin-tab-btn active" data-tab="verification" id="tabVerificationBtn">
+            <i class="bi bi-credit-card"></i>Payment Verification
+          </button>
+          <button type="button" class="admin-tab-btn" data-tab="orders" id="tabOrdersBtn">
+            <i class="bi bi-cart3"></i>Online Orders
+          </button>
+          <button type="button" class="admin-tab-btn" data-tab="walkin" id="tabWalkinBtn">
+            <i class="bi bi-shop"></i>Walk-in Orders
+          </button>
+        </div>
+
+        <!-- ===== Payment Verification panel ===== -->
+        <div id="verificationPanel" class="p-4">
+          <div class="row g-3">
+            <div class="col-lg-4">
+              <div class="d-flex gap-2 mb-2">
+                <input type="text" class="form-control form-control-sm" id="verificationSearchInput" placeholder="Search order # or customer">
+                <button type="button" class="btn btn-outline-dark-amson btn-sm" id="verificationSortBtn" aria-label="Toggle sort order"><i class="bi bi-arrow-down-up"></i></button>
+              </div>
+              <select class="form-select form-select-sm mb-2" id="verificationTypeFilter" aria-label="Filter queue">
+                <option value="all">All orders</option>
+                <option value="rx">Prescription (RX) pre-orders only</option>
+                <option value="regular">Non-prescription orders only</option>
+              </select>
+              <div id="verificationQueueList" class="d-flex flex-column gap-2"></div>
+              <p class="text-muted text-center py-4 d-none" id="verificationQueueEmpty">No orders awaiting payment verification.</p>
+            </div>
+            <div class="col-lg-8">
+              <div id="verificationReviewPanel" class="d-none">
+                <h2 class="h5 fw-bold mb-3" id="reviewPanelHeading">Proof of Payment Review</h2>
+                <div class="alert alert-info d-none mb-3" id="reviewRxChecklist" role="alert" style="font-size:0.85rem;">
+                  <p class="fw-bold mb-1"><i class="bi bi-file-medical me-1"></i>Prescription pre-order (in-store pick-up)</p>
+                  Check that the prescription is clear, current, signed by a licensed doctor, and matches the items ordered before approving. Approving reserves the stock and tells the customer the order is ready for pick-up.
+                </div>
+                <div class="alert alert-warning d-none mb-2" id="reviewPaymentIssueNote" role="alert"></div>
+                <div class="d-none mb-3 ps-3 border-start" id="reviewPreviousIssueBreakdown" style="border-color:var(--amson-border) !important;">
+                  <p class="detail-label mb-0">Amount Previously Received</p>
+                  <p class="detail-value mb-2" id="reviewPreviousReceived"></p>
+                  <p class="detail-label mb-0 text-danger">Shortfall</p>
+                  <p class="detail-value mb-0" id="reviewPreviousShortfall"></p>
+                </div>
+                <div class="row g-4">
+                  <div class="col-md-7">
+                    <p class="detail-label mb-0">Order Number</p>
+                    <p class="detail-value mb-3" id="reviewOrderNumber"></p>
+                    <p class="detail-label mb-0">Customer Name</p>
+                    <p class="detail-value mb-3" id="reviewCustomerName"></p>
+                    <div class="d-none mb-1" id="reviewSubtotalRow">
+                      <p class="detail-label mb-0">Cart Subtotal</p>
+                      <p class="detail-value mb-0" id="reviewSubtotal"></p>
+                    </div>
+                    <div class="d-none mb-1 text-success" id="reviewCreditRow">
+                      <p class="detail-label mb-0 text-success">Store Credit Applied</p>
+                      <p class="detail-value mb-0" id="reviewCreditApplied"></p>
+                    </div>
+                    <p class="detail-label mb-0">Order Total</p>
+                    <p class="detail-value product-price mb-3" id="reviewOrderTotal"></p>
+                    <p class="detail-label mb-0">Order Date &amp; Time</p>
+                    <p class="detail-value mb-3" id="reviewSubmittedAt"></p>
+                    <p class="detail-label mb-0">Reference Number</p>
+                    <p class="detail-value mb-3" id="reviewReferenceNumber"></p>
+                  </div>
+                  <div class="col-md-5" style="min-width:0;">
+                    <div id="reviewNoProofNotice" class="d-none mb-3">
+                      <p class="detail-label mb-1">Proof of Payment</p>
+                      <p class="text-muted mb-0" style="font-size:0.9rem;">No payment was made - store credit covers this order's total.</p>
+                    </div>
+                    <div id="reviewProofSection">
+                      <p class="detail-label mb-1">Proof of Payment</p>
+                      <a id="reviewProofImageLink" href="#" target="_blank" rel="noopener" class="d-block">
+                        <img id="reviewProofImage" src="" alt="Proof of payment" style="width:100%; max-height:320px; object-fit:contain; display:block; border-radius:8px; border:1px solid var(--amson-border); background-color:#f2f2f4;">
+                      </a>
+                      <p class="text-muted mb-0 mt-1" style="font-size:0.78rem;">Click to view full size</p>
+                    </div>
+
+                    <div id="reviewPrescriptionSection" class="d-none mt-3">
+                      <p class="detail-label mb-1"><i class="bi bi-file-medical me-1"></i>Prescription Photo</p>
+                      <a id="reviewPrescriptionLink" href="#" target="_blank" rel="noopener" class="d-block">
+                        <img id="reviewPrescriptionImage" src="" alt="Prescription" style="width:100%; max-height:220px; object-fit:contain; display:block; border-radius:8px; border:1px solid var(--amson-border); background-color:#f2f2f4;">
+                      </a>
+                      <p class="text-muted mb-0 mt-1" style="font-size:0.78rem;">Click to view full size</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div id="reviewPriceWarning" class="alert alert-warning auth-alert d-none mt-3" role="alert"></div>
+                <div id="reviewAlert" class="alert alert-danger auth-alert d-none mt-3" role="alert"></div>
+
+                <div class="d-flex gap-2 flex-wrap mt-3">
+                  <select class="form-select" id="paymentIssueSelect" style="max-width:240px;">
+                    <option value="">Payment Issue</option>
+                    <option value="invalid_payment">Invalid payment</option>
+                    <option value="payment_not_received">Payment not received</option>
+                    <option value="underpayment">Underpayment</option>
+                    <option value="overpayment">Overpayment</option>
+                  </select>
+                  <button type="button" class="btn btn-outline-danger d-none" id="rejectPrescriptionBtn">
+                    <i class="bi bi-x-circle me-1"></i>Reject Prescription
+                  </button>
+                  <button type="button" class="btn btn-approve-payment flex-fill" id="approvePaymentBtn">
+                    <i class="bi bi-check-circle me-1"></i>Approve Payment
+                  </button>
+                </div>
+              </div>
+              <p class="text-muted text-center py-5 d-none" id="verificationReviewEmpty">Select an order from the queue to review its payment.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Online Orders panel ===== -->
+        <div id="ordersPanel" class="p-4 d-none">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <div class="btn-group" role="group">
+              <button type="button" class="btn order-filter-btn active" data-filter="all">All Orders (<span id="filterAllCount">0</span>)</button>
+              <button type="button" class="btn order-filter-btn" data-filter="completed">Completed</button>
+              <button type="button" class="btn order-filter-btn" data-filter="pending">Pending</button>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+              <input type="text" class="form-control form-control-sm" id="ordersSearchInput" placeholder="Search order, SI or ref no." style="width:220px;">
+              <select class="form-select form-select-sm" id="ordersSortFieldSelect" style="width:160px;">
+                <option value="createdAt">Sort: Date Created</option>
+                <option value="lastUpdated" selected>Sort: Last Updated</option>
+              </select>
+              <button type="button" class="btn btn-outline-dark-amson btn-sm" id="ordersSortBtn" aria-label="Toggle sort order"><i class="bi bi-arrow-down-up"></i></button>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table admin-orders-table align-middle">
+              <thead>
+                <tr>
+                  <th>Order Id</th>
+                  <th>SI No.</th>
+                  <th>Date &amp; Time</th>
+                  <th>Customer</th>
+                  <th>Order Count</th>
+                  <th>Reference No.</th>
+                  <th>Order Total</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="ordersTableBody"></tbody>
+            </table>
+          </div>
+          <p class="text-muted text-center py-4 d-none" id="ordersTableEmpty">No orders found.</p>
+
+          <div class="catalog-pagination" id="ordersPagination"></div>
+        </div>
+
+        <!-- ===== Walk-in Orders panel (read-only POS sales log) ===== -->
+        <div id="walkinPanel" class="p-4 d-none">
+          <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+            <input type="text" class="form-control form-control-sm" id="walkinSearchInput" placeholder="Search SI no., reference no., customer, cashier or product" style="width:280px;">
+          </div>
+
+          <div class="table-responsive">
+            <table class="table admin-orders-table align-middle">
+              <thead>
+                <tr>
+                  <th>SI No.</th>
+                  <th>Date &amp; Time</th>
+                  <th>Customer</th>
+                  <th>Items</th>
+                  <th>Total</th>
+                  <th>Payment Method</th>
+                  <th>Reference No.</th>
+                  <th>Cashier</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="walkinTableBody"></tbody>
+            </table>
+          </div>
+          <p class="text-muted text-center py-4 d-none" id="walkinTableEmpty">No walk-in sales found.</p>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Payment issue modal (Invalid payment / Underpayment / Overpayment) -->
+<div class="modal fade" id="paymentIssueModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-start p-4">
+      <h2 class="mb-3" id="issueModalTitle">Payment Issue</h2>
+      <div class="summary-note" id="issueModalBanner"></div>
+
+      <div class="d-flex justify-content-between mb-3">
+        <div>
+          <p class="detail-label mb-0">Order Number</p>
+          <p class="detail-value" id="issueModalOrderNumber"></p>
+        </div>
+        <div class="text-end">
+          <div class="d-none" id="issueModalSubtotalRow">
+            <p class="detail-label mb-0">Cart Subtotal</p>
+            <p class="detail-value mb-1" id="issueModalSubtotal"></p>
+          </div>
+          <div class="d-none text-success" id="issueModalCreditRow">
+            <p class="detail-label mb-0 text-success">Credit Applied</p>
+            <p class="detail-value mb-1" id="issueModalCreditApplied"></p>
+          </div>
+          <p class="detail-label mb-0">Order Total</p>
+          <p class="detail-value product-price" id="issueModalOrderTotal"></p>
+        </div>
+      </div>
+
+      <div id="issueReasonGroup" class="d-none mb-3">
+        <label for="issueReasonSelect" class="form-label">Reason for rejection</label>
+        <select class="form-select" id="issueReasonSelect">
+          <option value="unclear_screenshot">Screenshot is blurry or unreadable</option>
+          <option value="incomplete_screenshot">Screenshot does not show a complete transaction</option>
+          <option value="payment_not_received">Payment not received</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div id="issueAmountGroup" class="d-none mb-3">
+        <label for="issueAmountReceivedInput" class="form-label">Amount received from customer (&#8369;)</label>
+        <input type="number" min="0" step="0.01" class="form-control mb-2" id="issueAmountReceivedInput" placeholder="0.00">
+        <div class="invalid-feedback d-block d-none mb-2" id="issueAmountError">Please enter the amount actually received from the customer.</div>
+        <div class="issue-amount-result">
+          <p class="detail-label mb-0" id="issueAmountResultLabel"></p>
+          <p class="product-price mb-0" id="issueAmountResultValue"></p>
+        </div>
+      </div>
+
+      <label for="issueNoteInput" class="form-label">Note to customer (optional)</label>
+      <textarea class="form-control mb-3" id="issueNoteInput" rows="3"></textarea>
+
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-approve-payment flex-fill" id="issueConfirmBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Placed on hold modal -->
+<div class="modal fade" id="holdModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <div class="icon-circle" style="background-color: rgba(238,49,55,0.12); color:var(--amson-red);"><i class="bi bi-pause-fill"></i></div>
+      <h2 class="mb-2">Placed on hold!</h2>
+      <p class="text-muted mb-4">Customer has been notified and the order will be placed on hold for 7 days or until resolved.</p>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Back</button>
+        <button type="button" class="btn btn-amson flex-fill" data-bs-dismiss="modal">View Order Queue</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Payment approved modal -->
+<div class="modal fade" id="approvedModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-start p-4">
+      <div class="text-center">
+        <div class="icon-circle" style="background-color: rgba(26,156,75,0.12); color:#1a9c4b;"><i class="bi bi-check-lg"></i></div>
+        <h2 class="mb-2">Payment approved!</h2>
+        <p class="text-muted mb-3">Please book the delivery using the customer details below.</p>
+      </div>
+      <a href="https://web.lalamove.com/" target="_blank" rel="noopener" class="btn btn-amson w-100 mb-2">Go to Lalamove Web Portal</a>
+      <button type="button" class="btn btn-outline-dark-amson w-100 mb-3" id="copyAllDeliveryBtn"><i class="bi bi-clipboard-check me-1"></i>Copy All Delivery Details</button>
+
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div><p class="detail-label mb-0">Order No.</p><p class="detail-value" id="approvedOrderNumber"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedOrderNumber"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
+
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div><p class="detail-label mb-0">Address</p><p class="detail-value" id="approvedAddress"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedAddress"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div><p class="detail-label mb-0">Customer Name</p><p class="detail-value" id="approvedCustomerName"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedCustomerName"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div><p class="detail-label mb-0">Contact No.</p><p class="detail-value" id="approvedContactNo"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedContactNo"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div><p class="detail-label mb-0">Preferred Schedule</p><p class="detail-value" id="approvedSchedule"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedSchedule"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div><p class="detail-label mb-0">Delivery Notes</p><p class="detail-value" id="approvedDeliveryNotes"></p></div>
+        <button type="button" class="btn btn-sm btn-outline-dark-amson copy-btn" data-copy-target="approvedDeliveryNotes"><i class="bi bi-clipboard"></i> Copy</button>
+      </div>
+
+      <div class="mb-3">
+        <label for="internalDeliveryNotesInput" class="form-label">Internal Notes <span class="text-muted">(staff only, optional)</span></label>
+        <textarea class="form-control" id="internalDeliveryNotesInput" rows="2" placeholder="e.g. Rider: Juan, booked 2:15 PM, fee ₱120"></textarea>
+      </div>
+
+      <div class="mb-3">
+        <label for="trackingLinkInput" class="form-label">Tracking Link</label>
+        <input type="text" class="form-control" id="trackingLinkInput" placeholder="[ Paste Courier Tracking URL Here ]">
+        <div class="invalid-feedback" id="trackingLinkError"></div>
+      </div>
+
+      <div class="mb-3">
+        <label for="lalamoveFeeInput" class="form-label">Lalamove Delivery Fee</label>
+        <div class="input-group">
+          <span class="input-group-text">₱</span>
+          <input type="number" class="form-control" id="lalamoveFeeInput" placeholder="0.00" min="0" step="0.01">
+        </div>
+        <div class="invalid-feedback" id="lalamoveFeeError"></div>
+        <p class="form-text mb-0">This is emailed to the customer as part of their delivery receipt, and is payable directly to the rider - it's separate from what they already paid online.</p>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-dark-amson flex-fill" data-bs-dismiss="modal">Back</button>
+        <button type="button" class="btn btn-amson flex-fill" id="markDispatchedBtn">Mark as Dispatched</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Ready for pick-up modal (prescription orders) -->
+<div class="modal fade" id="pickupReadyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <div class="icon-circle" style="background-color: rgba(26,156,75,0.12); color:#1a9c4b;"><i class="bi bi-shop"></i></div>
+      <h2 class="mb-2">Ready for pick-up!</h2>
+      <p class="text-muted mb-4">Prescription and payment approved, and the stock is reserved. The customer has been notified that the order is ready to pick up - they must bring the original prescription and a valid ID.</p>
+      <button type="button" class="btn btn-amson w-100" data-bs-dismiss="modal">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- Walk-in sale receipt (viewing a past POS transaction) -->
+<div class="modal fade" id="posReceiptModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="posReceiptModalTitle">Sale Receipt</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Branch</span>
+          <span class="fw-medium" id="posReceiptBranch">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Date</span>
+          <span class="fw-medium" id="posReceiptDate">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Time</span>
+          <span class="fw-medium" id="posReceiptTime">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">SI No.</span>
+          <span class="fw-medium" id="posReceiptRef">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Customer</span>
+          <span class="fw-medium" id="posReceiptCustomer">Walk-in</span>
+        </div>
+        <div class="d-flex justify-content-between mb-3">
+          <span class="text-muted">Cashier</span>
+          <span class="fw-medium" id="posReceiptCashier">-</span>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm mb-3">
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th class="text-end">Qty</th>
+                <th class="text-end">Price</th>
+                <th class="text-end">Total</th>
+              </tr>
+            </thead>
+            <tbody id="posReceiptItemsBody"></tbody>
+          </table>
+        </div>
+
+        <div class="d-flex justify-content-between mb-1">
+          <span class="fw-bold">Grand Total</span>
+          <strong id="posReceiptGrandTotal">₱0</strong>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Mode of Payment</span>
+          <span class="fw-medium" id="posReceiptPaymentMode">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1 d-none" id="posReceiptRefNoRow">
+          <span class="text-muted">Reference No.</span>
+          <span class="fw-medium" id="posReceiptRefNo">-</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">Amount</span>
+          <span class="fw-medium" id="posReceiptAmountPaid">-</span>
+        </div>
+        <div class="d-flex justify-content-between" id="posReceiptChangeRow">
+          <span class="text-muted">Change</span>
+          <span class="fw-medium" id="posReceiptChange">-</span>
+        </div>
+      </div>
+      <div class="modal-footer" id="posReceiptModalFooter">
+        <button type="button" class="btn btn-amson w-100" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- EmailJS (dispatch receipt email to the customer) -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<!-- Firebase (compat SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
+
+<!-- App scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="../js/firebase-config.js"></script>
+<script src="../js/emailjs-config.js"></script>
+<script src="../js/products-data.js"></script>
+<script src="../js/orders.js"></script>
+<script src="../js/admin-sidebar.js"></script>
+<script src="../js/admin-online-orders.js"></script>
+<script src="../js/admin-roles.js"></script>
+<script src="../js/device-trust.js"></script>
+<script src="../js/admin-header.js"></script>
+
+<!-- PDF / Excel export libraries: loaded last, since they're only used
+     when someone exports or prints, so the page doesn't wait for them. -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</body>
+</html>

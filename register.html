@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Register | Amson Pharmaceuticals</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+
+<!-- Bootstrap 5 -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+<!-- Custom styles -->
+<link rel="icon" type="image/png" href="assets/logo-transp.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="top-bar"></div>
+
+<!-- ===== Header ===== -->
+<header class="site-header">
+  <div class="container py-2">
+    <div class="d-flex align-items-center flex-wrap gap-3 py-2">
+      <!-- Logo / Brand -->
+      <a href="shop/index.html" class="d-flex align-items-center text-decoration-none flex-shrink-0">
+        <img src="assets/logo.png" alt="Amson Pharmaceuticals" class="brand-logo">
+        <span class="brand-name">Amson Pharmaceuticals</span>
+      </a>
+
+      <!-- Search -->
+      <div class="flex-grow-1 order-3 order-md-2" style="min-width:220px;">
+        <div class="input-group">
+          <input type="text" class="form-control search-input" placeholder="Search for medicines, vitamins, supplements...">
+          <button class="btn search-btn" type="button"><i class="bi bi-search"></i></button>
+        </div>
+      </div>
+
+      <!-- Cart & Auth actions -->
+      <div class="d-flex align-items-center gap-3 order-2 order-md-3 ms-auto">
+        <a href="shop/cart.html" class="cart-icon position-relative"><i class="bi bi-cart3"></i></a>
+        <a href="login.html" class="btn btn-outline-dark-amson btn-sm px-3">Login</a>
+        <a href="register.html" class="btn btn-amson btn-sm px-3">Register</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category nav -->
+  <nav class="category-nav">
+    <div class="container">
+      <ul class="nav flex-nowrap flex-md-wrap justify-content-md-center">
+        <li class="nav-item"><a class="nav-link" href="shop/products.html">All Products</a></li>
+        <li class="nav-item"><a class="nav-link" href="shop/products.html?category=otc">OTC Medicines</a></li>
+        <li class="nav-item"><a class="nav-link" href="shop/products.html?category=vitamins">Vitamins &amp; Supplements</a></li>
+        <li class="nav-item"><a class="nav-link" href="shop/products.html?category=personal-care">Personal Care</a></li>
+        <li class="nav-item"><a class="nav-link" href="shop/products.html?category=health-wellness">Health &amp; Wellness</a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<!-- ===== Register form ===== -->
+<main class="auth-page d-flex align-items-center justify-content-center">
+  <div class="w-100">
+    <div class="auth-card auth-card-wide">
+      <div class="text-center mb-4">
+        <h2>Create Account</h2>
+      </div>
+
+      <div id="registerAlert" class="alert alert-danger auth-alert d-none" role="alert"></div>
+
+      <form id="registerForm" novalidate>
+        <div class="row">
+          <div class="col-sm-6 mb-3">
+            <label for="firstName" class="form-label">First Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="firstName" placeholder="Juan" pattern="[A-Za-zÀ-ÖØ-öø-ÿ]+(?:(?:\.\s?|[\s\-])[A-Za-zÀ-ÖØ-öø-ÿ]+)*\.?" maxlength="50" required>
+            <p class="form-text text-danger mb-0 d-none" id="firstNameHint">Use letters, spaces, periods (e.g. Ma. or Jr.) and dashes between letters (e.g. Anne-Marie).</p>
+          </div>
+          <div class="col-sm-6 mb-3">
+            <label for="lastName" class="form-label">Last Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="lastName" placeholder="Dela Cruz" pattern="[A-Za-zÀ-ÖØ-öø-ÿ]+(?:(?:\.\s?|[\s\-])[A-Za-zÀ-ÖØ-öø-ÿ]+)*\.?" maxlength="50" required>
+            <p class="form-text text-danger mb-0 d-none" id="lastNameHint">Use letters, spaces, periods (e.g. Ma. or Jr.) and dashes between letters (e.g. Anne-Marie).</p>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label for="email" class="form-label">Email Address <span class="text-danger">*</span></label>
+          <div class="input-icon-group">
+            <i class="bi bi-envelope field-icon"></i>
+            <input type="email" class="form-control" id="email" placeholder="your@email.com" maxlength="254" required>
+          </div>
+          <p class="form-text text-danger mb-0 d-none" id="emailHint">Enter a valid email address.</p>
+        </div>
+
+        <div class="mb-3">
+          <label for="contactNumber" class="form-label">Contact Number <span class="text-danger">*</span></label>
+          <div class="input-icon-group">
+            <i class="bi bi-telephone field-icon"></i>
+            <input type="tel" class="form-control" id="contactNumber" placeholder="0917 123 4567" required>
+          </div>
+          <p class="form-text text-danger mb-0 d-none" id="contactNumberHint">Enter a valid Philippine mobile number (e.g. 0917 123 4567).</p>
+        </div>
+
+        <div class="mb-3">
+          <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
+          <div class="input-icon-group">
+            <i class="bi bi-lock field-icon"></i>
+            <input type="password" class="form-control" id="password" placeholder="••••••••" required minlength="6" maxlength="100" pattern="^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$">
+            <button type="button" class="toggle-password" data-target="password" aria-label="Show password">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          <p class="form-text text-danger mb-0 d-none" id="passwordHint">Must be at least 6 characters, with letters, numbers, and a special character.</p>
+        </div>
+
+        <div class="mb-3">
+          <label for="confirmPassword" class="form-label">Confirm Password <span class="text-danger">*</span></label>
+          <div class="input-icon-group">
+            <i class="bi bi-lock field-icon"></i>
+            <input type="password" class="form-control" id="confirmPassword" placeholder="••••••••" required minlength="6" maxlength="100">
+            <button type="button" class="toggle-password" data-target="confirmPassword" aria-label="Show password">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+          <p class="form-text mb-0 d-none" id="passwordMatchHint"></p>
+        </div>
+
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+          <label class="form-check-label" for="agreeTerms" style="font-size:0.88rem;">
+            I agree to the
+            <a href="#" class="link-red" data-bs-toggle="modal" data-bs-target="#legalModal">Terms and Conditions and Privacy Policy</a>
+          </label>
+        </div>
+
+        <!-- Google reCAPTCHA v2 -->
+        <div class="mb-3 d-flex justify-content-center">
+          <div class="g-recaptcha" data-sitekey="6LfcDXItAAAAALtJ_mK-8xP0GEw3CMlD56kuphJo"></div>
+        </div>
+
+        <button type="submit" class="btn btn-amson w-100 py-2" id="registerBtn">
+          <span id="registerBtnText">Register</span>
+          <span id="registerBtnSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        </button>
+
+        <p class="text-center mt-3 mb-0" style="font-size:0.9rem;">
+          Already have an account? <a href="login.html" class="link-red">Login here</a>
+        </p>
+      </form>
+    </div>
+  </div>
+</main>
+
+<!-- Terms and Conditions + Privacy Policy Modal (combined) -->
+<div class="modal fade legal-modal" id="legalModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Terms and Conditions &amp; Privacy Policy</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="legal-modal-body"><!-- filled by js/legal-content.js -->
+        </div>
+        <p class="legal-scroll-hint"><i class="bi bi-arrow-down-circle me-1"></i>Scroll to the bottom to enable the Agree button.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-amson legal-accept-btn" disabled>I Have Read and Agree</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Footer ===== -->
+<footer class="site-footer pt-5"></footer>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Google reCAPTCHA -->
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
+<!-- EmailJS -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<!-- Firebase (compat SDK) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
+
+<!-- App scripts -->
+<script src="js/firebase-config.js"></script>
+<script src="js/emailjs-config.js"></script>
+<script src="js/otp.js"></script>
+<script src="js/legal-content.js"></script>
+<script src="js/terms-gate.js"></script>
+<script src="js/validators.js"></script>
+<script src="js/register.js"></script>
+<script src="js/store-info.js"></script>
+</body>
+</html>
