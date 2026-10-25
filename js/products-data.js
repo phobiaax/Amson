@@ -274,7 +274,7 @@ function sumPhysicalStockByProduct(batches) {
 // table itself labels a batch, so the tile and the row never disagree.
 async function computeInventoryAlertCounts(batchesOverride = null) {
   await loadCatalogCache();
-  const batches = batchesOverride || (await db.collection("stockBatches").get()).docs.map((doc) => doc.data());
+  const batches = batchesOverride || (await liveStockBatches()).docs.map((doc) => doc.data());
   const physicalStockByProduct = sumPhysicalStockByProduct(batches);
 
   let nearExpiry = 0;
@@ -383,9 +383,9 @@ function staffChatNotifications(waitingDocs) {
 async function computeStaffNotifications() {
   await loadCatalogCache();
   const [batchSnapshot, orderSnapshot, poSnapshot] = await Promise.all([
-    db.collection("stockBatches").get(),
-    db.collection("orders").where("status", "==", "placed").get(),
-    db.collection("purchaseOrders").where("status", "==", "discrepancy").get(),
+    liveStockBatches(),
+    liveQuery("orders:placed", db.collection("orders").where("status", "==", "placed")),
+    liveQuery("purchaseOrders:discrepancy", db.collection("purchaseOrders").where("status", "==", "discrepancy")),
   ]);
 
   const notifications = [];
@@ -501,8 +501,8 @@ async function computeStaffNotifications() {
 
   // Bad Order batches still waiting to be physically disposed of (REQ067).
   try {
-    const bo = await db.collection("stockBatches").where("status", "==", "bad_order").get();
-    const pending = bo.docs.filter((d) => !d.data().disposedAt);
+    const bo = await liveStockBatches();
+    const pending = bo.docs.filter((d) => d.data().status === "bad_order" && !d.data().disposedAt);
     if (pending.length) {
       notifications.push({
         key: "bad_order_disposal",
@@ -631,7 +631,9 @@ const BAD_ORDER_MONTHS = 2;
 async function enforceExpiryStatus(batchesOverride = null) {
   const batches = batchesOverride
     ? batchesOverride.filter((b) => b.status === "active" || b.status === "wholesale_only")
-    : (await db.collection("stockBatches").where("status", "in", ["active", "wholesale_only"]).get()).docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    : (await liveStockBatches()).docs
+        .filter((doc) => ["active", "wholesale_only"].includes(doc.data().status))
+        .map((doc) => ({ id: doc.id, ...doc.data() }));
 
   const wholesaleOnlyThreshold = new Date();
   wholesaleOnlyThreshold.setMonth(wholesaleOnlyThreshold.getMonth() + NEAR_EXPIRY_MONTHS);
@@ -714,6 +716,99 @@ const DEFAULT_CATEGORIES = {
   "medical-supplies": "Medical Supplies",
 };
 
+// ---- Live reads (see LIVE_READS in firebase-config.js) ----
+// liveQuery(key, query) answers like query.get(): it waits for data the
+// server has confirmed, so callers see exactly what a fresh read would show.
+// Underneath it keeps a listener open for the rest of the page's life, so
+// later calls return the latest data instantly, and with the browser copy
+// a new page only downloads documents that changed since the last visit.
+// One listener per key: queries that read the same data share a key.
+const liveQueries = new Map();
+
+function liveQuery(key, query) {
+  if (typeof LIVE_READS === "undefined" || !LIVE_READS) return query.get();
+
+  let entry = liveQueries.get(key);
+  if (!entry) {
+    entry = { latest: null, version: 0, waiters: [] };
+    liveQueries.set(key, entry);
+    entry.firstAnswer = new Promise((resolve, reject) => {
+      let answered = false;
+      const answer = (snapshot) => {
+        if (answered) return;
+        answered = true;
+        clearTimeout(offlineTimer);
+        entry.latest = snapshot;
+        resolve();
+      };
+      // Offline: after a while, answer from the browser copy rather than wait
+      // forever (a plain read would have failed outright instead).
+      const offlineTimer = setTimeout(() => {
+        if (entry.latest) answer(entry.latest);
+      }, 10000);
+      query.onSnapshot(
+        { includeMetadataChanges: true },
+        (snapshot) => {
+          // version counts snapshots that changed data (not just metadata),
+          // so liveSnapshotAfter() can wait for a change it caused.
+          if (snapshot.docChanges().length) {
+            entry.version += 1;
+            const waiters = entry.waiters;
+            entry.waiters = [];
+            waiters.forEach((w) => w(snapshot));
+          }
+          if (answered) entry.latest = snapshot;
+          else if (!snapshot.metadata.fromCache) answer(snapshot);
+          else entry.latest = snapshot;
+        },
+        (error) => {
+          // Listener refused or dropped: fall back to a plain read so the page
+          // still loads, and let the next call open a new listener.
+          liveQueries.delete(key);
+          if (answered) return;
+          answered = true;
+          clearTimeout(offlineTimer);
+          query.get().then((snapshot) => {
+            entry.latest = snapshot;
+            resolve();
+          }, reject);
+        }
+      );
+    });
+    entry.firstAnswer.catch(() => liveQueries.delete(key));
+  }
+  // After the first server-confirmed answer, always the newest snapshot.
+  return entry.firstAnswer.then(() => entry.latest);
+}
+
+// The live data version of a key right now (0 when it has no listener).
+function liveVersion(key) {
+  const entry = liveQueries.get(key);
+  return entry ? entry.version : 0;
+}
+
+// Waits until the listener for key has delivered a change after version
+// (e.g. the stock change of a sale just made). Resolves false if none arrives
+// within timeoutMs, so the caller can fall back to a plain read.
+function liveSnapshotAfter(key, version, timeoutMs = 3000) {
+  const entry = liveQueries.get(key);
+  if (!entry || !entry.latest) return Promise.resolve(false);
+  if (entry.version > version) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), timeoutMs);
+    entry.waiters.push(() => {
+      clearTimeout(timer);
+      resolve(true);
+    });
+  });
+}
+
+// Every stock batch, live. The catalog, the bell, the dashboard tiles and the
+// expiry rules all read batches, so they share this one listener.
+function liveStockBatches() {
+  return liveQuery("stockBatches", db.collection("stockBatches"));
+}
+
 // Shop pages keep a copy of the catalog in the browser for a few minutes,
 // so each page a customer opens doesn't re-read every product and batch
 // (Firestore's free plan allows about 50,000 reads a day). Staff pages
@@ -763,7 +858,15 @@ function writeCatalogBrowserCache() {
   }
 }
 
-async function loadCatalogCache() {
+// The page's first catalog load reads through the live listeners (cheap, and
+// they stay open). A reload forced after this page changed something reads
+// plainly from the server, as before, so it can never show numbers from
+// before that change - except afterStockChange (POS sale/void), which waits
+// for the live listener to deliver that change and only falls back to a
+// plain read if it hasn't arrived within a few seconds.
+let catalogLoadedOnce = false;
+
+async function loadCatalogCache({ afterStockChange = null } = {}) {
   if (catalogLoadPromise) return catalogLoadPromise;
 
   const cached = readCatalogBrowserCache();
@@ -776,11 +879,15 @@ async function loadCatalogCache() {
 
   catalogLoadPromise = (async () => {
     // In parallel: three round trips one after another made every page wait.
-    const [categorySnapshot, productSnapshot, batchSnapshot] = await Promise.all([
-      db.collection("categories").get(),
-      db.collection("products").get(),
-      db.collection("stockBatches").where("status", "==", "active").get(),
-    ]);
+    let useLive = !catalogLoadedOnce;
+    if (!useLive && afterStockChange != null) useLive = await liveSnapshotAfter("stockBatches", afterStockChange);
+    const [categorySnapshot, productSnapshot, allBatchSnapshot] = await Promise.all(
+      useLive
+        ? [liveQuery("categories", db.collection("categories")), liveQuery("products", db.collection("products")), liveStockBatches()]
+        : [db.collection("categories").get(), db.collection("products").get(), db.collection("stockBatches").where("status", "==", "active").get()]
+    );
+    const batchSnapshot = { docs: allBatchSnapshot.docs.filter((doc) => doc.data().status === "active") };
+    catalogLoadedOnce = true;
 
     CATEGORY_LABELS = {};
     categorySnapshot.docs.forEach((doc) => {

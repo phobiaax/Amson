@@ -65,11 +65,12 @@ function populatePosProductSelect() {
     value: p.id,
     label: `${p.name} - ${formatPeso(p.price)} (${p.totalStock} in stock)`,
   }));
-  posProductSelect.innerHTML = options.map((o) => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join("");
-
+  // Destroy first: Choices puts the select's original options back when it's
+  // destroyed, which overwrote the new stock numbers after every sale.
   if (posProductChoices) {
     posProductChoices.destroy();
   }
+  posProductSelect.innerHTML = options.map((o) => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join("");
   posProductChoices = new Choices(posProductSelect, {
     searchEnabled: true,
     allowHTML: false,
@@ -277,6 +278,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
         // Stock deduction, the SI# and the sale record are one transaction:
         // a sale can't be saved without its stock leaving, or vice versa.
         const saleRef = db.collection("posSales").doc();
+        const stockVersion = liveVersion("stockBatches");
         const { invoiceNo } = await deductStockFEFOMultiple(
           items.map((item) => ({ productId: item.productId, qty: item.qty })),
           {
@@ -308,7 +310,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
         posReferenceNoInput.value = "";
         renderPosCart();
         catalogLoadPromise = null;
-        await loadCatalogCache();
+        await loadCatalogCache({ afterStockChange: stockVersion });
         populatePosProductSelect();
 
         // Show the finished receipt (with its SI No.) so it can be printed.
@@ -443,9 +445,10 @@ function openPosSaleReceipt(sale, afterVoid) {
             const details = await promptVoidDetails(sale, { requireApproval: currentStaffRole === "technical_staff" });
             if (!details) return;
             try {
+              const stockVersion = liveVersion("stockBatches");
               const result = await voidPosSale(sale, details, currentCashierName);
               catalogLoadPromise = null;
-              await loadCatalogCache();
+              await loadCatalogCache({ afterStockChange: stockVersion });
               populatePosProductSelect();
               await showAppAlert(
                 result.fullVoid

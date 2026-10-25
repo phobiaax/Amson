@@ -215,8 +215,8 @@ async function loadDashboardStats() {
   try {
     const [, ordersSnapshot, posSalesSnapshot] = await Promise.all([
       loadCatalogCache(),
-      db.collection("orders").get(),
-      db.collection("posSales").get(),
+      liveQuery("orders", db.collection("orders")),
+      liveQuery("posSales", db.collection("posSales")),
     ]);
     const orders = ordersSnapshot.docs.map((doc) => doc.data());
     // A voided walk-in sale was reversed - it isn't revenue.
