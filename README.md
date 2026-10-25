@@ -141,10 +141,18 @@ While testing with made-up emails, set `REQUIRE_DEVICE_CODE = false` in
 
 ## Deployment
 
-The site is static and is hosted on Netlify: connect the GitHub repo
-(branch `webapp`) in Netlify; `netlify.toml` copies only the website files
-into `dist/` and publishes that, so `docs/`, this README, `firestore.rules`
-and the `.bat` helpers are not public. Every push to `webapp` redeploys. Add the Netlify domain to Firebase Authentication →
-Settings → Authorized domains. The `_headers` file tells browsers to check for a
-newer copy of each file on every visit, so a new deploy shows up without a
-hard refresh.
+The site is hosted on Firebase Hosting (free plan, same project as the
+database): https://amson-web-app.web.app. Nothing deploys automatically -
+develop and test on the local server, then publish when ready:
+
+    npx firebase-tools login
+    npx firebase-tools deploy --only hosting
+
+`firebase.json` publishes only the website (the pages, `admin/`, `shop/`,
+`js/`, `css/`, `assets/`); `docs/`, this README, `firestore.rules` and the
+`.bat` helpers stay private. `npx firebase-tools deploy --only firestore:rules`
+publishes the database rules. Every page is served with a "check for a newer
+copy" header, so a new deploy shows up without a hard refresh.
+`amson-web-app.web.app` is already an authorized login domain; a custom
+domain added later (Hosting -> Add custom domain) must also be added under
+Authentication -> Settings -> Authorized domains.
