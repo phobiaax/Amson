@@ -209,10 +209,14 @@ saveStaffBtn.addEventListener("click", async () => {
 
   try {
     if (editingStaffId) {
+      const original = allStaff.find((s) => s.id === editingStaffId) || {};
       await db.collection("users").doc(editingStaffId).update({ firstName, lastName, role });
       await logAuditEvent({
         action: "Staff Account Updated",
         details: `${firstName} ${lastName} - Role: ${STAFF_ROLE_LABELS[role]}`,
+        record: original.email || `${firstName} ${lastName}`,
+        before: `${original.firstName || ""} ${original.lastName || ""}, ${STAFF_ROLE_LABELS[original.role] || original.role || "-"}`,
+        after: `${firstName} ${lastName}, ${STAFF_ROLE_LABELS[role]}`,
       });
     } else {
       const email = staffEmailInput.value.trim().toLowerCase();
@@ -278,6 +282,9 @@ async function toggleStaffStatus(id) {
     await logAuditEvent({
       action: nextStatus === "deactivated" ? "Staff Account Deactivated" : "Staff Account Reactivated",
       details: `${staff.firstName || ""} ${staff.lastName || ""} (${staff.email || ""})`,
+      record: staff.email || `${staff.firstName || ""} ${staff.lastName || ""}`,
+      before: currentStatus === "active" ? "Active" : "Deactivated",
+      after: nextStatus === "active" ? "Active" : "Deactivated",
     });
     await loadStaff();
   } catch (error) {

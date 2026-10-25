@@ -480,9 +480,12 @@ saveProductBtn.addEventListener("click", async () => {
         ["retailPrice", "Retail price"],
         ["wholesalePrice", "Wholesale price"],
       ];
-      const priceChanges = priceFields
-        .filter(([field]) => editingProductOriginal && field in productData && editingProductOriginal[field] !== productData[field])
-        .map(([field, label]) => `${label}: ${formatPeso(editingProductOriginal[field])} → ${formatPeso(productData[field])}`);
+      const changedPriceFields = priceFields.filter(
+        ([field]) => editingProductOriginal && field in productData && editingProductOriginal[field] !== productData[field]
+      );
+      const priceChanges = changedPriceFields.map(
+        ([field, label]) => `${label}: ${formatPeso(editingProductOriginal[field])} → ${formatPeso(productData[field])}`
+      );
 
       let priceChangeReason = "";
       if (priceChanges.length > 0) {
@@ -507,6 +510,10 @@ saveProductBtn.addEventListener("click", async () => {
         await logAuditEvent({
           action: "Price Change",
           details: `${productData.name} (${editingProductOriginal.sku || ""}) - ${priceChanges.join("; ")} - Reason: ${priceChangeReason}`,
+          record: `${productData.name} (${editingProductOriginal.sku || ""})`,
+          before: changedPriceFields.map(([field, label]) => `${label} ${formatPeso(editingProductOriginal[field])}`).join("; "),
+          after: changedPriceFields.map(([field, label]) => `${label} ${formatPeso(productData[field])}`).join("; "),
+          reason: priceChangeReason,
         });
       }
     } else {

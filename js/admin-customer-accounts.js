@@ -248,6 +248,9 @@ toggleCustomerStatusBtn.addEventListener("click", async () => {
     await logAuditEvent({
       action: nextStatus === "deactivated" ? "Account Deactivated" : "Account Reactivated",
       details: `Customer: ${customer.firstName || ""} ${customer.lastName || ""} (${customer.email || ""})`,
+      record: customer.email || `${customer.firstName || ""} ${customer.lastName || ""}`,
+      before: currentStatus === "active" ? "Active" : "Deactivated",
+      after: nextStatus === "active" ? "Active" : "Deactivated",
     });
 
     bootstrap.Modal.getInstance(viewCustomerModalEl).hide();

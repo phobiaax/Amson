@@ -1295,6 +1295,10 @@ saveWriteOffBtn.addEventListener("click", async () => {
       await logAuditEvent({
         action: "Inventory Write-Off",
         details: `${product ? product.name : item.productId} - Batch ${batch ? batch.batchNo : item.batchId}, Qty ${item.qty}, Reason: ${item.reason}`,
+        record: `${product ? product.name : item.productId} - Batch ${batch ? batch.batchNo : item.batchId}`,
+        before: batch ? `${batch.quantity} units` : "",
+        after: batch ? `${batch.quantity - item.qty} units` : `-${item.qty} units`,
+        reason: item.reason,
       });
     }
 
@@ -1668,6 +1672,10 @@ submitCountBtn.addEventListener("click", async () => {
               .map((i) => `${(getProductById(i.productId) || {}).name || "Unknown"} batch ${i.batchNo} ${i.systemQty} -> ${i.countedQty}`)
               .join("; ")}. Reason: ${varianceReason}`
           : ""),
+      record: `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)})`,
+      before: variances.map((i) => `${(getProductById(i.productId) || {}).name || "Unknown"} ${i.batchNo}: ${i.systemQty}`).join("; "),
+      after: variances.map((i) => `${(getProductById(i.productId) || {}).name || "Unknown"} ${i.batchNo}: ${i.countedQty}`).join("; "),
+      reason: varianceReason || "",
     });
 
     await loadInventory();

@@ -40,9 +40,7 @@ function filteredAuditEntries() {
     const term = auditSearchTerm.toLowerCase();
     filtered = filtered.filter(
       (e) =>
-        (e.user || "").toLowerCase().includes(term) ||
-        (e.action || "").toLowerCase().includes(term) ||
-        (e.details || "").toLowerCase().includes(term)
+        [e.user, e.action, e.details, e.record, e.before, e.after, e.reason].some((v) => (v || "").toLowerCase().includes(term))
     );
   }
 
@@ -84,12 +82,21 @@ function renderAuditTable() {
   renderAuditPagination(totalPages);
 }
 
+// Record / Before / After / Reason are only on entries that changed
+// something (REQ122); older entries and plain events show "-".
 function renderAuditRow(entry) {
+  const change =
+    entry.before || entry.after
+      ? `<span class="text-muted">${escapeHtml(entry.before || "-")}</span> <i class="bi bi-arrow-right"></i> ${escapeHtml(entry.after || "-")}`
+      : "-";
   return `
     <tr>
       <td>${formatTimestamp(entry.createdAt)}</td>
       <td>${escapeHtml(entry.user || "-")}</td>
       <td>${escapeHtml(entry.action || "-")}</td>
+      <td>${escapeHtml(entry.record || "-")}</td>
+      <td>${change}</td>
+      <td>${escapeHtml(entry.reason || "-")}</td>
       <td>${escapeHtml(entry.details || "-")}</td>
       <td>${escapeHtml(entry.ipAddress || "-")}</td>
     </tr>
@@ -160,7 +167,11 @@ exportAuditLogBtn.addEventListener("click", () => {
       { label: "Date & Time", value: (e) => formatDateMDY(e.createdAt, true), width: 1.3 },
       { label: "User", value: (e) => e.user || "", width: 1.2 },
       { label: "Action", value: (e) => e.action || "", width: 1.5 },
-      { label: "Details", value: (e) => e.details || "", width: 5 },
+      { label: "Record", value: (e) => e.record || "", width: 1.6 },
+      { label: "Before", value: (e) => e.before || "", width: 1.8 },
+      { label: "After", value: (e) => e.after || "", width: 1.8 },
+      { label: "Reason", value: (e) => e.reason || "", width: 1.6 },
+      { label: "Details", value: (e) => e.details || "", width: 3.5 },
     ],
   });
 });

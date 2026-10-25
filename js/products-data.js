@@ -652,6 +652,10 @@ async function enforceExpiryStatus(batchesOverride = null) {
         action: "Batch Moved to Wholesale Only",
         details: `${product ? product.name : batch.productId} - Batch ${batch.batchNo || "-"}, ${batch.quantity} units (within ${NEAR_EXPIRY_MONTHS} months of expiry ${formatDateMDY(`${batch.expirationDate}T12:00:00`)}), no longer sold retail`,
         actor: "System",
+        record: `${product ? product.name : batch.productId} - Batch ${batch.batchNo || "-"}`,
+        before: "Active (retail + wholesale)",
+        after: "Wholesale only",
+        reason: `Within ${NEAR_EXPIRY_MONTHS} months of expiry`,
       });
     }
   }
@@ -692,6 +696,10 @@ async function markBatchBadOrder(batchId) {
       action: "Bad Order (Automatic Write-Off)",
       details: `${product ? product.name : result.productId} - Batch ${result.batchNo || "-"}, Qty ${result.quantity}. ${result.reason}`,
       actor: "System",
+      record: `${product ? product.name : result.productId} - Batch ${result.batchNo || "-"}`,
+      before: `${result.quantity} units`,
+      after: "0 units (Bad Order)",
+      reason: result.reason,
     });
   }
 }
@@ -1432,6 +1440,10 @@ async function voidPosSale(sale, { reason, exchange, lines = null, approvedBy = 
       (approvedBy ? ` - Approved by ${approvedBy}` : "") +
       (exchange ? ` - Exchange: ${exchange.replacementItems || "unspecified"}, price difference ${formatPeso(exchange.priceDifference)}` : "") +
       ` - Items returned to stock: ${voidedLines.map((l) => `${l.name} x${l.qty}`).join(", ")}`,
+    record: `SI ${sale.invoiceNo || sale.id}`,
+    before: `Total ${formatPeso(sale.total || 0)}`,
+    after: fullVoid ? "Voided" : `Total ${formatPeso(Math.round(((sale.total || 0) - voidedAmount) * 100) / 100)}`,
+    reason,
   });
 
   return { fullVoid, voidedAmount, voidedLines };
@@ -1793,6 +1805,10 @@ async function processWholesaleExchange({ orderId, lineIndex, returnQty, replace
       `${exchangeNo} - ${order.buyerName || ""}, SI ${order.invoiceNo || "-"}: returned ${line.productName} x${returnQty} (${formatPeso(returnedValue)}), ` +
       `replaced with ${replacementProduct ? replacementProduct.name : replacement.productId} x${replacement.qty} (${formatPeso(replacementValue)}), ` +
       `difference ${formatPeso(replacementValue - returnedValue)}. Reason: ${reason.trim()}`,
+    record: `${exchangeNo} (SI ${order.invoiceNo || "-"})`,
+    before: `${line.productName} x${returnQty} (${formatPeso(returnedValue)})`,
+    after: `${replacementProduct ? replacementProduct.name : replacement.productId} x${replacement.qty} (${formatPeso(replacementValue)})`,
+    reason: reason.trim(),
   });
 
   const saved = await exchangeRef.get();
@@ -1822,7 +1838,11 @@ function batchFieldsFromAllocation(used) {
 }
 
 // ---- Audit log helper ----
-async function logAuditEvent({ action, details, actor }) {
+// record / before / after / reason are optional structured fields (REQ122):
+// which record changed, its value before and after, and why. Only set on
+// the events that change something (prices, stock, voids, exchanges,
+// accounts); everything else is described in details alone.
+async function logAuditEvent({ action, details, actor, record, before, after, reason }) {
   try {
     let actorName = actor;
     if (!actorName && auth.currentUser) {
@@ -1833,13 +1853,18 @@ async function logAuditEvent({ action, details, actor }) {
       }
     }
 
-    await db.collection("auditLog").add({
+    const entry = {
       action,
       details: details || "",
       user: actorName || "Unknown",
       ipAddress: "-",
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
+    };
+    if (record) entry.record = String(record);
+    if (before != null && before !== "") entry.before = String(before);
+    if (after != null && after !== "") entry.after = String(after);
+    if (reason) entry.reason = String(reason);
+    await db.collection("auditLog").add(entry);
   } catch (error) {
     console.error("Failed to write audit log entry:", error);
   }

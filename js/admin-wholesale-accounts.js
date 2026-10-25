@@ -691,6 +691,9 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
         ? {
             action: "Free-of-Cost Distribution",
             details: `SI ${invoiceNo} - ${account ? account.name : ""} - ${orderItems.map((it) => `${it.productName} x${it.qty}`).join(", ")}. Reason: ${freeReason}`,
+            record: `SI ${invoiceNo} - ${account ? account.name : ""}`,
+            after: `${orderItems.map((it) => `${it.productName} x${it.qty}`).join(", ")} at ${formatPeso(0)}`,
+            reason: freeReason,
           }
         : {
             action: "Wholesale Order Recorded",
