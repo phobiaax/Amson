@@ -389,6 +389,28 @@ function chatSystemInstruction() {
 
 let chatModelPromise = null;
 
+// The chat's own Firebase app (modular SDK), with App Check on it too when
+// APP_CHECK_SITE_KEY is set, so only this site can use the Gemini quota.
+let chatAppPromise = null;
+function getChatFirebaseApp(appMod, v) {
+  if (!chatAppPromise) {
+    chatAppPromise = (async () => {
+      const existing = appMod.getApps().find((a) => a.name === "amson-chat");
+      if (existing) return existing;
+      const app = appMod.initializeApp(firebaseConfig, "amson-chat");
+      if (typeof APP_CHECK_SITE_KEY !== "undefined" && APP_CHECK_SITE_KEY) {
+        const checkMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-app-check.js`);
+        checkMod.initializeAppCheck(app, { provider: new checkMod.ReCaptchaV3Provider(APP_CHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
+      }
+      return app;
+    })();
+    chatAppPromise.catch(() => {
+      chatAppPromise = null;
+    });
+  }
+  return chatAppPromise;
+}
+
 // Loads Firebase AI Logic (modular SDK, separate from the compat SDK the
 // rest of the site uses) only when the AI is first needed.
 function getChatModel() {
@@ -398,7 +420,7 @@ function getChatModel() {
       const v = CHAT_CONFIG.firebaseModularSdkVersion;
       const appMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`);
       const aiMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-ai.js`);
-      const app = appMod.getApps().find((a) => a.name === "amson-chat") || appMod.initializeApp(firebaseConfig, "amson-chat");
+      const app = await getChatFirebaseApp(appMod, v);
       const ai = aiMod.getAI(app, { backend: new aiMod.GoogleAIBackend() });
       return aiMod.getGenerativeModel(ai, {
         model: CHAT_CONFIG.geminiModel,
@@ -424,7 +446,7 @@ function getChatReaderModel() {
       const v = CHAT_CONFIG.firebaseModularSdkVersion;
       const appMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`);
       const aiMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-ai.js`);
-      const app = appMod.getApps().find((a) => a.name === "amson-chat") || appMod.initializeApp(firebaseConfig, "amson-chat");
+      const app = await getChatFirebaseApp(appMod, v);
       const ai = aiMod.getAI(app, { backend: new aiMod.GoogleAIBackend() });
       return aiMod.getGenerativeModel(ai, {
         model: CHAT_CONFIG.geminiModel,
