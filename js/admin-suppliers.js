@@ -46,7 +46,10 @@ async function loadSuppliers() {
   }
 }
 
+// The product checklist was taken off the form (suppliers are linked to
+// products through the stock they deliver), so this does nothing now.
 function renderProductChecklist(checkedIds = []) {
+  if (!supplierProductChecklist) return;
   if (SAMPLE_PRODUCTS.length === 0) {
     supplierProductChecklist.innerHTML = '<p class="text-muted mb-0" style="font-size:0.85rem;">No products in the catalog yet.</p>';
     return;
@@ -182,13 +185,6 @@ function openViewModal(supplier) {
   statusEl.textContent = supplier.status === "active" ? "Active" : "Inactive";
   statusEl.className = `badge rounded-pill ${supplier.status === "active" ? "text-bg-success" : "text-bg-secondary"}`;
 
-  const productNames = (supplier.productIds || [])
-    .map((id) => getProductById(id))
-    .filter(Boolean)
-    .map((p) => p.name);
-  document.getElementById("viewSupplierProducts").textContent =
-    productNames.length ? productNames.join(", ") : "No products linked yet.";
-
   bootstrap.Modal.getOrCreateInstance(viewSupplierModalEl).show();
 }
 
@@ -264,17 +260,12 @@ saveSupplierBtn.addEventListener("click", async () => {
   saveSupplierBtn.disabled = true;
   supplierModalAlert.classList.add("d-none");
 
-  const productIds = Array.from(
-    supplierProductChecklist.querySelectorAll(".supplier-product-checkbox:checked")
-  ).map((cb) => cb.value);
-
   const supplierData = {
     name,
     contactPerson: supplierContactPersonInput.value.trim(),
     phone: supplierPhoneInput.value.trim(),
     email: supplierEmailInput.value.trim(),
     address: supplierAddressInput.value.trim(),
-    productIds,
     status: getToggleValue(supplierStatusToggle),
   };
 
@@ -332,11 +323,6 @@ exportSuppliersBtn.addEventListener("click", () => {
       { label: "Email", value: (s) => s.email || "", width: 1.6 },
       { label: "Address", value: (s) => s.address || "", width: 2 },
       { label: "Status", value: (s) => (s.status === "active" ? "Active" : "Inactive"), width: 0.7 },
-      {
-        label: "Products",
-        value: (s) => (s.productIds || []).map((id) => (getProductById(id) || {}).name).filter(Boolean).join(", "),
-        width: 3,
-      },
     ],
   });
 });

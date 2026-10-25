@@ -269,6 +269,8 @@ let editingAgreedPrices = {};
 
 function renderAgreedPrices() {
   const el = document.getElementById("wholesaleAgreedPrices");
+  // The list isn't shown in the form any more; prices still prefill orders.
+  if (!el) return;
   const entries = Object.entries(editingAgreedPrices);
   if (!entries.length) {
     el.innerHTML = '<p class="text-muted mb-0" style="font-size:0.82rem;">None yet. Tick "Save these prices" when processing an order to set them.</p>';
