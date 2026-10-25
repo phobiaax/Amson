@@ -142,7 +142,9 @@ While testing with made-up emails, set `REQUIRE_DEVICE_CODE = false` in
 ## Deployment
 
 The site is hosted on Firebase Hosting (free plan, same project as the
-database): https://amson-web-app.web.app. Nothing deploys automatically -
+database): https://amsonpharma.web.app. The old address,
+https://amson-web-app.web.app, gets the same files on every deploy, so both
+work. Nothing deploys automatically -
 develop and test on the local server, then publish when ready: double-click
 `deploy.bat` (it pulls the latest code, warns about uncommitted files, asks
 before publishing, then deploys the website only). The first time on a
@@ -156,6 +158,7 @@ owns the project. The same by hand:
 `.bat` helpers stay private. `npx firebase-tools deploy --only firestore:rules`
 publishes the database rules. Every page is served with a "check for a newer
 copy" header, so a new deploy shows up without a hard refresh.
-`amson-web-app.web.app` is already an authorized login domain; a custom
-domain added later (Hosting -> Add custom domain) must also be added under
-Authentication -> Settings -> Authorized domains.
+Both addresses are authorized login domains. A custom domain added later
+(Hosting -> Add custom domain) must also be added under Authentication ->
+Settings -> Authorized domains, and to the reCAPTCHA checkbox key's domain
+list (google.com/recaptcha/admin).

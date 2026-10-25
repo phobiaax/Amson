@@ -1,6 +1,6 @@
 @echo off
 cd /d "%~dp0"
-echo Deploying Amson Pharmaceuticals to https://amson-web-app.web.app
+echo Deploying Amson Pharmaceuticals to https://amsonpharma.web.app
 echo.
 
 if not exist firebase.json (
@@ -46,7 +46,7 @@ if errorlevel 1 (
   goto end
 )
 echo.
-echo Live at https://amson-web-app.web.app - refresh the site to see it.
+echo Live at https://amsonpharma.web.app ^(and the old https://amson-web-app.web.app^) - refresh to see it.
 echo To undo: Firebase console - Hosting - Release history - Rollback.
 
 :end

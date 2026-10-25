@@ -2,28 +2,66 @@
   "firestore": {
     "rules": "firestore.rules"
   },
-  "hosting": {
-    "public": ".",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/.*/**",
-      ".git/**",
-      ".firebase/**",
-      "**/node_modules/**",
-      "docs/**",
-      "dist/**",
-      "README.md",
-      "firestore.rules",
-      "netlify.toml",
-      "_headers",
-      "*.bat"
-    ],
-    "headers": [
-      {
-        "source": "**",
-        "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "site": "amsonpharma",
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/.*/**",
+        ".git/**",
+        ".firebase/**",
+        "**/node_modules/**",
+        "docs/**",
+        "dist/**",
+        "README.md",
+        "firestore.rules",
+        "netlify.toml",
+        "_headers",
+        "*.bat"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=0, must-revalidate"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "site": "amson-web-app",
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/.*/**",
+        ".git/**",
+        ".firebase/**",
+        "**/node_modules/**",
+        "docs/**",
+        "dist/**",
+        "README.md",
+        "firestore.rules",
+        "netlify.toml",
+        "_headers",
+        "*.bat"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=0, must-revalidate"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }
