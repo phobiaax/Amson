@@ -367,7 +367,7 @@ function openEditModal(product) {
   productReorderPointInput.value = product.reorderPoint ?? "";
   productDescriptionInput.value = product.description || "";
   productDosageNotesInput.value = product.dosageNotes || "";
-  productShopSectionSelect.value = SHOP_SECTION_LABELS[product.shopSection] ? product.shopSection : "";
+  productShopSectionSelect.value = resolveShopSection(product.shopSection);
   productAvailablePOS.checked = !!product.availableInPOS;
   productAvailableOnline.checked = !!product.availableInOnlineStore;
   setToggleValue(productRxToggle, product.rxRequired ? "yes" : "no");

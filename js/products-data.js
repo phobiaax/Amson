@@ -709,39 +709,9 @@ async function markBatchBadOrder(batchId) {
   }
 }
 
-// Shop sections: how customers browse the online store (by need), separate
-// from the branch's categories above, which drive the month-end reports.
-// A product has at most one; products without one still show under All.
-const SHOP_SECTIONS = [
-  { id: "pain-fever", label: "Pain & Fever", icon: "bi-thermometer-half" },
-  { id: "cough-colds", label: "Cough & Colds", icon: "bi-wind" },
-  { id: "allergy", label: "Allergy", icon: "bi-flower1" },
-  { id: "stomach", label: "Stomach & Digestion", icon: "bi-capsule" },
-  { id: "vitamins", label: "Vitamins & Supplements", icon: "bi-sun" },
-  { id: "skin", label: "Skin Care", icon: "bi-droplet" },
-  { id: "heart-bp", label: "Heart & Blood Pressure", icon: "bi-heart-pulse" },
-  { id: "diabetes", label: "Diabetes", icon: "bi-droplet-half" },
-  { id: "antibiotics", label: "Antibiotics (Rx)", icon: "bi-prescription2" },
-  { id: "devices", label: "Health Devices & Tests", icon: "bi-activity" },
-  { id: "first-aid", label: "First Aid & Medical Supplies", icon: "bi-bandaid" },
-  { id: "personal-care", label: "Personal Care", icon: "bi-person" },
-];
-const SHOP_SECTION_LABELS = Object.fromEntries(SHOP_SECTIONS.map((s) => [s.id, s.label]));
-
-// A section id from what someone typed in an import file: its id or its
-// name, ignoring case, spaces and "&"/"and". Unknown text -> "" (none).
-function resolveShopSection(text) {
-  const key = (v) => String(v || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "");
-  const k = key(text);
-  if (!k) return "";
-  const hit = SHOP_SECTIONS.find((s) => key(s.id) === k || key(s.label) === k);
-  return hit ? hit.id : "";
-}
-
-// Sections that have at least one product in the online store, in list order.
+// The sections customers see: all 8, always (see js/shop-sections.js).
 function storefrontShopSections() {
-  const used = new Set(storefrontCatalog().map((p) => p.shopSection).filter(Boolean));
-  return SHOP_SECTIONS.filter((s) => used.has(s.id));
+  return SHOP_SECTIONS;
 }
 
 // The branch's own groupings (one sheet each in its month-end inventory
@@ -949,6 +919,7 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
       return {
         id: doc.id,
         ...data,
+        shopSection: resolveShopSection(data.shopSection),
         price: data.retailPrice,
         totalStock,
         inStock: data.status === "active" && totalStock > 0,
@@ -1109,26 +1080,19 @@ function escapeHtml(text) {
 }
 
 function renderStorefrontCategoryNav() {
-  const nav = document.querySelector(".category-nav .nav");
-  if (!nav) return;
-  // Customers browse by shop section (by need); until products have
-  // sections, the branch categories are shown instead.
-  const sections = storefrontShopSections();
-  const links = sections.length
-    ? sections.map((sec) => `<li class="nav-item"><a class="nav-link" href="products.html?section=${encodeURIComponent(sec.id)}">${escapeHtml(sec.label)}</a></li>`).join("")
-    : Object.entries(CATEGORY_LABELS)
-        .map(([id, name]) => `<li class="nav-item"><a class="nav-link" href="products.html?category=${encodeURIComponent(id)}">${escapeHtml(name)}</a></li>`)
-        .join("");
-  nav.innerHTML = `<li class="nav-item"><a class="nav-link" href="products.html">All Products</a></li>${links}`;
+  // The store menu is the 8 shop sections, the same on every page.
+  renderShopSectionNav();
 }
 
 function renderHomeCategoryCards() {
   const row = document.getElementById("homeCategoryCards");
   if (!row) return;
-  const sections = storefrontShopSections();
-  const cards = sections.length
-    ? sections.map((sec) => ({ href: `products.html?section=${encodeURIComponent(sec.id)}`, name: sec.label, icon: sec.icon, count: storefrontCatalog().filter((p) => p.shopSection === sec.id).length }))
-    : Object.entries(CATEGORY_LABELS).map(([id, name]) => ({ href: `products.html?category=${encodeURIComponent(id)}`, name, icon: "bi-star-fill", count: storefrontCatalog().filter((p) => p.category === id).length }));
+  const cards = storefrontShopSections().map((sec) => ({
+    href: `products.html?section=${encodeURIComponent(sec.id)}`,
+    name: sec.label,
+    icon: sec.icon,
+    count: storefrontCatalog().filter((p) => p.shopSection === sec.id).length,
+  }));
   row.innerHTML = cards
     .map(
       (c) => `
