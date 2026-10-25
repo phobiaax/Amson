@@ -143,9 +143,12 @@ While testing with made-up emails, set `REQUIRE_DEVICE_CODE = false` in
 
 The site is hosted on Firebase Hosting (free plan, same project as the
 database): https://amson-web-app.web.app. Nothing deploys automatically -
-develop and test on the local server, then publish when ready:
+develop and test on the local server, then publish when ready: double-click
+`deploy.bat` (it pulls the latest code, warns about uncommitted files, asks
+before publishing, then deploys the website only). The first time on a
+computer, sign in once with `npx firebase-tools login` using the account that
+owns the project. The same by hand:
 
-    npx firebase-tools login
     npx firebase-tools deploy --only hosting
 
 `firebase.json` publishes only the website (the pages, `admin/`, `shop/`,
