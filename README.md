@@ -141,8 +141,10 @@ While testing with made-up emails, set `REQUIRE_DEVICE_CODE = false` in
 
 ## Deployment
 
-The site is static and is meant to be hosted on Netlify: publish this folder
-as-is (no build command). Add the Netlify domain to Firebase Authentication →
+The site is static and is hosted on Netlify: connect the GitHub repo
+(branch `webapp`) in Netlify; `netlify.toml` copies only the website files
+into `dist/` and publishes that, so `docs/`, this README, `firestore.rules`
+and the `.bat` helpers are not public. Every push to `webapp` redeploys. Add the Netlify domain to Firebase Authentication →
 Settings → Authorized domains. The `_headers` file tells browsers to check for a
 newer copy of each file on every visit, so a new deploy shows up without a
 hard refresh.

@@ -1,0 +1,6 @@
+# Netlify settings (Netlify reads this file from the repo).
+# Only the website itself is published - docs/, README, firestore.rules and
+# the .bat helpers stay out of the public site.
+[build]
+  command = "rm -rf dist && mkdir dist && cp -r admin assets css js shop index.html login.html register.html verify-email.html forgot-password.html legal.html _headers dist/"
+  publish = "dist"
