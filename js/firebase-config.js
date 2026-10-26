@@ -51,8 +51,24 @@ function browserSessionEnded() {
   return remembered === "0" && !document.cookie.split("; ").includes(`${BROWSER_SESSION_COOKIE}=1`);
 }
 
-const authGate = new Promise((resolve) => {
-  const stop = auth.onAuthStateChanged(async (user) => {
+// Logins from before the shared login were kept per tab. Two tabs signed in
+// as different people (or one signed in, one a guest) stall the shared
+// browser copy of the data (LIVE_READS) - product lists never load - so a
+// per-tab login is moved to the shared one, ending when the browser closes.
+// Firebase's own listener: pages get a wrapped one that waits for authGate.
+const firebaseOnAuthStateChanged = auth.onAuthStateChanged.bind(auth);
+
+let legacyTabLogin = false;
+try {
+  legacyTabLogin = !!sessionStorage.getItem(`firebase:authUser:${firebaseConfig.apiKey}:[DEFAULT]`);
+} catch (error) {}
+if (legacyTabLogin) markLoginRemembered(false);
+
+const authGate = (legacyTabLogin
+  ? auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {})
+  : Promise.resolve()
+).then(() => new Promise((resolve) => {
+  const stop = firebaseOnAuthStateChanged(async (user) => {
     stop();
     if (user && browserSessionEnded()) {
       try {
@@ -61,9 +77,8 @@ const authGate = new Promise((resolve) => {
     }
     resolve();
   });
-});
+}));
 
-const firebaseOnAuthStateChanged = auth.onAuthStateChanged.bind(auth);
 auth.onAuthStateChanged = function (...args) {
   let unsubscribe = null;
   let cancelled = false;
@@ -79,14 +94,16 @@ auth.onAuthStateChanged = function (...args) {
 // Keep a copy of the data in the browser (IndexedDB) so a page reopened
 // within ~30 minutes only downloads what changed since (Firestore bills
 // unchanged documents as cached, not as new reads), while live listeners
-// stay live. Shared by every open tab. Where the browser can't keep a copy
-// (private windows, some older browsers) everything works as before, just
-// without the savings. Set LIVE_READS to false to go back to plain reads.
+// stay live. One tab at a time keeps the copy: shared between tabs, a
+// second tab's reads never answered while the first stayed open (product
+// lists stayed empty). Other tabs, and browsers that can't keep a copy
+// (private windows, some older browsers), read straight from the database.
+// Set LIVE_READS to false to go back to plain reads.
 const LIVE_READS = true;
 let browserCopyOff = !LIVE_READS;
-if (LIVE_READS) {
-  db.enablePersistence({ synchronizeTabs: true }).catch((error) => {
-    browserCopyOff = true;
-    console.warn("Browser copy of the data is off here (reads work as normal):", error.code || error);
-  });
-}
+const browserCopyReady = LIVE_READS
+  ? db.enablePersistence().catch((error) => {
+      browserCopyOff = true;
+      console.info("Browser copy of the data is in use by another tab or unavailable here (reads work as normal):", error.code || error);
+    })
+  : Promise.resolve();
