@@ -113,7 +113,7 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
         <div class="checkout-summary-item">
           <div class="cart-item-image" style="width:56px;height:56px;flex-shrink:0;${cartItemImageCss(product.imageUrl)}"></div>
           <div class="flex-grow-1">
-            <p class="mb-0 fw-medium">${escapeHtml(product.name)}</p>
+            <p class="mb-0 fw-medium">${escapeHtml(product.name)}${rxTag(product)}</p>
             <p class="text-muted mb-0" style="font-size:0.85rem;">Qty: ${item.qty}</p>
             <p class="product-price mb-0" style="font-size:1rem;">${formatPeso(product.price * item.qty)}</p>
           </div>

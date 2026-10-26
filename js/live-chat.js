@@ -35,9 +35,9 @@ function chatFaqAnswers() {
         "We accept payment through our QR Ph code only. At checkout, scan the QR code with your e-wallet or banking app, pay the exact total, then upload a screenshot of the payment and its reference number. Your order is confirmed once our staff verify it.",
     },
     {
-      keys: ["delivery fee", "shipping fee", "lalamove", "deliver", "shipping", "padala"],
+      keys: ["delivery fee", "shipping fee", "lalamove", "deliver", "shipping", "padala", "magkano delivery", "magkano ang delivery"],
       answer:
-        "Non-prescription orders are delivered by Lalamove. The delivery fee isn't included in your order total - you pay it directly to the rider. You can pick a preferred delivery schedule at checkout.",
+        "Non-prescription orders are delivered by Lalamove. The delivery fee depends on how far you are, so it's set by Lalamove when our staff book your rider - it isn't part of your order total. We email you the exact fee with your delivery receipt, and you pay it directly to the rider. You can pick a preferred delivery schedule at checkout.",
     },
     {
       keys: ["prescription", "reseta", "rx"],
@@ -50,9 +50,15 @@ function chatFaqAnswers() {
         "Paid orders can't be cancelled or refunded. If we sent the wrong item, tell us and we'll exchange it. If a payment can't be verified, the order goes on hold for up to 7 days; anything we verified is kept as store credit for your next order.",
     },
     {
-      keys: ["store hours", "open", "location", "address", "where are you", "contact", "saan"],
+      keys: ["store hours", "opening hours", "open", "close", "closing", "what time", "anong oras", "oras", "bukas", "sarado", "sunday", "holiday"],
+      answer: info.hours
+        ? `Our Las Piñas branch is open ${info.hours}.${contact ? ` You can also ${contact}.` : ""} Online orders can be placed any time; staff check them during store hours.`
+        : `Our store hours aren't posted online yet - type "talk to staff" and our team will tell you.${contact ? ` You can also ${contact}.` : ""} Online orders can be placed any time; staff check them during store hours.`,
+    },
+    {
+      keys: ["location", "address", "where are you", "where is", "contact", "saan", "nasaan", "phone number"],
       answer:
-        `We're Amson Pharmaceuticals, Las Piñas branch.${info.address ? ` Address: ${info.address}.` : ""}${info.hours ? ` Hours: ${info.hours}.` : ""}${contact ? ` You can also ${contact}.` : ""} The store details are also at the bottom of every page.`,
+        `We're Amson Pharmaceuticals, Las Piñas branch.${info.address ? ` Address: ${info.address}.` : ""}${info.hours ? ` Open ${info.hours}.` : ""}${contact ? ` You can also ${contact}.` : ""}${info.address || contact ? "" : ' Type "talk to staff" and our team will send you the address and contact details.'}`,
     },
     {
       keys: ["wholesale", "bulk", "maramihan"],

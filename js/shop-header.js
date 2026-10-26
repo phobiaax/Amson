@@ -12,6 +12,31 @@ const notifEmptyState = document.getElementById("notifEmptyState");
 const headerCreditItem = document.getElementById("headerCreditItem");
 const headerCreditAmount = document.getElementById("headerCreditAmount");
 
+const SHOP_STAFF_ROLES = {
+  admin: "Administrator",
+  branch_manager: "Branch Manager",
+  technical_staff: "Technical Staff",
+  sales_staff: "Sales Staff",
+};
+
+function showStaffShopBar(data) {
+  guestActions.classList.add("d-none");
+  accountActions.classList.add("d-none");
+  if (document.getElementById("staffShopBar")) return;
+  const bar = document.createElement("div");
+  bar.id = "staffShopBar";
+  bar.className = "text-center py-2 px-3";
+  bar.style.cssText = "background:#212529;color:#fff;font-size:0.85rem;";
+  bar.innerHTML = `You're signed in with a staff account (${escapeHtml(SHOP_STAFF_ROLES[data.role])}: ${escapeHtml(data.email || "")}). The shop is for customer accounts.
+    <a href="../admin/${data.role === "sales_staff" ? "pos" : "dashboard"}.html" class="btn btn-sm btn-light ms-2 py-0">Go to Dashboard</a>
+    <button type="button" class="btn btn-sm btn-outline-light ms-1 py-0" id="staffShopLogoutBtn">Log out</button>`;
+  document.body.prepend(bar);
+  document.getElementById("staffShopLogoutBtn").addEventListener("click", async () => {
+    await auth.signOut();
+    window.location.href = "../login.html";
+  });
+}
+
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
     guestActions.classList.remove("d-none");
@@ -42,6 +67,13 @@ auth.onAuthStateChanged(async (user) => {
     // (REQ005). Unverified accounts are still finishing sign-up.
     if (doc.exists && data.role === "customer" && data.emailVerified && typeof enforceRecognizedDevice === "function") {
       if (!(await enforceRecognizedDevice(data))) return;
+    }
+    // Staff accounts aren't customer accounts: say so instead of showing the
+    // shop as if they were a customer (cart, orders and alerts are for
+    // customers, and the database refuses them for staff).
+    if (doc.exists && SHOP_STAFF_ROLES[data.role]) {
+      showStaffShopBar(data);
+      return;
     }
     accountFirstName.textContent = data.firstName || "Account";
     guestActions.classList.add("d-none");

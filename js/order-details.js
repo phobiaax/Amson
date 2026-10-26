@@ -290,7 +290,7 @@ function renderOrder(order) {
         <div class="cart-item-row">
           <div class="cart-item-image" style="${cartItemImageCss(imageUrl)}"></div>
           <div class="cart-item-details">
-            <h3 class="product-name mb-1">${item.name}</h3>
+            <h3 class="product-name mb-1">${escapeHtml(item.name)}${rxTag(item.id)}</h3>
             <p class="text-muted mb-0" style="font-size:0.85rem;">Qty: ${item.qty}</p>
           </div>
           <div class="product-price mb-0">${formatPeso(item.price * item.qty)}</div>
@@ -342,6 +342,12 @@ function listenToOrder(docRef) {
   );
 }
 
+function showOrderNotYours() {
+  orderNotFoundNotice.querySelector("p").textContent =
+    "This order belongs to a different account. Log out, then log in with the account that placed it.";
+  orderNotFoundNotice.classList.remove("d-none");
+}
+
 async function loadOrder(uid) {
   if (!orderId) {
     orderNotFoundNotice.classList.remove("d-none");
@@ -354,8 +360,12 @@ async function loadOrder(uid) {
     const docRef = db.collection("orders").doc(orderId);
     const doc = await docRef.get();
 
-    if (!doc.exists || doc.data().customerId !== uid) {
+    if (!doc.exists) {
       orderNotFoundNotice.classList.remove("d-none");
+      return;
+    }
+    if (doc.data().customerId !== uid) {
+      showOrderNotYours();
       return;
     }
 
@@ -365,7 +375,9 @@ async function loadOrder(uid) {
     orderDetailContent.classList.remove("d-none");
     listenToOrder(docRef);
   } catch (error) {
-    orderNotFoundNotice.classList.remove("d-none");
+    // The database refuses other people's orders outright.
+    if (error && error.code === "permission-denied") showOrderNotYours();
+    else orderNotFoundNotice.classList.remove("d-none");
   } finally {
     orderLoading.classList.add("d-none");
   }
@@ -399,7 +411,8 @@ markReceivedBtn.addEventListener("click", async () => {
 
 auth.onAuthStateChanged((user) => {
   if (!user) {
-    orderNotFoundNotice.classList.remove("d-none");
+    // Opened from an email link while signed out: log in, then come back here.
+    window.location.href = `../login.html?next=${encodeURIComponent(`shop/order-details.html${window.location.search}`)}`;
     return;
   }
   loadOrder(user.uid);
