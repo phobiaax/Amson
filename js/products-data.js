@@ -2004,7 +2004,8 @@ async function processWalkinExchange({ saleId, lineIndex, returnQty, replacement
   const remaining = (line.qty || 0) - (line.returnedQty || 0);
   if (!(returnQty > 0) || returnQty > remaining) throw new Error(`Only ${remaining} of ${line.name} can still be returned from this sale.`);
   if (!reason || !reason.trim()) throw new Error("A reason for the return is required.");
-  if (!customerName || !customerName.trim()) throw new Error("Enter the customer's name.");
+  // Optional: a return without a name is recorded as from a walk-in customer.
+  customerName = (customerName || "").trim() || "Walk-in";
   if (!replacement || !replacement.productId || !(replacement.qty > 0)) throw new Error("Choose the replacement item and quantity.");
   const replacementProduct = getProductById(replacement.productId);
   if (!replacementProduct) throw new Error("That replacement item isn't in the catalog.");
@@ -2143,8 +2144,8 @@ async function openWalkinExchangeDialog(sale, processedBy) {
       title: "Walk-in Return / Exchange",
       confirmLabel: "Process Exchange",
       fieldHtml: `
-        <label class="form-label" for="wxCustomer">Customer name (returned by) *</label>
-        <input type="text" class="form-control mb-2" id="wxCustomer" maxlength="80" value="${escapeHtml(sale.customerName && sale.customerName !== "Walk-in" ? sale.customerName : "")}" placeholder="e.g. Juan Dela Cruz">
+        <label class="form-label" for="wxCustomer">Customer name (optional)</label>
+        <input type="text" class="form-control mb-2" id="wxCustomer" maxlength="80" value="${escapeHtml(sale.customerName && sale.customerName !== "Walk-in" ? sale.customerName : "")}" placeholder="Leave blank for Walk-in">
         <label class="form-label" for="wxLine">Item being returned</label>
         <select class="form-select mb-2" id="wxLine">
           ${lines.map((l) => `<option value="${l.idx}">${escapeHtml(l.it.name)} - ${l.left} returnable @ ${formatPeso(l.it.price || 0)}</option>`).join("")}
