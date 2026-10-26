@@ -1,16 +1,16 @@
 /**
  * Store details shown in every page footer - edit them here, once.
  * Leave a value empty ("") to hide that line rather than show a guess.
- * The client still has to confirm the contact details and FDA LTO number.
+ * The client still has to send the email address and FDA LTO number.
  */
 const STORE_INFO = {
   name: "Amson Pharmaceuticals",
   about:
     "A pharmaceutical distributor and retailer serving walk-in customers, drugstores, clinics and hospitals from its Las Piñas branch since September 2023.",
-  hotline: "",
+  hotline: "(02) 856 21155",
   email: "",
-  hours: "",
-  address: "",
+  hours: "daily, 9:00 AM - 6:00 PM",
+  address: "Unit 8 Benz Compound, J. Aguilar Ave., Pamplona Tres, Las Piñas City",
   fdaLtoNo: "",
 };
 
@@ -28,7 +28,7 @@ function renderSiteFooter() {
   const contactLines =
     line("Hotline: ", STORE_INFO.hotline) +
     line("Email: ", STORE_INFO.email) +
-    line("", STORE_INFO.hours) +
+    line("Open ", STORE_INFO.hours) +
     line("", STORE_INFO.address);
 
   footer.innerHTML = `
