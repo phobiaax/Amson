@@ -1183,6 +1183,14 @@ function pdfSafeText(text) {
   if (typeof text !== "string") return text;
   return PDF_TEXT_SWAPS.reduce((t, [pattern, plain]) => t.replace(pattern, plain), text);
 }
+// Opens a finished PDF with the browser's print window (Save as PDF is in
+// there too). If the browser blocks the new tab, the file downloads instead.
+function printPdf(doc, filename) {
+  doc.autoPrint();
+  const win = window.open(doc.output("bloburl"), "_blank");
+  if (!win) doc.save(filename);
+}
+
 function createPdf(options) {
   const doc = new window.jspdf.jsPDF(options);
   const text = doc.text.bind(doc);
@@ -1244,6 +1252,8 @@ function showSaleReceipt({
   onVoid = null,
   voidInfo = null,
   partialVoidInfo = null,
+  autoPrint = false,
+  onExchange = null,
 }) {
   const titleEl = document.getElementById("posReceiptModalTitle");
   if (titleEl) titleEl.textContent = title;
@@ -1264,7 +1274,9 @@ function showSaleReceipt({
     .map(
       (item) => `
         <tr>
-          <td>${escapeHtml(item.name)}${item.voidedQty ? `<div class="text-danger" style="font-size:0.75rem;">${item.voidedQty} voided</div>` : ""}</td>
+          <td>${escapeHtml(item.name)}${item.voidedQty ? `<div class="text-danger" style="font-size:0.75rem;">${item.voidedQty} voided</div>` : ""}${
+            item.returnedQty ? `<div class="text-muted" style="font-size:0.75rem;">${item.returnedQty} returned (exchanged)</div>` : ""
+          }</td>
           <td class="text-end">${item.qty}</td>
           <td class="text-end">${formatPeso(item.price)}</td>
           <td class="text-end">${formatPeso(item.price * item.qty)}</td>
@@ -1325,6 +1337,7 @@ function showSaleReceipt({
       // confirmed): print it, and - for authorized roles - void it.
       footer.innerHTML = `
         ${onVoid ? `<button type="button" class="btn btn-outline-dark-amson" id="posReceiptVoidBtn" style="border-color:var(--amson-red); color:var(--amson-red);">Void</button>` : ""}
+        ${onExchange ? `<button type="button" class="btn btn-outline-dark-amson" id="posReceiptExchangeBtn">Return / Exchange</button>` : ""}
         <button type="button" class="btn btn-outline-dark-amson flex-fill" id="posReceiptPrintBtn"><i class="bi bi-printer me-1"></i>Print</button>
         <button type="button" class="btn btn-amson flex-fill" data-bs-dismiss="modal">Close</button>
       `;
@@ -1333,6 +1346,12 @@ function showSaleReceipt({
         document.getElementById("posReceiptVoidBtn").addEventListener("click", () => {
           bootstrap.Modal.getOrCreateInstance(modalEl).hide();
           onVoid();
+        });
+      }
+      if (onExchange) {
+        document.getElementById("posReceiptExchangeBtn").addEventListener("click", () => {
+          modalEl.addEventListener("hidden.bs.modal", () => onExchange(), { once: true });
+          bootstrap.Modal.getOrCreateInstance(modalEl).hide();
         });
       }
     }
@@ -1353,6 +1372,9 @@ function showSaleReceipt({
   voidBanner.textContent = bannerLines.join(" | ");
 
   bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  // Every finished sale gets a paper copy: the print window opens by itself
+  // once the receipt is on screen (the Print button is there for reprints).
+  if (autoPrint) setTimeout(() => window.print(), 500);
 }
 
 // ---- Walk-in sale void (REQ083, Fig 2.6/2.14) ----
@@ -1960,6 +1982,297 @@ async function processWholesaleExchange({ orderId, lineIndex, returnQty, replace
 
   const saved = await exchangeRef.get();
   return { id: exchangeRef.id, ...saved.data() };
+}
+
+// ---- Walk-in return / exchange ----
+// The client's rule: no refunds. A walk-in customer brings back items from a
+// sale (found by its SI No.) and takes a replacement of equal or higher value,
+// paying any difference. Staff decide each time whether the returned units
+// can be sold again: if so they go back to the batch they were sold from
+// (same batch no. and expiry); if not they're recorded as a pull-out
+// (write-off) so they never reach a shelf. The customer is recorded as where
+// the returned stock came from. Kept with the wholesale exchanges (kind
+// "walkin") so the Return / Exchange report and EX numbers cover both.
+async function processWalkinExchange({ saleId, lineIndex, returnQty, replacement, restock, reason, customerName, processedBy }) {
+  const saleRef = db.collection("posSales").doc(saleId);
+  const saleSnap = await saleRef.get();
+  if (!saleSnap.exists) throw new Error("This sale no longer exists.");
+  const sale = saleSnap.data();
+  if (sale.voided) throw new Error("This sale was voided, so nothing on it can be returned.");
+  const line = (sale.items || [])[lineIndex];
+  if (!line) throw new Error("That item isn't on this sale.");
+  const remaining = (line.qty || 0) - (line.returnedQty || 0);
+  if (!(returnQty > 0) || returnQty > remaining) throw new Error(`Only ${remaining} of ${line.name} can still be returned from this sale.`);
+  if (!reason || !reason.trim()) throw new Error("A reason for the return is required.");
+  if (!customerName || !customerName.trim()) throw new Error("Enter the customer's name.");
+  if (!replacement || !replacement.productId || !(replacement.qty > 0)) throw new Error("Choose the replacement item and quantity.");
+  const replacementProduct = getProductById(replacement.productId);
+  if (!replacementProduct) throw new Error("That replacement item isn't in the catalog.");
+
+  const unitPrice = line.price || 0;
+  const returnedValue = Math.round(returnQty * unitPrice * 100) / 100;
+  const replacementUnit = replacementProduct.price || 0;
+  const replacementValue = Math.round(replacement.qty * replacementUnit * 100) / 100;
+  if (replacementValue < returnedValue) {
+    throw new Error(`The replacement (${formatPeso(replacementValue)}) must be of equal or higher value than the returned items (${formatPeso(returnedValue)}). Refunds aren't given.`);
+  }
+
+  // Which batches the returned units came from, latest-expiring first,
+  // skipping units already returned earlier.
+  const batches = (line.batches || []).map((b) => ({ ...b }));
+  const returnParts = [];
+  let need = returnQty;
+  for (let i = batches.length - 1; i >= 0 && need > 0; i--) {
+    const left = (batches[i].qty || 0) - (batches[i].returnedQty || 0);
+    const take = Math.min(left, need);
+    if (take <= 0) continue;
+    returnParts.push({ batchId: batches[i].batchId, batchNo: batches[i].batchNo, expirationDate: batches[i].expirationDate, qty: take });
+    batches[i].returnedQty = (batches[i].returnedQty || 0) + take;
+    need -= take;
+  }
+  if (need > 0 && restock) {
+    throw new Error("This sale has no batch record for that item, so it can't go back to a batch automatically. Choose \"Set aside\" or receive it as new stock.");
+  }
+  if (need > 0) returnParts.push({ batchId: null, batchNo: "", expirationDate: "", qty: need });
+
+  const counterRef = db.collection("counters").doc("wholesaleExchanges");
+  const exchangeRef = db.collection("wholesaleExchanges").doc();
+  const today = new Date();
+  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  let exchangeNo = null;
+
+  await deductStockFEFOMultiple([{ productId: replacement.productId, qty: replacement.qty }], {
+    returns: restock ? returnParts.map((p) => ({ batchId: p.batchId, qty: p.qty })) : [],
+    extraReads: [saleRef, counterRef],
+    afterWrite: (tx, { allocations, extraDocs }) => {
+      const [freshSale, counterDoc] = extraDocs;
+      const freshLine = (freshSale.data().items || [])[lineIndex];
+      if (freshSale.data().voided || !freshLine || (freshLine.qty || 0) - (freshLine.returnedQty || 0) < returnQty) {
+        throw new Error("This sale was changed by someone else. Reopen it and try again.");
+      }
+      const next = (counterDoc.exists ? counterDoc.data().count || 0 : 0) + 1;
+      exchangeNo = `EX-${String(next).padStart(5, "0")}`;
+      tx.set(counterRef, { count: next }, { merge: true });
+
+      const items = freshSale.data().items.map((it, idx) =>
+        idx === lineIndex ? { ...it, returnedQty: (it.returnedQty || 0) + returnQty, batches } : it
+      );
+      tx.update(saleRef, { items });
+
+      // Not sellable: a pull-out record, so it shows in the Pull-Out report
+      // (the units already left stock when they were sold).
+      if (!restock) {
+        returnParts.forEach((part) =>
+          tx.set(db.collection("writeOffs").doc(), {
+            batchId: part.batchId,
+            productId: line.productId,
+            batchNo: part.batchNo || "",
+            quantity: part.qty,
+            reason: `Customer return (${exchangeNo}), not resold: ${reason.trim()}`,
+            writeOffDate: todayIso,
+            fromCustomerReturn: true,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          })
+        );
+      }
+
+      tx.set(exchangeRef, {
+        kind: "walkin",
+        exchangeNo,
+        posSaleId: saleId,
+        invoiceNo: sale.invoiceNo || "",
+        buyerName: customerName.trim(),
+        purchasedAt: sale.createdAt || null,
+        restocked: !!restock,
+        returned: { productId: line.productId, productName: line.name, qty: returnQty, unitPrice, value: returnedValue, batches: returnParts },
+        replacement: {
+          productId: replacement.productId,
+          productName: replacementProduct.name,
+          qty: replacement.qty,
+          unitPrice: replacementUnit,
+          value: replacementValue,
+          batches: allocations[0],
+        },
+        priceDifference: Math.round((replacementValue - returnedValue) * 100) / 100,
+        reason: reason.trim(),
+        processedBy: processedBy || "",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    },
+  });
+
+  await logAuditEvent({
+    action: "Walk-in Return / Exchange",
+    details:
+      `${exchangeNo} - ${customerName.trim()}, SI ${sale.invoiceNo || "-"}: returned ${line.name} x${returnQty} (${formatPeso(returnedValue)}, ` +
+      `${restock ? "back to stock" : "set aside / pulled out"}), replaced with ${replacementProduct.name} x${replacement.qty} (${formatPeso(replacementValue)}), ` +
+      `difference ${formatPeso(replacementValue - returnedValue)}. Reason: ${reason.trim()}`,
+    record: `${exchangeNo} (SI ${sale.invoiceNo || "-"})`,
+    before: `${line.name} x${returnQty} (${formatPeso(returnedValue)})`,
+    after: `${replacementProduct.name} x${replacement.qty} (${formatPeso(replacementValue)})`,
+    reason: reason.trim(),
+  });
+
+  const saved = await exchangeRef.get();
+  return { id: exchangeRef.id, ...saved.data() };
+}
+
+// The dialog behind "Return / Exchange" on a walk-in sale. Resolves with the
+// saved exchange, or null if cancelled or it failed (the error is shown).
+async function openWalkinExchangeDialog(sale, processedBy) {
+  if (!sale) return null;
+  if (sale.voided) {
+    await showAppAlert("This sale was voided, so nothing on it can be returned.");
+    return null;
+  }
+  const lines = (sale.items || [])
+    .map((it, idx) => ({ idx, it, left: (it.qty || 0) - (it.returnedQty || 0) }))
+    .filter((l) => l.left > 0);
+  if (!lines.length) {
+    await showAppAlert("Every item on this sale has already been returned or voided.");
+    return null;
+  }
+  const productOptions = SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInPOS !== false && p.inStock)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((p) => `<option value="${p.id}">${escapeHtml(p.name)} - ${formatPeso(p.price || 0)} (${p.totalStock} in stock)</option>`)
+    .join("");
+
+  const ok = await showAppConfirm(
+    `Return items from SI No. ${sale.invoiceNo || "-"}. No refunds: the customer takes a replacement of equal or higher value and pays any difference.`,
+    {
+      title: "Walk-in Return / Exchange",
+      confirmLabel: "Process Exchange",
+      fieldHtml: `
+        <label class="form-label" for="wxCustomer">Customer name (returned by) *</label>
+        <input type="text" class="form-control mb-2" id="wxCustomer" maxlength="80" value="${escapeHtml(sale.customerName && sale.customerName !== "Walk-in" ? sale.customerName : "")}" placeholder="e.g. Juan Dela Cruz">
+        <label class="form-label" for="wxLine">Item being returned</label>
+        <select class="form-select mb-2" id="wxLine">
+          ${lines.map((l) => `<option value="${l.idx}">${escapeHtml(l.it.name)} - ${l.left} returnable @ ${formatPeso(l.it.price || 0)}</option>`).join("")}
+        </select>
+        <label class="form-label" for="wxQty">Quantity returned</label>
+        <input type="number" class="form-control mb-2" id="wxQty" min="1" step="1" value="1">
+        <p class="form-label mb-1">Can the returned item be sold again?</p>
+        <div class="form-check"><input class="form-check-input" type="radio" name="wxRestock" id="wxRestockYes" value="yes" checked><label class="form-check-label" for="wxRestockYes">Yes, back to stock (same batch and expiry)</label></div>
+        <div class="form-check mb-3"><input class="form-check-input" type="radio" name="wxRestock" id="wxRestockNo" value="no"><label class="form-check-label" for="wxRestockNo">No, set aside (recorded as a pull-out)</label></div>
+        <label class="form-label" for="wxProduct">Replacement item</label>
+        <select class="form-select mb-2" id="wxProduct">${productOptions}</select>
+        <label class="form-label" for="wxRepQty">Replacement quantity</label>
+        <input type="number" class="form-control mb-2" id="wxRepQty" min="1" step="1" value="1">
+        <p class="mb-3" style="font-size:0.85rem;" id="wxDiff"></p>
+        <label class="form-label" for="wxReason">Reason for return *</label>
+        <textarea class="form-control" id="wxReason" rows="2" placeholder="e.g. Wrong item bought / damaged box"></textarea>
+      `,
+      onRender: () => {
+        const lineSel = document.getElementById("wxLine");
+        const qty = document.getElementById("wxQty");
+        const prodSel = document.getElementById("wxProduct");
+        const repQty = document.getElementById("wxRepQty");
+        const diffEl = document.getElementById("wxDiff");
+        const line = () => sale.items[Number(lineSel.value)];
+        const update = () => {
+          const returned = (parseInt(qty.value, 10) || 0) * (line().price || 0);
+          const p = getProductById(prodSel.value);
+          const repl = (parseInt(repQty.value, 10) || 0) * (p ? p.price || 0 : 0);
+          const diff = repl - returned;
+          diffEl.innerHTML = `Returned <strong>${formatPeso(returned)}</strong> - Replacement <strong>${formatPeso(repl)}</strong> - ${
+            diff >= 0 ? `Customer pays <strong>${formatPeso(diff)}</strong>` : '<span class="text-danger">Replacement is worth less than the return (not allowed)</span>'
+          }`;
+        };
+        const setDefaults = () => {
+          if (getProductById(line().productId) && prodSel.querySelector(`option[value="${line().productId}"]`)) prodSel.value = line().productId;
+          qty.max = String((line().qty || 0) - (line().returnedQty || 0));
+          update();
+        };
+        lineSel.addEventListener("change", setDefaults);
+        [prodSel, qty, repQty].forEach((el) => el.addEventListener("input", update));
+        prodSel.addEventListener("change", update);
+        setDefaults();
+      },
+    }
+  );
+  if (!ok) return null;
+
+  const payload = {
+    saleId: sale.id,
+    lineIndex: Number(document.getElementById("wxLine").value),
+    returnQty: parseInt(document.getElementById("wxQty").value, 10),
+    restock: document.getElementById("wxRestockYes").checked,
+    replacement: { productId: document.getElementById("wxProduct").value, qty: parseInt(document.getElementById("wxRepQty").value, 10) },
+    reason: document.getElementById("wxReason").value,
+    customerName: document.getElementById("wxCustomer").value,
+    processedBy,
+  };
+  try {
+    const exchange = await processWalkinExchange(payload);
+    const print = await showAppConfirm(
+      `Exchange ${exchange.exchangeNo} recorded. ${exchange.restocked ? "The returned item is back in stock" : "The returned item was set aside (pull-out)"}, and the replacement was taken from stock.${
+        exchange.priceDifference > 0 ? ` Collect ${formatPeso(exchange.priceDifference)} from the customer.` : ""
+      }`,
+      { title: "Exchange Recorded", confirmLabel: "Print Exchange Slip", cancelLabel: "Close" }
+    );
+    if (print) printWalkinExchangeSlip(exchange);
+    return exchange;
+  } catch (error) {
+    await showAppAlert(error.message || "Something went wrong recording the exchange. Please try again.");
+    return null;
+  }
+}
+
+function printWalkinExchangeSlip(ex) {
+  if (typeof window.jspdf === "undefined") {
+    showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
+    return;
+  }
+  const doc = createPdf({ format: "a5" });
+  const right = 134;
+  let y = 16;
+  doc.setFontSize(13);
+  doc.setFont(undefined, "bold");
+  doc.text("Amson Pharmaceuticals", 12, y);
+  doc.text(ex.exchangeNo || "", right, y, { align: "right" });
+  doc.setFontSize(9);
+  doc.setFont(undefined, "normal");
+  y += 5;
+  doc.text("Walk-in Return / Exchange", 12, y);
+  doc.text(`Date: ${formatDateMDY(ex.createdAt || new Date())}`, right, y, { align: "right" });
+  y += 8;
+  [
+    `Returned by (customer): ${ex.buyerName || ""}`,
+    `Original SI No.: ${ex.invoiceNo || "-"} (purchased ${formatDateMDY(ex.purchasedAt)})`,
+    `Returned item: ${ex.restocked ? "back to stock" : "set aside (pull-out)"}`,
+    `Reason: ${ex.reason || ""}`,
+  ].forEach((t) => {
+    doc.text(doc.splitTextToSize(t, 122), 12, y);
+    y += 5;
+  });
+  const part = (title, p) => {
+    y += 3;
+    doc.setFont(undefined, "bold");
+    doc.text(title, 12, y);
+    doc.setFont(undefined, "normal");
+    y += 5;
+    doc.text(doc.splitTextToSize(`${p.productName || ""}`, 122), 12, y);
+    y += 5;
+    (p.batches || []).forEach((b) => {
+      if (!b.batchNo && !b.expirationDate) return;
+      doc.text(`Batch ${b.batchNo || "-"}, Exp ${b.expirationDate ? formatDateMDY(b.expirationDate) : "-"}, Qty ${b.qty}`, 16, y);
+      y += 5;
+    });
+    doc.text(`Qty ${p.qty} x ${Number(p.unitPrice || 0).toFixed(2)} = ${Number(p.value || 0).toFixed(2)}`, right, y, { align: "right" });
+    y += 4;
+  };
+  part("Returned", ex.returned || {});
+  part("Replacement", ex.replacement || {});
+  y += 5;
+  doc.setFont(undefined, "bold");
+  doc.text(`Difference paid by customer: PHP ${Number(ex.priceDifference || 0).toFixed(2)}`, 12, y);
+  doc.setFont(undefined, "normal");
+  y += 14;
+  doc.text("Customer: __________________", 12, y);
+  doc.text("Processed by: __________________", 72, y);
+  y += 5;
+  doc.text(ex.processedBy || "", 72, y);
+  printPdf(doc, `Amson-${ex.exchangeNo || "exchange"}.pdf`);
 }
 
 // ---- Sales Invoice numbers ----

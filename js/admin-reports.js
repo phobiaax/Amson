@@ -114,19 +114,20 @@ async function loadSalesInRange(start, end) {
       lines: (w.items || []).map((i) => ({ productId: i.productId, name: i.productName, qty: i.qty, price: i.unitPrice || 0, amount: i.subtotal || 0, batches: i.batches, batchNo: i.batchNo, expirationDate: i.expirationDate })),
     });
   });
-  // A wholesale exchange counts on its own day: the returned units come off
+  // An exchange (wholesale, or walk-in: kind "walkin") counts on its own day: the returned units come off
   // (negative), the replacement goes out, and the total is the difference
   // the buyer paid. The original sale stays as it was on its day.
   exchangeSnap.docs.forEach((doc) => {
     const ex = doc.data();
     const ret = ex.returned || {};
     const rep = ex.replacement || {};
+    const walkin = ex.kind === "walkin";
     sales.push({
-      channel: "wholesale",
+      channel: walkin ? "retail" : "wholesale",
       isExchange: true,
       date: tsToDate(ex.createdAt),
       invoiceNo: ex.exchangeNo || "",
-      customer: ex.buyerName || "Wholesale buyer",
+      customer: ex.buyerName || (walkin ? "Walk-in" : "Wholesale buyer"),
       paymentMethod: "exchange",
       total: ex.priceDifference || 0,
       lines: [
@@ -628,7 +629,7 @@ async function buildReturnsExchangeReport(start, end) {
     title: "AMSON PHARMACEUTICALS - Return / Exchange Report",
     subtitle: rangeSubtitle(start, end),
     filename: `returns-exchanges-${localISODate(start)}`,
-    notes: ["Items returned by wholesale buyers and what they took in exchange. No refunds are given; the buyer pays any price difference."],
+    notes: ["Items returned by walk-in customers and wholesale buyers, and what they took in exchange. No refunds are given; the customer pays any price difference."],
     sheets: [
       {
         name: "Return to POS",
