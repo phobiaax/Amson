@@ -1,7 +1,7 @@
 /**
  * Store details shown in every page footer - edit them here, once.
  * Leave a value empty ("") to hide that line rather than show a guess.
- * The client still has to send the email address and FDA LTO number.
+ * The client still has to send the email address.
  */
 const STORE_INFO = {
   name: "Amson Pharmaceuticals",
@@ -11,7 +11,7 @@ const STORE_INFO = {
   email: "",
   hours: "daily, 9:00 AM - 6:00 PM",
   address: "Unit 8 Benz Compound, J. Aguilar Ave., Pamplona Tres, Las Piñas City",
-  fdaLtoNo: "",
+  fdaLtoNo: "CDRR-NCR-DI/W-734203",
 };
 
 function renderSiteFooter() {
