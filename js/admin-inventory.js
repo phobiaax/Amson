@@ -629,6 +629,14 @@ function receiptSummary(plan) {
     .join("; ");
 }
 
+// One entry per received line, for the result pop-up.
+function receiptLineNames(plan) {
+  const name = (id) => (getProductById(id) || {}).name || id;
+  return plan.newLines
+    .map((l) => `${name(l.productId)} x${l.qty} (Batch ${l.batchNo})`)
+    .concat(plan.topUps.map((t) => `${name(t.line.productId)} x${t.line.qty} (Batch ${t.line.batchNo}, topped up)`));
+}
+
 function updateRemoveButtonsVisibility(container) {
   const items = container.querySelectorAll(".repeater-item");
   items.forEach((item) => {
@@ -758,6 +766,12 @@ saveReceiveStockBtn.addEventListener("click", async () => {
 
     bootstrap.Modal.getInstance(receiveStockModalEl).hide();
     await loadInventory();
+    await showTaskResult({
+      type: "success",
+      title: "Stock received",
+      message: `${plan.newLines.length + plan.topUps.length} line${plan.newLines.length + plan.topUps.length === 1 ? "" : "s"} added to inventory${supplier ? ` from ${supplier.name}` : ""} (Receipt/DR ${supplierReceiptNo}).`,
+      list: receiptLineNames(plan),
+    });
   } catch (error) {
     receiveModalAlert.textContent = error.message && error.message.startsWith("Batch ") ? error.message : "Something went wrong receiving this stock. Please try again.";
     receiveModalAlert.classList.remove("d-none");
@@ -920,14 +934,30 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   receiveBatchReviewConfirmBtn.textContent = "Confirm Import";
   bootstrap.Modal.getInstance(receiveBatchReviewModalEl).hide();
 
-  receiveBatchUploadStatus.textContent = `Received ${imported} line${imported === 1 ? "" : "s"}${plan.topUps.length ? ` (${plan.topUps.length} added to batches already in stock)` : ""}.${
-    failed ? ` ${failed} line${failed === 1 ? "" : "s"} didn't save - check Inventory, then upload only the missing rows again.` : ""
-  }`;
+  receiveBatchUploadStatus.textContent = "";
   if (imported > 0) {
     await logAuditEvent({ action: "Stock Received (Batch Upload)", details: `${imported} line${imported === 1 ? "" : "s"} imported from file: ${receiptSummary(plan)}` });
   }
   receiveBatchFileInput.value = "";
   await loadInventory();
+
+  const lineCount = (n) => `${n} line${n === 1 ? "" : "s"}`;
+  const topUpNote = plan.topUps.length ? `\n${lineCount(plan.topUps.length)} added to batches already in stock.` : "";
+  await showTaskResult(
+    failed
+      ? {
+          type: imported ? "warning" : "danger",
+          title: imported ? "Stock received with problems" : "Stock not received",
+          message: `${lineCount(imported)} received. ${lineCount(failed)} didn't save (check the connection) - check Inventory, then upload only the missing rows again.`,
+          actions: [{ key: "done", label: "Close", primary: true }],
+        }
+      : {
+          type: "success",
+          title: "Stock received",
+          message: `${lineCount(imported)} added to inventory.${topUpNote}`,
+          list: receiptLineNames(plan),
+        }
+  );
 });
 
 // SheetJS reads both real Excel workbooks and plain CSV through the same
