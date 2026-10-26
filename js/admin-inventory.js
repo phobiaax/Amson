@@ -1882,6 +1882,94 @@ function addPoItemRow() {
 
 poAddItemBtn.addEventListener("click", addPoItemRow);
 
+/* ---------- Create Purchase Order: batch upload (Excel .xlsx/.xls or .csv) ----------
+   The file fills the form's item rows (and the supplier / expected date when
+   the file has them), so everything is checked in the form before saving. */
+const PO_BATCH_TEMPLATE_HEADERS = ["sku", "expectedQty", "supplierName", "expectedDeliveryDate"];
+const poUploadBatchBtn = document.getElementById("poUploadBatchBtn");
+const poDownloadTemplateBtn = document.getElementById("poDownloadTemplateBtn");
+const poBatchFileInput = document.getElementById("poBatchFileInput");
+
+poUploadBatchBtn.addEventListener("click", () => poBatchFileInput.click());
+
+poDownloadTemplateBtn.addEventListener("click", () => {
+  const exampleRow = { sku: "SKU-0001", expectedQty: 100, supplierName: "Unilab", expectedDeliveryDate: todayISO() };
+  const ws = XLSX.utils.json_to_sheet([exampleRow], { header: PO_BATCH_TEMPLATE_HEADERS });
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Purchase Order");
+  XLSX.writeFile(wb, "amson-purchase-order-template.xlsx");
+});
+
+poBatchFileInput.addEventListener("change", async () => {
+  const file = poBatchFileInput.files[0];
+  if (!file) return;
+  poBatchFileInput.value = "";
+
+  let rows;
+  try {
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+    rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" }).map((sheetRow) => {
+      const row = {};
+      Object.entries(sheetRow).forEach(([key, value]) => {
+        row[key.trim().toLowerCase()] = value instanceof Date ? sheetDateToISO(value) : String(value).trim();
+      });
+      return row;
+    });
+  } catch (error) {
+    createPoAlert.textContent = "Couldn't read that file - make sure it's a valid .xlsx, .xls, or .csv file.";
+    createPoAlert.classList.remove("d-none");
+    return;
+  }
+
+  rows = rows.filter((row) => row.sku || row.expectedqty);
+  const unknown = [];
+  const items = [];
+  rows.forEach((row, i) => {
+    const product = SAMPLE_PRODUCTS.find((p) => (p.sku || "").toLowerCase() === String(row.sku).toLowerCase());
+    if (!product) unknown.push(`Row ${i + 2}: ${row.sku || "(no SKU)"}`);
+    else items.push({ productId: product.id, qty: parseInt(row.expectedqty, 10) || "" });
+  });
+
+  if (!items.length) {
+    createPoAlert.textContent = rows.length
+      ? `None of the SKUs in that file match a product. ${unknown.slice(0, 10).join("; ")}`
+      : "That file has no rows. Download the template (the ? button) for the columns to use.";
+    createPoAlert.classList.remove("d-none");
+    return;
+  }
+
+  // Replace the item rows with the file's rows.
+  destroyChoicesIn(poItemsContainer);
+  poItemsContainer.innerHTML = "";
+  poItemCount = 0;
+  items.forEach((item) => {
+    addPoItemRow();
+    const row = poItemsContainer.lastElementChild;
+    const select = row.querySelector(".po-product-select");
+    if (select._choices) select._choices.setChoiceByValue(item.productId);
+    else select.value = item.productId;
+    row.querySelector(".po-qty-input").value = item.qty;
+  });
+
+  const first = rows[0];
+  const supplier = first.suppliername && allSuppliers.find((s) => s.name.toLowerCase() === first.suppliername.toLowerCase());
+  if (supplier) {
+    if (poSupplierSelect._choices) poSupplierSelect._choices.setChoiceByValue(supplier.id);
+    else poSupplierSelect.value = supplier.id;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(first.expecteddeliverydate || "")) poExpectedDateInput.value = first.expecteddeliverydate;
+
+  const notes = [];
+  if (unknown.length) notes.push(`${unknown.length} row${unknown.length === 1 ? "" : "s"} skipped - SKU not found: ${unknown.slice(0, 10).join("; ")}${unknown.length > 10 ? "; ..." : ""}`);
+  if (first.suppliername && !supplier) notes.push(`Supplier "${first.suppliername}" isn't saved yet - pick the supplier above.`);
+  if (notes.length) {
+    createPoAlert.textContent = notes.join(" ");
+    createPoAlert.classList.remove("d-none");
+  } else {
+    createPoAlert.classList.add("d-none");
+  }
+});
+
 createPoBtn.addEventListener("click", () => {
   destroyChoicesIn(poItemsContainer);
   if (poSupplierSelect._choices) {
@@ -1935,6 +2023,13 @@ savePoBtn.addEventListener("click", async () => {
 
     bootstrap.Modal.getInstance(createPoModalEl).hide();
     await loadInventory();
+    const supplier = allSuppliers.find((sup) => sup.id === supplierId);
+    await showTaskResult({
+      type: "success",
+      title: "Purchase order created",
+      message: `${poNumber}${supplier ? ` for ${supplier.name}` : ""}, ${items.length} item${items.length === 1 ? "" : "s"}, expected ${formatDateMDY(`${expectedDeliveryDate}T12:00:00`)}.`,
+      list: items.map((it) => `${(getProductById(it.productId) || {}).name || it.productId} x${it.expectedQty}`),
+    });
   } catch (error) {
     createPoAlert.textContent = "Something went wrong creating this purchase order. Please try again.";
     createPoAlert.classList.remove("d-none");
