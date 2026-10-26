@@ -750,9 +750,23 @@ function liveQuery(key, query) {
         resolve();
       };
       // Offline: after a while, answer from the browser copy rather than wait
-      // forever (a plain read would have failed outright instead).
+      // forever (a plain read would have failed outright instead). No answer
+      // at all by then (a stalled listener): try a plain read instead, so a
+      // page never waits forever.
       const offlineTimer = setTimeout(() => {
-        if (entry.latest) answer(entry.latest);
+        if (entry.latest) {
+          answer(entry.latest);
+          return;
+        }
+        if (answered) return;
+        console.warn(`Live ${key} gave no answer; reading it directly.`);
+        query.get().then(
+          (snapshot) => {
+            if (answered) return;
+            answer(snapshot);
+          },
+          () => {}
+        );
       }, 10000);
       // Opened only after the sign-in check (authGate, firebase-config.js):
       // a listener open while that check signs someone out never answered.

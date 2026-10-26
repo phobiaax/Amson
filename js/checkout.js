@@ -129,7 +129,7 @@ let signedInUid = null;
 
 proceedToPaymentBtn.addEventListener("click", async () => {
   if (!signedInUid) {
-    window.location.href = "../login.html";
+    window.location.href = "../login.html?next=shop%2Fcheckout.html";
     return;
   }
 
@@ -178,7 +178,7 @@ proceedToPaymentBtn.addEventListener("click", async () => {
 try {
   auth.onAuthStateChanged(async (user) => {
     if (!user) {
-      window.location.href = "../login.html";
+      window.location.href = "../login.html?next=shop%2Fcheckout.html";
       return;
     }
     signedInUid = user.uid;
