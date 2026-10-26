@@ -70,7 +70,7 @@ function renderCreditPreview() {
 // ---- Require login (in case this page is opened directly) ----
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
-    window.location.href = "../login.html";
+    window.location.href = "../login.html?next=shop%2Fcheckout.html";
     return;
   }
   try {
