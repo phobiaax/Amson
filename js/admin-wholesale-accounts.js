@@ -528,9 +528,15 @@ function addProcessOrderItemRow() {
     const product = getProductById(productSelect.value);
     const account = allWholesaleAccounts.find((w) => w.id === processingAccountId);
     const agreed = account && account.agreedPrices ? account.agreedPrices[productSelect.value] : undefined;
+    // No wholesale price on the product: left empty (the order can't be
+    // saved until a price is typed), never a silent 0.
+    const standard = product && product.wholesalePrice > 0 ? product.wholesalePrice : null;
     if (processOrderFreeCheck.checked) priceInput.value = 0;
-    else priceInput.value = agreed != null ? agreed : product ? product.wholesalePrice || 0 : 0;
-    priceNote.textContent = agreed != null ? "Agreed price for this buyer" : "Standard wholesale price";
+    else priceInput.value = agreed != null ? agreed : standard != null ? standard : "";
+    priceNote.textContent =
+      agreed != null ? "Agreed price for this buyer" : standard != null ? "Standard wholesale price" : "No wholesale price set for this product - type the price";
+    priceNote.classList.toggle("text-danger", agreed == null && standard == null && !processOrderFreeCheck.checked);
+    priceNote.classList.toggle("text-muted", !(agreed == null && standard == null && !processOrderFreeCheck.checked));
     recalcProcessOrderTotal();
   };
   setDefaultPrice();
@@ -629,7 +635,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
 
   const invalid = items.some((it) => !it.productId || !it.qty || it.qty <= 0 || isNaN(it.unitPrice) || it.unitPrice < 0);
   if (invalid || items.length === 0) {
-    processOrderAlert.textContent = "Every item needs a product, a quantity, and a unit price.";
+    processOrderAlert.textContent = "Every item needs a product, a quantity, and a unit price (type one where it says no wholesale price is set).";
     processOrderAlert.classList.remove("d-none");
     return;
   }
