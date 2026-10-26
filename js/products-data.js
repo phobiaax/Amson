@@ -754,7 +754,10 @@ function liveQuery(key, query) {
       const offlineTimer = setTimeout(() => {
         if (entry.latest) answer(entry.latest);
       }, 10000);
-      query.onSnapshot(
+      // Opened only after the sign-in check (authGate, firebase-config.js):
+      // a listener open while that check signs someone out never answered.
+      const signInChecked = typeof authGate !== "undefined" ? authGate : Promise.resolve();
+      signInChecked.then(() => query.onSnapshot(
         { includeMetadataChanges: true },
         (snapshot) => {
           // version counts snapshots that changed data (not just metadata),
@@ -781,7 +784,7 @@ function liveQuery(key, query) {
             resolve();
           }, reject);
         }
-      );
+      ));
     });
     entry.firstAnswer.catch(() => liveQueries.delete(key));
   }
@@ -817,8 +820,8 @@ function liveStockBatches() {
   return liveQuery("stockBatches", db.collection("stockBatches"));
 }
 
-// Where the browser can't keep the live data copy (see LIVE_READS - private
-// windows, some older browsers), shop pages keep a copy of the catalog for a
+// In a tab without the live data copy (see LIVE_READS - another tab has it,
+// or a private window / older browser), shop pages keep a copy of the catalog for a
 // few minutes, so each page a customer opens doesn't re-read every product
 // and batch (Firestore's free plan allows about 50,000 reads a day). With the
 // live copy that isn't needed, so new stock shows on the next page opened.
@@ -880,15 +883,18 @@ let catalogLoadedOnce = false;
 async function loadCatalogCache({ afterStockChange = null } = {}) {
   if (catalogLoadPromise) return catalogLoadPromise;
 
-  const cached = readCatalogBrowserCache();
-  if (cached) {
-    CATEGORY_LABELS = cached.categories || {};
-    SAMPLE_PRODUCTS = cached.products;
-    catalogLoadPromise = Promise.resolve({ products: SAMPLE_PRODUCTS, categories: CATEGORY_LABELS });
-    return catalogLoadPromise;
-  }
-
   catalogLoadPromise = (async () => {
+    // Whether this tab keeps the browser copy decides whether the short
+    // catalog copy below is used.
+    if (typeof browserCopyReady !== "undefined") await browserCopyReady;
+    const cached = readCatalogBrowserCache();
+    if (cached) {
+      CATEGORY_LABELS = cached.categories || {};
+      SAMPLE_PRODUCTS = cached.products;
+      return { products: SAMPLE_PRODUCTS, categories: CATEGORY_LABELS };
+    }
+
+    if (typeof authGate !== "undefined") await authGate;
     // In parallel: three round trips one after another made every page wait.
     let useLive = !catalogLoadedOnce;
     if (!useLive && afterStockChange != null) useLive = await liveSnapshotAfter("stockBatches", afterStockChange);
