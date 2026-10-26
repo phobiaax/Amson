@@ -49,11 +49,36 @@ document.addEventListener("admin:ready", async (e) => {
   const admin = e.detail && e.detail.admin;
   if (admin) currentCashierName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
   if (admin) currentStaffRole = admin.role;
+  // Returns / exchanges: Branch Manager and Technical Staff (as voids).
+  document.getElementById("posReturnExchangeBtn").classList.toggle("d-none", !roleCanVoidSales(currentStaffRole));
   loadTodaySales();
   listenToTodaySales();
 
   await loadCatalogCache();
   populatePosProductSelect();
+});
+
+// Return / Exchange starts from the original receipt's SI No. (any date).
+document.getElementById("posReturnExchangeBtn").addEventListener("click", async () => {
+  const entered = await showAppPrompt("Enter the SI No. on the customer's receipt.", {
+    title: "Return / Exchange",
+    confirmLabel: "Find Sale",
+    placeholder: "e.g. 00000123",
+  });
+  if (entered == null) return;
+  const digits = String(entered).replace(/\D/g, "");
+  if (!digits) return;
+  try {
+    const snap = await db.collection("posSales").where("invoiceNo", "==", formatInvoiceNo(Number(digits))).limit(1).get();
+    if (snap.empty) {
+      await showAppAlert(`No walk-in sale with SI No. ${formatInvoiceNo(Number(digits))} was found. Online and wholesale orders have their own returns (Wholesale Accounts → purchase history).`);
+      return;
+    }
+    const doc = snap.docs[0];
+    openPosSaleReceipt({ id: doc.id, ...doc.data() }, loadTodaySales);
+  } catch (error) {
+    await showAppAlert("Couldn't look up that sale. Please try again.");
+  }
 });
 
 function posEligibleProducts() {
@@ -328,6 +353,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
           referenceNo,
           invoiceNo,
           title: "Sale Complete",
+          autoPrint: true,
         });
         logAuditEvent({
           action: "Walk-in Sale",
@@ -438,6 +464,18 @@ function openPosSaleReceipt(sale, afterVoid) {
     title: "Sale Receipt",
     voidInfo: voidSummary(sale),
     partialVoidInfo: partialVoidSummary(sale),
+    onExchange:
+      !sale.voided && roleCanVoidSales(currentStaffRole)
+        ? async () => {
+            const stockVersion = liveVersion("stockBatches");
+            const exchange = await openWalkinExchangeDialog(sale, currentCashierName);
+            if (!exchange) return;
+            catalogLoadPromise = null;
+            await loadCatalogCache({ afterStockChange: stockVersion });
+            populatePosProductSelect();
+            if (afterVoid) afterVoid();
+          }
+        : null,
     onVoid:
       !sale.voided && roleCanVoidSales(currentStaffRole)
         ? async () => {

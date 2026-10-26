@@ -769,10 +769,10 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     const saved = await orderRef.get();
     const print = await showAppConfirm(`Wholesale order recorded (SI No. ${invoiceNo}) and stock deducted. Mark it Released in the buyer's purchase history once it's picked up or delivered.`, {
       title: "Order Recorded",
-      confirmLabel: "Download Sales Invoice",
+      confirmLabel: "Print Sales Invoice",
       cancelLabel: "Close",
     });
-    if (print && saved.exists) downloadWholesaleInvoice({ id: saved.id, ...saved.data() });
+    if (print && saved.exists) downloadWholesaleInvoice({ id: saved.id, ...saved.data() }, { print: true });
   } catch (error) {
     processOrderAlert.textContent = error.message || "Something went wrong recording this order. Please try again.";
     processOrderAlert.classList.remove("d-none");
@@ -831,14 +831,14 @@ async function openHistoryModal(account) {
         }</td>
         <td class="text-nowrap">
           ${o.releaseStatus === "pending" ? `<button type="button" class="btn btn-amson btn-sm wholesale-release-btn" data-id="${o.id}">Mark Released</button>` : ""}
-          <button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-invoice-btn" data-id="${o.id}">Invoice</button>
+          <button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-invoice-btn" data-id="${o.id}"><i class="bi bi-printer me-1"></i>Print Invoice</button>
           <button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-exchange-btn" data-id="${o.id}">Exchange</button>
         </td>
       </tr>`
     )
     .join("");
   body.querySelectorAll(".wholesale-invoice-btn").forEach((btn) => {
-    btn.addEventListener("click", () => downloadWholesaleInvoice(historyOrders.find((o) => o.id === btn.dataset.id)));
+    btn.addEventListener("click", () => downloadWholesaleInvoice(historyOrders.find((o) => o.id === btn.dataset.id), { print: true }));
   });
   body.querySelectorAll(".wholesale-exchange-btn").forEach((btn) => {
     btn.addEventListener("click", () => openExchangeDialog(historyOrders.find((o) => o.id === btn.dataset.id), account));
@@ -1040,7 +1040,7 @@ function reportSafeNumber(n) {
 
 /* ---------- Wholesale sales invoice (REQ092) ---------- */
 // The branch's own copy with buyer details, batch and expiry per line.
-function downloadWholesaleInvoice(order) {
+function downloadWholesaleInvoice(order, { print = false } = {}) {
   if (!order) return;
   if (typeof window.jspdf === "undefined") {
     showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
@@ -1115,5 +1115,6 @@ function downloadWholesaleInvoice(order) {
   y += 14;
   doc.text("Received by: ______________________", 14, y);
   doc.text("Released by: ______________________", 110, y);
-  doc.save(`Amson-SI-${order.invoiceNo || order.id}.pdf`);
+  if (print) printPdf(doc, `Amson-SI-${order.invoiceNo || order.id}.pdf`);
+  else doc.save(`Amson-SI-${order.invoiceNo || order.id}.pdf`);
 }

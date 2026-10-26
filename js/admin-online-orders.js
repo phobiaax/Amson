@@ -370,6 +370,16 @@ function openWalkinSaleReceipt(saleId) {
     title: "Sale Receipt",
     voidInfo: voidSummary(sale),
     partialVoidInfo: partialVoidSummary(sale),
+    onExchange:
+      !sale.voided && roleCanVoidSales(currentStaffRole)
+        ? async () => {
+            const exchange = await openWalkinExchangeDialog({ id: sale.id, ...sale }, currentStaffName);
+            if (!exchange) return;
+            const fresh = await db.collection("posSales").doc(sale.id).get();
+            if (fresh.exists) Object.assign(sale, fresh.data());
+            renderWalkinTable();
+          }
+        : null,
     onVoid:
       !sale.voided && roleCanVoidSales(currentStaffRole)
         ? async () => {
@@ -1446,8 +1456,43 @@ function openOrderDetails(order) {
     ${order.creditApplied > 0 ? `<p class="text-end mb-0 text-success">Store credit applied: -${formatPeso(order.creditApplied)}</p>` : ""}
     <p class="text-end fw-bold mb-3">Order total: ${formatPeso(order.total || 0)}</p>
     ${timeline ? `<p class="text-muted mb-1" style="font-size:0.78rem;">History</p><ul class="small mb-0">${timeline}</ul>` : ""}
+    ${
+      order.invoiceNo
+        ? `<div class="d-flex justify-content-end mt-3"><button type="button" class="btn btn-outline-dark-amson" id="orderDetailsPrintBtn"><i class="bi bi-printer me-1"></i>Print Receipt</button></div>`
+        : `<p class="text-muted small mt-3 mb-0">A receipt can be printed once the payment is approved (it gets its SI No. then).</p>`
+    }
   `;
+  const printBtn = document.getElementById("orderDetailsPrintBtn");
+  if (printBtn) {
+    printBtn.addEventListener("click", () => {
+      orderDetailsModalEl.addEventListener("hidden.bs.modal", () => printOnlineOrderReceipt(order), { once: true });
+      bootstrap.Modal.getOrCreateInstance(orderDetailsModalEl).hide();
+    });
+  }
   bootstrap.Modal.getOrCreateInstance(orderDetailsModalEl).show();
+}
+
+// An approved online order on the same paper receipt as a walk-in sale.
+function printOnlineOrderReceipt(order) {
+  const paid = (order.total || 0) + (order.creditApplied || 0);
+  showSaleReceipt({
+    items: (order.items || []).map((it) => ({ name: it.name || it.id, qty: it.qty, price: it.price || 0 })),
+    total: order.total || 0,
+    paymentMethod: order.total > 0 ? "gcash" : "free_of_cost",
+    isCash: false,
+    amountPaid: paid,
+    change: 0,
+    cashier: (order.verification && order.verification.by) || "Online order",
+    branch: POS_BRANCH_NAME,
+    completedAt: order.statusTimestamps && order.statusTimestamps.payment_confirmed && order.statusTimestamps.payment_confirmed.toDate
+      ? order.statusTimestamps.payment_confirmed.toDate()
+      : new Date(),
+    invoiceNo: order.invoiceNo,
+    customerName: `${customerName(order)} (Online ${order.orderNumber || ""})`,
+    referenceNo: order.paymentReferenceNumber || "",
+    title: "Online Order Receipt",
+    autoPrint: true,
+  });
 }
 
 async function advanceOrderStatus(btn) {
