@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMSON Client FAQ</title>
+<style>
+  :root { --red: #c8102e; --ink: #1d1d1f; --muted: #5f6368; --line: #e3e3e3; --soft: #f6f6f7; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--ink); font: 15px/1.55 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.1rem; margin: 28px 0 6px; padding-top: 10px; border-top: 2px solid var(--red); }
+  .sub { color: var(--muted); margin: 0 0 12px; }
+  details { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 6px 0; }
+  summary { font-weight: 600; cursor: pointer; }
+  details p, details ul { margin: 6px 0 2px; }
+  ul { padding-left: 1.2rem; }
+  .tip { background: var(--soft); border-left: 3px solid var(--red); padding: 8px 12px; margin: 12px 0; }
+  @media print { details { break-inside: avoid; } details:not([open]) > *:not(summary) { display: block; } }
+</style>
+</head>
+<body>
+<main>
+<h1>AMSON Client FAQ</h1>
+<p class="sub">Short, honest answers to what the client may ask. Tap a question to open it.</p>
+<div class="tip"><b>If you don't know:</b> "Good question. I'll confirm that and get back to you today." Write it down. That's a fine answer.</div>
+
+<h2>Cost and running</h2>
+<details><summary>How much does it cost to run?</summary>
+<p>₱0 a month for normal use. The website, database and logins run on Google Firebase's free plan; emails use EmailJS's free plan. There's no monthly fee unless usage grows a lot.</p></details>
+<details><summary>Are there any limits on the free plan?</summary>
+<ul><li>About 50,000 database reads a day. That's plenty for one branch; we keep an eye on it as the catalog grows.</li>
+<li>About 200 emails a month (order notices and sign-up codes). If they run out, orders still work; only the emails stop until next month.</li></ul></details>
+<details><summary>Do we need our own domain name (amsonpharma.com)?</summary>
+<p>No. It already runs at amsonpharma.web.app. A custom domain costs about ₱700-₱1,000 a year and can be added later without changing the system.</p></details>
+<details><summary>What do we need to buy? Computers, printers?</summary>
+<p>Nothing new. It runs in any up-to-date browser (Chrome or Edge) on the store's computer, a laptop or a phone. Receipts print on any printer the computer can use. It needs an internet connection.</p></details>
+<details><summary>What if the internet goes down?</summary>
+<p>The system needs internet. Pages already open may still show data, but new sales won't save until the connection is back. Keep the paper invoice booklet as a backup, then enter those sales later. A phone hotspot is the easiest fallback.</p></details>
+
+<h2>Money, receipts and BIR</h2>
+<details><summary>Can this replace our BIR invoices and collection receipts?</summary>
+<p>Not yet. The system's invoice is the branch's computerized sales record: numbered, with batch and expiry. Official BIR receipts stay the printed ATP booklets until the system is registered with BIR (a Permit to Use / CAS accreditation), which the client can apply for later.</p></details>
+<details><summary>Does it compute VAT? Can it show the buyer's TIN?</summary>
+<p>Not yet. Totals are VAT-inclusive, as on the current price list. A VAT breakdown, a buyer TIN field and collection receipts for credit buyers are planned as the next improvement.</p></details>
+<details><summary>How do online customers pay?</summary>
+<p>Through the store's QR Ph code (GCash, Maya, any bank app). The customer uploads the payment screenshot and reference number, and staff check it before the order is confirmed. No card details are ever stored.</p></details>
+<details><summary>What if a customer pays the wrong amount?</summary>
+<p>Staff put the order On Hold (Underpayment or Invalid Payment). The customer is notified and has 7 days to fix it. Nothing is refunded in cash; verified money is kept as store credit for the next order.</p></details>
+<details><summary>Can a cashier cancel a sale?</summary>
+<p>No. Only the Branch Manager or Technical Staff can void, and a Technical Staff void needs the Branch Manager's own email and password. Every void needs a reason, returns the stock, and is logged.</p></details>
+<details><summary>Do wholesale buyers get special prices? Credit?</summary>
+<p>Yes. Each buyer can have saved agreed prices, which fill in automatically. Payment can be cash, G-Cash, bank transfer, card terminal, or credit (pay later). Single items can be given free, with a reason.</p></details>
+
+<h2>Stock and medicines</h2>
+<details><summary>How does it know what's about to expire?</summary>
+<p>Every batch has its expiry date. Six months before expiry a batch becomes Near-Expiry and is no longer sold retail (wholesale only). Two months before, it becomes Bad Order. The dashboard and bell show these automatically.</p></details>
+<details><summary>Which batch gets sold first?</summary>
+<p>The one that expires first (FEFO), automatically, both online and at the POS.</p></details>
+<details><summary>How do prescription medicines work?</summary>
+<p>They're marked Rx. Online, the customer must upload the prescription, and the order is pick-up only after the pharmacist checks it. At the POS, the cashier must tick "RX Verified" before the sale goes through.</p></details>
+<details><summary>Do we have to type in all 1,000+ products?</summary>
+<p>No. Products and stock load from Excel files: the price list you sent is already converted. Each item can still be edited one by one.</p></details>
+<details><summary>Does it work with a barcode scanner?</summary>
+<p>Not yet. At the POS, staff search the product by name. Barcode scanning can be added later.</p></details>
+<details><summary>Can staff count the shelves and fix the numbers?</summary>
+<p>Yes, with Inventory → Stock Count. Staff enter their counts, and the Branch Manager reviews them and finalizes with a reason. Stock only changes after that approval, and it's logged.</p></details>
+
+<h2>Staff, security and data</h2>
+<details><summary>Who can do what?</summary>
+<ul><li><b>Branch Manager:</b> everything, including prices, staff accounts and approving voids.</li>
+<li><b>Technical Staff:</b> orders, inventory, reports and customers. Can't change prices or manage staff.</li>
+<li><b>Sales Staff:</b> POS and viewing the catalog only.</li></ul></details>
+<details><summary>What if a staff member leaves?</summary>
+<p>The Branch Manager deactivates the account in Staff Management. It's signed out everywhere at once and can't log in again. Their past records stay.</p></details>
+<details><summary>Can we see who did what?</summary>
+<p>Yes. The Audit Log records price changes (old → new price and reason), voids, write-offs, stock received, exchanges and order changes, with who and when. It can be searched and exported.</p></details>
+<details><summary>Is customer data safe? (Data Privacy Act)</summary>
+<p>Only staff accounts can see customer records, and each staff role sees only what its job needs, enforced by the database itself, not just the screens. Logins are protected: a 2-minute lock after 5 wrong passwords, reCAPTCHA, and email verification for customers. Data is stored on Google's servers over HTTPS. The site has a Terms and Privacy page.</p></details>
+<details><summary>What if someone forgets their password?</summary>
+<p>"Forgot password" on the login page emails a reset link. The Branch Manager can also deactivate and recreate a staff account.</p></details>
+<details><summary>Is our data backed up?</summary>
+<p>Google stores it reliably, and deleting the database is blocked. The free plan has no automatic backup snapshots, so we'll set up a simple export the branch can save regularly. (Paid automatic backups are possible later.)</p></details>
+
+<h2>Customers and delivery</h2>
+<details><summary>How much is delivery?</summary>
+<p>It depends on distance. It's set by Lalamove when staff book the rider. The customer pays it directly to the rider, and the exact fee is emailed with the delivery receipt.</p></details>
+<details><summary>Can customers track their order?</summary>
+<p>Yes. My Orders shows each step (verified, dispatched, delivered) and a Lalamove tracking link once the rider is booked.</p></details>
+<details><summary>Can customers cancel or get refunds?</summary>
+<p>Paid orders can't be cancelled or refunded. Wrong items are exchanged. Unresolved holds become store credit. This follows the store's current policy and can be changed.</p></details>
+<details><summary>Is there a mobile app?</summary>
+<p>No separate app is needed. The website works on phones and can be added to the home screen like an app.</p></details>
+
+<h2>After go-live</h2>
+<details><summary>What happens if something breaks?</summary>
+<p>Tell us right away, with a screenshot and what you were doing. Fixes go live in minutes without stopping the store.</p></details>
+<details><summary>Can you add more branches later?</summary>
+<p>It's built for the Las Piñas branch. More branches are possible as a future project.</p></details>
+<details><summary>Will staff get training?</summary>
+<p>Yes: a short hands-on session on POS, payment verification and receiving stock, plus the guide.</p></details>
+</main>
+</body>
+</html>
