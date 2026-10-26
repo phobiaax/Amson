@@ -35,8 +35,10 @@ const db = firebase.firestore();
 // (private windows, some older browsers) everything works as before, just
 // without the savings. Set LIVE_READS to false to go back to plain reads.
 const LIVE_READS = true;
+let browserCopyOff = !LIVE_READS;
 if (LIVE_READS) {
   db.enablePersistence({ synchronizeTabs: true }).catch((error) => {
+    browserCopyOff = true;
     console.warn("Browser copy of the data is off here (reads work as normal):", error.code || error);
   });
 }

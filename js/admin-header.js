@@ -60,6 +60,9 @@ auth.onAuthStateChanged(async (user) => {
       }
     });
 
+    // The page stays hidden (style.css) until the role check has passed, so
+    // nobody glimpses a page they're about to be sent away from.
+    document.querySelectorAll(".admin-body").forEach((el) => el.classList.add("admin-ready"));
     document.dispatchEvent(new CustomEvent("admin:ready", { detail: { uid: user.uid, admin } }));
     // Staff alerts (orders, stock, expiry) aren't part of Sales Staff's job.
     if (roleCanAccessPage(admin.role, "notifications.html")) {

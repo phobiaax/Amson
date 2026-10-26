@@ -817,15 +817,18 @@ function liveStockBatches() {
   return liveQuery("stockBatches", db.collection("stockBatches"));
 }
 
-// Shop pages keep a copy of the catalog in the browser for a few minutes,
-// so each page a customer opens doesn't re-read every product and batch
-// (Firestore's free plan allows about 50,000 reads a day). Staff pages
-// always read fresh, and checkout re-checks stock and prices live
-// (clearCatalogCache) before an order is created.
+// Where the browser can't keep the live data copy (see LIVE_READS - private
+// windows, some older browsers), shop pages keep a copy of the catalog for a
+// few minutes, so each page a customer opens doesn't re-read every product
+// and batch (Firestore's free plan allows about 50,000 reads a day). With the
+// live copy that isn't needed, so new stock shows on the next page opened.
+// Staff pages always read fresh, and checkout re-checks stock and prices
+// live (clearCatalogCache) before an order is created.
 const CATALOG_CACHE_KEY = "amsonCatalogCache";
 const CATALOG_CACHE_MS = 5 * 60 * 1000;
 
 function catalogBrowserCacheAllowed() {
+  if (typeof browserCopyOff !== "undefined" && !browserCopyOff) return false;
   return typeof window !== "undefined" && !/\/admin\//.test(window.location.pathname);
 }
 
@@ -1175,6 +1178,13 @@ function formatPeso(amount) {
 
 function getProductById(id) {
   return SAMPLE_PRODUCTS.find((p) => String(p.id) === String(id));
+}
+
+// Small "Rx" tag shown after a prescription product's name everywhere it's
+// listed (shop, cart, checkout, orders). Takes a product or a product id.
+function rxTag(productOrId) {
+  const product = productOrId && typeof productOrId === "object" ? productOrId : getProductById(productOrId);
+  return product && product.rxRequired ? ' <span class="rx-tag" title="Prescription required">Rx</span>' : "";
 }
 
 // ---- Shared walk-in sale receipt - used both right after a POS checkout
@@ -2016,7 +2026,7 @@ function renderProductCard(product) {
           </div>
         </a>
         <a href="product-details.html?id=${product.id}" class="product-name-link product-quickview-trigger" data-product-id="${product.id}">
-          <h3 class="product-name">${escapeHtml(product.name)}</h3>
+          <h3 class="product-name">${escapeHtml(product.name)}${rxTag(product)}</h3>
         </a>
         <p class="product-desc">${escapeHtml(product.description || "")}</p>
         <p class="product-price">${formatPeso(product.price)}</p>
@@ -2078,7 +2088,7 @@ async function showProductQuickView(productId) {
         <div class="product-detail-image" ${product.imageUrl ? `style="background-image:url('${cloudinaryImageUrl(product.imageUrl, 800)}'); background-size:cover; background-position:center;"` : ""}></div>
       </div>
       <div class="col-md-7">
-        <h2 class="h4 fw-bold mb-1">${escapeHtml(product.name)}</h2>
+        <h2 class="h4 fw-bold mb-1">${escapeHtml(product.name)}${rxTag(product)}</h2>
         ${product.genericName ? `<p class="text-muted mb-3">Generic Name: ${escapeHtml(product.genericName)}</p>` : ""}
         <p class="product-detail-price mb-2">${formatPeso(product.price)}</p>
         <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">

@@ -209,7 +209,12 @@ async function loadOrders() {
   try {
     // The live listener's first snapshot is this page's order read (a
     // separate get() as well would read every order twice).
-    allOrders = await listenToOrders();
+    // The catalog is needed for the price check before approving.
+    const [orders] = await Promise.all([
+      listenToOrders(),
+      loadCatalogCache().catch((error) => console.error("Failed to load catalog:", error)),
+    ]);
+    allOrders = orders;
 
     for (const order of allOrders) {
       await enforceOrderDeadline(order.id, order, { grantCreditToBalance: true });
@@ -509,7 +514,8 @@ function renderReviewPanel(order) {
   // match the catalog (or don't add up) before staff approve it.
   const priceWarning = document.getElementById("reviewPriceWarning");
   const problems = [];
-  (order.items || []).forEach((item) => {
+  // Skipped if the catalog couldn't load, so it can't flag every item.
+  (SAMPLE_PRODUCTS.length ? order.items || [] : []).forEach((item) => {
     const product = getProductById(item.id);
     if (!product) problems.push(`${item.name || item.id} is no longer in the catalog`);
     else if (Math.abs((item.price || 0) - (product.price || 0)) > 0.001) problems.push(`${product.name} is ${formatPeso(item.price || 0)} on this order but ${formatPeso(product.price || 0)} in the catalog`);
@@ -1271,6 +1277,12 @@ function renderOrdersTable() {
     document.querySelectorAll(".release-hold-btn").forEach((btn) => {
       btn.addEventListener("click", () => releaseOrderHold(btn));
     });
+    document.querySelectorAll(".view-order-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const order = allOrders.find((o) => o.id === btn.dataset.id);
+        if (order) openOrderDetails(order);
+      });
+    });
     document.querySelectorAll(".book-delivery-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const order = allOrders.find((o) => o.id === btn.dataset.id);
@@ -1373,8 +1385,67 @@ function renderOrderRow(order) {
       <td>
         ${statusCell}
       </td>
+      <td>
+        <button type="button" class="btn btn-sm btn-link text-dark view-order-btn" data-id="${order.id}" title="View order details" aria-label="View order details">
+          <i class="bi bi-eye"></i>
+        </button>
+      </td>
     </tr>
   `;
+}
+
+/* ---------- Order details (eye button) ---------- */
+const orderDetailsModalEl = document.getElementById("orderDetailsModal");
+
+function openOrderDetails(order) {
+  const labels = orderStepLabels(order);
+  const row = (label, value) => (value ? `<div class="col-sm-6"><p class="text-muted mb-0" style="font-size:0.78rem;">${label}</p><p class="mb-0">${value}</p></div>` : "");
+  const contact = order.contact || {};
+  const ship = order.shipping;
+  const address = ship ? escapeHtml([ship.streetAddress, ship.city, ship.province, ship.zipCode].filter(Boolean).join(", ")) : "";
+  const statusLabel = order.status === "closed_unresolved" ? "Closed (Unresolved)" : labels[order.status] || order.status;
+  const issue = order.paymentIssue ? `On Hold: ${escapeHtml((PAYMENT_ISSUE_TYPES[order.paymentIssue.type] || {}).label || "Payment Issue")}` : "";
+
+  const items = (order.items || [])
+    .map((item) => {
+      return `<tr><td>${escapeHtml(item.name || item.id)}${rxTag(item.id)}</td><td class="text-end">${item.qty}</td><td class="text-end">${formatPeso(item.price || 0)}</td><td class="text-end">${formatPeso((item.price || 0) * (item.qty || 0))}</td></tr>`;
+    })
+    .join("");
+
+  const timeline = orderStatusSteps(order)
+    .filter((step) => order.statusTimestamps && order.statusTimestamps[step])
+    .map((step) => `<li>${escapeHtml(labels[step] || step)} - ${formatOrderDateTime(order.statusTimestamps[step])}</li>`)
+    .join("");
+
+  const link = (url, text) => (url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${text}</a>` : "");
+
+  document.getElementById("orderDetailsTitle").textContent = `Order ${order.orderNumber || ""}`;
+  document.getElementById("orderDetailsSubtitle").textContent = `Placed ${formatOrderDateTime(order.createdAt)}`;
+  document.getElementById("orderDetailsBody").innerHTML = `
+    <div class="row g-3 mb-3">
+      ${row("Status", `${escapeHtml(statusLabel)}${issue ? `<br><span class="text-danger" style="font-size:0.85rem;">${issue}</span>` : ""}`)}
+      ${row("SI No.", escapeHtml(order.invoiceNo || "-"))}
+      ${row("Customer", escapeHtml(customerName(order)))}
+      ${row("Contact", [contact.contactNumber, contact.email].filter(Boolean).map(escapeHtml).join("<br>"))}
+      ${row(order.requiresPrescription ? "Fulfilment" : "Delivery address", order.requiresPrescription ? "Pick-up at the store (prescription order)" : address)}
+      ${row("Delivery schedule", order.requiresPrescription ? "" : escapeHtml(formatDeliverySchedule(order.deliverySchedule)))}
+      ${row("Delivery notes", ship && ship.deliveryNotes ? escapeHtml(ship.deliveryNotes) : "")}
+      ${row("Reference No.", escapeHtml(order.paymentReferenceNumber || "-"))}
+      ${row("Files", [link(order.proofOfPaymentUrl, "Proof of payment"), link(order.prescriptionPhotoUrl, "Prescription")].filter(Boolean).join(" · "))}
+      ${row("Tracking", link(order.trackingLink, "Lalamove tracking link"))}
+      ${row("Lalamove fee", order.lalamoveFee != null ? formatPeso(order.lalamoveFee) : "")}
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-2">
+        <thead><tr><th>Product</th><th class="text-end">Qty</th><th class="text-end">Price</th><th class="text-end">Total</th></tr></thead>
+        <tbody>${items}</tbody>
+      </table>
+    </div>
+    ${order.creditApplied > 0 ? `<p class="text-end mb-0 text-success">Store credit applied: -${formatPeso(order.creditApplied)}</p>` : ""}
+    <p class="text-end fw-bold mb-3">Order total: ${formatPeso(order.total || 0)}</p>
+    ${timeline ? `<p class="text-muted mb-1" style="font-size:0.78rem;">History</p><ul class="small mb-0">${timeline}</ul>` : ""}
+  `;
+  bootstrap.Modal.getOrCreateInstance(orderDetailsModalEl).show();
 }
 
 async function advanceOrderStatus(btn) {

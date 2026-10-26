@@ -105,7 +105,14 @@ function redirectByRole(userData) {
     window.location.href = "verify-email.html";
     return;
   }
-  window.location.href = "shop/index.html";
+  window.location.href = loginNextPage() || "shop/index.html";
+}
+
+// ?next= brings a customer back to the shop page they came from (an order
+// link in an email, say). Only shop pages on this site are accepted.
+function loginNextPage() {
+  const next = new URLSearchParams(window.location.search).get("next") || "";
+  return /^shop\/[\w-]+\.html(\?[\w=&%-]*)?$/.test(next) ? next : null;
 }
 
 async function performLogin(email, password) {

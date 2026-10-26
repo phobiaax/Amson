@@ -21,7 +21,7 @@ function renderOrderCard(id, order) {
         <div class="cart-item-row">
           <div class="cart-item-image" style="${cartItemImageCss(imageUrl)}"></div>
           <div class="cart-item-details">
-            <h3 class="product-name mb-1">${item.name}</h3>
+            <h3 class="product-name mb-1">${escapeHtml(item.name)}${rxTag(item.id)}</h3>
             <p class="text-muted mb-0" style="font-size:0.85rem;">Qty: ${item.qty}</p>
           </div>
           <div class="product-price mb-0">${formatPeso(item.price * item.qty)}</div>
