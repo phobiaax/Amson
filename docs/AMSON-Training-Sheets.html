@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMSON Training Sheets</title>
+<style>
+  :root { --red: #c8102e; --ink: #1d1d1f; --muted: #5f6368; --line: #d9d9d9; --soft: #f6f6f7; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--ink); font: 14px/1.45 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 820px; margin: 0 auto; padding: 20px 16px 48px; }
+  section { padding-bottom: 20px; margin-bottom: 28px; border-bottom: 3px solid var(--red); }
+  h1 { font-size: 1.45rem; margin: 0 0 2px; }
+  h2 { font-size: 1rem; margin: 14px 0 4px; color: var(--red); }
+  .sub { color: var(--muted); margin: 0 0 10px; font-size: 0.9rem; }
+  ol, ul { padding-left: 1.25rem; margin: 4px 0; }
+  li { margin: 2px 0; }
+  .box { border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin: 10px 0; background: var(--soft); }
+  .no { border-color: #f0b4b4; background: #fff4f4; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin: 6px 0; }
+  th, td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); }
+  td.chk { width: 34px; }
+  kbd { border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; background: #fff; font-size: 0.85em; }
+  @media print {
+    body { font-size: 12.5px; }
+    main { padding: 0; }
+    section { break-after: page; border-bottom: none; margin: 0; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<!-- ============ PAGE 1: TRAINING CHECKLIST ============ -->
+<section>
+  <h1>AMSON Training Checklist</h1>
+  <p class="sub">Site: amsonpharma.web.app · Train before Clear Test Data · About 2 hours in total</p>
+
+  <h2>Before training</h2>
+  <ul>
+    <li>☐ Branch Manager creates each person's account (Staff Management → Add Staff Account)</li>
+    <li>☐ Demo products have stock (Inventory shows few "Out of Stock")</li>
+    <li>☐ One computer for staff + one phone as the "customer"</li>
+    <li>☐ Print one cheat sheet per role and leave it by the counter computer</li>
+  </ul>
+
+  <h2>Each person does it alone while the trainer watches. Tick when done right.</h2>
+  <table>
+    <tr><th>Name</th><th>Role</th><th>Logged in / out</th><th>Their tasks (see their sheet)</th><th>Knows what to do when stuck</th><th>Trainer's initials</th></tr>
+    <tr><td>&nbsp;</td><td></td><td class="chk">☐</td><td>☐</td><td class="chk">☐</td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td class="chk">☐</td><td>☐</td><td class="chk">☐</td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td class="chk">☐</td><td>☐</td><td class="chk">☐</td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td class="chk">☐</td><td>☐</td><td class="chk">☐</td><td></td></tr>
+    <tr><td>&nbsp;</td><td></td><td class="chk">☐</td><td>☐</td><td class="chk">☐</td><td></td></tr>
+  </table>
+
+  <h2>Session plan</h2>
+  <table>
+    <tr><th>Session</th><th>Who</th><th>Time</th></tr>
+    <tr><td>1. Logging in, the menu, the bell, what to do when stuck</td><td>Everyone</td><td>15 min</td></tr>
+    <tr><td>2. POS (Sales Staff sheet)</td><td>Sales Staff</td><td>30 min</td></tr>
+    <tr><td>3. Orders, stock, wholesale, voids (Technical Staff sheet)</td><td>Technical Staff</td><td>45 min</td></tr>
+    <tr><td>4. Prices, staff, approvals, reports (Branch Manager sheet)</td><td>Branch Manager</td><td>30 min</td></tr>
+  </table>
+
+  <h2>After training: go-live</h2>
+  <ul>
+    <li>☐ Settings → Clear Test Data (Branch Manager, once)</li>
+    <li>☐ Load the real products and the shelf count (Opening Stock or a Receive Stock upload)</li>
+    <li>☐ One real test sale on the POS + one online order, then open for business</li>
+  </ul>
+
+  <div class="box"><b>Everyone, when something goes wrong:</b> refresh the page once. Still stuck? Close the tab and reopen it. No internet? Use a phone hotspot, or the paper booklet and enter the sale later. Take a screenshot and tell the Branch Manager.</div>
+</section>
+
+<!-- ============ PAGE 2: SALES STAFF ============ -->
+<section>
+  <h1>Sales Staff: POS Cheat Sheet</h1>
+  <p class="sub">Log in at amsonpharma.web.app. You land on the POS. You can use the POS and view products only.</p>
+
+  <h2>Make a sale</h2>
+  <ol>
+    <li>Search the product → set the quantity → <b>Add</b>. Repeat for each item.</li>
+    <li>Check <b>Current Sale</b> (items, quantities, total).</li>
+    <li>Choose the payment method:
+      <ul>
+        <li><b>Cash:</b> type the cash received; the change shows.</li>
+        <li><b>G-Cash / QR Ph, bank, card:</b> type the <b>reference no.</b> (required).</li>
+      </ul></li>
+    <li>Prescription item? Check the doctor's prescription, then tick <b>RX Verified</b> (required).</li>
+    <li><b>Complete Sale</b> → check the receipt → <b>Print</b>.</li>
+  </ol>
+
+  <h2>Reprint a receipt</h2>
+  <p><b>Today's Sales</b> (bottom of the POS) → open the sale → Print.</p>
+
+  <div class="box no"><b>You can't void a sale.</b> If you made a mistake, call the Technical Staff or Branch Manager. They void it with a reason, and the stock goes back.</div>
+
+  <h2>Good to know</h2>
+  <ul>
+    <li>Only products <b>in stock</b> appear in the POS. Missing one? Tell the Technical Staff.</li>
+    <li>Near-expiry stock isn't sold retail. The system picks the batch that expires first for you.</li>
+    <li>Not your computer? Untick <b>Remember me</b> when logging in, and log out when you leave.</li>
+    <li>No internet: phone hotspot, or the paper booklet; enter the sale when it's back.</li>
+  </ul>
+</section>
+
+<!-- ============ PAGE 3: TECHNICAL STAFF ============ -->
+<section>
+  <h1>Technical Staff: Cheat Sheet</h1>
+  <p class="sub">You handle online orders, stock, wholesale and voids. You can't change prices or staff accounts.</p>
+
+  <h2>Online orders (Orders)</h2>
+  <ol>
+    <li><b>Payment Verification:</b> open the order → check the screenshot and reference no. → <b>Approve Payment</b> (gets an SI No.; stock goes down).</li>
+    <li>Payment wrong? Choose <b>Underpayment / Invalid Payment</b> → order goes On Hold; the customer fixes it within 7 days.</li>
+    <li><b>Rx order:</b> check the prescription → approve (or Reject Prescription with a reason) → Ready for Pick-up → <b>Mark as Picked Up</b> when collected.</li>
+    <li><b>Delivery:</b> Online Orders tab → <b>Book Delivery</b> → paste the share.lalamove.com link + the fee → Dispatched.</li>
+    <li>The <b>eye icon</b> shows the full order.</li>
+  </ol>
+
+  <h2>Stock (Inventory)</h2>
+  <ul>
+    <li><b>Receive Stock:</b> supplier, receipt/DR no., date → product, batch no., expiry, quantity. Many items? <b>Upload Batch File</b> (the ? button gives the template).</li>
+    <li><b>Write Off Stock:</b> expired/damaged, with a reason.</li>
+    <li><b>Purchase Orders:</b> create → when it arrives, receive what actually came (short = Discrepancy).</li>
+    <li><b>Stock Count:</b> Start Count → enter counts → Submit Count. The Branch Manager finalizes it.</li>
+    <li>Watch the tiles: <b>Low Stock, Out of Stock, Near-Expiry, Expired</b>.</li>
+  </ul>
+
+  <h2>Wholesale (Wholesale Accounts)</h2>
+  <ul>
+    <li><b>Process Order:</b> items (prices fill in), payment method; tick <b>Free (₱0)</b> on an item if given free, with a reason → download the <b>Invoice</b>.</li>
+    <li>Goods picked up/delivered → clock icon → <b>Mark Released</b>.</li>
+    <li>Exchange → clock icon → <b>Exchange</b> (no refunds; equal or higher value).</li>
+  </ul>
+
+  <h2>Void a POS sale</h2>
+  <p>POS → Today's Sales (or Orders → Walk-in Orders) → open the sale → Void → items + <b>reason</b> → <b>Branch Manager types their email and password</b>.</p>
+</section>
+
+<!-- ============ PAGE 4: BRANCH MANAGER ============ -->
+<section>
+  <h1>Branch Manager: Cheat Sheet</h1>
+  <p class="sub">Everything Technical Staff can do (see their sheet), plus the items below.</p>
+
+  <h2>Prices (Products)</h2>
+  <ul>
+    <li>Only you can change prices. Edit the product → change the price → give a <b>reason</b> (shown in the Audit Log).</li>
+    <li><b>Lock prices</b> on a product to stop accidental changes. <b>Unlock prices</b> first to edit (🔒 shows in the list).</li>
+    <li>New products: one at a time, or <b>Upload Batch File</b> (Excel).</li>
+  </ul>
+
+  <h2>Staff (Staff Management)</h2>
+  <ul>
+    <li><b>Add Staff Account:</b> name, email, role (Technical Staff / Sales Staff).</li>
+    <li>Someone leaves → <b>Deactivate</b>. They're signed out everywhere at once.</li>
+  </ul>
+
+  <h2>Approvals</h2>
+  <ul>
+    <li><b>Voids by Technical Staff:</b> type your email and password in their void window.</li>
+    <li><b>Stock Count:</b> review the differences → Finalize with a reason. Only then does stock change.</li>
+  </ul>
+
+  <h2>Checking the business</h2>
+  <ul>
+    <li><b>Dashboard:</b> Day / Week / Month / Year; export.</li>
+    <li><b>Reports:</b> Daily Sales and others → PDF or Excel.</li>
+    <li><b>Audit Log:</b> who did what (prices, voids, write-offs, stock, orders); search, dates, export.</li>
+    <li><b>Settings → Store Announcement:</b> a banner on the shop.</li>
+  </ul>
+
+  <div class="box no"><b>Clear Test Data</b> (Settings) deletes the practice orders, sales and stock. Use it <b>once</b>, on go-live day, after training. It only works until Nov 15.</div>
+  <div class="box"><b>Free-plan limits:</b> about 200 emails a month (sign-up codes and order notices). If emails stop, orders still work.</div>
+</section>
+
+</main>
+</body>
+</html>
