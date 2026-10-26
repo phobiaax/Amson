@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMSON Demo Guide</title>
+<style>
+  :root { --red: #c8102e; --ink: #1d1d1f; --muted: #5f6368; --line: #e3e3e3; --soft: #f6f6f7; --ok: #1e7b34; --warn: #9a5b00; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--ink); font: 15px/1.55 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.7rem; margin: 0 0 4px; }
+  h2 { font-size: 1.2rem; margin: 32px 0 8px; padding-top: 12px; border-top: 2px solid var(--red); }
+  h3 { font-size: 1rem; margin: 18px 0 6px; }
+  .sub { color: var(--muted); margin: 0 0 16px; }
+  ol, ul { padding-left: 1.3rem; margin: 6px 0; }
+  li { margin: 3px 0; }
+  .say { border-left: 3px solid var(--red); background: var(--soft); padding: 6px 10px; margin: 8px 0; font-style: italic; }
+  .box { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; margin: 10px 0; }
+  .warn { border-color: #f0c36d; background: #fff8e6; }
+  .ok { border-color: #a8d5b2; background: #f0f8f2; }
+  code, kbd { background: var(--soft); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 0.9em; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 0.92rem; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); }
+  .time { float: right; color: var(--muted); font-size: 0.85rem; font-weight: normal; }
+  @media print { h2 { break-after: avoid; } .box, table { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<main>
+<h1>AMSON Demo Guide</h1>
+<p class="sub">Live site: <b>https://amsonpharma.web.app</b> · about 25 minutes · one customer story from order to report</p>
+
+<h2>1. Before the client arrives <span class="time">20 min</span></h2>
+<ol>
+  <li><b>Two browsers, not two tabs.</b> Chrome = staff (Branch Manager). Edge or a Chrome <i>Incognito</i> window = customer. Two tabs of one browser share one login.</li>
+  <li><b>Close every old tab of the site</b>, then open it fresh in both browsers (<kbd>Ctrl</kbd>+<kbd>F5</kbd>).</li>
+  <li><b>Load stock (important).</b> Only 7 of the 50 products have stock right now, so most show "Out of stock". As the Branch Manager: Inventory → Receive Stock → <b>Upload Batch File</b> → choose <code>AMSON-Demo-Stock-43-Products.xlsx</code> → Confirm Import. A "Stock received" pop-up lists 43 lines.
+    <ul><li>One product (Paracetamol 250mg Susp.) gets only 5 units, so it shows under <b>Low Stock</b>. One (Ibuprofen 400mg) expires in March 2027, so it shows under <b>Near-Expiry</b> and isn't sold retail. Both are on purpose, to demo the alerts.</li></ul></li>
+  <li><b>Customer account:</b> log in the customer browser with a customer whose email is already verified (e.g. biancabeniceabalos@gmail.com). Don't register live: the code email can be slow.</li>
+  <li><b>Files on the desktop:</b> any payment screenshot image and any prescription photo (the upload needs an image).</li>
+  <li><b>A Lalamove link to paste:</b> <code>https://share.lalamove.com/?demo123</code> (it must start with share.lalamove.com/).</li>
+  <li><b>Practise once:</b> run sections 2-4 quickly before the client comes, so nothing is a first try.</li>
+</ol>
+<div class="box warn"><b>Things the client hasn't sent yet</b> (say "this is where your … goes"):
+<ul>
+  <li>The <b>QR Ph code</b> on the payment page shows a placeholder.</li>
+  <li><b>Store hours, address, hotline</b>: the footer leaves them out, and the chat says hours "aren't posted online yet".</li>
+  <li>The supplier is named <b>"Supplier Sample"</b>. Rename it in Suppliers first if you want it to look real; if you do, change the supplier column in the stock file to match.</li>
+</ul></div>
+
+<h2>2. The customer orders online <span class="time">6 min</span></h2>
+<p><b>Customer browser.</b></p>
+<ol>
+  <li><b>Home page:</b> point out the 8 "Shop by Need" sections in the bar under the search box.</li>
+  <li><b>Products:</b> pick a section, set a price range, tick "In stock only", sort by price, then search a name. Show a product page and its stock.</li>
+  <li><b>Prescription items:</b> Antibiotics (Rx) items carry a red <b>Rx</b> tag everywhere: list, cart, checkout, orders.</li>
+  <li><b>Chat</b> (bottom right): ask "how to pay?" and "delivery fee?". Then tap <b>Talk to staff</b>, which hands the chat to a person.</li>
+  <li><b>Normal order:</b> add 2 non-Rx products → cart → change a quantity → Proceed to Checkout → address + delivery schedule → payment page → upload the screenshot + type a reference no. → Submit.</li>
+  <li><b>My Orders</b> shows "Order Pending Verification", and the bell shows the confirmation. An email also arrives.</li>
+</ol>
+<div class="say">"Customers order and pay any time. Nothing is confirmed until a pharmacist checks the payment."</div>
+
+<h2>3. Staff verify, invoice and deliver <span class="time">6 min</span></h2>
+<p><b>Staff browser</b> (Branch Manager).</p>
+<ol>
+  <li><b>Dashboard:</b> the new order already shows; nobody refreshed. Click Day / Week / Month and the bell.</li>
+  <li><b>Online Orders → Payment Verification:</b> open the order, look at the screenshot, click <b>Approve Payment</b>. It gets an <b>SI No.</b> and stock goes down by itself.</li>
+  <li><b>Online Orders tab → eye icon:</b> the full order (contact, address, items, history).</li>
+  <li><b>Book Delivery:</b> paste the Lalamove link + the fee → Dispatched. In the customer browser, open the order: it shows <b>Track with Lalamove</b>.</li>
+</ol>
+<div class="say">"Every approved order gets a BIR-style SI number automatically, in sequence."</div>
+
+<h3>Optional: a payment problem (2 min)</h3>
+<p>Place a second order. In Payment Verification choose <b>Underpayment</b>, enter the amount received → On Hold. The customer sees "On Hold - Balance Due" and re-uploads. Staff then approve it.</p>
+
+<h3>Prescription order (3 min)</h3>
+<ol>
+  <li><b>Customer:</b> order an Rx item. Checkout asks for the prescription photo, and the order is pick-up only.</li>
+  <li><b>Staff:</b> approve it in Payment Verification → "Ready for Pick-up". In the Online Orders tab click <b>Mark as Picked Up</b>. The customer is notified.</li>
+</ol>
+
+<h2>4. Walk-in sale at the counter (POS) <span class="time">3 min</span></h2>
+<ol>
+  <li><b>Open Inventory in the staff browser first</b> (keep it visible), then open POS. A second computer works too.</li>
+  <li><b>Cash sale:</b> add 2 products → Cash → amount → Complete Sale → receipt with SI No. → print.</li>
+  <li><b>Live inventory:</b> switch back to Inventory. The batch quantity has already changed.</li>
+  <li><b>Payment and Rx checks:</b> try G-Cash without a reference number, which is blocked. Try an Rx item without ticking "RX Verified", also blocked.</li>
+</ol>
+<div class="say">"POS and online share one stock count, so you never sell what you don't have."</div>
+
+<h2>5. Stock, suppliers, wholesale <span class="time">5 min</span></h2>
+<ul>
+  <li><b>Inventory:</b> point out the tiles and the Low Stock / Out of Stock / Near-Expiry / Expired tabs. Stock goes out earliest expiry first (FEFO).</li>
+  <li><b>Receive Stock:</b> mention you loaded 43 products with one Excel file earlier, and show the ? template button.</li>
+  <li><b>Purchase Orders:</b> Create Purchase Order → Upload Batch File, or add items → Create. Then receive it with one item short → status <b>Discrepancy</b> + a bell alert.</li>
+  <li><b>Write-off</b> a few units with a reason (expired / damaged).</li>
+  <li><b>Wholesale Accounts:</b> a buyer with LTO and business permit → Process Wholesale Order → download the invoice (it shows batch and expiry).</li>
+</ul>
+
+<h2>6. Control and reports <span class="time">4 min</span></h2>
+<ul>
+  <li><b>Products:</b> change a price with a reason. Only the Branch Manager can change prices.</li>
+  <li><b>Audit Log:</b> that price change shows old → new price + reason, as do stock received, voids, status changes and who did them.</li>
+  <li><b>Reports:</b> Daily Sales for today → PDF and Excel. The totals include the sales you just made.</li>
+  <li><b>Staff Management:</b> the 3 roles. Sales Staff only see POS; if they type the dashboard address they are turned away.</li>
+  <li><b>Settings → Store Announcement:</b> save a banner and show it on the shop.</li>
+</ul>
+<div class="say">"Everything is in one system instead of the notebook and spreadsheets: online orders, POS, stock, wholesale, reports."</div>
+
+<h2>7. If something goes wrong</h2>
+<table>
+  <tr><th>You see</th><th>Do this</th></tr>
+  <tr><td>Products empty / keeps loading</td><td>Wait 10 seconds, then refresh. Still empty? Close all tabs of the site and reopen one.</td></tr>
+  <tr><td>Page looks old (no Rx tags, old buttons)</td><td><kbd>Ctrl</kbd>+<kbd>F5</kbd> once.</td></tr>
+  <tr><td>Logged in as the wrong person</td><td>You used two tabs of the same browser. Staff in one browser, customer in another.</td></tr>
+  <tr><td>"Out of stock" on a product</td><td>That product has no stock (or only near-expiry stock). Pick another, or Receive Stock for it.</td></tr>
+  <tr><td>Login says "Invalid domain for site key"</td><td>The reCAPTCHA checkbox key (6LfcDXIt…) needs amsonpharma.web.app in its domain list at google.com/recaptcha/admin. Fix this before the demo.</td></tr>
+  <tr><td>Code / notification email doesn't arrive</td><td>Check spam. The free email service sends up to 200 a month, so don't register new accounts during the demo.</td></tr>
+  <tr><td>Approve shows a "Check before approving" warning</td><td>The price on the order no longer matches the catalog (you changed it after ordering). Explain it's a safety check, or order again.</td></tr>
+  <tr><td>Staff page shows only a spinner</td><td>Normal for about a second while it checks the role. If it stays, refresh.</td></tr>
+</table>
+<div class="box warn"><b>Don't press</b> Settings → Clear Test Data during the demo. It deletes orders and stock.</div>
+
+<h2>8. After the demo, before go-live tomorrow</h2>
+<ol>
+  <li>Get the QR Ph image, store hours, address, hotline and FDA LTO no. from the client.</li>
+  <li>Settings → Clear Test Data (only works before Nov 15), then load the real products and stock.</li>
+  <li>Rename or replace "Supplier Sample" with the real suppliers.</li>
+</ol>
+</main>
+</body>
+</html>
