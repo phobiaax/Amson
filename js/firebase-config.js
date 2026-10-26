@@ -99,9 +99,14 @@ auth.onAuthStateChanged = function (...args) {
 // lists stayed empty). Other tabs, and browsers that can't keep a copy
 // (private windows, some older browsers), read straight from the database.
 // Set LIVE_READS to false to go back to plain reads.
+// BROWSER_COPY is off: on phones a tab frozen in the background could keep
+// hold of the copy and leave every other tab of the site stuck loading.
+// Live listeners still keep pages up to date; shop pages keep a short
+// catalog copy instead (products-data.js).
 const LIVE_READS = true;
-let browserCopyOff = !LIVE_READS;
-const browserCopyReady = LIVE_READS
+const BROWSER_COPY = false;
+let browserCopyOff = !(LIVE_READS && BROWSER_COPY);
+const browserCopyReady = !browserCopyOff
   ? db.enablePersistence().catch((error) => {
       browserCopyOff = true;
       console.info("Browser copy of the data is in use by another tab or unavailable here (reads work as normal):", error.code || error);
