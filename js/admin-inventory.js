@@ -2066,7 +2066,7 @@ function openViewPoModal(po) {
 function renderPoReceivingForm(po) {
   const content = document.getElementById("viewPoContent");
   content.innerHTML = `
-    <p class="text-muted mb-3">Enter what was actually received for each item. Partial deliveries are fine - stock gets added either way, and any mismatch gets flagged as a discrepancy.</p>
+    <p class="text-muted mb-3">Enter what was actually received for each item.</p>
     <div class="mb-3" style="max-width:320px;">
       <label class="form-label" for="poReceiptNoInput">Supplier Receipt / DR No.</label>
       <input type="text" class="form-control form-control-sm" id="poReceiptNoInput">
