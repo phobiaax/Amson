@@ -501,6 +501,10 @@ function addProcessOrderItemRow() {
       <div class="col-md-4">
         <label class="form-label">Unit Price (&#8369;)</label>
         <input type="number" min="0" step="0.01" class="form-control order-price-input">
+        <div class="form-check mt-1">
+          <input class="form-check-input order-free-check" type="checkbox" id="orderFreeCheck${processOrderItemCount}">
+          <label class="form-check-label" for="orderFreeCheck${processOrderItemCount}" style="font-size:0.85rem;">Free (&#8369;0)</label>
+        </div>
       </div>
     </div>
   `;
@@ -511,6 +515,7 @@ function addProcessOrderItemRow() {
     row.remove();
     renumberItems(processOrderItemsContainer);
     updateRemoveButtonsVisibility(processOrderItemsContainer);
+    updateFreeReasonVisibility();
     recalcProcessOrderTotal();
   });
 
@@ -518,6 +523,7 @@ function addProcessOrderItemRow() {
   populateOrderProductSelect(productSelect);
 
   const priceInput = row.querySelector(".order-price-input");
+  const freeCheck = row.querySelector(".order-free-check");
   const priceNote = document.createElement("p");
   priceNote.className = "text-muted mb-0 mt-1";
   priceNote.style.fontSize = "0.75rem";
@@ -531,16 +537,25 @@ function addProcessOrderItemRow() {
     // No wholesale price on the product: left empty (the order can't be
     // saved until a price is typed), never a silent 0.
     const standard = product && product.wholesalePrice > 0 ? product.wholesalePrice : null;
-    if (processOrderFreeCheck.checked) priceInput.value = 0;
+    // Free: the whole order (free-of-cost distribution) or just this item.
+    const free = processOrderFreeCheck.checked || freeCheck.checked;
+    priceInput.disabled = free;
+    freeCheck.disabled = processOrderFreeCheck.checked;
+    if (free) priceInput.value = 0;
     else priceInput.value = agreed != null ? agreed : standard != null ? standard : "";
-    priceNote.textContent =
-      agreed != null ? "Agreed price for this buyer" : standard != null ? "Standard wholesale price" : "No wholesale price set for this product - type the price";
-    priceNote.classList.toggle("text-danger", agreed == null && standard == null && !processOrderFreeCheck.checked);
-    priceNote.classList.toggle("text-muted", !(agreed == null && standard == null && !processOrderFreeCheck.checked));
+    const missing = !free && agreed == null && standard == null;
+    priceNote.textContent = free
+      ? "Free item"
+      : agreed != null ? "Agreed price for this buyer" : standard != null ? "Standard wholesale price" : "No wholesale price set for this product - type the price";
+    priceNote.classList.toggle("text-danger", missing);
+    priceNote.classList.toggle("text-muted", !missing);
+    updateFreeReasonVisibility();
     recalcProcessOrderTotal();
   };
+  row._setDefaultPrice = setDefaultPrice;
   setDefaultPrice();
   productSelect.addEventListener("change", setDefaultPrice);
+  freeCheck.addEventListener("change", setDefaultPrice);
   priceInput.addEventListener("input", recalcProcessOrderTotal);
   row.querySelector(".order-qty-input").addEventListener("input", recalcProcessOrderTotal);
 
@@ -548,6 +563,12 @@ function addProcessOrderItemRow() {
 }
 
 processOrderAddItemBtn.addEventListener("click", addProcessOrderItemRow);
+
+// One reason covers a free-of-cost order or any items given free in it.
+function updateFreeReasonVisibility() {
+  const anyFreeItem = !!processOrderItemsContainer.querySelector(".order-free-check:checked");
+  processOrderFreeReasonInput.classList.toggle("d-none", !(processOrderFreeCheck.checked || anyFreeItem));
+}
 
 function recalcProcessOrderTotal() {
   const rows = Array.from(processOrderItemsContainer.querySelectorAll(".repeater-item"));
@@ -613,6 +634,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     productId: row.querySelector(".order-product-select").value,
     qty: parseInt(row.querySelector(".order-qty-input").value, 10),
     unitPrice: parseFloat(row.querySelector(".order-price-input").value),
+    free: row.querySelector(".order-free-check").checked,
   }));
 
   const buyer = allWholesaleAccounts.find((w) => w.id === processingAccountId);
@@ -624,13 +646,17 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
 
   const freeOfCost = processOrderFreeCheck.checked;
   const freeReason = processOrderFreeReasonInput.value.trim();
-  if (freeOfCost) {
-    items.forEach((it) => (it.unitPrice = 0));
-    if (!freeReason) {
-      processOrderAlert.textContent = "A reason is required for a free-of-cost distribution.";
-      processOrderAlert.classList.remove("d-none");
-      return;
-    }
+  if (freeOfCost) items.forEach((it) => (it.free = false));
+  items.forEach((it) => {
+    if (freeOfCost || it.free) it.unitPrice = 0;
+  });
+  const freeItems = items.filter((it) => it.free);
+  if ((freeOfCost || freeItems.length) && !freeReason) {
+    processOrderAlert.textContent = freeOfCost
+      ? "A reason is required for a free-of-cost distribution."
+      : "A reason is required for the items given free.";
+    processOrderAlert.classList.remove("d-none");
+    return;
   }
 
   const invalid = items.some((it) => !it.productId || !it.qty || it.qty <= 0 || isNaN(it.unitPrice) || it.unitPrice < 0);
@@ -663,6 +689,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
         qty: it.qty,
         unitPrice: it.unitPrice,
         subtotal: it.qty * it.unitPrice,
+        ...(it.free ? { free: true } : {}),
       };
     });
 
@@ -682,6 +709,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
           paymentMethod: freeOfCost ? "free_of_cost" : paymentMethod,
           freeOfCost,
           freeOfCostReason: freeOfCost ? freeReason : null,
+          freeItemsReason: !freeOfCost && freeItems.length ? freeReason : null,
           contactPerson: account ? account.contactPerson || "" : "",
           buyerAddress: account ? account.address || "" : "",
           poRefNumber: processOrderPoRefInput.value.trim(),
@@ -708,11 +736,22 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
             details: `SI ${invoiceNo} - ${account ? account.name : ""} - ${orderItems.length} item(s), Total ${formatPeso(total)}, ${SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod}`,
           }
     );
+    if (!freeOfCost && freeItems.length) {
+      const freeList = orderItems.filter((it) => it.free).map((it) => `${it.productName} x${it.qty}`).join(", ");
+      await logAuditEvent({
+        action: "Wholesale Free Items",
+        details: `SI ${invoiceNo} - ${account ? account.name : ""} - free: ${freeList}. Reason: ${freeReason}`,
+        record: `SI ${invoiceNo} - ${account ? account.name : ""}`,
+        after: `${freeList} at ${formatPeso(0)}`,
+        reason: freeReason,
+      });
+    }
 
     // Remember the prices used as this buyer's agreed prices (REQ085).
     if (!freeOfCost && document.getElementById("processOrderSavePricesCheck").checked && account) {
       const agreedPrices = { ...(account.agreedPrices || {}) };
-      items.forEach((it) => (agreedPrices[it.productId] = it.unitPrice));
+      // A free item's 0 is a one-off, not the buyer's price.
+      items.filter((it) => !it.free).forEach((it) => (agreedPrices[it.productId] = it.unitPrice));
       try {
         await db.collection("wholesaleAccounts").doc(account.id).update({ agreedPrices });
         account.agreedPrices = agreedPrices;
@@ -743,11 +782,10 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
 });
 
 processOrderFreeCheck.addEventListener("change", () => {
-  processOrderFreeReasonInput.classList.toggle("d-none", !processOrderFreeCheck.checked);
-  processOrderItemsContainer.querySelectorAll(".order-price-input").forEach((input) => {
-    if (processOrderFreeCheck.checked) input.value = 0;
-    input.disabled = processOrderFreeCheck.checked;
-  });
+  // Each row sets its own price: 0 while the whole order is free, back to
+  // its usual price (unless that item is ticked free) when unticked.
+  processOrderItemsContainer.querySelectorAll(".repeater-item").forEach((row) => row._setDefaultPrice && row._setDefaultPrice());
+  updateFreeReasonVisibility();
   recalcProcessOrderTotal();
 });
 
@@ -783,7 +821,7 @@ async function openHistoryModal(account) {
       (o) => `<tr>
         <td class="fw-medium">${escapeHtml(o.invoiceNo || "-")}</td>
         <td>${formatDateMDY(o.createdAt)}</td>
-        <td>${(o.items || []).map((it) => `${escapeHtml(it.productName)} x${it.qty}${it.returnedQty ? ` <span class="text-danger">(${it.returnedQty} exchanged)</span>` : ""}`).join(", ")}</td>
+        <td>${(o.items || []).map((it) => `${escapeHtml(it.productName)} x${it.qty}${it.free ? ` <span class="text-success">(free)</span>` : ""}${it.returnedQty ? ` <span class="text-danger">(${it.returnedQty} exchanged)</span>` : ""}`).join(", ")}</td>
         <td>${formatPeso(o.total || 0)}</td>
         <td>${o.freeOfCost ? "Free of cost" : escapeHtml(SALE_RECEIPT_PAYMENT_METHOD_LABELS[o.paymentMethod] || o.paymentMethod || "-")}</td>
         <td>${
@@ -1056,7 +1094,7 @@ function downloadWholesaleInvoice(order) {
     doc.text(it.expirationDate ? formatDateMDY(it.expirationDate) : "-", cols[2], y);
     doc.text(String(it.qty), cols[3], y);
     // jsPDF's built-in font has no peso sign.
-    doc.text(reportSafeNumber(it.unitPrice), cols[4], y);
+    doc.text(it.free ? "FREE" : reportSafeNumber(it.unitPrice), cols[4], y);
     doc.text(reportSafeNumber(it.subtotal), 196, y, { align: "right" });
   });
   y += 3;
@@ -1069,6 +1107,10 @@ function downloadWholesaleInvoice(order) {
   if (order.freeOfCost && order.freeOfCostReason) {
     y += 7;
     doc.text(`Free-of-cost distribution: ${order.freeOfCostReason}`, 14, y);
+  }
+  if (order.freeItemsReason) {
+    y += 7;
+    doc.text(doc.splitTextToSize(`Items marked FREE: ${order.freeItemsReason}`, 182)[0], 14, y);
   }
   y += 14;
   doc.text("Received by: ______________________", 14, y);
