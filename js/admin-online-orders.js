@@ -1313,6 +1313,7 @@ const STATUS_BADGE_CLASSES = {
 
 const ADVANCE_ACTION_LABELS = {
   delivered: "Mark as Delivered",
+  received: "Mark as Picked Up",
   payment_confirmed: "Mark as Payment Confirmed",
 };
 
@@ -1326,13 +1327,14 @@ function renderOrderRow(order) {
   const labels = orderStepLabels(order);
   const currentIndex = steps.indexOf(order.status);
   const nextStep = steps[currentIndex + 1];
-  // "received" is confirmed by the customer, never set by staff - once the
-  // only remaining step is "received", there's nothing left for staff to
-  // do here. Staff can also only ever move forward one step at a time,
+  // "received" on a delivery is confirmed by the customer, never set by
+  // staff. A pick-up order is handed over at the counter, so staff mark it
+  // Picked Up themselves. Staff can also only ever move forward one step at a time,
   // never skip ahead and never go back. Advancing out of "placed" also
   // isn't offered from here - see comment above.
   const staffCanAdvance =
-    order.status !== "closed_unresolved" && order.status !== "placed" && !order.paymentIssue && nextStep && nextStep !== "received";
+    order.status !== "closed_unresolved" && order.status !== "placed" && !order.paymentIssue && nextStep &&
+    (nextStep !== "received" || order.requiresPrescription);
 
   const badgeClass = STATUS_BADGE_CLASSES[order.status] || "text-bg-light border";
   const badge = `<span class="badge rounded-pill ${badgeClass}">${order.status === "closed_unresolved" ? "Closed (Unresolved)" : labels[order.status]}</span>`;
@@ -1458,10 +1460,11 @@ async function advanceOrderStatus(btn) {
 
   // Defense in depth: only ever allow moving exactly one step forward,
   // regardless of what's in the DOM - never skip steps, never go
-  // backward, and never let staff set "received" (that's customer-only).
+  // backward, and only set "received" for a pick-up order (a delivery's
+  // receipt is the customer's to confirm).
   const steps = orderStatusSteps(order);
   const expectedNext = steps[steps.indexOf(previousStatus) + 1];
-  if (newStatus !== expectedNext || newStatus === "received") return;
+  if (newStatus !== expectedNext || (newStatus === "received" && !order.requiresPrescription)) return;
 
   const labels = orderStepLabels(order);
   const confirmed = await showAppConfirm(
@@ -1486,6 +1489,9 @@ async function advanceOrderStatus(btn) {
       details: `Order ${order.orderNumber}: ${labels[previousStatus] || previousStatus} -> ${labels[newStatus] || newStatus}`,
       actor: currentStaffName,
     });
+    if (newStatus === "received") {
+      notifyCustomer(order.customerId, `Order ${order.orderNumber} picked up`, "Thank you! Your order was picked up at the store.", `order-details.html?id=${orderId}`, "success");
+    }
     renderVerificationQueue();
     renderOrdersTable();
   } catch (error) {

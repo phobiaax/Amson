@@ -134,11 +134,10 @@ async function performLogin(email, password) {
       return;
     }
 
-    await auth.setPersistence(
-      rememberMeInput.checked
-        ? firebase.auth.Auth.Persistence.LOCAL
-        : firebase.auth.Auth.Persistence.SESSION
-    );
+    // Always kept in the browser so new tabs share the login; without
+    // "Remember me" it ends when the browser closes (firebase-config.js).
+    await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    markLoginRemembered(rememberMeInput.checked);
 
     const credential = await auth.signInWithEmailAndPassword(email, password);
     const userDoc = await db.collection("users").doc(credential.user.uid).get();
