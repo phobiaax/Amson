@@ -485,8 +485,8 @@ async function buildSupplierPurchasesReport(year, month) {
 
   // A batch topped up by later deliveries lists each one in `deliveries`;
   // each delivery is its own row here.
-  const received = batchSnap.docs
-    .map((d) => d.data())
+  // Unit costs are staff-only (batchCosts), added back here.
+  const received = (await attachBatchCosts(batchSnap.docs.map((d) => ({ id: d.id, ...d.data() }))))
     .flatMap((b) =>
       b.deliveries && b.deliveries.length
         ? b.deliveries.map((dl) => ({ ...b, ...dl, initialQuantity: dl.qty, quantity: dl.qty }))
@@ -551,7 +551,7 @@ async function buildPullOutReport(start, end) {
   // was saved), so every write-off is read and filtered here.
   const [woSnap, batchSnap] = await Promise.all([db.collection("writeOffs").get(), db.collection("stockBatches").get()]);
   const batches = {};
-  batchSnap.docs.forEach((d) => (batches[d.id] = d.data()));
+  (await attachBatchCosts(batchSnap.docs.map((d) => ({ id: d.id, ...d.data() })))).forEach((b) => (batches[b.id] = b));
   let totalQty = 0;
   let totalCost = 0;
   const rows = woSnap.docs

@@ -93,9 +93,21 @@ async function ensureDefaultCategories() {
   await batch.commit();
 }
 
+let legacyPricesChecked = false;
+
 async function loadProducts() {
   try {
     await ensureDefaultCategories();
+    // Once per visit, the Branch Manager's page moves any costing/wholesale
+    // prices still on the public product records to the staff-only ones.
+    if (!legacyPricesChecked && canEditPrices()) {
+      legacyPricesChecked = true;
+      try {
+        if (await moveLegacyPrivatePrices({ products: true })) catalogLoadPromise = null;
+      } catch (error) {
+        console.error("Couldn't move the staff-only prices:", error);
+      }
+    }
     await loadCatalogCache();
     allProducts = SAMPLE_PRODUCTS.slice();
     renderCategorySelect();
@@ -512,7 +524,16 @@ saveProductBtn.addEventListener("click", async () => {
         }
       }
 
-      await db.collection("products").doc(editingProductId).update(productData);
+      // Costing and wholesale prices go to the staff-only record; the public
+      // product keeps only the retail price (and loses any older copies).
+      const privatePrices = splitPrivatePrices(productData);
+      const batch = db.batch();
+      if (canEditPrices()) {
+        PRIVATE_PRICE_FIELDS.forEach((field) => (productData[field] = firebase.firestore.FieldValue.delete()));
+        setPrivatePrices(batch, editingProductId, privatePrices);
+      }
+      batch.update(db.collection("products").doc(editingProductId), productData);
+      await batch.commit();
 
       if (priceChanges.length > 0) {
         await logAuditEvent({
@@ -527,7 +548,12 @@ saveProductBtn.addEventListener("click", async () => {
     } else {
       productData.sku = await generateProductSku();
       productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      await db.collection("products").add(productData);
+      const privatePrices = splitPrivatePrices(productData);
+      const ref = db.collection("products").doc();
+      const batch = db.batch();
+      batch.set(ref, productData);
+      if (canEditPrices()) setPrivatePrices(batch, ref.id, privatePrices);
+      await batch.commit();
     }
 
     catalogLoadPromise = null; // force a fresh read next time any page loads the cache
@@ -540,6 +566,19 @@ saveProductBtn.addEventListener("click", async () => {
     saveProductBtn.disabled = false;
   }
 });
+
+// Takes the costing and wholesale prices off a product's data (they're saved
+// separately, staff-only) and returns them.
+function splitPrivatePrices(productData) {
+  const prices = {};
+  PRIVATE_PRICE_FIELDS.forEach((field) => {
+    if (field in productData) {
+      prices[field] = productData[field];
+      delete productData[field];
+    }
+  });
+  return prices;
+}
 
 deleteProductBtn.addEventListener("click", async () => {
   if (!editingProductId) return;
@@ -792,16 +831,18 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
       const imageUrl = row.imageFile ? await uploadToCloudinary(row.imageFile, { kind: "product" }) : null;
       // Same price rule as the form: only a Branch Manager's import sets prices.
       const pricesAllowed = canEditPrices();
-      await db.collection("products").add({
+      const ref = db.collection("products").doc();
+      const batch = db.batch();
+      // Costing and wholesale prices are saved staff-only (setPrivatePrices).
+      if (pricesAllowed) setPrivatePrices(batch, ref.id, { costingPrice: row.costingPrice, wholesalePrice: row.wholesalePrice });
+      batch.set(ref, {
         sku,
         name: row.name,
         genericName: row.genericName,
         brand: row.brand,
         category: categoryId,
         shopSection: row.shopSection || "",
-        costingPrice: pricesAllowed ? row.costingPrice : 0,
         retailPrice: pricesAllowed ? row.retailPrice : 0,
-        wholesalePrice: pricesAllowed ? row.wholesalePrice : 0,
         pricePending: !pricesAllowed,
         description: row.description,
         imageUrl,
@@ -811,6 +852,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
         status: pricesAllowed ? row.status : "inactive",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
+      await batch.commit();
       imported += 1;
       row.tr.remove(); // saved - only failed rows stay in the review table
     } catch (error) {

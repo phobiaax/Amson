@@ -152,6 +152,16 @@
           </div>
         </div>
 
+        <!-- Backups (Branch Manager): the free plan keeps none. -->
+        <div class="col-12 d-none" id="backupCard">
+          <div class="checkout-card p-4">
+            <h2 class="h5 fw-bold mb-1">Back Up All Data</h2>
+            <p class="text-muted mb-3" style="font-size:0.85rem;">Downloads everything in the system (products, prices, stock, sales, orders, wholesale, accounts, Audit Log) as an Excel file to read and a JSON file for restoring. Do this once a week and keep the files somewhere safe.</p>
+            <button type="button" class="btn btn-outline-dark-amson" id="backupBtn"><i class="bi bi-download me-1"></i>Download Backup</button>
+            <p class="text-muted mb-0 mt-2" style="font-size:0.85rem;" id="backupStatus"></p>
+          </div>
+        </div>
+
         <!-- Temporary, for go-live only (Branch Manager). -->
         <div class="col-12 d-none" id="clearTestDataCard">
           <div class="checkout-card p-4">
@@ -185,6 +195,8 @@
 <script src="../js/validators.js"></script>
 <script src="../js/admin-settings.js"></script>
 <script src="../js/admin-store-banner.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="../js/admin-backup.js"></script>
 <script src="../js/admin-roles.js"></script>
 <script src="../js/device-trust.js"></script>
 <script src="../js/admin-header.js"></script>

@@ -894,6 +894,130 @@ function writeCatalogBrowserCache() {
 // plain read if it hasn't arrived within a few seconds.
 let catalogLoadedOnce = false;
 
+// ---- Staff-only prices ----
+// Costing and wholesale prices (productPrices/{productId}) and batch unit
+// costs (batchCosts/{batchId}) are kept out of the public product and stock
+// records, so nobody can read them through the online store. Staff pages
+// merge them back in, so every screen and report works as before. Records
+// from before the move still carry the fields; moveLegacyPrivatePrices()
+// moves them (Products page for the Branch Manager, Inventory for staff).
+const PRIVATE_PRICE_FIELDS = ["costingPrice", "wholesalePrice"];
+
+function isStaffPage() {
+  return typeof window !== "undefined" && /\/admin\//.test(window.location.pathname);
+}
+
+// productId -> { costingPrice, wholesalePrice }; empty off staff pages or if
+// this account can't read them.
+async function loadPrivatePrices(useLive) {
+  if (!isStaffPage()) return new Map();
+  try {
+    const query = db.collection("productPrices");
+    const snap = useLive ? await liveQuery("productPrices", query) : await query.get();
+    const prices = new Map();
+    snap.docs.forEach((doc) => {
+      const data = doc.data();
+      const entry = {};
+      PRIVATE_PRICE_FIELDS.forEach((field) => {
+        if (typeof data[field] === "number") entry[field] = data[field];
+      });
+      prices.set(doc.id, entry);
+    });
+    return prices;
+  } catch (error) {
+    console.warn("Staff prices unavailable:", error.code || error);
+    return new Map();
+  }
+}
+
+// Writes a product's staff-only prices (inside a batch or transaction).
+function setPrivatePrices(writer, productId, prices) {
+  const data = {};
+  PRIVATE_PRICE_FIELDS.forEach((field) => {
+    if (prices[field] !== undefined) data[field] = Number(prices[field]) || 0;
+  });
+  data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+  writer.set(db.collection("productPrices").doc(productId), data, { merge: true });
+}
+
+// Batches with their unit cost (and each delivery's) put back, for the
+// staff exports and reports that show costs. Takes { id, ...data } objects.
+async function attachBatchCosts(batches) {
+  let snap;
+  try {
+    snap = await db.collection("batchCosts").get();
+  } catch (error) {
+    console.warn("Batch costs unavailable:", error.code || error);
+    return batches;
+  }
+  const costs = new Map(snap.docs.map((doc) => [doc.id, doc.data()]));
+  return batches.map((b) => {
+    const c = costs.get(b.id);
+    if (!c) return b;
+    const out = { ...b, unitCost: c.unitCost != null ? c.unitCost : b.unitCost != null ? b.unitCost : null };
+    if (Array.isArray(b.deliveries) && Array.isArray(c.deliveryCosts)) {
+      out.deliveries = b.deliveries.map((d, i) => ({ ...d, unitCost: c.deliveryCosts[i] != null ? c.deliveryCosts[i] : d.unitCost != null ? d.unitCost : null }));
+    }
+    return out;
+  });
+}
+
+// One-time move of costs still sitting on the public records. Safe to run
+// again: records already moved are skipped. Returns how many were moved.
+async function moveLegacyPrivatePrices({ products = false, batches = false } = {}) {
+  let moved = 0;
+  const commitInGroups = async (ops) => {
+    for (let i = 0; i < ops.length; i += 200) {
+      const batch = db.batch();
+      ops.slice(i, i + 200).forEach((op) => op(batch));
+      await batch.commit();
+    }
+  };
+  if (products) {
+    const snap = await db.collection("products").get();
+    const ops = [];
+    snap.docs.forEach((doc) => {
+      const data = doc.data();
+      if (!PRIVATE_PRICE_FIELDS.some((f) => f in data)) return;
+      moved += 1;
+      ops.push((batch) => {
+        setPrivatePrices(batch, doc.id, { costingPrice: data.costingPrice, wholesalePrice: data.wholesalePrice });
+        batch.update(doc.ref, {
+          costingPrice: firebase.firestore.FieldValue.delete(),
+          wholesalePrice: firebase.firestore.FieldValue.delete(),
+        });
+      });
+    });
+    await commitInGroups(ops);
+  }
+  if (batches) {
+    const snap = await db.collection("stockBatches").get();
+    const ops = [];
+    snap.docs.forEach((doc) => {
+      const data = doc.data();
+      const deliveryHasCost = Array.isArray(data.deliveries) && data.deliveries.some((d) => d && "unitCost" in d);
+      if (!("unitCost" in data) && !deliveryHasCost) return;
+      moved += 1;
+      ops.push((batch) => {
+        const costs = { unitCost: data.unitCost != null ? data.unitCost : null };
+        const update = { unitCost: firebase.firestore.FieldValue.delete() };
+        if (Array.isArray(data.deliveries)) {
+          costs.deliveryCosts = data.deliveries.map((d) => (d && d.unitCost != null ? d.unitCost : null));
+          update.deliveries = data.deliveries.map((d) => {
+            const rest = { ...d };
+            delete rest.unitCost;
+            return rest;
+          });
+        }
+        batch.set(db.collection("batchCosts").doc(doc.id), costs, { merge: true });
+        batch.update(doc.ref, update);
+      });
+    });
+    await commitInGroups(ops);
+  }
+  return moved;
+}
+
 async function loadCatalogCache({ afterStockChange = null } = {}) {
   if (catalogLoadPromise) return catalogLoadPromise;
 
@@ -912,10 +1036,11 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
     // In parallel: three round trips one after another made every page wait.
     let useLive = !catalogLoadedOnce;
     if (!useLive && afterStockChange != null) useLive = await liveSnapshotAfter("stockBatches", afterStockChange);
-    const [categorySnapshot, productSnapshot, allBatchSnapshot] = await Promise.all(
-      useLive
+    const [categorySnapshot, productSnapshot, allBatchSnapshot, privatePrices] = await Promise.all(
+      (useLive
         ? [liveQuery("categories", db.collection("categories")), liveQuery("products", db.collection("products")), liveStockBatches()]
         : [db.collection("categories").get(), db.collection("products").get(), db.collection("stockBatches").where("status", "==", "active").get()]
+      ).concat([loadPrivatePrices(useLive)])
     );
     const batchSnapshot = { docs: allBatchSnapshot.docs.filter((doc) => doc.data().status === "active") };
     catalogLoadedOnce = true;
@@ -942,6 +1067,7 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
       return {
         id: doc.id,
         ...data,
+        ...(privatePrices.get(doc.id) || {}),
         shopSection: resolveShopSection(data.shopSection),
         price: data.retailPrice,
         totalStock,

@@ -14,10 +14,10 @@
 // real setup (catalog, suppliers, wholesale buyers) start unticked.
 const CLEAR_GROUPS = [
   { key: "sales", label: "Orders and sales", hint: "Online orders, walk-in (POS) sales, wholesale sales and exchanges, customer order notices", collections: ["orders", "prescriptionOrders", "posSales", "wholesaleOrders", "wholesaleExchanges", "customerNotifications"], checked: true },
-  { key: "stock", label: "Stock records", hint: "Received batches, purchase orders, stock counts, write-offs", collections: ["stockBatches", "purchaseOrders", "reconciliations", "writeOffs"], checked: true },
+  { key: "stock", label: "Stock records", hint: "Received batches, purchase orders, stock counts, write-offs", collections: ["stockBatches", "batchCosts", "purchaseOrders", "reconciliations", "writeOffs"], checked: true },
   { key: "chat", label: "Live chat conversations", hint: "All chat threads and their messages", collections: ["chatThreads"], checked: true },
   { key: "logs", label: "Notifications, audit log and login attempts", hint: "A new audit entry saying the test data was cleared is added afterwards", collections: ["notifications", "auditLog", "loginAttempts"], checked: true },
-  { key: "catalog", label: "Products and categories", hint: "Only tick this if the products were made up for testing", collections: ["products", "categories"], checked: false },
+  { key: "catalog", label: "Products and categories", hint: "Only tick this if the products were made up for testing", collections: ["products", "productPrices", "categories"], checked: false },
   { key: "suppliers", label: "Suppliers", hint: "Only tick this if the suppliers were made up for testing", collections: ["suppliers"], checked: false },
   { key: "wholesale", label: "Wholesale accounts", hint: "Only tick this if the wholesale buyers were made up for testing", collections: ["wholesaleAccounts"], checked: false },
 ];
