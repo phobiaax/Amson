@@ -116,6 +116,16 @@ service cloud.firestore {
       allow delete: if isProductEditor();
     }
 
+    // Costing and wholesale prices, kept out of the public product records so
+    // they can't be read through the online store. Staff read them; only
+    // the Branch Manager sets them (REQ071, REQ120).
+    match /productPrices/{productId} {
+      allow read: if isStaff();
+      allow create, update: if isPriceManager() &&
+        request.resource.data.keys().hasOnly(["costingPrice", "wholesalePrice", "updatedAt"]);
+      allow delete: if isProductEditor();
+    }
+
     // Shop announcement banner (Settings) - public read, set by the Branch
     // Manager or Technical Staff.
     match /storeSettings/{settingId} {
@@ -242,6 +252,11 @@ service cloud.firestore {
       allow update: if isStaff();
       allow create, delete: if isOpsStaff();
     }
+    // Unit cost of each received batch (and each later delivery), kept out
+    // of the public stock records. Written when stock is received.
+    match /batchCosts/{batchId} {
+      allow read, create, update: if isOpsStaff();
+    }
     match /posSales/{saleId} {
       allow read, create: if isStaff();
       allow update: if isOpsStaff();
@@ -366,7 +381,7 @@ service cloud.firestore {
         "orders", "prescriptionOrders", "posSales", "wholesaleOrders", "wholesaleExchanges",
         "customerNotifications", "stockBatches", "purchaseOrders", "reconciliations", "writeOffs",
         "chatThreads", "notifications", "auditLog", "loginAttempts",
-        "products", "categories", "suppliers", "wholesaleAccounts"];
+        "products", "categories", "suppliers", "wholesaleAccounts", "productPrices", "batchCosts"];
     }
     match /chatThreads/{threadId}/messages/{messageId} {
       allow delete: if canClearTestData();

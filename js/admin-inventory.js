@@ -129,7 +129,11 @@ document.addEventListener("admin:ready", (e) => {
   if (currentAdminRole !== "admin" && currentAdminRole !== "branch_manager") {
     document.getElementById("submitCountBtn").textContent = "Save Count for Branch Manager";
   }
-  loadInventory();
+  // Once: unit costs still on the public stock records move to the
+  // staff-only ones (see moveLegacyPrivatePrices).
+  moveLegacyPrivatePrices({ batches: true })
+    .catch((error) => console.error("Couldn't move the batch costs:", error))
+    .then(() => loadInventory());
 });
 
 // Today on the branch's calendar (the UTC date is still yesterday until
@@ -566,26 +570,36 @@ function planStockReceipt(lines) {
   return { errors, newLines, topUps };
 }
 
+// One delivery on a topped-up batch. Its unit cost is kept staff-only, in
+// batchCosts (deliveryCosts, same order as deliveries).
 function deliveryRecord(src, qty) {
   return {
     qty,
     dateReceived: src.dateReceived || null,
     supplierId: src.supplierId || null,
     supplierReceiptNo: src.supplierReceiptNo || null,
-    unitCost: src.unitCost == null || isNaN(src.unitCost) ? null : src.unitCost,
     poId: src.poId || null,
     source: src.source || null,
   };
 }
 
+function costOrNull(value) {
+  return value == null || isNaN(value) ? null : value;
+}
+
 // Inside a transaction. Reads first (Firestore needs every read before any
-// write), then adds new batches and tops up existing ones.
+// write), then adds new batches and tops up existing ones. Unit costs go to
+// the staff-only batchCosts records, never on the public stock record.
 async function applyStockReceipt(transaction, plan) {
   const refs = plan.topUps.map((t) => db.collection("stockBatches").doc(t.batchId));
+  const costRefs = plan.topUps.map((t) => db.collection("batchCosts").doc(t.batchId));
   const docs = [];
+  const costDocs = [];
   for (const ref of refs) docs.push(await transaction.get(ref));
+  for (const ref of costRefs) costDocs.push(await transaction.get(ref));
   return () => {
     plan.newLines.forEach((line) => {
+      const ref = db.collection("stockBatches").doc();
       const record = {
         productId: line.productId,
         batchNo: line.batchNo,
@@ -594,7 +608,6 @@ async function applyStockReceipt(transaction, plan) {
         initialQuantity: line.qty,
         supplierId: line.supplierId || null,
         supplierReceiptNo: line.supplierReceiptNo || null,
-        unitCost: line.unitCost == null || isNaN(line.unitCost) ? null : line.unitCost,
         dateReceived: line.dateReceived,
         status: "active",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -604,19 +617,35 @@ async function applyStockReceipt(transaction, plan) {
       // "opening_stock": counted on the shelf when the branch started using
       // the system - not a purchase, so Supplier Purchases leaves it out.
       if (line.source) record.source = line.source;
-      transaction.set(db.collection("stockBatches").doc(), record);
+      transaction.set(ref, record);
+      transaction.set(db.collection("batchCosts").doc(ref.id), { unitCost: costOrNull(line.unitCost) });
     });
     plan.topUps.forEach((t, i) => {
       if (!docs[i].exists) throw new Error(`Batch ${t.line.batchNo} no longer exists. Refresh the page and try again.`);
       const b = docs[i].data();
+      const c = costDocs[i].exists ? costDocs[i].data() : {};
       const firstQty = b.initialQuantity != null ? b.initialQuantity : b.quantity || 0;
-      const deliveries = (b.deliveries && b.deliveries.length ? b.deliveries : [deliveryRecord(b, firstQty)]).concat([deliveryRecord(t.line, t.line.qty)]);
+      // Older records may still carry costs on the batch itself.
+      const firstCost = c.unitCost != null ? c.unitCost : costOrNull(b.unitCost);
+      const earlier = b.deliveries && b.deliveries.length ? b.deliveries : [{ ...deliveryRecord(b, firstQty), unitCost: firstCost }];
+      const earlierCosts = earlier.map((d, idx) =>
+        Array.isArray(c.deliveryCosts) && c.deliveryCosts[idx] != null ? c.deliveryCosts[idx] : costOrNull(d.unitCost)
+      );
+      const deliveries = earlier
+        .map((d) => {
+          const rest = { ...d };
+          delete rest.unitCost;
+          return rest;
+        })
+        .concat([deliveryRecord(t.line, t.line.qty)]);
       transaction.update(refs[i], {
         quantity: (b.quantity || 0) + t.line.qty,
         initialQuantity: firstQty + t.line.qty,
         deliveries,
+        unitCost: firebase.firestore.FieldValue.delete(),
         lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
+      transaction.set(costRefs[i], { unitCost: firstCost, deliveryCosts: earlierCosts.concat([costOrNull(t.line.unitCost)]) });
     });
   };
 }
@@ -1132,9 +1161,7 @@ quickAddProductSaveBtn.addEventListener("click", async () => {
       genericName: "",
       brand: "",
       category,
-      costingPrice: 0,
       retailPrice,
-      wholesalePrice: 0,
       reorderPoint: DEFAULT_REORDER_POINT,
       description: "",
       imageUrl: null,
@@ -1718,13 +1745,15 @@ submitCountBtn.addEventListener("click", async () => {
 });
 
 /* ---------- Export Report ---------- */
-exportInventoryBtn.addEventListener("click", () => {
+exportInventoryBtn.addEventListener("click", async () => {
   const supplierName = (id) => ((allSuppliers.find((s) => s.id === id) || {}).name || "");
+  // Unit costs are staff-only (batchCosts), added back for the export.
+  const rows = await attachBatchCosts(filteredBatches());
   exportTable({
     title: "Inventory",
     subtitle: inventoryFilter === "all" ? "All batches" : `Filter: ${BATCH_STATUS_LABELS[inventoryFilter] || inventoryFilter}`,
     filenamePrefix: "amson-inventory",
-    rows: filteredBatches(),
+    rows,
     columns: [
       { label: "Product", value: (b) => (getProductById(b.productId) || {}).name || "Unknown product", width: 3 },
       { label: "Category", value: (b) => CATEGORY_LABELS[(getProductById(b.productId) || {}).category] || "", width: 1.5 },
