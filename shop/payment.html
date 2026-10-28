@@ -127,9 +127,9 @@
         </div>
 
         <div class="qr-box" id="qrBox">
-          <div class="qr-code-image" style="width:100%; max-width:320px; height:360px;">
-            <img src="../assets/payment-qr.png" alt="Amson Pharmaceuticals QR Ph payment code" style="max-width:100%; max-height:100%;" onerror="this.classList.add('d-none'); document.getElementById('qrPlaceholder').classList.remove('d-none');">
-            <div id="qrPlaceholder" class="text-muted text-center p-3" style="font-size:0.8rem;">
+          <div class="qr-code-image" style="width:100%; max-width:320px; height:auto; padding:6px;">
+            <img src="../assets/payment-qr.jpg" alt="Amson Pharmaceuticals QR Ph payment code" style="max-width:100%; height:auto;" onerror="this.classList.add('d-none'); document.getElementById('qrPlaceholder').classList.remove('d-none');">
+            <div id="qrPlaceholder" class="text-muted text-center p-3 d-none" style="font-size:0.8rem;">
               <i class="bi bi-qr-code" style="font-size:3rem;"></i>
               <p class="mb-0 mt-2">QR here</p>
             </div>
@@ -138,7 +138,9 @@
           <div class="text-start mt-4">
             <p class="fw-bold mb-2">Payment Instructions:</p>
             <ol style="font-size:0.92rem;">
-              <li>Scan the QR code above to send the payment.</li>
+              <li>Scan the QR code above with GCash, Maya or your bank app.</li>
+              <li>Before you pay, check that the recipient name in your app is <b>AMSON PHARMACEUTICAL...</b>, the same as on the QR code. If it shows a different name, don't send; message us through the chat.</li>
+              <li>Send the exact order total.</li>
               <li>Take a screenshot of your completed payment confirmation.</li>
               <li>Upload the screenshot below.</li>
             </ol>
