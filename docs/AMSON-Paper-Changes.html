@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMSON Paper Changes</title>
+<style>
+  :root { --red: #c8102e; --ink: #1d1d1f; --muted: #5f6368; --line: #d9d9d9; --soft: #f6f6f7; --find: #fff4f4; --rep: #f1faf3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--ink); font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 20px 16px 56px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 28px 0 8px; padding-top: 8px; border-top: 2px solid var(--red); }
+  .sub { color: var(--muted); margin: 0 0 12px; }
+  .item { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 10px 0; break-inside: avoid; }
+  .where { font-weight: 600; margin-bottom: 6px; }
+  .where span { color: var(--muted); font-weight: 400; }
+  .lbl { font-size: 0.75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-top: 6px; }
+  .find, .rep { padding: 6px 9px; border-radius: 5px; margin-top: 2px; white-space: pre-wrap; }
+  .find { background: var(--find); }
+  .rep { background: var(--rep); }
+  .note { color: var(--muted); font-size: 0.9rem; margin-top: 6px; }
+  ul { padding-left: 1.2rem; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  th, td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); }
+</style>
+</head>
+<body>
+<main>
+<h1>AMSON Paper Changes</h1>
+<p class="sub">Exact edits for the manuscript, in page order. Page numbers are the printed numbers at the bottom of each page. The <b>Find</b> text is copied from the current manuscript; replace it with the <b>Replace with</b> text. Each change matches what the live system does now (October 2026).</p>
+
+<h2>A. Find &amp; Replace All (do these first)</h2>
+<table>
+  <tr><th>Find (match case)</th><th>Replace all with</th><th>Why</th></tr>
+  <tr><td>QR PH</td><td>QR Ph</td><td>The official name is "QR Ph". Appears on many pages (4, 6, 8, 26, 32, 35, 39, 44, 49, 58, 63...).</td></tr>
+  <tr><td>Fulfillment / fulfillment</td><td>(leave it)</td><td>US spelling, used the same way throughout. Only change it if your adviser wants UK spelling ("fulfilment"). Don't change "partial fulfillment" on the approval sheet.</td></tr>
+  <tr><td>Stock Reconciliation</td><td>Stock Count</td><td>The module is called Stock Count in the system. Check each hit; the sentences on p.41, 53 and 72 are rewritten below.</td></tr>
+</table>
+
+<h2>B. Front matter and Chapter 1</h2>
+
+<div class="item"><div class="where">1. Title page and Approval sheet <span>p.iii</span></div>
+<div class="lbl">Find</div><div class="find">A Capstone Project Proposal</div>
+<div class="lbl">Replace with</div><div class="rep">A Capstone Project</div>
+<div class="lbl">Find</div><div class="find">This capstone project proposal titled</div>
+<div class="lbl">Replace with</div><div class="rep">This capstone project titled</div>
+<div class="note">Only if this is the final (post-implementation) manuscript. Ask your adviser. Also update the date on the title page.</div></div>
+
+<div class="item"><div class="where">2. Significance / introduction <span>p.3</span></div>
+<div class="lbl">Find</div><div class="find">By incorporating an AI-powered live chat feature using the
+OpenAI API,</div>
+<div class="lbl">Replace with</div><div class="rep">By incorporating an AI-powered live chat feature using Google's Gemini model through Firebase AI Logic,</div></div>
+
+<div class="item"><div class="where">3. Objectives / description <span>p.4</span></div>
+<div class="lbl">Find</div><div class="find">The system will deploy a responsive chat assistant powered by the OpenAI API.</div>
+<div class="lbl">Replace with</div><div class="rep">The system will deploy a responsive chat assistant powered by Google's Gemini model through Firebase AI Logic.</div></div>
+
+<div class="item"><div class="where">4. Scope <span>p.6</span></div>
+<div class="lbl">Find</div><div class="find">buyer accounts, storing supporting business documents, maintaining separate
+wholesale pricing, and recording purchase orders submitted by wholesale clients.</div>
+<div class="lbl">Replace with</div><div class="rep">buyer accounts, storing supporting business documents, maintaining a default wholesale price per product and agreed prices per buyer, and recording wholesale orders that branch staff receive from wholesale clients through existing communication channels. Wholesale clients do not log in to the system.</div></div>
+
+<div class="item"><div class="where">5. Limitations: replace the exchange bullet <span>p.8</span></div>
+<div class="lbl">Find</div><div class="find">Retail item exchanges are not provided as a self‑service feature. In cases of
+incorrect item delivery attributable to branch error, resolution is coordinated
+through live chat and processed administratively by authorized staff. The system
+does not support customer‑initiated cancellations or refunds.</div>
+<div class="lbl">Replace with</div><div class="rep">Retail item exchanges are not provided as a self‑service feature. Walk-in customers may return or exchange an item at the branch, where staff process it at the POS against the original receipt (SI) number; exchanges must be for items of equal or higher value, and no cash refunds are given. For online orders, incorrect items attributable to branch error are resolved through live chat and processed administratively by authorized staff. The system does not support customer‑initiated cancellations or refunds.</div></div>
+
+<div class="item"><div class="where">6. Limitations: add these bullets after the bullet above <span>p.8</span></div>
+<div class="lbl">Add</div><div class="rep">• The receipts and sales invoices generated by the system are internal, computerized sales records. They do not replace official BIR-registered receipts or invoices, which the branch continues to issue from its authorized booklets until the system is registered with the BIR.
+
+• The system is web-based and requires an internet connection. Transactions cannot be saved while the connection is down; the branch records them manually and encodes them once the connection is restored.
+
+• The system runs on the free tiers of its cloud services, which set usage limits: about 50,000 database reads per day, about 200 emails per month through EmailJS, and no automatic database backups. The branch downloads its own backup through the system's Back Up All Data function.
+
+• Phone number (SMS) verification is not included; accounts are verified by email.
+
+• The one-time password (OTP) check for logins from unrecognized devices is built into the system but is currently switched off, and can be turned on when the branch requires it.</div>
+<div class="note">If you decide to switch the device OTP back on before defense, skip the last bullet.</div></div>
+
+<h2>C. Chapter 2: Framework, sprint plan, technical background</h2>
+
+<div class="item"><div class="where">7. Conceptual framework, Process box <span>p.24</span></div>
+<div class="lbl">Find</div><div class="find">• AI-Powered Chat Support
+(OpenAI)</div>
+<div class="lbl">Replace with</div><div class="rep">• AI-Powered Chat Support
+(Gemini)</div>
+<div class="note">This is inside the figure, so edit the diagram's text box.</div></div>
+
+<div class="item"><div class="where">8. Framework description <span>p.26</span></div>
+<div class="lbl">Find</div><div class="find">will process incoming customer messages using the OpenAI API,</div>
+<div class="lbl">Replace with</div><div class="rep">will process incoming customer messages using Google's Gemini model through Firebase AI Logic,</div></div>
+
+<div class="item"><div class="where">9. Sprint plan, Phase 4 <span>p.34</span></div>
+<div class="lbl">Find</div><div class="find">the AI-powered live chat using the OpenAI API,</div>
+<div class="lbl">Replace with</div><div class="rep">the AI-powered live chat using Google's Gemini model through Firebase AI Logic,</div></div>
+
+<div class="item"><div class="where">10. Technical background: Chart.js wording <span>p.35</span></div>
+<div class="lbl">Find</div><div class="find">Chart.js for graphical sales and inventory analytics on the administrative
+dashboard,</div>
+<div class="lbl">Replace with</div><div class="rep">Chart.js for graphical sales analytics on the administrative dashboard,</div></div>
+
+<div class="item"><div class="where">11. Technical background: hosting <span>p.35</span></div>
+<div class="lbl">Find</div><div class="find">The
+completed system will be hosted and deployed through Netlify, ensuring continuous
+integration with the project repository and reliable accessibility for all users.</div>
+<div class="lbl">Replace with</div><div class="rep">The completed system will be hosted on Firebase Hosting and deployed from the project repository on each release, ensuring secure (HTTPS) and reliable accessibility for all users.</div></div>
+
+<div class="item"><div class="where">12. Software list: Chart.js bullet <span>p.37</span></div>
+<div class="lbl">Find</div><div class="find">including graphical representations of sales performance trends and inventory
+movement data.</div>
+<div class="lbl">Replace with</div><div class="rep">including graphical representations of sales performance trends.</div></div>
+
+<div class="item"><div class="where">13. Software list: Netlify bullet <span>p.37</span></div>
+<div class="lbl">Find</div><div class="find">Netlify: Used as the hosting and deployment platform, providing continuous
+integration with the project repository and ensuring the system remains accessible
+and up to date.</div>
+<div class="lbl">Replace with</div><div class="rep">Firebase Hosting: Used as the hosting and deployment platform, serving the system over HTTPS from the same Firebase project as the database and authentication, and updated from the project repository on each release.</div></div>
+
+<div class="item"><div class="where">14. Software list: Canva bullet <span>p.38</span></div>
+<div class="lbl">Find</div><div class="find">Canva: Used as the design tool for creating interface mockups, system logos, and
+visual assets for the technical manuscript and presentation materials.</div>
+<div class="lbl">Replace with</div><div class="rep">Figma: Used as the design tool for creating the interface mockups and prototypes of the system.
+
+Canva: Used for creating the system logos and visual assets for the technical manuscript and presentation materials.</div>
+<div class="note">Your Gantt chart says the mockups were made in Figma. If they were really made in Canva, keep the original bullet and fix the Gantt chart instead.</div></div>
+
+<div class="item"><div class="where">15. Software list: add three bullets at the end <span>p.38</span></div>
+<div class="lbl">Add</div><div class="rep">• Choices.js: Used to provide searchable drop-down lists in the administrative forms, such as product, supplier, and buyer selection.
+
+• Bootstrap Icons: Used as the icon set across the e-commerce platform and the administrative portal.
+
+• Git and GitHub: Used for version control and as the project repository from which the system is deployed.</div></div>
+
+<h2>D. Chapter 2: System modules (p.38 to 45)</h2>
+
+<div class="item"><div class="where">16. Home Module <span>p.38</span></div>
+<div class="lbl">Find</div><div class="find">displaying featured products,
+announcements, and promotions.</div>
+<div class="lbl">Replace with</div><div class="rep">displaying featured products and store announcements.</div></div>
+
+<div class="item"><div class="where">17. Product Browsing Module <span>p.38</span></div>
+<div class="lbl">Find</div><div class="find">Displays the available OTC product catalog with
+search, filter, and category navigation.</div>
+<div class="lbl">Replace with</div><div class="rep">Displays the available catalog of OTC medicines and medical supplies with search, filter, and category navigation. Prescription (Rx) products are labeled and can only be pre-ordered for pick-up.</div></div>
+
+<div class="item"><div class="where">18. Order Tracking Module <span>p.39</span></div>
+<div class="lbl">Find</div><div class="find">allows customers to monitor delivery progress
+via a tracking link provided by the administrator, and features an 'Order
+Received' confirmation button for the customer to manually mark the
+transaction as delivered, or an option to contact the seller to resolve any
+issues with the order.</div>
+<div class="lbl">Replace with</div><div class="rep">allows customers to monitor delivery progress via a tracking link provided by the administrator. Once staff mark the order as Delivered, the customer may confirm receipt through the 'Order Received' button, or contact the seller to resolve any issues with the order. Pick-up orders are marked as Picked Up by staff when the customer collects them at the branch.</div></div>
+
+<div class="item"><div class="where">19. Administrator Login Module <span>p.40</span></div>
+<div class="lbl">Find</div><div class="find">All
+staff requires OTP only on unrecognized devices.</div>
+<div class="lbl">Replace with</div><div class="rep">The system supports OTP verification for staff logging in from unrecognized devices, which can be switched on when the branch requires it.</div>
+<div class="note">Skip if you switch the device OTP back on.</div></div>
+
+<div class="item"><div class="where">20. FEFO Tracking Module <span>p.41</span></div>
+<div class="lbl">Find</div><div class="find">Flags batches six months before expiry for pull-out, reflecting
+the branch's existing expiration management practice.</div>
+<div class="lbl">Replace with</div><div class="rep">Flags batches six months before expiry as Near-Expiry, removing them from retail sale so they can only be sold or given free of cost to wholesale clients, and flags batches two months before expiry as Bad Order for pull-out and disposal, reflecting the branch's existing expiration management practice.</div></div>
+
+<div class="item"><div class="where">21. Stock Reconciliation Module <span>p.41 to 42</span></div>
+<div class="lbl">Find</div><div class="find">Stock Reconciliation Module: Supports the mandatory month‑end
+physical inventory counting process conducted during scheduled branch
+closure periods. Authorized staff can open a reconciliation session for a
+specific date, view the system‑recorded inventory per product and batch,
+input the physically counted quantities, and submit the count. Upon
+submission, the system updates the inventory to reflect the physical count
+as the authoritative stock level and locks the reconciliation session from
+further edits.</div>
+<div class="lbl">Replace with</div><div class="rep">Stock Count Module: Supports the mandatory month‑end physical inventory counting process conducted during scheduled branch closure periods. Technical Staff open a stock count session for the selected month, view the system‑recorded inventory per product and batch, input the physically counted quantities, and submit the count. The Branch Manager reviews the variances and finalizes the count with a stated reason, after which the system updates the inventory to reflect the physical count as the authoritative stock level and locks the session from further edits.</div></div>
+
+<div class="item"><div class="where">22. Price Management Module <span>p.42</span></div>
+<div class="lbl">Find</div><div class="find">Allows
+product prices to be updated with all changes automatically recorded in the
+Audit Log. Allows price locking.</div>
+<div class="lbl">Replace with</div><div class="rep">Allows product prices to be updated with a stated reason, with all changes automatically recorded in the Audit Log. Allows price locking. Costing and wholesale prices are visible to staff only and are never shown on the customer platform.</div></div>
+
+<div class="item"><div class="where">23. Add Supplier <span>p.42</span></div>
+<div class="lbl">Find</div><div class="find">adds a new supplier record including name, contact details,
+and associated products.</div>
+<div class="lbl">Replace with</div><div class="rep">adds a new supplier record including name and contact details.</div></div>
+
+<div class="item"><div class="where">24. Walk-in Orders Module <span>p.43</span></div>
+<div class="lbl">Find</div><div class="find">Voided transactions
+automatically restore the deducted stock to inventory. If the customer is
+exchanging the item, the replacement product is recorded alongside the void,
+with any price difference settled at the time of exchange.</div>
+<div class="lbl">Replace with</div><div class="rep">Voided transactions automatically restore the deducted stock to inventory. A receipt is printed for every completed sale. Customers may also return or exchange items from a completed sale by presenting the original receipt (SI) number; no cash refunds are given, the replacement must be of equal or higher value with the difference paid at the time of exchange, and staff decide whether the returned item goes back to stock or is written off as unsellable.</div></div>
+
+<div class="item"><div class="where">25. Wholesale Account Management Module <span>p.44</span></div>
+<div class="lbl">Find</div><div class="find">recording client name,
+contact details, business type, and agreed pricing.</div>
+<div class="lbl">Replace with</div><div class="rep">recording client name, contact details, and business type. Each product has a default wholesale price that fills in automatically on wholesale orders, can be adjusted per order, and is saved as the buyer's agreed price.</div></div>
+
+<div class="item"><div class="where">26. Purchase Order Recording Module <span>p.44</span></div>
+<div class="lbl">Find</div><div class="find">Each PO is linked to the buyer's account and
+processed using the agreed wholesale pricing.</div>
+<div class="lbl">Replace with</div><div class="rep">Each PO is linked to the buyer's account and processed using the buyer's agreed or default wholesale prices. Individual items may be given free of cost with a stated reason, and a sales invoice is printed for every wholesale order.</div></div>
+
+<h2>E. Chapter 2: Functional requirements (p.46 to 61)</h2>
+
+<div class="item"><div class="where">27. REQ005 <span>p.46</span> and REQ044 <span>p.51</span></div>
+<div class="lbl">Find (REQ005)</div><div class="find">The system shall require customers to complete email OTP
+verification when logging in from an unrecognized device.</div>
+<div class="lbl">Replace with</div><div class="rep">The system shall support email OTP verification for customers logging in from an unrecognized device, which can be enabled by the branch.</div>
+<div class="lbl">Find (REQ044)</div><div class="find">The system shall require OTP verification for all staff only when
+logging in from an unrecognized device.</div>
+<div class="lbl">Replace with</div><div class="rep">The system shall support OTP verification for staff logging in from an unrecognized device, which can be enabled by the branch.</div>
+<div class="note">Skip both if you switch the device OTP back on.</div></div>
+
+<div class="item"><div class="where">28. REQ008 <span>p.47</span></div>
+<div class="lbl">Find</div><div class="find">featuring products, store announcements, promotions,
+and navigation to key platform sections.</div>
+<div class="lbl">Replace with</div><div class="rep">featuring products, store announcements, and navigation to key platform sections.</div></div>
+
+<div class="item"><div class="where">29. REQ009 <span>p.47</span></div>
+<div class="lbl">Find</div><div class="find">The system shall display a catalog of available OTC products
+organized by category</div>
+<div class="lbl">Replace with</div><div class="rep">The system shall display a catalog of available OTC medicines and medical supplies organized by category</div></div>
+
+<div class="item"><div class="where">30. REQ059 (wrong text: it is about overpayment, but sits under Stock Reconciliation) <span>p.53</span></div>
+<div class="lbl">Find</div><div class="find">Stock Reconciliation Module
+o REQ059. The system shall allow administrators to confirm an overpaid
+order, record the excess amount as store credit linked to the customer's
+account, and apply it automatically to the customer's next transaction,
+without issuing refunds or cash change.</div>
+<div class="lbl">Replace with</div><div class="rep">Stock Count Module
+o REQ059. The system shall allow Technical Staff to open a stock count session for a selected month, showing the system-recorded quantity per product and batch, and to enter the physically counted quantities.</div></div>
+
+<div class="item"><div class="where">31. REQ061 <span>p.53</span></div>
+<div class="lbl">Find</div><div class="find">The system shall allow the Branch Manager to finalize the
+reconciliation,</div>
+<div class="lbl">Replace with</div><div class="rep">The system shall allow the Branch Manager to finalize the stock count,</div></div>
+
+<div class="item"><div class="where">32. REQ066 <span>p.54</span></div>
+<div class="lbl">Find</div><div class="find">making them available for free-of-cost distribution to wholesale
+clients only.</div>
+<div class="lbl">Replace with</div><div class="rep">making them available to wholesale clients only, either for sale or as free-of-cost distribution.</div></div>
+
+<div class="item"><div class="where">33. REQ067 <span>p.54</span></div>
+<div class="lbl">Find</div><div class="find">triggering a final
+disposal alert and automatically deducting the stock from the inventory.</div>
+<div class="lbl">Replace with</div><div class="rep">triggering a final disposal alert, automatically deducting the stock from the inventory, and allowing staff to mark the batch as disposed once it is physically pulled out.</div></div>
+
+<div class="item"><div class="where">34. REQ073 <span>p.55</span></div>
+<div class="lbl">Find</div><div class="find">including the previous price, updated price, and timestamp.</div>
+<div class="lbl">Replace with</div><div class="rep">including the previous price, updated price, stated reason, responsible user, and timestamp.</div></div>
+
+<div class="item"><div class="where">35. REQ083, and a new REQ083-A <span>p.56</span></div>
+<div class="lbl">Find</div><div class="find">The system shall allow staff to void a walk-in transaction before
+finalization and shall require a stated reason before the void is recorded in
+the Audit Log. Upon void confirmation, the system shall automatically
+restore the deducted stock quantities to inventory and record the void in the
+Audit Log. If the void involves an item exchange, the replacement item and
+any price difference shall be recorded in the same void entry.</div>
+<div class="lbl">Replace with</div><div class="rep">The system shall allow the Branch Manager and Technical Staff to void a completed walk-in transaction by referencing its original receipt (SI) number, and shall require a stated reason before the void is recorded in the Audit Log. Voids by Technical Staff shall require the Branch Manager's approval. Upon void confirmation, the system shall automatically restore the deducted stock quantities to inventory and record the void in the Audit Log.
+
+o REQ083-A. The system shall allow staff to process a walk-in return or exchange by referencing the original receipt (SI) number. Replacement items shall be of equal or higher value, with any difference paid by the customer; no cash refunds shall be issued. Staff shall indicate whether each returned item is returned to stock or written off as unsellable, and the exchange shall be recorded in the Audit Log with a printed exchange slip.</div>
+<div class="note">If you'd rather not add "REQ083-A", put it as the next free number and renumber, or append it to REQ083.</div></div>
+
+<div class="item"><div class="where">36. REQ091 <span>p.57</span></div>
+<div class="lbl">Find</div><div class="find">The system shall allow administrators to record free-of-cost
+distributions of near-expiry items to wholesale clients, logged at zero cost
+with the responsible user and reason noted in the Audit Log.</div>
+<div class="lbl">Replace with</div><div class="rep">The system shall allow administrators to give individual items on a wholesale order free of cost, including near-expiry items, logged at zero price with the responsible user and reason noted in the Audit Log.</div></div>
+
+<div class="item"><div class="where">37. REQ092 <span>p.57</span></div>
+<div class="lbl">Find</div><div class="find">The system shall automatically generate a transaction record for
+every confirmed transaction:</div>
+<div class="lbl">Replace with</div><div class="rep">The system shall automatically generate a printable transaction record for every confirmed transaction, whether walk-in, online, or wholesale:</div></div>
+
+<div class="item"><div class="where">38. REQ093 <span>p.58</span></div>
+<div class="lbl">Find</div><div class="find">The system shall generate a receipt for the customer upon
+payment verification and make it available for download from the My
+Orders page.</div>
+<div class="lbl">Replace with</div><div class="rep">The system shall generate a receipt for the customer upon payment verification, make it available for download from the My Orders page, and allow staff to print it from the order details.</div></div>
+
+<div class="item"><div class="where">39. REQ098 (contradicts REQ095: overpaid orders are confirmed, not put on hold) <span>p.59</span></div>
+<div class="lbl">Find</div><div class="find">The system shall allow administrators to update the order status
+to On Hold - Overpayment, record the excess amount as unapplied payment
+value, and allow the excess value to be applied to replacement items or a
+subsequent transaction, without issuing refunds or cash change.</div>
+<div class="lbl">Replace with</div><div class="rep">The system shall allow administrators to confirm an overpaid order and record the excess amount as store credit linked to the customer's account, to be applied to the customer's next transaction, without issuing refunds or cash change.</div></div>
+
+<div class="item"><div class="where">40. REQ105 <span>p.60</span></div>
+<div class="lbl">Find</div><div class="find">The system shall automatically reflect these administrative status
+updates in the customer's order tracking view and await the customer's
+"Order Received" confirmation to finalize the system status as "Delivered".</div>
+<div class="lbl">Replace with</div><div class="rep">The system shall automatically reflect these administrative status updates in the customer's order tracking view. Staff shall mark delivered orders as "Delivered", after which the customer may confirm receipt through the "Order Received" button; pick-up orders shall be marked as "Picked Up" by staff when collected.</div></div>
+
+<div class="item"><div class="where">41. REQ114 <span>p.61</span></div>
+<div class="lbl">Find</div><div class="find">The system shall allow authorized staff to generate wholesale
+exchange reports documenting all item exchanges processed during a
+selected period.</div>
+<div class="lbl">Replace with</div><div class="rep">The system shall allow authorized staff to generate return and exchange reports documenting all walk-in and wholesale item exchanges processed during a selected period.</div></div>
+
+<h2>F. Chapter 2: Non-functional requirements (p.63 to 64)</h2>
+
+<div class="item"><div class="where">42. REQNF008 <span>p.63</span></div>
+<div class="lbl">Find</div><div class="find">including the OpenAI API, EmailJS, and QR PH,</div>
+<div class="lbl">Replace with</div><div class="rep">including Google Gemini (Firebase AI Logic), Cloudinary, EmailJS, and QR Ph,</div></div>
+
+<div class="item"><div class="where">43. REQNF012 <span>p.63</span></div>
+<div class="lbl">Find</div><div class="find">or order details as part of OpenAI
+API requests.</div>
+<div class="lbl">Replace with</div><div class="rep">or order details as part of Gemini AI requests.</div></div>
+
+<div class="item"><div class="where">44. REQNF013 <span>p.64</span></div>
+<div class="lbl">Find</div><div class="find">The system shall be hosted on infrastructure that supports
+continuous uptime during regular business hours, with recovery
+mechanisms in place to restore service promptly in the event of an
+unexpected outage.</div>
+<div class="lbl">Replace with</div><div class="rep">The system shall be hosted on Firebase Hosting, which supports continuous uptime during regular business hours. The database shall be protected against accidental deletion, and the Branch Manager shall be able to download a full backup of the system data in Excel and JSON format for recovery in the event of data loss.</div></div>
+
+<h2>G. Chapter 2: Diagram descriptions (p.72 to 89)</h2>
+
+<div class="item"><div class="where">45. Fig 2.5 description (Inventory) <span>p.72</span></div>
+<div class="lbl">Find</div><div class="find">During scheduled month-end closures, the Branch
+Manager may open a Stock Reconciliation session, input physically counted quantities per
+product and batch, and submit the count.
+Upon submission, the system updates inventory to reflect the physical count as the
+authoritative stock level and locks the session from further edits. All write-offs and
+reconciliation submissions</div>
+<div class="lbl">Replace with</div><div class="rep">During scheduled month-end closures, Technical Staff open a Stock Count session, input physically counted quantities per product and batch, and submit the count. The Branch Manager reviews the variances and finalizes the count with a stated reason; the system then updates inventory to reflect the physical count as the authoritative stock level and locks the session from further edits. All write-offs and stock count submissions</div></div>
+
+<div class="item"><div class="where">46. Fig 2.6 description (Orders): void <span>p.73</span></div>
+<div class="lbl">Find</div><div class="find">Authorized staff may void a completed walk-in transaction before finalization by providing
+a stated reason, which triggers automatic stock restoration and an Audit Log entry.</div>
+<div class="lbl">Replace with</div><div class="rep">Authorized staff may void a completed walk-in transaction by referencing its receipt (SI) number and providing a stated reason, which triggers automatic stock restoration and an Audit Log entry; voids by Technical Staff require the Branch Manager's approval. Staff may also process a walk-in return or exchange against the original receipt number, with no cash refunds.</div></div>
+
+<div class="item"><div class="where">47. Fig 2.6 description (Orders): hold types <span>p.74</span></div>
+<div class="lbl">Find</div><div class="find">be confirmed or placed on hold under one of four hold types: invalid screenshot,
+underpayment, overpayment, or payment not received.</div>
+<div class="lbl">Replace with</div><div class="rep">be confirmed or placed on hold under one of three hold types: invalid screenshot, underpayment, or payment not received. Overpaid orders are confirmed, with the excess recorded as store credit.</div></div>
+
+<div class="item"><div class="where">48. Fig 2.8 description (Login) <span>p.77</span></div>
+<div class="lbl">Find</div><div class="find">For unrecognized devices, the system
+generates and sends a one-time password</div>
+<div class="lbl">Replace with</div><div class="rep">When the device check is enabled, for unrecognized devices the system generates and sends a one-time password</div>
+<div class="note">Skip if you switch the device OTP back on. In the activity diagram, the device check can stay as drawn.</div></div>
+
+<div class="item"><div class="where">49. Fig 2.9 description (Registration) <span>p.79</span></div>
+<div class="lbl">Find</div><div class="find">Once the correct code is entered, the account is activated
+and the guest is redirected to the login page to access their new account.</div>
+<div class="lbl">Replace with</div><div class="rep">Once the correct code is entered, the account is activated and the customer is signed in and taken to the shop.</div>
+<div class="note">Also change the last step of the Fig 2.9 diagram from "Redirect to login page" to "Signed in, taken to the shop".</div></div>
+
+<div class="item"><div class="where">50. Fig 2.11 description (Payment verification) <span>p.83</span></div>
+<div class="lbl">Find</div><div class="find">type: invalid screenshot, underpayment, overpayment, or payment not received. Each hold
+type triggers a corresponding customer notification with instructions for resolution.
+Overpayment results in the excess amount being recorded as unapplied payment value
+linked to the customer's account.</div>
+<div class="lbl">Replace with</div><div class="rep">type: invalid screenshot, underpayment, or payment not received. Each hold type triggers a corresponding customer notification with instructions for resolution. Overpaid orders are not put on hold: the order is confirmed and the excess amount is recorded as store credit linked to the customer's account.</div>
+<div class="lbl">Also find</div><div class="find">Prescription pre-orders
+pending in the same queue are confirmed in the same manner; upon confirmation, the item
+is prepared for pick-up and the customer is notified that their order is ready, with
+prescription verification to be completed in person at the branch.</div>
+<div class="lbl">Replace with</div><div class="rep">Prescription pre-orders pending in the same queue are reviewed together with their uploaded prescription photograph; staff approve or reject the prescription, and upon approval the item is prepared for pick-up and the customer is notified that their order is ready. The customer presents the original prescription when collecting the item, and staff mark the order as Picked Up.</div>
+<div class="note">Remove the "Overpayment" branch from the Fig 2.11 diagram (it goes to Confirm + store credit instead).</div></div>
+
+<div class="item"><div class="where">51. Fig 2.14 description (Walk-in) <span>p.89</span></div>
+<div class="lbl">Find</div><div class="find">If a void is required before the transaction is finalized, the staff
+member must provide a stated reason before the void is saved.</div>
+<div class="lbl">Replace with</div><div class="rep">The receipt is printed for every completed sale. If a completed sale must be voided, the staff member opens it by its receipt (SI) number and provides a stated reason before the void is saved; voids by Technical Staff require the Branch Manager's approval.</div>
+<div class="lbl">Also find</div><div class="find">If the void involves a product exchange, the replacement item and any price
+difference are recorded within the same void entry.</div>
+<div class="lbl">Replace with</div><div class="rep">For a return or exchange, staff open the original sale by its receipt number, select the returned items and the replacement items of equal or higher value, and indicate whether each returned item goes back to stock or is written off; the customer pays any difference, and an exchange slip is printed.</div></div>
+
+<h2>H. Budget (p.99)</h2>
+
+<div class="item"><div class="where">52. Budget table rows <span>p.99</span></div>
+<div class="lbl">Find row</div><div class="find">Netlify Hosting | Free (Starter Plan)</div>
+<div class="lbl">Replace with</div><div class="rep">Firebase Hosting | Free (Spark Plan)</div>
+<div class="lbl">Delete rows</div><div class="find">Domain Name | ₱841.08
+Firebase Blaze Plan | ₱200.00/pay-per-use</div>
+<div class="lbl">Find</div><div class="find">₱31,790.08</div>
+<div class="lbl">Replace with</div><div class="rep">₱30,749.00</div>
+<div class="note">The system runs on amsonpharma.web.app (free) and the free Spark plan, so neither the domain nor Blaze is needed. ₱31,790.08 − ₱841.08 − ₱200.00 = ₱30,749.00. If you'd rather keep them, label both "(optional, not yet purchased)" and keep the old total.</div></div>
+
+<h2>I. Not text edits: things to check by hand</h2>
+<ul>
+  <li><b>Figures to redraw:</b> Fig 2.9 (last step), Fig 2.11 (remove the Overpayment hold), the use-case diagram for Orders (add "Return/Exchange walk-in sale", and "Mark as Picked Up"), Fig 2.13 (add "Mark item Free"), Fig 2.5 (Technical Staff open/count, Branch Manager finalizes), and the conceptual framework box (#7).</li>
+  <li><b>Calendar of activities:</b> add the years to every date, and add the Fifth Interview row.</li>
+  <li><b>References:</b> fix the Davis entry to APA 7 format; check the TGP and Sardjono entries have complete authors, year, title and link.</li>
+  <li><b>Comparative analysis:</b> add in-text citations for Binag, Llorente and Malasari where their systems are described.</li>
+  <li><b>Appendix titles:</b> rename any appendix still titled for PayMongo; make sure the Lalamove appendix title matches how it is used (staff book it manually and paste the tracking link).</li>
+  <li><b>Tense:</b> if this is the final manuscript, Chapter 3 onward should describe the built system in the past or present tense ("was developed", "the system displays"), not "will".</li>
+  <li><b>Objective 4 evaluation method:</b> make sure the method text matches the survey you used (the survey itself is settled).</li>
+  <li><b>Panel letter:</b> list the removals (promotions, associated products on suppliers, overpayment hold, Netlify, OpenAI) and additions (walk-in returns, receipts for every sale, free items, data backup, Picked Up status) so the panel sees why the text changed.</li>
+  <li><b>Table of contents / list of figures:</b> update page numbers after all edits, and rename "Stock Reconciliation" there too.</li>
+</ul>
+
+</main>
+</body>
+</html>
