@@ -617,10 +617,7 @@ async function markAllStaffNotifsRead(uid, notifications) {
   await ref.update(updates);
 }
 
-// ---- Near-expiry auto-handling (lazy, checked on Inventory page load) ----
-// Stock this close to expiry is flagged wholesale_only so it doesn't get
-// sold retail - quantity is never touched automatically; staff decide
-// whether to write it off themselves.
+// ---- Near-expiry and Bad Order auto-handling ----
 const BAD_ORDER_MONTHS = 2;
 
 // Expiry rules, run whenever staff open Inventory or the Dashboard:
