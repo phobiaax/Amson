@@ -1821,47 +1821,81 @@ a {
   border-radius: 8px;
 }
 
-/* ---------- Choices.js (searchable selects for product/supplier/batch pickers) ---------- */
-.choices {
-  margin-bottom: 0;
-  font-size: 1rem;
+/* ---------- Searchable dropdowns (js/search-select.js) ---------- */
+.search-select {
+  position: relative;
+  width: 100%;
 }
 
-.choices__inner {
-  background-color: #fff;
-  border: 1px solid var(--amson-border);
-  border-radius: 6px;
+.search-select-input.form-control {
   min-height: 42px;
-  padding: 0.45rem 0.75rem;
+  padding-left: 2.2rem;
+  padding-right: 2.2rem;
   font-size: 0.95rem;
+  text-overflow: ellipsis;
 }
 
-.choices.is-open .choices__inner,
-.choices.is-focused .choices__inner {
-  border-color: var(--amson-red);
-  box-shadow: 0 0 0 3px rgba(238, 49, 55, 0.1);
+.search-select-input.form-control::placeholder {
+  color: #8a8a8e;
 }
 
-.choices__list--dropdown,
-.choices__list[aria-expanded] {
-  border-color: var(--amson-border);
-  border-radius: 6px;
+.search-select-icon,
+.search-select-caret {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6c757d;
+  z-index: 2;
+}
+
+.search-select-icon {
+  left: 0.75rem;
+  pointer-events: none;
+}
+
+.search-select-caret {
+  right: 0.75rem;
+  cursor: pointer;
+}
+
+.search-select.is-disabled .search-select-caret {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.search-select-list {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
   /* Bootstrap's input-group children (e.g. the POS qty +/- buttons) get
      their own stacking context and otherwise render on top of this. */
   z-index: 50;
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--amson-border);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
 }
 
-.choices__list--dropdown .choices__input {
-  border-bottom: 1px solid var(--amson-border);
+.search-select-list li {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.95rem;
+  cursor: pointer;
 }
 
-.choices .choices__list--dropdown .choices__item--selectable.is-highlighted {
+.search-select-list li.is-active {
   background-color: var(--amson-red);
   color: #fff;
 }
 
-.choices__list--single .choices__item {
-  padding-right: 1.25rem;
+.search-select-list li.search-select-empty {
+  color: #6c757d;
+  cursor: default;
 }
 
 /* ---------- Public legal page (legal.html) ---------- */

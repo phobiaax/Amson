@@ -90,20 +90,15 @@ function populatePosProductSelect() {
     value: p.id,
     label: `${p.name} - ${formatPeso(p.price)} (${p.totalStock} in stock)`,
   }));
-  // Destroy first: Choices puts the select's original options back when it's
-  // destroyed, which overwrote the new stock numbers after every sale.
+  // Rebuilt after every sale so the stock numbers in the labels stay current.
   if (posProductChoices) {
     posProductChoices.destroy();
   }
-  posProductSelect.innerHTML = options.map((o) => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join("");
-  posProductChoices = new Choices(posProductSelect, {
-    searchEnabled: true,
-    allowHTML: false,
-    itemSelectText: "",
-    shouldSort: false,
-    searchResultLimit: 50,
-    fuseOptions: { threshold: 0.3 },
-  });
+  // Starts empty so the box reads as a search bar, not a chosen product.
+  posProductSelect.innerHTML =
+    '<option value="">Search for a product...</option>' +
+    options.map((o) => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join("");
+  posProductChoices = new SearchSelect(posProductSelect);
 }
 
 // How much of a product is still available to add, given what's already
@@ -124,7 +119,7 @@ posAddItemBtn.addEventListener("click", () => {
   const product = getProductById(productId);
 
   if (!product || !qty || qty <= 0) {
-    posAddItemError.textContent = "Pick a product and a quantity of at least 1.";
+    posAddItemError.textContent = "Search for a product, pick it from the list, and enter a quantity of at least 1.";
     posAddItemError.classList.remove("d-none");
     return;
   }
@@ -144,6 +139,7 @@ posAddItemBtn.addEventListener("click", () => {
   }
 
   posQtyInput.value = "1";
+  posProductChoices.setChoiceByValue("");
   renderPosCart();
 });
 
