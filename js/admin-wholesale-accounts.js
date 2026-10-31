@@ -441,7 +441,16 @@ async function deleteWholesaleAccount(id) {
 
 /* ---------- Process Wholesale Order ---------- */
 function makeSearchableSelect(selectEl) {
-  return new SearchSelect(selectEl);
+  return new Choices(selectEl, {
+    searchEnabled: true,
+    searchPlaceholderValue: "Type to search...",
+    position: "bottom",
+    allowHTML: false,
+    itemSelectText: "",
+    shouldSort: false,
+    searchResultLimit: 50,
+    fuseOptions: { threshold: 0.3 },
+  });
 }
 
 function destroyChoicesIn(container) {
