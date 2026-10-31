@@ -90,15 +90,25 @@ function populatePosProductSelect() {
     value: p.id,
     label: `${p.name} - ${formatPeso(p.price)} (${p.totalStock} in stock)`,
   }));
-  // Rebuilt after every sale so the stock numbers in the labels stay current.
+  // Destroy first: Choices puts the select's original options back when it's
+  // destroyed, which overwrote the new stock numbers after every sale.
   if (posProductChoices) {
     posProductChoices.destroy();
   }
   // Starts empty so the box reads as a search bar, not a chosen product.
   posProductSelect.innerHTML =
-    '<option value="">Search for a product...</option>' +
+    '<option value="" placeholder>Search for a product...</option>' +
     options.map((o) => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join("");
-  posProductChoices = new SearchSelect(posProductSelect);
+  posProductChoices = new Choices(posProductSelect, {
+    searchEnabled: true,
+    searchPlaceholderValue: "Type to search...",
+    position: "bottom",
+    allowHTML: false,
+    itemSelectText: "",
+    shouldSort: false,
+    searchResultLimit: 50,
+    fuseOptions: { threshold: 0.3 },
+  });
 }
 
 // How much of a product is still available to add, given what's already

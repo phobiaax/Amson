@@ -1821,81 +1821,89 @@ a {
   border-radius: 8px;
 }
 
-/* ---------- Searchable dropdowns (js/search-select.js) ---------- */
-.search-select {
-  position: relative;
-  width: 100%;
+/* ---------- Choices.js (searchable selects for product/supplier/batch pickers) ---------- */
+.choices {
+  margin-bottom: 0;
+  font-size: 1rem;
 }
 
-.search-select-input.form-control {
+.choices__inner {
+  background-color: #fff;
+  border: 1px solid var(--amson-border);
+  border-radius: 6px;
   min-height: 42px;
-  padding-left: 2.2rem;
-  padding-right: 2.2rem;
+  padding: 0.45rem 0.75rem;
   font-size: 0.95rem;
-  text-overflow: ellipsis;
 }
 
-.search-select-input.form-control::placeholder {
-  color: #8a8a8e;
+.choices.is-open .choices__inner,
+.choices.is-focused .choices__inner {
+  border-color: var(--amson-red);
+  box-shadow: 0 0 0 3px rgba(238, 49, 55, 0.1);
 }
 
-.search-select-icon,
-.search-select-caret {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #6c757d;
-  z-index: 2;
-}
-
-.search-select-icon {
-  left: 0.75rem;
-  pointer-events: none;
-}
-
-.search-select-caret {
-  right: 0.75rem;
-  cursor: pointer;
-}
-
-.search-select.is-disabled .search-select-caret {
-  pointer-events: none;
-  opacity: 0.5;
-}
-
-.search-select-list {
-  position: absolute;
-  top: calc(100% + 2px);
-  left: 0;
-  right: 0;
+.choices__list--dropdown,
+.choices__list[aria-expanded] {
+  border-color: var(--amson-border);
+  border-radius: 6px;
   /* Bootstrap's input-group children (e.g. the POS qty +/- buttons) get
      their own stacking context and otherwise render on top of this. */
   z-index: 50;
-  max-height: 260px;
-  overflow-y: auto;
-  margin: 0;
-  padding: 4px 0;
-  list-style: none;
-  background: #fff;
-  border: 1px solid var(--amson-border);
-  border-radius: 6px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
 }
 
-.search-select-list li {
-  padding: 0.45rem 0.75rem;
-  font-size: 0.95rem;
-  cursor: pointer;
+.choices__list--dropdown .choices__input {
+  border-bottom: 1px solid var(--amson-border);
 }
 
-.search-select-list li.is-active {
+.choices .choices__list--dropdown .choices__item--selectable.is-highlighted {
   background-color: var(--amson-red);
   color: #fff;
 }
 
-.search-select-list li.search-select-empty {
+.choices__list--single .choices__item {
+  padding-right: 1.25rem;
+}
+
+/* Make the single-select pickers read as search bars: a magnifier in the
+   box, and when opened Choices' own search field sits right over the box
+   (instead of inside the dropdown), with the matches listed underneath. */
+.choices[data-type*="select-one"] .choices__inner {
+  padding-left: 2.2rem;
+}
+
+.choices[data-type*="select-one"]::before {
+  content: "\F52A"; /* bi-search */
+  font-family: "bootstrap-icons";
+  position: absolute;
+  left: 0.75rem;
+  top: 21px;
+  transform: translateY(-50%);
   color: #6c757d;
-  cursor: default;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.choices[data-type*="select-one"].is-open .choices__list--dropdown {
+  top: 0;
+  margin-top: 0;
+  border-color: var(--amson-red);
+  box-shadow: 0 0 0 3px rgba(238, 49, 55, 0.1), 0 6px 18px rgba(0, 0, 0, 0.1);
+}
+
+.choices[data-type*="select-one"] .choices__list--dropdown .choices__input {
+  min-height: 42px;
+  padding: 0.45rem 0.75rem 0.45rem 2.2rem;
+  font-size: 0.95rem;
+  background-color: #fff;
+}
+
+.choices__list--dropdown .choices__item--choice.choices__placeholder {
+  display: none;
+}
+
+.choices__list--single .choices__placeholder {
+  opacity: 1;
+  color: #8a8a8e;
 }
 
 /* ---------- Public legal page (legal.html) ---------- */

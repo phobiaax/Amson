@@ -133,7 +133,15 @@ function renderCategorySelect() {
     productCategorySelect.innerHTML = choicesData
       .map((c) => `<option value="${c.value}">${c.label}</option>`)
       .join("");
-    categorySelectChoices = new SearchSelect(productCategorySelect);
+    categorySelectChoices = new Choices(productCategorySelect, {
+      searchEnabled: true,
+      searchPlaceholderValue: "Type to search...",
+      position: "bottom",
+      allowHTML: false,
+      itemSelectText: "",
+      shouldSort: false,
+      fuseOptions: { threshold: 0.3 },
+    });
   }
 }
 
