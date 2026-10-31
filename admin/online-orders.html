@@ -97,7 +97,7 @@
                 <option value="rx">Prescription (RX) pre-orders only</option>
                 <option value="regular">Non-prescription orders only</option>
               </select>
-              <div id="verificationQueueList" class="d-flex flex-column gap-2"></div>
+              <div id="verificationQueueList" class="d-flex flex-column gap-2"><p class="orders-loading-note"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Loading orders…</p></div>
               <p class="text-muted text-center py-4 d-none" id="verificationQueueEmpty">No orders awaiting payment verification.</p>
             </div>
             <div class="col-lg-8">
@@ -178,7 +178,10 @@
                   </button>
                 </div>
               </div>
-              <p class="text-muted text-center py-5 d-none" id="verificationReviewEmpty">Select an order from the queue to review its payment.</p>
+              <div class="orders-review-placeholder" id="verificationReviewEmpty">
+                <i class="bi bi-receipt"></i>
+                <p class="mb-0">Select an order from the queue to review its payment.</p>
+              </div>
             </div>
           </div>
         </div>
@@ -216,7 +219,7 @@
                   <th></th>
                 </tr>
               </thead>
-              <tbody id="ordersTableBody"></tbody>
+              <tbody id="ordersTableBody"><tr><td colspan="10" class="orders-loading-note">Loading orders…</td></tr></tbody>
             </table>
           </div>
           <p class="text-muted text-center py-4 d-none" id="ordersTableEmpty">No orders found.</p>
@@ -245,7 +248,7 @@
                   <th></th>
                 </tr>
               </thead>
-              <tbody id="walkinTableBody"></tbody>
+              <tbody id="walkinTableBody"><tr><td colspan="9" class="orders-loading-note">Loading walk-in sales…</td></tr></tbody>
             </table>
           </div>
           <p class="text-muted text-center py-4 d-none" id="walkinTableEmpty">No walk-in sales found.</p>

@@ -29,7 +29,7 @@
       <!-- Logo / Brand -->
       <a href="index.html" class="d-flex align-items-center text-decoration-none flex-shrink-0">
         <img src="../assets/logo.png" alt="Amson Pharmaceuticals" class="brand-logo">
-        <span class="brand-name">Amson Pharmaceuticals</span>
+        <span class="brand-name">Amson<span class="brand-name-rest"> Pharmaceuticals</span></span>
       </a>
 
       <!-- Search -->
@@ -41,14 +41,14 @@
       </div>
 
       <!-- Cart & Auth actions -->
-      <div class="d-flex align-items-center gap-3 order-2 order-md-3 ms-auto">
+      <div class="header-actions d-flex align-items-center gap-3 order-2 order-md-3 ms-auto">
         <a href="cart.html" class="cart-icon position-relative">
           <i class="bi bi-cart3"></i>
           <span id="cartBadge" class="cart-badge d-none">0</span>
         </a>
 
         <!-- Guest state -->
-        <div id="guestActions" class="d-flex align-items-center gap-3">
+        <div id="guestActions" class="header-guest d-flex align-items-center gap-3">
           <a href="../login.html" class="btn btn-outline-dark-amson btn-sm px-3">Login</a>
           <a href="../register.html" class="btn btn-amson btn-sm px-3">Register</a>
         </div>
@@ -94,7 +94,7 @@
 <!-- ===== Hero ===== -->
 <section class="hero-section">
   <div class="container">
-    <h1>Your Trusted<br>Healthcare Partner</h1>
+    <h1>Mura, Mabisa, at May Kalidad na Gamot</h1>
     <p>Quality medicines, vitamins, and health products delivered to your doorstep.</p>
     <a href="products.html" class="btn btn-hero">Shop Now <i class="bi bi-chevron-right"></i></a>
   </div>
@@ -129,6 +129,22 @@
     <div class="row row-cols-2 row-cols-md-4 g-4" id="homeCategoryCards"></div>
   </div>
 </section>
+<script>
+  // Grey placeholder cards while the catalog loads, so these sections never
+  // sit empty under their headings. Drawn here, before the Firebase scripts
+  // below are downloaded, so they show straight away.
+  function homeSkeletonCards() {
+    const product = `<div class="col"><div class="product-card skeleton-card" aria-hidden="true">
+      <div class="product-image skeleton"></div><div class="skeleton skeleton-line w-75"></div>
+      <div class="skeleton skeleton-line w-50"></div><div class="skeleton skeleton-line skeleton-btn mt-auto"></div></div></div>`;
+    const category = `<div class="col"><div class="category-card skeleton-card" aria-hidden="true">
+      <span class="category-icon skeleton"></span><div class="skeleton skeleton-line w-75 mx-auto"></div>
+      <div class="skeleton skeleton-line w-50 mx-auto mb-0"></div></div></div>`;
+    document.getElementById("featuredProductsGrid").innerHTML = product.repeat(5);
+    document.getElementById("homeCategoryCards").innerHTML = category.repeat(8);
+  }
+  homeSkeletonCards();
+</script>
 
 <!-- ===== Bulk CTA + Footer ===== -->
 <div class="bulk-cta">
@@ -172,15 +188,54 @@
 <script src="../js/shop-header.js"></script>
 <script src="../js/cart.js"></script>
 <script>
-  (async function init() {
-    await loadCatalogCache();
+  function renderFeaturedProducts() {
     // Prefer in-stock items for the homepage spotlight - an out-of-stock
     // product is still browsable in the full catalog, just not what
     // should greet a first-time visitor here.
     const storefrontProducts = storefrontCatalog().sort((a, b) => (a.inStock === b.inStock ? 0 : a.inStock ? -1 : 1));
-    document.getElementById("featuredProductsGrid").innerHTML =
-      storefrontProducts.slice(0, 5).map(renderProductCard).join("");
-  })();
+    document.getElementById("featuredProductsGrid").innerHTML = storefrontProducts.length
+      ? storefrontProducts.slice(0, 5).map(renderProductCard).join("")
+      : `<div class="col-12 w-100"><div class="home-load-message">No featured products yet. <a href="products.html" class="link-red fw-medium">Browse all products</a></div></div>`;
+  }
+
+  // If the catalog fails to load, or is still loading after 15 seconds,
+  // both sections say so with a Retry button instead of staying blank.
+  // A slow load that does finish later still fills them in.
+  function showHomeLoadError() {
+    const message = `<div class="col-12 w-100"><div class="home-load-message">
+      <i class="bi bi-wifi-off"></i> Couldn't load products.
+      <button type="button" class="btn btn-outline-dark-amson btn-sm ms-2" data-home-retry>Retry</button></div></div>`;
+    document.getElementById("featuredProductsGrid").innerHTML = message;
+    document.getElementById("homeCategoryCards").innerHTML = message;
+  }
+
+  let homeLoadAttempt = 0;
+  async function loadHomeSections() {
+    const attempt = ++homeLoadAttempt;
+    const slowTimer = setTimeout(() => {
+      if (attempt === homeLoadAttempt) showHomeLoadError();
+    }, 15000);
+    try {
+      await loadCatalogCache();
+      if (attempt !== homeLoadAttempt) return;
+      renderFeaturedProducts();
+      renderStorefrontCategoryNav();
+      renderHomeCategoryCards();
+    } catch (error) {
+      console.error("Failed to load the home page products:", error);
+      if (attempt === homeLoadAttempt) showHomeLoadError();
+    } finally {
+      clearTimeout(slowTimer);
+    }
+  }
+
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-home-retry]")) return;
+    homeSkeletonCards();
+    loadHomeSections();
+  });
+
+  loadHomeSections();
 </script>
 <script src="../js/store-info.js"></script>
 <script src="../js/chat-config.js"></script>

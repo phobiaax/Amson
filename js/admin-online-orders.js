@@ -228,7 +228,18 @@ async function loadOrders() {
     renderWalkinTable();
   } catch (error) {
     console.error("Failed to load orders:", error);
+    showOrdersLoadError();
   }
+}
+
+// Replaces any "Loading..." note still showing, so a failed load doesn't
+// leave the page looking empty or stuck.
+function showOrdersLoadError() {
+  const text = "Couldn't load orders. Check the connection, then refresh the page.";
+  document.querySelectorAll(".orders-loading-note").forEach((note) => {
+    note.textContent = text;
+    note.classList.add("text-danger");
+  });
 }
 
 // Live orders (REQNF005): new orders, customer resubmissions and other

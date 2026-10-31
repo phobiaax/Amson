@@ -158,6 +158,35 @@ a {
 .category-nav .nav-link:hover {
   color: var(--amson-red);
 }
+/* Edge fades, switched on by shop-sections.js only while there are more
+   items hidden off that side of the bar. */
+.category-nav .container {
+  position: relative;
+}
+.category-nav .container::before,
+.category-nav .container::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2.5rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 1;
+}
+.category-nav .container::before {
+  left: 0;
+  background: linear-gradient(to right, #fff 20%, rgba(255, 255, 255, 0));
+}
+.category-nav .container::after {
+  right: 0;
+  background: linear-gradient(to left, #fff 20%, rgba(255, 255, 255, 0));
+}
+.category-nav.more-left .container::before,
+.category-nav.more-right .container::after {
+  opacity: 1;
+}
 
 /* ---------- Header responsive ---------- */
 @media (max-width: 767.98px) {
@@ -170,9 +199,20 @@ a {
   }
 }
 
+/* Phones: keep a short "Amson" next to the logo and tighten the spacing so
+   the logo, cart and Login / Register sit comfortably on one row. */
 @media (max-width: 575.98px) {
-  .brand-name {
+  .brand-name-rest {
     display: none;
+  }
+  .site-header .header-actions,
+  .site-header .header-guest {
+    gap: 0.6rem !important;
+  }
+  .site-header .header-guest .btn {
+    padding-left: 0.6rem !important;
+    padding-right: 0.6rem !important;
+    font-size: 0.82rem;
   }
 }
 
@@ -446,12 +486,34 @@ a {
   background-color: var(--amson-red);
   padding: 4rem 0;
   color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+/* Soft pattern of medical crosses on the right half, fading out toward the
+   headline so the text always sits on plain red. Purely decorative. */
+.hero-section::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 60%;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='%23ffffff' fill-opacity='0.16'%3E%3Cpath d='M13 6h6v7h7v6h-7v7h-6v-7H6v-6h7z'/%3E%3Cpath d='M45 38h6v7h7v6h-7v7h-6v-7h-7v-6h7z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 64px 64px;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 45%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 45%);
+  pointer-events: none;
+}
+.hero-section .container {
+  position: relative;
 }
 .hero-section h1 {
   font-weight: 700;
   font-size: 2.75rem;
   line-height: 1.15;
   margin-bottom: 1rem;
+  max-width: 640px;
+  text-wrap: balance;
 }
 .hero-section p {
   font-size: 1.05rem;
@@ -475,6 +537,11 @@ a {
 @media (max-width: 767.98px) {
   .hero-section h1 {
     font-size: 2rem;
+  }
+  /* On a phone the text spans the full width, so the pattern stays faint. */
+  .hero-section::before {
+    width: 100%;
+    opacity: 0.5;
   }
 }
 
@@ -501,6 +568,25 @@ a {
 .trust-item i {
   color: var(--amson-red);
   font-size: 1.3rem;
+}
+/* Phones: three equal columns, icon above the label, so all three stay on
+   one row instead of wrapping 2 + 1. */
+@media (max-width: 575.98px) {
+  .trust-bar {
+    padding: 1rem 0;
+  }
+  .trust-bar-inner {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+  .trust-item {
+    flex-direction: column;
+    gap: 0.3rem;
+    text-align: center;
+    font-size: 0.8rem;
+    line-height: 1.2;
+  }
 }
 
 /* ---------- Section blocks ---------- */
@@ -621,6 +707,49 @@ a {
   font-size: 0.82rem;
   color: var(--amson-text-muted);
   margin-bottom: 0;
+}
+
+/* ---------- Loading placeholders (shop home) ---------- */
+.skeleton {
+  background: linear-gradient(90deg, #ececf0 25%, #f6f6f8 50%, #ececf0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+.skeleton-card {
+  pointer-events: none;
+}
+.skeleton-line {
+  height: 0.8rem;
+  margin-bottom: 0.6rem;
+}
+.skeleton-btn {
+  height: 2.2rem;
+  margin-bottom: 0;
+}
+.category-card.skeleton-card .category-icon {
+  background-color: transparent;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+.home-load-message {
+  background-color: #fff;
+  border: 1px dashed var(--amson-border);
+  border-radius: 10px;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--amson-text-muted);
+}
+.home-load-message .bi {
+  color: var(--amson-red);
+  margin-right: 0.35rem;
 }
 
 /* ---------- Bulk CTA + footer wrapper ---------- */
@@ -1699,6 +1828,18 @@ a {
 }
 
 /* ---------- Inventory: action tiles + stat boxes ---------- */
+/* Red-outlined partner to the solid red Receive Stock tile. */
+.btn-outline-amson {
+  border: 2px solid var(--amson-red);
+  color: var(--amson-red);
+  background-color: #fff;
+}
+.btn-outline-amson:hover,
+.btn-outline-amson:focus-visible {
+  background-color: var(--amson-red);
+  border-color: var(--amson-red);
+  color: #fff;
+}
 .inventory-action-tile {
   display: flex;
   align-items: center;
@@ -2549,4 +2690,159 @@ body:has(> .admin-body:not(.admin-ready))::before {
 }
 .was-validated .form-check-input:valid ~ .form-check-label {
   color: inherit;
+}
+
+/* ---------- POS quantity stepper ---------- */
+/* Room for "1", "10" or "100" between the - and + buttons; the browser's
+   own up/down arrows are hidden because the buttons do that job. */
+.pos-qty-group #posQtyInput {
+  min-width: 3.5rem;
+  font-weight: 600;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.pos-qty-group #posQtyInput::-webkit-outer-spin-button,
+.pos-qty-group #posQtyInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ---------- Orders page: loading note and review placeholder ---------- */
+.orders-loading-note {
+  color: var(--amson-text-muted);
+  text-align: center;
+  padding: 1.5rem 0.5rem !important;
+  margin-bottom: 0;
+}
+.orders-review-placeholder {
+  border: 1px dashed var(--amson-border);
+  border-radius: 10px;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--amson-text-muted);
+}
+.orders-review-placeholder .bi {
+  display: block;
+  font-size: 2rem;
+  color: #c9c9d1;
+  margin-bottom: 0.5rem;
+}
+.orders-review-placeholder.d-none {
+  display: none !important;
+}
+
+/* ---------- Collapsible admin sidebar (desktop) ---------- */
+/* Set up by admin-sidebar.js. Expanded is the default; collapsed is an
+   icon rail with tooltips. Below 992px none of this applies - the sidebar
+   is the off-canvas menu instead. */
+.admin-sidebar-logo {
+  display: none;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+.admin-sidebar-collapse-btn {
+  display: none;
+}
+@media (min-width: 992px) {
+  .admin-sidebar {
+    transition: width 0.2s ease;
+  }
+  .admin-sidebar-collapse-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    background: none;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    color: #9a9aa8;
+    font-size: 0.85rem;
+    text-align: left;
+    position: relative;
+  }
+  .admin-sidebar-collapse-btn:hover,
+  .admin-sidebar-collapse-btn:focus-visible {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .sidebar-collapsed .admin-sidebar {
+    width: 72px;
+  }
+  .sidebar-collapsed .admin-sidebar-brand {
+    padding: 0 0 1.25rem;
+    text-align: center;
+  }
+  .sidebar-collapsed .admin-sidebar-brand h1,
+  .sidebar-collapsed .admin-sidebar-brand p {
+    display: none;
+  }
+  .sidebar-collapsed .admin-sidebar-logo {
+    display: inline-block;
+  }
+  .sidebar-collapsed .admin-nav-link,
+  .sidebar-collapsed .admin-sidebar-collapse-btn {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+    position: relative;
+  }
+  .sidebar-collapsed .admin-nav-link i,
+  .sidebar-collapsed .admin-sidebar-collapse-btn i {
+    font-size: 1.1rem;
+  }
+  .sidebar-collapsed .admin-sidebar-collapse-btn i {
+    transform: rotate(180deg);
+  }
+  /* Labels stay in the page for screen readers, just not on screen. */
+  .sidebar-collapsed .admin-nav-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  /* Unread count becomes a small badge on the icon. */
+  .sidebar-collapsed .admin-nav-link .badge-count {
+    position: absolute;
+    top: 0.35rem;
+    left: calc(50% + 0.35rem);
+    margin-left: 0;
+    font-size: 0.6rem;
+    padding: 0.05rem 0.3rem;
+  }
+  /* Tooltip with the page name on hover / keyboard focus. */
+  .sidebar-collapsed .admin-nav-link::after,
+  .sidebar-collapsed .admin-sidebar-collapse-btn::after {
+    content: attr(data-label);
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: var(--amson-dark);
+    color: #fff;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+    z-index: 1060;
+  }
+  .sidebar-collapsed .admin-nav-link:hover::after,
+  .sidebar-collapsed .admin-nav-link:focus-visible::after,
+  .sidebar-collapsed .admin-sidebar-collapse-btn:hover::after,
+  .sidebar-collapsed .admin-sidebar-collapse-btn:focus-visible::after {
+    opacity: 1;
+  }
+}
+@media (min-width: 992px) and (prefers-reduced-motion: reduce) {
+  .admin-sidebar {
+    transition: none;
+  }
 }
