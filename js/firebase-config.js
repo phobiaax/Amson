@@ -28,6 +28,16 @@ if (APP_CHECK_SITE_KEY && typeof firebase.appCheck === "function") {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// Every sign-out also forgets the name the shop header shows while a page
+// loads (js/shop-header.js), so it can't flash after logging out.
+const firebaseSignOut = auth.signOut.bind(auth);
+auth.signOut = () => {
+  try {
+    localStorage.removeItem("amsonHeaderUser");
+  } catch (error) {}
+  return firebaseSignOut();
+};
+
 // "Remember me" off: signed in in every tab until the browser is closed.
 // The login is kept like a remembered one (so new tabs share it), plus a
 // cookie with no expiry date, which the browser deletes when it closes. A

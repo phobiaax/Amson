@@ -143,6 +143,14 @@ registerForm.addEventListener("submit", async (e) => {
 
   if (!registerForm.checkValidity()) {
     registerForm.classList.add("was-validated");
+    const fieldsMissing = [...registerForm.elements].some((el) => el !== agreeTermsInput && el.willValidate && !el.checkValidity());
+    showAlert(
+      fieldsMissing && !agreeTermsInput.checked
+        ? "Please fill in all the fields marked in red, and accept the Terms and Conditions and Privacy Policy."
+        : fieldsMissing
+          ? "Please fill in all the fields marked in red."
+          : "Please agree to the Terms and Conditions and Privacy Policy."
+    );
     return;
   }
 
