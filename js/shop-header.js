@@ -19,7 +19,43 @@ const SHOP_STAFF_ROLES = {
   sales_staff: "Sales Staff",
 };
 
+// The header is drawn from the last confirmed login straight away, so a
+// refresh doesn't flash Login / Register while Firebase checks the login
+// (about a second). The check below then corrects it either way.
+const HEADER_USER_KEY = "amsonHeaderUser";
+
+function rememberHeaderUser(firstName) {
+  try {
+    localStorage.setItem(HEADER_USER_KEY, firstName);
+  } catch (error) {}
+}
+
+function forgetHeaderUser() {
+  try {
+    localStorage.removeItem(HEADER_USER_KEY);
+  } catch (error) {}
+}
+
+(function showLastKnownUser() {
+  let firstName = null;
+  try {
+    firstName = localStorage.getItem(HEADER_USER_KEY);
+  } catch (error) {}
+  // A "Remember me"-off login ends with the browser; don't show it then.
+  if (firstName === null || (typeof browserSessionEnded === "function" && browserSessionEnded())) return;
+  accountFirstName.textContent = firstName || "Account";
+  guestActions.classList.add("d-none");
+  accountActions.classList.remove("d-none");
+})();
+
+function showGuestHeader() {
+  forgetHeaderUser();
+  guestActions.classList.remove("d-none");
+  accountActions.classList.add("d-none");
+}
+
 function showStaffShopBar(data) {
+  forgetHeaderUser();
   guestActions.classList.add("d-none");
   accountActions.classList.add("d-none");
   if (document.getElementById("staffShopBar")) return;
@@ -39,8 +75,7 @@ function showStaffShopBar(data) {
 
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
-    guestActions.classList.remove("d-none");
-    accountActions.classList.add("d-none");
+    showGuestHeader();
     return;
   }
 
@@ -48,6 +83,7 @@ auth.onAuthStateChanged(async (user) => {
     const doc = await db.collection("users").doc(user.uid).get();
     const data = doc.exists ? doc.data() : {};
     if (doc.exists && data.accountStatus === "deactivated") {
+      forgetHeaderUser();
       try {
         sessionStorage.setItem("amsonLoginNotice", "Your account has been deactivated. Please contact support.");
       } catch (error) {}
@@ -57,6 +93,7 @@ auth.onAuthStateChanged(async (user) => {
     }
     // Customers who haven't entered their sign-up code yet finish that first.
     if (doc.exists && data.role === "customer" && !data.emailVerified) {
+      forgetHeaderUser();
       try {
         sessionStorage.setItem("amsonPendingVerificationEmail", data.email || user.email || "");
       } catch (error) {}
@@ -76,6 +113,7 @@ auth.onAuthStateChanged(async (user) => {
       return;
     }
     accountFirstName.textContent = data.firstName || "Account";
+    rememberHeaderUser(data.firstName || "");
     guestActions.classList.add("d-none");
     accountActions.classList.remove("d-none");
 
@@ -91,8 +129,7 @@ auth.onAuthStateChanged(async (user) => {
 
     loadCustomerNotifications(user.uid, data.notifReadMap || {});
   } catch (error) {
-    guestActions.classList.remove("d-none");
-    accountActions.classList.add("d-none");
+    showGuestHeader();
   }
 });
 
