@@ -78,19 +78,19 @@
           <div class="checkout-card p-4">
             <h2 class="h5 fw-bold mb-3">Add Item</h2>
             <div class="row g-3 align-items-end">
-              <div class="col-md-7">
+              <div class="col-md-6 col-lg-12 col-xl-6">
                 <label class="form-label">Product</label>
                 <select class="form-select" id="posProductSelect"></select>
               </div>
-              <div class="col-md-3">
-                <label class="form-label">Qty</label>
-                <div class="input-group">
+              <div class="col-8 col-md-4 col-lg-8 col-xl-4">
+                <label class="form-label" for="posQtyInput">Qty</label>
+                <div class="input-group flex-nowrap pos-qty-group">
                   <button type="button" class="btn btn-outline-secondary" id="posQtyDecrementBtn" aria-label="Decrease quantity"><i class="bi bi-dash-lg"></i></button>
                   <input type="number" min="1" value="1" class="form-control text-center" id="posQtyInput">
                   <button type="button" class="btn btn-outline-secondary" id="posQtyIncrementBtn" aria-label="Increase quantity"><i class="bi bi-plus-lg"></i></button>
                 </div>
               </div>
-              <div class="col-md-2">
+              <div class="col-4 col-md-2 col-lg-4 col-xl-2">
                 <button type="button" class="btn btn-amson w-100" id="posAddItemBtn">Add</button>
               </div>
             </div>

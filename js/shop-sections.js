@@ -53,5 +53,25 @@ function renderShopSectionNav() {
   nav.innerHTML =
     `<li class="nav-item"><a class="nav-link" href="${base}products.html">All Products</a></li>` +
     SHOP_SECTIONS.map((s) => `<li class="nav-item"><a class="nav-link" href="${base}products.html?section=${s.id}">${s.label.replace(/&/g, "&amp;")}</a></li>`).join("");
+  updateCategoryNavFade();
 }
 renderShopSectionNav();
+
+// When the store menu is wider than the screen (phones), a fade on the edge
+// that still has hidden items shows that the bar scrolls sideways.
+function updateCategoryNavFade() {
+  const bar = document.querySelector(".category-nav");
+  const nav = bar && bar.querySelector(".nav");
+  if (!nav) return;
+  const maxScroll = nav.scrollWidth - nav.clientWidth;
+  bar.classList.toggle("more-left", nav.scrollLeft > 2);
+  bar.classList.toggle("more-right", maxScroll - nav.scrollLeft > 2);
+}
+(function watchCategoryNavFade() {
+  const nav = document.querySelector(".category-nav .nav");
+  if (!nav) return;
+  nav.addEventListener("scroll", updateCategoryNavFade, { passive: true });
+  window.addEventListener("resize", updateCategoryNavFade);
+  window.addEventListener("load", updateCategoryNavFade);
+  updateCategoryNavFade();
+})();
