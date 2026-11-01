@@ -70,7 +70,7 @@ let priceLockedInForm = false;
 
 let currentAdminRole = "admin";
 document.addEventListener("admin:ready", (e) => {
-  currentAdminRole = (e.detail && e.detail.admin && e.detail.admin.role) || "admin";
+  currentAdminRole = e.detail.admin.role;
   if (!roleCanEditProducts(currentAdminRole)) {
     [manageCategoriesBtn, addProductBtn, uploadBatchBtn, downloadTemplateBtn].forEach((btn) => btn.classList.add("d-none"));
   }

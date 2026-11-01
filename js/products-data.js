@@ -726,7 +726,7 @@ const DEFAULT_CATEGORIES = {
 const liveQueries = new Map();
 
 function liveQuery(key, query) {
-  if (typeof LIVE_READS === "undefined" || !LIVE_READS) return query.get();
+  if (!LIVE_READS) return query.get();
 
   let entry = liveQueries.get(key);
   if (!entry) {
@@ -762,8 +762,7 @@ function liveQuery(key, query) {
       }, 10000);
       // Opened only after the sign-in check (authGate, firebase-config.js):
       // a listener open while that check signs someone out never answered.
-      const signInChecked = typeof authGate !== "undefined" ? authGate : Promise.resolve();
-      signInChecked.then(() => query.onSnapshot(
+      authGate.then(() => query.onSnapshot(
         { includeMetadataChanges: true },
         (snapshot) => {
           // version counts snapshots that changed data (not just metadata),
@@ -837,8 +836,8 @@ const CATALOG_CACHE_KEY = "amsonCatalogCache";
 const CATALOG_CACHE_MS = 5 * 60 * 1000;
 
 function catalogBrowserCacheAllowed() {
-  if (typeof browserCopyOff !== "undefined" && !browserCopyOff) return false;
-  return typeof window !== "undefined" && !/\/admin\//.test(window.location.pathname);
+  if (!browserCopyOff) return false;
+  return !/\/admin\//.test(window.location.pathname);
 }
 
 function clearCatalogCache() {
@@ -896,7 +895,7 @@ let catalogLoadedOnce = false;
 const PRIVATE_PRICE_FIELDS = ["costingPrice", "wholesalePrice"];
 
 function isStaffPage() {
-  return typeof window !== "undefined" && /\/admin\//.test(window.location.pathname);
+  return /\/admin\//.test(window.location.pathname);
 }
 
 // productId -> { costingPrice, wholesalePrice }; empty off staff pages or if
@@ -1016,7 +1015,7 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
   catalogLoadPromise = (async () => {
     // Whether this tab keeps the browser copy decides whether the short
     // catalog copy below is used.
-    if (typeof browserCopyReady !== "undefined") await browserCopyReady;
+    await browserCopyReady;
     const cached = readCatalogBrowserCache();
     if (cached) {
       CATEGORY_LABELS = cached.categories || {};
@@ -1024,7 +1023,7 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
       return { products: SAMPLE_PRODUCTS, categories: CATEGORY_LABELS };
     }
 
-    if (typeof authGate !== "undefined") await authGate;
+    await authGate;
     // In parallel: three round trips one after another made every page wait.
     let useLive = !catalogLoadedOnce;
     if (!useLive && afterStockChange != null) useLive = await liveSnapshotAfter("stockBatches", afterStockChange);

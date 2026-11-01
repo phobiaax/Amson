@@ -40,7 +40,7 @@ let photoFilter = "all";
 let photoMatcher = null;
 
 document.addEventListener("admin:ready", (e) => {
-  const role = e.detail && e.detail.admin && e.detail.admin.role;
+  const role = e.detail.admin.role;
   if (!roleCanEditProducts(role)) uploadPhotosBtn.classList.add("d-none");
 });
 
