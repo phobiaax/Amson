@@ -715,7 +715,7 @@ async function chatAiReply(history, question) {
       messages
         .map((m) => {
           if (m.sender === "system") return `<div class="chat-msg chat-msg-system">${escapeHtml(m.text)}</div>`;
-          const cls = m.sender === "customer" ? "chat-msg-customer" : m.sender === "staff" ? "chat-msg-staff" : "chat-msg-assistant";
+          const cls = ["customer", "staff"].includes(m.sender) ? `chat-msg-${m.sender}` : "chat-msg-assistant";
           const who = m.sender === "staff" ? `<span class="chat-msg-who">${escapeHtml(m.staffName || "Staff")}</span>` : "";
           // Buttons sit side by side under the cards.
           const list = Array.isArray(m.cards) ? m.cards : [];
