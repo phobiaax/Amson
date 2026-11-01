@@ -755,12 +755,10 @@ approvePaymentBtn.addEventListener("click", async () => {
         await holdOrderForOutOfStock(order);
         bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
       } catch (holdError) {
-        reviewAlert.textContent = "Not enough stock to approve this order, and it couldn't be placed on hold automatically. Please try again.";
-        reviewAlert.classList.remove("d-none");
+        showFormAlert(reviewAlert, "Not enough stock to approve this order, and it couldn't be placed on hold automatically. Please try again.");
       }
     } else {
-      reviewAlert.textContent = error.message || "Something went wrong approving this payment. Please try again.";
-      reviewAlert.classList.remove("d-none");
+      showFormAlert(reviewAlert, error.message || "Something went wrong approving this payment. Please try again.");
     }
   } finally {
     approvePaymentBtn.disabled = false;
@@ -843,8 +841,7 @@ rejectPrescriptionBtn.addEventListener("click", async () => {
     renderOrdersTable();
     bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
   } catch (error) {
-    reviewAlert.textContent = error.message || "Something went wrong rejecting this prescription. Please try again.";
-    reviewAlert.classList.remove("d-none");
+    showFormAlert(reviewAlert, error.message || "Something went wrong rejecting this prescription. Please try again.");
   } finally {
     rejectPrescriptionBtn.disabled = false;
   }
@@ -964,12 +961,14 @@ issueConfirmBtn.addEventListener("click", async () => {
       receivedValid &&
       (issueType === "underpayment" ? receivedAmount < order.total : receivedAmount > order.total);
     if (!relationValid) {
-      issueAmountError.textContent = !receivedValid
-        ? "Please enter the amount received."
-        : issueType === "underpayment"
-        ? `Amount received must be less than the order total (${formatPeso(order.total)}) for an underpayment.`
-        : `Amount received must be more than the order total (${formatPeso(order.total)}) for an overpayment.`;
-      issueAmountError.classList.remove("d-none");
+      showFormAlert(
+        issueAmountError,
+        !receivedValid
+          ? "Please enter the amount received."
+          : issueType === "underpayment"
+          ? `Amount received must be less than the order total (${formatPeso(order.total)}) for an underpayment.`
+          : `Amount received must be more than the order total (${formatPeso(order.total)}) for an overpayment.`
+      );
       issueAmountReceivedInput.classList.add("is-invalid");
       issueAmountReceivedInput.focus();
       return;

@@ -726,8 +726,7 @@ saveReceiveStockBtn.addEventListener("click", async () => {
   }));
 
   const showReceiveError = (text) => {
-    receiveModalAlert.textContent = text;
-    receiveModalAlert.classList.remove("d-none");
+    showFormAlert(receiveModalAlert, text);
   };
   if (!supplierId || !dateReceived || !supplierReceiptNo) {
     return showReceiveError("Choose the supplier and fill in the date received and the supplier receipt / DR no.");
@@ -764,8 +763,7 @@ saveReceiveStockBtn.addEventListener("click", async () => {
       list: receiptLineNames(plan),
     });
   } catch (error) {
-    receiveModalAlert.textContent = error.message && error.message.startsWith("Batch ") ? error.message : "Something went wrong receiving this stock. Please try again.";
-    receiveModalAlert.classList.remove("d-none");
+    showFormAlert(receiveModalAlert, error.message && error.message.startsWith("Batch ") ? error.message : "Something went wrong receiving this stock. Please try again.");
   } finally {
     saveReceiveStockBtn.disabled = false;
   }
@@ -837,8 +835,7 @@ receiveBatchReviewTableBody.addEventListener("click", (e) => {
 receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   const rowEls = Array.from(receiveBatchReviewTableBody.querySelectorAll("tr"));
   if (rowEls.length === 0) {
-    receiveBatchReviewAlert.textContent = "There's nothing to receive - add a row or cancel.";
-    receiveBatchReviewAlert.classList.remove("d-none");
+    showFormAlert(receiveBatchReviewAlert, "There's nothing to receive - add a row or cancel.");
     return;
   }
 
@@ -875,8 +872,7 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   });
 
   if (hasInvalid) {
-    receiveBatchReviewAlert.textContent = "Every row needs a recognized SKU, batch number, expiry date, quantity above 0, a supplier name that matches a saved supplier, a receipt / DR no. and a date received (only the unit cost is optional). Fix the highlighted rows, or remove them.";
-    receiveBatchReviewAlert.classList.remove("d-none");
+    showFormAlert(receiveBatchReviewAlert, "Every row needs a recognized SKU, batch number, expiry date, quantity above 0, a supplier name that matches a saved supplier, a receipt / DR no. and a date received (only the unit cost is optional). Fix the highlighted rows, or remove them.");
     return;
   }
   const plan = planStockReceipt(
@@ -892,8 +888,7 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
     }))
   );
   if (plan.errors.length) {
-    receiveBatchReviewAlert.textContent = plan.errors.join(" ");
-    receiveBatchReviewAlert.classList.remove("d-none");
+    showFormAlert(receiveBatchReviewAlert, plan.errors.join(" "));
     return;
   }
 
@@ -1065,8 +1060,7 @@ quickAddProductCancelBtn.addEventListener("click", () => {
 quickAddSupplierSaveBtn.addEventListener("click", async () => {
   const name = quickSupplierNameInput.value.trim();
   if (!name) {
-    quickAddSupplierAlert.textContent = "Company name is required.";
-    quickAddSupplierAlert.classList.remove("d-none");
+    showFormAlert(quickAddSupplierAlert, "Company name is required.");
     return;
   }
 
@@ -1092,8 +1086,7 @@ quickAddSupplierSaveBtn.addEventListener("click", async () => {
 
     bootstrap.Modal.getInstance(quickAddSupplierModalEl).hide();
   } catch (error) {
-    quickAddSupplierAlert.textContent = "Something went wrong adding this supplier. Please try again.";
-    quickAddSupplierAlert.classList.remove("d-none");
+    showFormAlert(quickAddSupplierAlert, "Something went wrong adding this supplier. Please try again.");
   } finally {
     quickAddSupplierSaveBtn.disabled = false;
   }
@@ -1108,8 +1101,7 @@ quickAddProductSaveBtn.addEventListener("click", async () => {
   const retailPrice = pricesAllowed ? parseFloat(quickProductPriceInput.value) : 0;
 
   if (!name || !category || isNaN(retailPrice)) {
-    quickAddProductAlert.textContent = "Product name, category, and retail price are required.";
-    quickAddProductAlert.classList.remove("d-none");
+    showFormAlert(quickAddProductAlert, "Product name, category, and retail price are required.");
     return;
   }
 
@@ -1142,8 +1134,7 @@ quickAddProductSaveBtn.addEventListener("click", async () => {
 
     bootstrap.Modal.getInstance(quickAddProductModalEl).hide();
   } catch (error) {
-    quickAddProductAlert.textContent = "Something went wrong adding this product. Please try again.";
-    quickAddProductAlert.classList.remove("d-none");
+    showFormAlert(quickAddProductAlert, "Something went wrong adding this product. Please try again.");
   } finally {
     quickAddProductSaveBtn.disabled = false;
   }
@@ -1238,8 +1229,7 @@ saveWriteOffBtn.addEventListener("click", async () => {
 
   const invalid = items.some((it) => !it.batchId || !it.qty || it.qty <= 0 || !it.reason);
   if (invalid || items.length === 0) {
-    writeOffModalAlert.textContent = "Every item needs a batch, a quantity, and a reason.";
-    writeOffModalAlert.classList.remove("d-none");
+    showFormAlert(writeOffModalAlert, "Every item needs a batch, a quantity, and a reason.");
     return;
   }
 
@@ -1248,8 +1238,7 @@ saveWriteOffBtn.addEventListener("click", async () => {
     return !batch || it.qty > batch.quantity;
   });
   if (overQtyItem) {
-    writeOffModalAlert.textContent = "You can't write off more than a batch's current quantity.";
-    writeOffModalAlert.classList.remove("d-none");
+    showFormAlert(writeOffModalAlert, "You can't write off more than a batch's current quantity.");
     return;
   }
 
@@ -1324,8 +1313,7 @@ saveWriteOffBtn.addEventListener("click", async () => {
     bootstrap.Modal.getInstance(writeOffModalEl).hide();
     await loadInventory();
   } catch (error) {
-    writeOffModalAlert.textContent = error.message || "Something went wrong recording this write-off. Please try again.";
-    writeOffModalAlert.classList.remove("d-none");
+    showFormAlert(writeOffModalAlert, error.message || "Something went wrong recording this write-off. Please try again.");
   } finally {
     saveWriteOffBtn.disabled = false;
   }
@@ -1552,13 +1540,11 @@ openReconciliationSessionBtn.addEventListener("click", () => {
 confirmOpenSessionBtn.addEventListener("click", async () => {
   const period = reconciliationPeriodInput.value;
   if (!period) {
-    openReconciliationAlert.textContent = "Please choose the month.";
-    openReconciliationAlert.classList.remove("d-none");
+    showFormAlert(openReconciliationAlert, "Please choose the month.");
     return;
   }
   if (findActiveSession()) {
-    openReconciliationAlert.textContent = "A stock count is already in progress - finish it first.";
-    openReconciliationAlert.classList.remove("d-none");
+    showFormAlert(openReconciliationAlert, "A stock count is already in progress - finish it first.");
     return;
   }
 
@@ -1592,8 +1578,7 @@ confirmOpenSessionBtn.addEventListener("click", async () => {
     bootstrap.Modal.getInstance(openReconciliationModalEl).hide();
     await loadInventory();
   } catch (error) {
-    openReconciliationAlert.textContent = "Something went wrong starting the stock count. Please try again.";
-    openReconciliationAlert.classList.remove("d-none");
+    showFormAlert(openReconciliationAlert, "Something went wrong starting the stock count. Please try again.");
   } finally {
     confirmOpenSessionBtn.disabled = false;
   }
@@ -1629,8 +1614,7 @@ submitCountBtn.addEventListener("click", async () => {
       activeSession.items = updatedItems;
       await showAppAlert("Count saved. Only the Branch Manager can finalize it and update the stock.", { title: "Count Saved" });
     } catch (error) {
-      reconciliationAlert.textContent = "Something went wrong saving the count. Please try again.";
-      reconciliationAlert.classList.remove("d-none");
+      showFormAlert(reconciliationAlert, "Something went wrong saving the count. Please try again.");
     }
     return;
   }
@@ -1699,8 +1683,7 @@ submitCountBtn.addEventListener("click", async () => {
 
     await loadInventory();
   } catch (error) {
-    reconciliationAlert.textContent = "Something went wrong submitting the count. Please try again.";
-    reconciliationAlert.classList.remove("d-none");
+    showFormAlert(reconciliationAlert, "Something went wrong submitting the count. Please try again.");
   } finally {
     submitCountBtn.disabled = false;
   }
@@ -1907,8 +1890,7 @@ poBatchFileInput.addEventListener("change", async () => {
       return row;
     });
   } catch (error) {
-    createPoAlert.textContent = "Couldn't read that file - make sure it's a valid .xlsx, .xls, or .csv file.";
-    createPoAlert.classList.remove("d-none");
+    showFormAlert(createPoAlert, "Couldn't read that file - make sure it's a valid .xlsx, .xls, or .csv file.");
     return;
   }
 
@@ -1954,8 +1936,7 @@ poBatchFileInput.addEventListener("change", async () => {
   if (unknown.length) notes.push(`${unknown.length} row${unknown.length === 1 ? "" : "s"} skipped - SKU not found: ${unknown.slice(0, 10).join("; ")}${unknown.length > 10 ? "; ..." : ""}`);
   if (first.suppliername && !supplier) notes.push(`Supplier "${first.suppliername}" isn't saved yet - pick the supplier above.`);
   if (notes.length) {
-    createPoAlert.textContent = notes.join(" ");
-    createPoAlert.classList.remove("d-none");
+    showFormAlert(createPoAlert, notes.join(" "));
   } else {
     createPoAlert.classList.add("d-none");
   }
@@ -1993,8 +1974,7 @@ savePoBtn.addEventListener("click", async () => {
     items.some((it) => !it.productId || !it.expectedQty || it.expectedQty <= 0);
 
   if (invalid) {
-    createPoAlert.textContent = "Pick a supplier, an expected delivery date, and a quantity for every item.";
-    createPoAlert.classList.remove("d-none");
+    showFormAlert(createPoAlert, "Pick a supplier, an expected delivery date, and a quantity for every item.");
     return;
   }
 
@@ -2022,8 +2002,7 @@ savePoBtn.addEventListener("click", async () => {
       list: items.map((it) => `${(getProductById(it.productId) || {}).name || it.productId} x${it.expectedQty}`),
     });
   } catch (error) {
-    createPoAlert.textContent = "Something went wrong creating this purchase order. Please try again.";
-    createPoAlert.classList.remove("d-none");
+    showFormAlert(createPoAlert, "Something went wrong creating this purchase order. Please try again.");
   } finally {
     savePoBtn.disabled = false;
   }
@@ -2113,8 +2092,7 @@ async function submitPoReceiving(po) {
   const alertEl = document.getElementById("viewPoAlert");
   const missingBatchInfo = receivedItems.some((it) => it.receivedQty > 0 && (!it.batchNo || !it.expirationDate));
   if (missingBatchInfo) {
-    alertEl.textContent = "Every item with a received quantity needs a batch number and expiry date.";
-    alertEl.classList.remove("d-none");
+    showFormAlert(alertEl, "Every item with a received quantity needs a batch number and expiry date.");
     return;
   }
   const plan = planStockReceipt(
@@ -2133,8 +2111,7 @@ async function submitPoReceiving(po) {
       }))
   );
   if (plan.errors.length) {
-    alertEl.textContent = plan.errors.join(" ");
-    alertEl.classList.remove("d-none");
+    showFormAlert(alertEl, plan.errors.join(" "));
     return;
   }
 
@@ -2238,8 +2215,7 @@ async function acknowledgePo(po) {
     bootstrap.Modal.getInstance(viewPoModalEl).hide();
     await loadInventory();
   } catch (error) {
-    alertEl.textContent = "Something went wrong closing this record. Please try again.";
-    alertEl.classList.remove("d-none");
+    showFormAlert(alertEl, "Something went wrong closing this record. Please try again.");
   } finally {
     btn.disabled = false;
   }

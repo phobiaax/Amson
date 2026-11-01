@@ -351,8 +351,7 @@ saveWholesaleBtn.addEventListener("click", async () => {
   const name = wholesaleNameInput.value.trim();
 
   if (!name) {
-    wholesaleModalAlert.textContent = "Company name is required.";
-    wholesaleModalAlert.classList.remove("d-none");
+    showFormAlert(wholesaleModalAlert, "Company name is required.");
     return;
   }
 
@@ -391,8 +390,7 @@ saveWholesaleBtn.addEventListener("click", async () => {
     bootstrap.Modal.getInstance(wholesaleModalEl).hide();
     await loadWholesaleAccounts();
   } catch (error) {
-    wholesaleModalAlert.textContent = error.message || "Something went wrong saving this account. Please try again.";
-    wholesaleModalAlert.classList.remove("d-none");
+    showFormAlert(wholesaleModalAlert, error.message || "Something went wrong saving this account. Please try again.");
   } finally {
     saveWholesaleBtn.disabled = false;
   }
@@ -557,8 +555,7 @@ function openProcessOrderModal(account) {
     documentValidity(account.permitValidUntil) === "expired" ? "Business Permit" : null,
   ].filter(Boolean);
   if (expiredDocs.length) {
-    processOrderAlert.textContent = `This buyer's ${expiredDocs.join(" and ")} has expired. Ask for an updated copy before selling - the order can't be recorded until it's updated.`;
-    processOrderAlert.classList.remove("d-none");
+    showFormAlert(processOrderAlert, `This buyer's ${expiredDocs.join(" and ")} has expired. Ask for an updated copy before selling - the order can't be recorded until it's updated.`);
   }
 
   destroyChoicesIn(processOrderItemsContainer);
@@ -588,8 +585,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
   const account = allWholesaleAccounts.find((w) => w.id === processingAccountId);
   const buyerName = account ? account.name : "";
   if (account && (documentValidity(account.ltoValidUntil) === "expired" || documentValidity(account.permitValidUntil) === "expired")) {
-    processOrderAlert.textContent = "This buyer's LTO or Business Permit has expired. Update the document and its date in Edit first.";
-    processOrderAlert.classList.remove("d-none");
+    showFormAlert(processOrderAlert, "This buyer's LTO or Business Permit has expired. Update the document and its date in Edit first.");
     return;
   }
 
@@ -601,17 +597,16 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
   });
   const freeItems = items.filter((it) => it.free);
   if ((freeOfCost || freeItems.length) && !freeReason) {
-    processOrderAlert.textContent = freeOfCost
-      ? "A reason is required for a free-of-cost distribution."
-      : "A reason is required for the items given free.";
-    processOrderAlert.classList.remove("d-none");
+    showFormAlert(
+      processOrderAlert,
+      freeOfCost ? "A reason is required for a free-of-cost distribution." : "A reason is required for the items given free."
+    );
     return;
   }
 
   const invalid = items.some((it) => !it.productId || !it.qty || it.qty <= 0 || isNaN(it.unitPrice) || it.unitPrice < 0);
   if (invalid || items.length === 0) {
-    processOrderAlert.textContent = "Every item needs a product, a quantity, and a unit price (type one where it says no wholesale price is set).";
-    processOrderAlert.classList.remove("d-none");
+    showFormAlert(processOrderAlert, "Every item needs a product, a quantity, and a unit price (type one where it says no wholesale price is set).");
     return;
   }
 
@@ -722,8 +717,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     });
     if (print && saved.exists) downloadWholesaleInvoice({ id: saved.id, ...saved.data() }, { print: true });
   } catch (error) {
-    processOrderAlert.textContent = error.message || "Something went wrong recording this order. Please try again.";
-    processOrderAlert.classList.remove("d-none");
+    showFormAlert(processOrderAlert, error.message || "Something went wrong recording this order. Please try again.");
   } finally {
     confirmProcessOrderBtn.disabled = false;
   }
