@@ -476,14 +476,33 @@ async function computeStaffNotifications() {
     liveQuery("purchaseOrders:discrepancy", db.collection("purchaseOrders").where("status", "==", "discrepancy")),
   ]);
 
-  const notifications = [];
   // Each notification carries a category (for the Stock / Orders / Live
   // Chat filters) and `at`, when it happened, so lists show newest first.
-  const ms = staffNotifMillis;
+  // The order here is kept so alerts with the same time stay in this order.
+  const notifications = [
+    ...stockLevelAlerts(batchSnapshot),
+    ...expiryAlerts(batchSnapshot),
+    ...staffOrderNotifications(orderSnapshot.docs),
+    ...poDiscrepancyAlerts(poSnapshot),
+    ...pricePendingAlerts(),
+    ...(await badOrderAlerts()),
+    ...(await wholesaleDocumentAlerts()),
+    ...(await wholesaleReleaseAlerts()),
+    ...(await waitingChatAlerts()),
+  ];
+
+  // Newest first; urgency is shown by each row's colour and label instead.
+  notifications.sort((a, b) => (b.at || 0) - (a.at || 0));
+  return notifications;
+}
+
+// Low and out-of-stock alerts, one per product.
+function stockLevelAlerts(batchSnapshot) {
+  const notifications = [];
   const lastStockChange = {};
   batchSnapshot.docs.forEach((doc) => {
     const b = doc.data();
-    lastStockChange[b.productId] = Math.max(lastStockChange[b.productId] || 0, ms(b.lastAdjustedAt || b.createdAt));
+    lastStockChange[b.productId] = Math.max(lastStockChange[b.productId] || 0, staffNotifMillis(b.lastAdjustedAt || b.createdAt));
   });
 
   // Low / out of stock per product, on its physical stock across all
@@ -498,7 +517,7 @@ async function computeStaffNotifications() {
       notifications.push({
         key: `out_of_stock:${p.id}`,
         category: "stock",
-        at: lastStockChange[p.id] || ms(p.createdAt),
+        at: lastStockChange[p.id] || staffNotifMillis(p.createdAt),
         signature: "0",
         severity: "danger",
         icon: "bi-box-seam",
@@ -518,7 +537,12 @@ async function computeStaffNotifications() {
       });
     }
   });
+  return notifications;
+}
 
+// Expired and near-expiry batches that still hold stock.
+function expiryAlerts(batchSnapshot) {
+  const notifications = [];
   batchSnapshot.docs.forEach((doc) => {
     const b = { id: doc.id, ...doc.data() };
     // An empty lot isn't an expiry concern any more.
@@ -531,7 +555,7 @@ async function computeStaffNotifications() {
       notifications.push({
         key: `expired:${b.id}`,
         category: "stock",
-        at: ms(`${b.expirationDate}T00:00:00`),
+        at: staffNotifMillis(`${b.expirationDate}T00:00:00`),
         signature: `${b.quantity}`,
         severity: "danger",
         icon: "bi-calendar-x",
@@ -556,15 +580,18 @@ async function computeStaffNotifications() {
       });
     }
   });
+  return notifications;
+}
 
-  notifications.push(...staffOrderNotifications(orderSnapshot.docs));
-
+// Purchase orders with a delivery discrepancy to acknowledge.
+function poDiscrepancyAlerts(poSnapshot) {
+  const notifications = [];
   poSnapshot.docs.forEach((doc) => {
     const po = doc.data();
     notifications.push({
       key: `po_discrepancy:${doc.id}`,
       category: "stock",
-      at: ms(po.receivedAt),
+      at: staffNotifMillis(po.receivedAt),
       signature: po.status,
       severity: "danger",
       icon: "bi-exclamation-triangle",
@@ -572,7 +599,12 @@ async function computeStaffNotifications() {
       link: "inventory.html",
     });
   });
+  return notifications;
+}
 
+// Products waiting for a Branch Manager to set prices.
+function pricePendingAlerts() {
+  const notifications = [];
   // Products other staff added without prices stay Inactive until the
   // Branch Manager prices them - make sure that's visible.
   const pricePending = SAMPLE_PRODUCTS.filter((p) => p.pricePending);
@@ -580,7 +612,7 @@ async function computeStaffNotifications() {
     notifications.push({
       key: "price_pending",
       category: "stock",
-      at: Math.max(0, ...pricePending.map((p) => ms(p.updatedAt || p.createdAt))),
+      at: Math.max(0, ...pricePending.map((p) => staffNotifMillis(p.updatedAt || p.createdAt))),
       signature: pricePending.map((p) => p.id).sort().join(","),
       severity: "info",
       icon: "bi-tag",
@@ -588,7 +620,12 @@ async function computeStaffNotifications() {
       link: "products.html",
     });
   }
+  return notifications;
+}
 
+// Bad Order batches waiting to be disposed of.
+async function badOrderAlerts() {
+  const notifications = [];
   // Bad Order batches still waiting to be physically disposed of (REQ067).
   try {
     const bo = await liveStockBatches();
@@ -597,7 +634,7 @@ async function computeStaffNotifications() {
       notifications.push({
         key: "bad_order_disposal",
         category: "stock",
-        at: Math.max(0, ...pending.map((d) => ms(d.data().badOrderAt))),
+        at: Math.max(0, ...pending.map((d) => staffNotifMillis(d.data().badOrderAt))),
         signature: pending.map((d) => d.id).sort().join(","),
         severity: "danger",
         icon: "bi-trash",
@@ -608,7 +645,12 @@ async function computeStaffNotifications() {
   } catch (error) {
     console.warn("Bad Order alerts unavailable:", error);
   }
+  return notifications;
+}
 
+// Wholesale buyers with an expired or soon-expiring LTO / Business Permit.
+async function wholesaleDocumentAlerts() {
+  const notifications = [];
   // Wholesale buyers whose LTO or Business Permit has expired or expires
   // within 30 days (REQ086).
   try {
@@ -625,7 +667,7 @@ async function computeStaffNotifications() {
         category: "orders",
         // 30 days before the soonest document runs out
         at: Math.min(
-          ...flagged.map((d) => Math.min(...[d.data().ltoValidUntil, d.data().permitValidUntil].filter(Boolean).map((v) => ms(`${v}T00:00:00`))))
+          ...flagged.map((d) => Math.min(...[d.data().ltoValidUntil, d.data().permitValidUntil].filter(Boolean).map((v) => staffNotifMillis(`${v}T00:00:00`))))
         ) - 30 * 24 * 60 * 60 * 1000,
         signature: flagged.map((d) => `${d.id}:${d.data().ltoValidUntil}:${d.data().permitValidUntil}`).sort().join(","),
         severity: "warning",
@@ -637,7 +679,12 @@ async function computeStaffNotifications() {
   } catch (error) {
     console.warn("Wholesale document alerts unavailable:", error);
   }
+  return notifications;
+}
 
+// Wholesale orders not yet picked up or delivered.
+async function wholesaleReleaseAlerts() {
+  const notifications = [];
   // Wholesale orders recorded but not yet picked up or delivered.
   try {
     const pending = await db.collection("wholesaleOrders").where("releaseStatus", "==", "pending").get();
@@ -645,7 +692,7 @@ async function computeStaffNotifications() {
       notifications.push({
         key: "wholesale_pending_release",
         category: "orders",
-        at: Math.max(0, ...pending.docs.map((d) => ms(d.data().createdAt))),
+        at: Math.max(0, ...pending.docs.map((d) => staffNotifMillis(d.data().createdAt))),
         signature: pending.docs.map((d) => d.id).sort().join(","),
         severity: "info",
         icon: "bi-truck",
@@ -656,7 +703,12 @@ async function computeStaffNotifications() {
   } catch (error) {
     console.warn("Wholesale order alerts unavailable:", error);
   }
+  return notifications;
+}
 
+// Chats handed over to staff.
+async function waitingChatAlerts() {
+  const notifications = [];
   // Chats the assistant handed to staff (REQ038). Never blocks the other
   // alerts if chat isn't set up yet.
   try {
@@ -665,9 +717,6 @@ async function computeStaffNotifications() {
   } catch (error) {
     console.warn("Chat alerts unavailable:", error);
   }
-
-  // Newest first; urgency is shown by each row's colour and label instead.
-  notifications.sort((a, b) => (b.at || 0) - (a.at || 0));
   return notifications;
 }
 
