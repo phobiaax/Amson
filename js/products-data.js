@@ -1,6 +1,12 @@
 /**
- * Product catalog cache.
+ * Shared core used by most pages: the product catalog, stock rules, staff
+ * notifications, dialogs, receipts, voids, exports, FEFO stock deduction,
+ * exchanges and the audit log. The sections are listed in CODE_MAP.md.
  */
+
+// =====================================================================
+// ---- dialogs ----
+// Bootstrap pop-ups used instead of the browser's alert/confirm/prompt.
 
 // ---- Stacked modal darkening ----
 // Bootstrap gives every .modal and every .modal-backdrop the same fixed
@@ -18,7 +24,9 @@ function restackModals() {
     modal.style.zIndex = 1055 + i * 20;
   });
 }
+
 document.addEventListener("shown.bs.modal", restackModals);
+
 document.addEventListener("hidden.bs.modal", restackModals);
 
 // ---- Shared dialog UI (replaces native alert()/confirm()) ----
@@ -138,11 +146,87 @@ async function showAppSelect(message, options, { title = "Choose", confirmLabel 
   return ok ? document.getElementById("appDialogSelect").value : null;
 }
 
+// Bootstrap can't stack modals: wait until one is fully closed before the
+// next opens.
+function hideModalAndWait(el) {
+  const modal = bootstrap.Modal.getInstance(el);
+  if (!modal || !el.classList.contains("show")) return Promise.resolve();
+  // A modal still opening ignores hide(), so keep asking until it's gone
+  // (gives up after 3 s rather than waiting forever).
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const check = () => {
+      const gone = !el.classList.contains("show") && el.style.display !== "block";
+      if (gone || Date.now() - started > 3000) return resolve();
+      modal.hide();
+      setTimeout(check, 150);
+    };
+    check();
+  });
+}
+
+// =====================================================================
+// ---- catalog ----
+// The shared product list (SAMPLE_PRODUCTS) and looking products up in it.
+
 let SAMPLE_PRODUCTS = [];
+
 let CATEGORY_LABELS = {};
+
 let catalogLoadPromise = null;
 
+function getProductById(id) {
+  return SAMPLE_PRODUCTS.find((p) => String(p.id) === String(id));
+}
+
+// A product only appears in the storefront once staff have marked it
+// available online (and it's active) - staff can create a product ahead
+// of time without it showing to customers yet. Once it has appeared,
+// running out of stock doesn't remove it - it stays visible, greyed out
+// and not orderable (see renderProductCard), rather than disappearing.
+function storefrontCatalog() {
+  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore);
+}
+
+// ---- Duplicate product names ----
+// Two products are the same when their names match ignoring capitals,
+// spaces and punctuation ("Losaar 50 (100's)" = "LOSAAR-50 (100S)").
+function productNameKey(name) {
+  return String(name || "").toUpperCase().replace(/[^A-Z0-9]+/g, "");
+}
+
+function findProductByName(name, exceptId = null) {
+  const key = productNameKey(name);
+  if (!key) return null;
+  return SAMPLE_PRODUCTS.find((p) => p.id !== exceptId && productNameKey(p.name) === key) || null;
+}
+
+/* ---------- SKU generation (same pattern as order numbers) ---------- */
+// Never hands out a code that's already taken: it starts past the highest
+// MED- code in the catalog (in case the counter was reset), and the counter
+// is claimed in a transaction so two staff adding products at the same
+// moment don't get the same number.
+async function generateProductSku() {
+  const counterRef = db.collection("counters").doc("products");
+  const used = new Set(SAMPLE_PRODUCTS.map((p) => String(p.sku || "").toUpperCase()));
+  const highest = SAMPLE_PRODUCTS.reduce((max, p) => {
+    const m = String(p.sku || "").match(/^MED-(\d+)$/i);
+    return m ? Math.max(max, Number(m[1])) : max;
+  }, 0);
+  return db.runTransaction(async (tx) => {
+    const counterDoc = await tx.get(counterRef);
+    let next = Math.max(counterDoc.exists ? counterDoc.data().count || 0 : 0, highest) + 1;
+    while (used.has(`MED-${String(next).padStart(4, "0")}`)) next += 1;
+    tx.set(counterRef, { count: next }, { merge: true });
+    return `MED-${String(next).padStart(4, "0")}`;
+  });
+}
+
+// =====================================================================
+// ---- stock levels and alerts ----
+
 const DEFAULT_REORDER_POINT = 20;
+
 const NEAR_EXPIRY_MONTHS = 6;
 
 function nearExpiryCutoff() {
@@ -296,6 +380,9 @@ async function computeInventoryAlertCounts(batchesOverride = null) {
   return { lowStock, outOfStock, nearExpiry, expired };
 }
 
+// =====================================================================
+// ---- staff notifications ----
+
 // ---- Staff notifications (bell dropdown, sidebar badge, Notifications
 // page) - computed fresh from live data every time, same as before, so an
 // alert can never go stale or get missed. What's new is read/unread: each
@@ -311,6 +398,7 @@ async function computeInventoryAlertCounts(batchesOverride = null) {
 // always reads fresh). Orders and POs are read only in the one status that
 // raises an alert, not the whole history.
 const STAFF_NOTIF_CACHE_KEY = "amsonStaffNotifs";
+
 const STAFF_NOTIF_CACHE_MS = 2 * 60 * 1000;
 
 async function getStaffNotificationsCached() {
@@ -617,6 +705,9 @@ async function markAllStaffNotifsRead(uid, notifications) {
   await ref.update(updates);
 }
 
+// =====================================================================
+// ---- expiry rules (near-expiry, bad order, write-offs) ----
+
 // ---- Near-expiry and Bad Order auto-handling ----
 const BAD_ORDER_MONTHS = 2;
 
@@ -705,6 +796,15 @@ async function markBatchBadOrder(batchId) {
     });
   }
 }
+
+// The day a write-off happened: the date staff picked, else when it was saved.
+function writeOffEffectiveDate(w) {
+  if (w.writeOffDate) return new Date(`${w.writeOffDate}T12:00:00`);
+  return w.createdAt && w.createdAt.toDate ? w.createdAt.toDate() : null;
+}
+
+// =====================================================================
+// ---- catalog loading (live reads, short browser copy, staff-only prices) ----
 
 // The branch's own groupings (one sheet each in its month-end inventory
 // report). Only used to seed a brand-new project - after that, categories
@@ -833,6 +933,7 @@ function liveStockBatches() {
 // Staff pages always read fresh, and checkout re-checks stock and prices
 // live (clearCatalogCache) before an order is created.
 const CATALOG_CACHE_KEY = "amsonCatalogCache";
+
 const CATALOG_CACHE_MS = 5 * 60 * 1000;
 
 function catalogBrowserCacheAllowed() {
@@ -851,6 +952,7 @@ function clearCatalogCache() {
 function catalogCacheReplacer(key, value) {
   return value && typeof value === "object" && typeof value.toMillis === "function" ? { __ms: value.toMillis() } : value;
 }
+
 function catalogCacheReviver(key, value) {
   return value && typeof value === "object" && typeof value.__ms === "number" ? firebase.firestore.Timestamp.fromMillis(value.__ms) : value;
 }
@@ -1077,9 +1179,13 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
   return catalogLoadPromise;
 }
 
+// =====================================================================
+// ---- progress pop-up for long jobs ----
+
 // ---- Progress / result pop-up for long jobs (imports, photos, stock) ----
 // Built on first use, so any staff page can call it without extra markup.
 let taskModalEl = null;
+
 function ensureTaskModal() {
   if (taskModalEl) return taskModalEl;
   document.body.insertAdjacentHTML(
@@ -1103,6 +1209,7 @@ function ensureTaskModal() {
   taskModalEl = document.getElementById("taskModal");
   return taskModalEl;
 }
+
 const TASK_ICONS = {
   success: '<i class="bi bi-check-circle-fill"></i>',
   warning: '<i class="bi bi-exclamation-triangle-fill"></i>',
@@ -1159,24 +1266,8 @@ function showTaskResult({ type = "success", title, message = "", list = [], acti
   });
 }
 
-// Bootstrap can't stack modals: wait until one is fully closed before the
-// next opens.
-function hideModalAndWait(el) {
-  const modal = bootstrap.Modal.getInstance(el);
-  if (!modal || !el.classList.contains("show")) return Promise.resolve();
-  // A modal still opening ignores hide(), so keep asking until it's gone
-  // (gives up after 3 s rather than waiting forever).
-  return new Promise((resolve) => {
-    const started = Date.now();
-    const check = () => {
-      const gone = !el.classList.contains("show") && el.style.display !== "block";
-      if (gone || Date.now() - started > 3000) return resolve();
-      modal.hide();
-      setTimeout(check, 150);
-    };
-    check();
-  });
-}
+// =====================================================================
+// ---- staff form helpers (toggles, searchable dropdowns, item lists) ----
 
 // ---- On/off (segmented) toggles used by the staff forms ----
 // Products, Suppliers and Wholesale Accounts.
@@ -1237,45 +1328,8 @@ function renumberItems(container) {
   });
 }
 
-// A date as YYYY-MM-DD on the branch's own calendar. Built from the local
-// date parts, not toISOString(): that is UTC, which is still yesterday until
-// 8 AM in the Philippines (and an Excel date cell is local midnight).
-function localISODate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-// ---- Duplicate product names ----
-// Two products are the same when their names match ignoring capitals,
-// spaces and punctuation ("Losaar 50 (100's)" = "LOSAAR-50 (100S)").
-function productNameKey(name) {
-  return String(name || "").toUpperCase().replace(/[^A-Z0-9]+/g, "");
-}
-
-function findProductByName(name, exceptId = null) {
-  const key = productNameKey(name);
-  if (!key) return null;
-  return SAMPLE_PRODUCTS.find((p) => p.id !== exceptId && productNameKey(p.name) === key) || null;
-}
-
-// ---- Storefront category links ----
-// Built from the categories collection, so a category staff add or rename
-// in Manage Categories shows up in the shop header (and on the home page)
-// without editing every page's HTML.
-// Only http(s) links from uploaded files are used as links; anything else
-// (e.g. a "javascript:" address written straight to the database) isn't.
-function safeUrl(url) {
-  return typeof url === "string" && /^https?:\/\//i.test(url) ? url : "#";
-}
-
-// The day a write-off happened: the date staff picked, else when it was saved.
-function writeOffEffectiveDate(w) {
-  if (w.writeOffDate) return new Date(`${w.writeOffDate}T12:00:00`);
-  return w.createdAt && w.createdAt.toDate ? w.createdAt.toDate() : null;
-}
-
-function escapeHtml(text) {
-  return String(text == null ? "" : text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-}
+// =====================================================================
+// ---- storefront: home page category cards ----
 
 function renderHomeCategoryCards() {
   const row = document.getElementById("homeCategoryCards");
@@ -1310,34 +1364,41 @@ if (document.querySelector(".category-nav") || document.getElementById("homeCate
     .catch((error) => console.error("Failed to load categories:", error));
 }
 
-// A product only appears in the storefront once staff have marked it
-// available online (and it's active) - staff can create a product ahead
-// of time without it showing to customers yet. Once it has appeared,
-// running out of stock doesn't remove it - it stays visible, greyed out
-// and not orderable (see renderProductCard), rather than disappearing.
-function storefrontCatalog() {
-  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore);
+// =====================================================================
+// ---- formatting (dates, money, text, links, PDF) ----
+
+// A date as YYYY-MM-DD on the branch's own calendar. Built from the local
+// date parts, not toISOString(): that is UTC, which is still yesterday until
+// 8 AM in the Philippines (and an Excel date cell is local midnight).
+function localISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/* ---------- SKU generation (same pattern as order numbers) ---------- */
-// Never hands out a code that's already taken: it starts past the highest
-// MED- code in the catalog (in case the counter was reset), and the counter
-// is claimed in a transaction so two staff adding products at the same
-// moment don't get the same number.
-async function generateProductSku() {
-  const counterRef = db.collection("counters").doc("products");
-  const used = new Set(SAMPLE_PRODUCTS.map((p) => String(p.sku || "").toUpperCase()));
-  const highest = SAMPLE_PRODUCTS.reduce((max, p) => {
-    const m = String(p.sku || "").match(/^MED-(\d+)$/i);
-    return m ? Math.max(max, Number(m[1])) : max;
-  }, 0);
-  return db.runTransaction(async (tx) => {
-    const counterDoc = await tx.get(counterRef);
-    let next = Math.max(counterDoc.exists ? counterDoc.data().count || 0 : 0, highest) + 1;
-    while (used.has(`MED-${String(next).padStart(4, "0")}`)) next += 1;
-    tx.set(counterRef, { count: next }, { merge: true });
-    return `MED-${String(next).padStart(4, "0")}`;
-  });
+// MM/DD/YYYY (REQNF028) for a Firestore Timestamp, Date, or ISO string.
+function formatDateMDY(value, withTime = false) {
+  if (!value) return "";
+  const date = value.toDate ? value.toDate() : new Date(value);
+  if (isNaN(date)) return "";
+  const mdy = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${date.getFullYear()}`;
+  return withTime ? `${mdy} ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : mdy;
+}
+
+function formatPeso(amount) {
+  return `₱${(amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function escapeHtml(text) {
+  return String(text == null ? "" : text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+// ---- Storefront category links ----
+// Built from the categories collection, so a category staff add or rename
+// in Manage Categories shows up in the shop header (and on the home page)
+// without editing every page's HTML.
+// Only http(s) links from uploaded files are used as links; anything else
+// (e.g. a "javascript:" address written straight to the database) isn't.
+function safeUrl(url) {
+  return typeof url === "string" && /^https?:\/\//i.test(url) ? url : "#";
 }
 
 // jsPDF's built-in fonts can't draw some characters - the peso sign came
@@ -1348,11 +1409,13 @@ const PDF_TEXT_SWAPS = [
   [/→/g, "->"],
   [/[✓✔]/g, "(ok)"],
 ];
+
 function pdfSafeText(text) {
   if (Array.isArray(text)) return text.map(pdfSafeText);
   if (typeof text !== "string") return text;
   return PDF_TEXT_SWAPS.reduce((t, [pattern, plain]) => t.replace(pattern, plain), text);
 }
+
 // Opens a finished PDF with the browser's print window (Save as PDF is in
 // there too). If the browser blocks the new tab, the file downloads instead.
 function printPdf(doc, filename) {
@@ -1370,20 +1433,8 @@ function createPdf(options) {
   return doc;
 }
 
-function formatPeso(amount) {
-  return `₱${(amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function getProductById(id) {
-  return SAMPLE_PRODUCTS.find((p) => String(p.id) === String(id));
-}
-
-// Small "Rx" tag shown after a prescription product's name everywhere it's
-// listed (shop, cart, checkout, orders). Takes a product or a product id.
-function rxTag(productOrId) {
-  const product = productOrId && typeof productOrId === "object" ? productOrId : getProductById(productOrId);
-  return product && product.rxRequired ? ' <span class="rx-tag" title="Prescription required">Rx</span>' : "";
-}
+// =====================================================================
+// ---- receipts ----
 
 // ---- Shared walk-in sale receipt - used both right after a POS checkout
 // (admin-pos.js) and when staff reopen a past sale from the Walk-in
@@ -1401,6 +1452,7 @@ const SALE_RECEIPT_PAYMENT_METHOD_LABELS = {
   card: "Card",
   ewallet: "E-Wallet",
 };
+
 const POS_BRANCH_NAME = "Amson Pharmaceuticals";
 
 function showSaleReceipt({
@@ -1546,6 +1598,9 @@ function showSaleReceipt({
   // once the receipt is on screen (the Print button is there for reprints).
   if (autoPrint) setTimeout(() => window.print(), 500);
 }
+
+// =====================================================================
+// ---- voids ----
 
 // ---- Walk-in sale void (REQ083, Fig 2.6/2.14) ----
 // Only roles with void authorization (Branch Manager, Technical Staff)
@@ -1805,14 +1860,8 @@ function voidSummary(sale) {
   return `${sale.voidReason || ""}${sale.voidedBy ? ` (by ${sale.voidedBy}${when ? `, ${when}` : ""})` : ""}${sale.voidApprovedBy ? `, approved by ${sale.voidApprovedBy}` : ""}`;
 }
 
-// MM/DD/YYYY (REQNF028) for a Firestore Timestamp, Date, or ISO string.
-function formatDateMDY(value, withTime = false) {
-  if (!value) return "";
-  const date = value.toDate ? value.toDate() : new Date(value);
-  if (isNaN(date)) return "";
-  const mdy = `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${date.getFullYear()}`;
-  return withTime ? `${mdy} ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : mdy;
-}
+// =====================================================================
+// ---- exports ----
 
 // ---- Table export (PDF or Excel) ----
 // Exports exactly the rows a page is showing (after its search/filters).
@@ -1896,6 +1945,9 @@ async function exportTable({ title, subtitle = "", filenamePrefix, columns, rows
   cells.forEach((row) => drawRow(row, false));
   doc.save(`${filenamePrefix}-${stamp}.pdf`);
 }
+
+// =====================================================================
+// ---- stock (fefo) and sales invoice numbers ----
 
 // ---- FEFO stock deduction (first-expiry, first-out), all items at once ----
 // Runs as one Firestore transaction, so two staff approving two orders for
@@ -2036,6 +2088,31 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, re
     return { allocations, invoiceNo };
   });
 }
+
+// Flattens an allocation list into the line-level fields stored on a sale.
+function batchFieldsFromAllocation(used) {
+  return {
+    batches: used,
+    batchNo: used.map((b) => b.batchNo).filter(Boolean).join(", "),
+    expirationDate: used.length ? used[0].expirationDate : "",
+  };
+}
+
+// ---- Sales Invoice numbers ----
+// One running number across walk-in, online and wholesale sales, matching
+// the branch's existing SI# sequence (e.g. 00008247). To continue from the
+// current paper booklet, set counters/salesInvoices.count to the last used
+// number once.
+function SALES_INVOICE_COUNTER_REF() {
+  return db.collection("counters").doc("salesInvoices");
+}
+
+function formatInvoiceNo(n) {
+  return String(n).padStart(8, "0");
+}
+
+// =====================================================================
+// ---- returns and exchanges ----
 
 // Exchanges (wholesale and walk-in): which batches the returned units go back
 // to, latest-expiring first, skipping units already returned earlier. Gives
@@ -2427,27 +2504,8 @@ function printWalkinExchangeSlip(ex) {
   printPdf(doc, `Amson-${ex.exchangeNo || "exchange"}.pdf`);
 }
 
-// ---- Sales Invoice numbers ----
-// One running number across walk-in, online and wholesale sales, matching
-// the branch's existing SI# sequence (e.g. 00008247). To continue from the
-// current paper booklet, set counters/salesInvoices.count to the last used
-// number once.
-function SALES_INVOICE_COUNTER_REF() {
-  return db.collection("counters").doc("salesInvoices");
-}
-
-function formatInvoiceNo(n) {
-  return String(n).padStart(8, "0");
-}
-
-// Flattens an allocation list into the line-level fields stored on a sale.
-function batchFieldsFromAllocation(used) {
-  return {
-    batches: used,
-    batchNo: used.map((b) => b.batchNo).filter(Boolean).join(", "),
-    expirationDate: used.length ? used[0].expirationDate : "",
-  };
-}
+// =====================================================================
+// ---- audit log ----
 
 // ---- Audit log helper ----
 // record / before / after / reason are optional structured fields (REQ122):
@@ -2482,6 +2540,9 @@ async function logAuditEvent({ action, details, actor, record, before, after, re
   }
 }
 
+// =====================================================================
+// ---- storefront: product cards and quick view ----
+
 // Shared by every "cart-item-image" thumbnail (cart, checkout, payment
 // summary, order details, My Orders) so they all show the product photo
 // the same way the catalog cards do, instead of an empty placeholder box.
@@ -2497,28 +2558,15 @@ function cloudinaryImageUrl(url, width) {
   return url.replace("/image/upload/", `/image/upload/f_auto,q_auto,c_limit,w_${width}/`);
 }
 
-// Checkout and Payment: the "Order Summary" list of cart items.
-function checkoutSummaryItemsHtml(cart) {
-  return cart
-    .map((item) => {
-      const product = getProductById(item.id);
-      if (!product) return "";
-      return `
-        <div class="checkout-summary-item">
-          <div class="cart-item-image" style="width:56px;height:56px;flex-shrink:0;${cartItemImageCss(product.imageUrl)}"></div>
-          <div class="flex-grow-1">
-            <p class="mb-0 fw-medium">${escapeHtml(product.name)}${rxTag(product)}</p>
-            <p class="text-muted mb-0" style="font-size:0.85rem;">Qty: ${item.qty}</p>
-            <p class="product-price mb-0" style="font-size:1rem;">${formatPeso(product.price * item.qty)}</p>
-          </div>
-        </div>
-      `;
-    })
-    .join("");
-}
-
 function cartItemImageCss(imageUrl, width = 160) {
   return imageUrl ? `background-image:url('${cloudinaryImageUrl(imageUrl, width)}'); background-size:cover; background-position:center;` : "";
+}
+
+// Small "Rx" tag shown after a prescription product's name everywhere it's
+// listed (shop, cart, checkout, orders). Takes a product or a product id.
+function rxTag(productOrId) {
+  const product = productOrId && typeof productOrId === "object" ? productOrId : getProductById(productOrId);
+  return product && product.rxRequired ? ' <span class="rx-tag" title="Prescription required">Rx</span>' : "";
 }
 
 function renderProductCard(product) {
@@ -2550,6 +2598,26 @@ function renderProductCard(product) {
       </div>
     </div>
   `;
+}
+
+// Checkout and Payment: the "Order Summary" list of cart items.
+function checkoutSummaryItemsHtml(cart) {
+  return cart
+    .map((item) => {
+      const product = getProductById(item.id);
+      if (!product) return "";
+      return `
+        <div class="checkout-summary-item">
+          <div class="cart-item-image" style="width:56px;height:56px;flex-shrink:0;${cartItemImageCss(product.imageUrl)}"></div>
+          <div class="flex-grow-1">
+            <p class="mb-0 fw-medium">${escapeHtml(product.name)}${rxTag(product)}</p>
+            <p class="text-muted mb-0" style="font-size:0.85rem;">Qty: ${item.qty}</p>
+            <p class="product-price mb-0" style="font-size:1rem;">${formatPeso(product.price * item.qty)}</p>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
 }
 
 // Quantity -/+ buttons, subtotal, and Add to Cart / Buy Now for one product:
@@ -2715,3 +2783,4 @@ async function showProductQuickView(productId) {
 
   bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }
+
