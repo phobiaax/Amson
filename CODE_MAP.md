@@ -33,7 +33,7 @@ Low / out-of-stock and expiry rules, and the counts behind the stock alert tiles
 
 The staff bell, sidebar badge and Notifications page: what needs attention and what has been read.
 
-- Functions: `getStaffNotificationsCached()`, `rememberStaffNotifications()`, `staffNotificationsSavedAt()`, `staffNotifMillis()`, `staffOrderNotifications()`, `staffChatNotifications()`, `computeStaffNotifications()`, `getStaffNotifReadMap()`, `isStaffNotifRead()`, `markStaffNotifRead()`, `markAllStaffNotifsRead()`
+- Functions: `getStaffNotificationsCached()`, `rememberStaffNotifications()`, `staffNotificationsSavedAt()`, `staffNotifMillis()`, `staffOrderNotifications()`, `staffChatNotifications()`, `computeStaffNotifications()` (built from `stockLevelAlerts()`, `expiryAlerts()`, `poDiscrepancyAlerts()`, `pricePendingAlerts()`, `badOrderAlerts()`, `wholesaleDocumentAlerts()`, `wholesaleReleaseAlerts()`, `waitingChatAlerts()`), `getStaffNotifReadMap()`, `isStaffNotifRead()`, `markStaffNotifRead()`, `markAllStaffNotifsRead()`
 - Shared data: `STAFF_NOTIF_CACHE_KEY`, `STAFF_NOTIF_CACHE_MS`, `STAFF_NOTIF_CATEGORY_LABELS`
 
 ### expiry rules (near-expiry, bad order, write-offs)
