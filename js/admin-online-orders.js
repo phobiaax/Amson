@@ -674,6 +674,33 @@ async function warnIfOrderCantBeFulfilled(order) {
   return hold ? "hold" : "cancel";
 }
 
+// Approving failed for lack of stock. The payment itself was fine - it's
+// purely a fulfillment problem, so this isn't a dead end: the order goes on
+// the same kind of 7-day hold as a payment issue, giving time for a restock
+// before it closes (per the no-cancellation, no-refund policy). The customer
+// is notified and the lists are redrawn.
+async function holdOrderForOutOfStock(order) {
+  const paymentIssue = {
+    type: "out_of_stock",
+    note: "One or more items in this order are no longer in stock. We're checking for a restock before this can proceed.",
+    flaggedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
+  };
+  await db.collection("orders").doc(order.id).update({ paymentIssue });
+  logAuditEvent({ action: "Order On Hold", details: `Order ${order.orderNumber} - Item Out of Stock (7-day hold)`, actor: currentStaffName });
+  notifyCustomer(
+    order.customerId,
+    `Order ${order.orderNumber} - item out of stock`,
+    paymentIssue.note,
+    `order-details.html?id=${order.id}`,
+    "danger"
+  );
+  order.paymentIssue = paymentIssue;
+  selectedVerificationId = null;
+  renderVerificationQueue();
+  renderOrdersTable();
+}
+
 approvePaymentBtn.addEventListener("click", async () => {
   if (!selectedVerificationId) return;
 
@@ -724,30 +751,8 @@ approvePaymentBtn.addEventListener("click", async () => {
     }
   } catch (error) {
     if (error.message === "Not enough stock available to fulfill this quantity.") {
-      // The payment itself was fine - it's purely a fulfillment problem,
-      // so this isn't a dead end: place the order on the same kind of
-      // 7-day hold as a payment issue, giving time for a restock before
-      // it closes (per the no-cancellation, no-refund policy).
       try {
-        const paymentIssue = {
-          type: "out_of_stock",
-          note: "One or more items in this order are no longer in stock. We're checking for a restock before this can proceed.",
-          flaggedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
-        };
-        await db.collection("orders").doc(orderId).update({ paymentIssue });
-        logAuditEvent({ action: "Order On Hold", details: `Order ${order.orderNumber} - Item Out of Stock (7-day hold)`, actor: currentStaffName });
-        notifyCustomer(
-          order.customerId,
-          `Order ${order.orderNumber} - item out of stock`,
-          paymentIssue.note,
-          `order-details.html?id=${orderId}`,
-          "danger"
-        );
-        order.paymentIssue = paymentIssue;
-        selectedVerificationId = null;
-        renderVerificationQueue();
-        renderOrdersTable();
+        await holdOrderForOutOfStock(order);
         bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
       } catch (holdError) {
         reviewAlert.textContent = "Not enough stock to approve this order, and it couldn't be placed on hold automatically. Please try again.";
@@ -1091,25 +1096,7 @@ issueConfirmBtn.addEventListener("click", async () => {
   } catch (error) {
     if (error.message === "Not enough stock available to fulfill this quantity.") {
       try {
-        const paymentIssue = {
-          type: "out_of_stock",
-          note: "One or more items in this order are no longer in stock. We're checking for a restock before this can proceed.",
-          flaggedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
-        };
-        await db.collection("orders").doc(orderId).update({ paymentIssue });
-        logAuditEvent({ action: "Order On Hold", details: `Order ${order.orderNumber} - Item Out of Stock (7-day hold)`, actor: currentStaffName });
-        notifyCustomer(
-          order.customerId,
-          `Order ${order.orderNumber} - item out of stock`,
-          paymentIssue.note,
-          `order-details.html?id=${orderId}`,
-          "danger"
-        );
-        order.paymentIssue = paymentIssue;
-        selectedVerificationId = null;
-        renderVerificationQueue();
-        renderOrdersTable();
+        await holdOrderForOutOfStock(order);
         bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
         bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
       } catch (holdError) {
