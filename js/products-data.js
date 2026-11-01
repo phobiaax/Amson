@@ -2526,6 +2526,26 @@ function cloudinaryImageUrl(url, width) {
   return url.replace("/image/upload/", `/image/upload/f_auto,q_auto,c_limit,w_${width}/`);
 }
 
+// Checkout and Payment: the "Order Summary" list of cart items.
+function checkoutSummaryItemsHtml(cart) {
+  return cart
+    .map((item) => {
+      const product = getProductById(item.id);
+      if (!product) return "";
+      return `
+        <div class="checkout-summary-item">
+          <div class="cart-item-image" style="width:56px;height:56px;flex-shrink:0;${cartItemImageCss(product.imageUrl)}"></div>
+          <div class="flex-grow-1">
+            <p class="mb-0 fw-medium">${escapeHtml(product.name)}${rxTag(product)}</p>
+            <p class="text-muted mb-0" style="font-size:0.85rem;">Qty: ${item.qty}</p>
+            <p class="product-price mb-0" style="font-size:1rem;">${formatPeso(product.price * item.qty)}</p>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
 function cartItemImageCss(imageUrl, width = 160) {
   return imageUrl ? `background-image:url('${cloudinaryImageUrl(imageUrl, width)}'); background-size:cover; background-position:center;` : "";
 }
