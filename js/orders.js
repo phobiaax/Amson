@@ -74,18 +74,6 @@ function computeUnappliedCredit(order) {
   return creditApplied;
 }
 
-// The amount of this order's payment currently held as credit, whichever
-// path it came from: a hold that closed unresolved (unappliedCredit,
-// computed above and stored at close time), or an overpayment that was
-// approved immediately with the excess recorded on the order
-// (paymentOverage - REQ098, excess is credit toward a future transaction,
-// never refunded).
-function orderCreditAmount(order) {
-  if (order.status === "closed_unresolved") return order.unappliedCredit || 0;
-  if (order.paymentOverage) return order.paymentOverage.excessAmount || 0;
-  return 0;
-}
-
 const DELIVERY_SLOT_LABELS = {
   morning: "Morning (8AM-12PM)",
   afternoon: "Afternoon (12PM-4PM)",
