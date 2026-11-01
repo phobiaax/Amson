@@ -61,7 +61,7 @@ The progress bar and result pop-up for imports, photo uploads and stock receipts
 
 Small helpers shared by the staff forms (Products, Suppliers, Inventory, Wholesale, POS).
 
-- Functions: `wireSegmentedToggle()`, `setToggleValue()`, `getToggleValue()`, `makeSearchableSelect()`, `destroyChoicesIn()`, `updateRemoveButtonsVisibility()`, `renumberItems()`
+- Functions: `showFormAlert()`, `wireSegmentedToggle()`, `setToggleValue()`, `getToggleValue()`, `makeSearchableSelect()`, `destroyChoicesIn()`, `updateRemoveButtonsVisibility()`, `renumberItems()`
 
 ### storefront: home page category cards
 

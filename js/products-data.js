@@ -1210,6 +1210,13 @@ function showTaskResult({ type = "success", title, message = "", list = [], acti
 // =====================================================================
 // ---- staff form helpers (toggles, searchable dropdowns, item lists) ----
 
+// ---- Alert messages on the staff forms ----
+// Shows a message in a form's alert box (the box starts hidden with d-none).
+function showFormAlert(el, message) {
+  el.textContent = message;
+  el.classList.remove("d-none");
+}
+
 // ---- On/off (segmented) toggles used by the staff forms ----
 // Products, Suppliers and Wholesale Accounts.
 function wireSegmentedToggle(container) {
