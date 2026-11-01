@@ -1417,8 +1417,7 @@ function showSaleReceipt({
   autoPrint = false,
   onExchange = null,
 }) {
-  const titleEl = document.getElementById("posReceiptModalTitle");
-  if (titleEl) titleEl.textContent = title;
+  document.getElementById("posReceiptModalTitle").textContent = title;
   document.getElementById("posReceiptBranch").textContent = branch;
   document.getElementById("posReceiptDate").textContent = formatDateMDY(completedAt);
   document.getElementById("posReceiptTime").textContent = completedAt.toLocaleTimeString("en-US", {
@@ -1428,8 +1427,7 @@ function showSaleReceipt({
   // The SI# is only assigned when the sale is actually confirmed, so the
   // pre-confirm review can't show it yet.
   document.getElementById("posReceiptRef").textContent = invoiceNo || (onConfirm ? "Assigned on confirm" : "-");
-  const customerEl = document.getElementById("posReceiptCustomer");
-  if (customerEl) customerEl.textContent = customerName || "Walk-in";
+  document.getElementById("posReceiptCustomer").textContent = customerName || "Walk-in";
   document.getElementById("posReceiptCashier").textContent = cashier;
 
   document.getElementById("posReceiptItemsBody").innerHTML = items
@@ -1453,11 +1451,8 @@ function showSaleReceipt({
   document.getElementById("posReceiptAmountPaid").textContent =
     paymentMethod === "credit" ? "Charged on credit" : formatPeso(amountPaid);
 
-  const refRow = document.getElementById("posReceiptRefNoRow");
-  if (refRow) {
-    refRow.classList.toggle("d-none", !referenceNo);
-    document.getElementById("posReceiptRefNo").textContent = referenceNo || "-";
-  }
+  document.getElementById("posReceiptRefNoRow").classList.toggle("d-none", !referenceNo);
+  document.getElementById("posReceiptRefNo").textContent = referenceNo || "-";
 
   const changeRow = document.getElementById("posReceiptChangeRow");
   if (paymentMethod === "cash") {
@@ -1469,53 +1464,51 @@ function showSaleReceipt({
 
   const modalEl = document.getElementById("posReceiptModal");
   const footer = document.getElementById("posReceiptModalFooter");
-  if (footer) {
-    if (onConfirm) {
-      // Preview mode (POS, before the sale is actually committed) - give
-      // the cashier a chance to catch a mistake before stock gets deducted
-      // and the sale gets written, rather than after.
-      footer.innerHTML = `
-        <button type="button" class="btn btn-outline-dark-amson flex-fill" id="posReceiptEditBtn">Edit Transaction</button>
-        <button type="button" class="btn btn-amson flex-fill" id="posReceiptConfirmBtn">Confirm Transaction</button>
-      `;
-      document.getElementById("posReceiptEditBtn").addEventListener("click", () => {
+  if (onConfirm) {
+    // Preview mode (POS, before the sale is actually committed) - give
+    // the cashier a chance to catch a mistake before stock gets deducted
+    // and the sale gets written, rather than after.
+    footer.innerHTML = `
+      <button type="button" class="btn btn-outline-dark-amson flex-fill" id="posReceiptEditBtn">Edit Transaction</button>
+      <button type="button" class="btn btn-amson flex-fill" id="posReceiptConfirmBtn">Confirm Transaction</button>
+    `;
+    document.getElementById("posReceiptEditBtn").addEventListener("click", () => {
+      bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+      if (onEdit) onEdit();
+    });
+    document.getElementById("posReceiptConfirmBtn").addEventListener("click", async (ev) => {
+      const btn = ev.currentTarget;
+      btn.disabled = true;
+      try {
+        // onConfirm returns true when it has already replaced this
+        // preview with the finished receipt (which must stay open).
+        const keepOpen = await onConfirm();
+        if (!keepOpen) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  } else {
+    // View mode (Walk-in Orders, Today's Sales, or right after a sale is
+    // confirmed): print it, and - for authorized roles - void it.
+    footer.innerHTML = `
+      ${onVoid ? `<button type="button" class="btn btn-outline-dark-amson" id="posReceiptVoidBtn" style="border-color:var(--amson-red); color:var(--amson-red);">Void</button>` : ""}
+      ${onExchange ? `<button type="button" class="btn btn-outline-dark-amson" id="posReceiptExchangeBtn">Return / Exchange</button>` : ""}
+      <button type="button" class="btn btn-outline-dark-amson flex-fill" id="posReceiptPrintBtn"><i class="bi bi-printer me-1"></i>Print</button>
+      <button type="button" class="btn btn-amson flex-fill" data-bs-dismiss="modal">Close</button>
+    `;
+    document.getElementById("posReceiptPrintBtn").addEventListener("click", () => window.print());
+    if (onVoid) {
+      document.getElementById("posReceiptVoidBtn").addEventListener("click", () => {
         bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-        if (onEdit) onEdit();
+        onVoid();
       });
-      document.getElementById("posReceiptConfirmBtn").addEventListener("click", async (ev) => {
-        const btn = ev.currentTarget;
-        btn.disabled = true;
-        try {
-          // onConfirm returns true when it has already replaced this
-          // preview with the finished receipt (which must stay open).
-          const keepOpen = await onConfirm();
-          if (!keepOpen) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-        } finally {
-          btn.disabled = false;
-        }
+    }
+    if (onExchange) {
+      document.getElementById("posReceiptExchangeBtn").addEventListener("click", () => {
+        modalEl.addEventListener("hidden.bs.modal", () => onExchange(), { once: true });
+        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
       });
-    } else {
-      // View mode (Walk-in Orders, Today's Sales, or right after a sale is
-      // confirmed): print it, and - for authorized roles - void it.
-      footer.innerHTML = `
-        ${onVoid ? `<button type="button" class="btn btn-outline-dark-amson" id="posReceiptVoidBtn" style="border-color:var(--amson-red); color:var(--amson-red);">Void</button>` : ""}
-        ${onExchange ? `<button type="button" class="btn btn-outline-dark-amson" id="posReceiptExchangeBtn">Return / Exchange</button>` : ""}
-        <button type="button" class="btn btn-outline-dark-amson flex-fill" id="posReceiptPrintBtn"><i class="bi bi-printer me-1"></i>Print</button>
-        <button type="button" class="btn btn-amson flex-fill" data-bs-dismiss="modal">Close</button>
-      `;
-      document.getElementById("posReceiptPrintBtn").addEventListener("click", () => window.print());
-      if (onVoid) {
-        document.getElementById("posReceiptVoidBtn").addEventListener("click", () => {
-          bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-          onVoid();
-        });
-      }
-      if (onExchange) {
-        document.getElementById("posReceiptExchangeBtn").addEventListener("click", () => {
-          modalEl.addEventListener("hidden.bs.modal", () => onExchange(), { once: true });
-          bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-        });
-      }
     }
   }
 
