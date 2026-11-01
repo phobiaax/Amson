@@ -189,25 +189,7 @@ function openViewModal(supplier) {
 }
 
 /* ---------- Add / Edit modal ---------- */
-function wireSegmentedToggle(container) {
-  container.querySelectorAll(".segmented-toggle-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      container.querySelectorAll(".segmented-toggle-btn").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-    });
-  });
-}
 wireSegmentedToggle(supplierStatusToggle);
-
-function setToggleValue(container, value) {
-  container.querySelectorAll(".segmented-toggle-btn").forEach((b) => {
-    b.classList.toggle("active", b.dataset.value === value);
-  });
-}
-
-function getToggleValue(container) {
-  return container.querySelector(".segmented-toggle-btn.active").dataset.value;
-}
 
 function resetSupplierForm() {
   supplierNameInput.value = "";

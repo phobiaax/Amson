@@ -1184,6 +1184,27 @@ function hideModalAndWait(el) {
   });
 }
 
+// ---- On/off (segmented) toggles used by the staff forms ----
+// Products, Suppliers and Wholesale Accounts.
+function wireSegmentedToggle(container) {
+  container.querySelectorAll(".segmented-toggle-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      container.querySelectorAll(".segmented-toggle-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
+}
+
+function setToggleValue(container, value) {
+  container.querySelectorAll(".segmented-toggle-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.value === value);
+  });
+}
+
+function getToggleValue(container) {
+  return container.querySelector(".segmented-toggle-btn.active").dataset.value;
+}
+
 // An Excel date cell read by SheetJS (cellDates) is local midnight; its
 // UTC form (toISOString) is the day before in the Philippines (UTC+8), so
 // dates are taken from the local calendar parts instead.
