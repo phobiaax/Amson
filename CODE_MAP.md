@@ -88,7 +88,7 @@ The sale receipt pop-up (POS, Walk-in Orders, online order receipts).
 
 Voiding a walk-in sale (whole or some items), with Branch Manager approval when needed.
 
-- Functions: `roleCanVoidSales()`, `promptVoidDetails()`, `verifyVoidApprover()`, `voidPosSale()`, `partialVoidSummary()`, `voidSummary()`
+- Functions: `roleCanVoidSales()`, `promptVoidDetails()`, `verifyVoidApprover()`, `voidPosSale()`, `partialVoidSummary()`, `voidSummary()`, `voidByText()`
 
 ### exports
 
