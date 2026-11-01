@@ -561,7 +561,6 @@ async function computeStaffNotifications() {
 
   poSnapshot.docs.forEach((doc) => {
     const po = doc.data();
-    if (po.status !== "discrepancy") return;
     notifications.push({
       key: `po_discrepancy:${doc.id}`,
       category: "stock",
