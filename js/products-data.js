@@ -1205,6 +1205,44 @@ function getToggleValue(container) {
   return container.querySelector(".segmented-toggle-btn.active").dataset.value;
 }
 
+// ---- Searchable dropdowns (Choices.js) and "Item 1, Item 2..." lists ----
+// Inventory, Wholesale Accounts and the POS.
+function makeSearchableSelect(selectEl) {
+  return new Choices(selectEl, {
+    searchEnabled: true,
+    searchPlaceholderValue: "Type to search...",
+    position: "bottom",
+    allowHTML: false,
+    itemSelectText: "",
+    shouldSort: false,
+    searchResultLimit: 50,
+    fuseOptions: { threshold: 0.3 },
+  });
+}
+
+function destroyChoicesIn(container) {
+  container.querySelectorAll("select").forEach((sel) => {
+    if (sel._choices) {
+      sel._choices.destroy();
+      sel._choices = null;
+    }
+  });
+}
+
+function updateRemoveButtonsVisibility(container) {
+  const items = container.querySelectorAll(".repeater-item");
+  items.forEach((item) => {
+    const btn = item.querySelector(".repeater-remove-btn");
+    if (btn) btn.classList.toggle("d-none", items.length <= 1);
+  });
+}
+
+function renumberItems(container) {
+  container.querySelectorAll(".repeater-item").forEach((item, idx) => {
+    item.querySelector(".repeater-label").textContent = `Item ${idx + 1}`;
+  });
+}
+
 // An Excel date cell read by SheetJS (cellDates) is local midnight; its
 // UTC form (toISOString) is the day before in the Philippines (UTC+8), so
 // dates are taken from the local calendar parts instead.

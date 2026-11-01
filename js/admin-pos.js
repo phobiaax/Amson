@@ -99,16 +99,7 @@ function populatePosProductSelect() {
   posProductSelect.innerHTML =
     '<option value="" placeholder>Search for a product...</option>' +
     options.map((o) => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join("");
-  posProductChoices = new Choices(posProductSelect, {
-    searchEnabled: true,
-    searchPlaceholderValue: "Type to search...",
-    position: "bottom",
-    allowHTML: false,
-    itemSelectText: "",
-    shouldSort: false,
-    searchResultLimit: 50,
-    fuseOptions: { threshold: 0.3 },
-  });
+  posProductChoices = makeSearchableSelect(posProductSelect);
 }
 
 // How much of a product is still available to add, given what's already

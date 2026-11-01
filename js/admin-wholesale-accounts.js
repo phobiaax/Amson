@@ -422,48 +422,12 @@ async function deleteWholesaleAccount(id) {
 }
 
 /* ---------- Process Wholesale Order ---------- */
-function makeSearchableSelect(selectEl) {
-  return new Choices(selectEl, {
-    searchEnabled: true,
-    searchPlaceholderValue: "Type to search...",
-    position: "bottom",
-    allowHTML: false,
-    itemSelectText: "",
-    shouldSort: false,
-    searchResultLimit: 50,
-    fuseOptions: { threshold: 0.3 },
-  });
-}
-
-function destroyChoicesIn(container) {
-  container.querySelectorAll("select").forEach((sel) => {
-    if (sel._choices) {
-      sel._choices.destroy();
-      sel._choices = null;
-    }
-  });
-}
-
 function populateOrderProductSelect(selectEl) {
   // Only products that can be sold: active and already priced.
   selectEl.innerHTML = SAMPLE_PRODUCTS.filter((p) => p.status === "active" && !p.pricePending)
     .map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
     .join("");
   selectEl._choices = makeSearchableSelect(selectEl);
-}
-
-function updateRemoveButtonsVisibility(container) {
-  const items = container.querySelectorAll(".repeater-item");
-  items.forEach((item) => {
-    const btn = item.querySelector(".repeater-remove-btn");
-    if (btn) btn.classList.toggle("d-none", items.length <= 1);
-  });
-}
-
-function renumberItems(container) {
-  container.querySelectorAll(".repeater-item").forEach((item, idx) => {
-    item.querySelector(".repeater-label").textContent = `Item ${idx + 1}`;
-  });
 }
 
 function addProcessOrderItemRow() {

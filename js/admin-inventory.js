@@ -486,28 +486,6 @@ inventorySortFieldSelect.addEventListener("change", () => {
 });
 
 /* ---------- Shared repeater helpers ---------- */
-function makeSearchableSelect(selectEl) {
-  return new Choices(selectEl, {
-    searchEnabled: true,
-    searchPlaceholderValue: "Type to search...",
-    position: "bottom",
-    allowHTML: false,
-    itemSelectText: "",
-    shouldSort: false,
-    searchResultLimit: 50,
-    fuseOptions: { threshold: 0.3 },
-  });
-}
-
-function destroyChoicesIn(container) {
-  container.querySelectorAll("select").forEach((sel) => {
-    if (sel._choices) {
-      sel._choices.destroy();
-      sel._choices = null;
-    }
-  });
-}
-
 function populateProductSelect(selectEl) {
   selectEl.innerHTML = SAMPLE_PRODUCTS.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
   selectEl._choices = makeSearchableSelect(selectEl);
@@ -666,20 +644,6 @@ function receiptLineNames(plan) {
   return plan.newLines
     .map((l) => `${name(l.productId)} x${l.qty} (Batch ${l.batchNo})`)
     .concat(plan.topUps.map((t) => `${name(t.line.productId)} x${t.line.qty} (Batch ${t.line.batchNo}, topped up)`));
-}
-
-function updateRemoveButtonsVisibility(container) {
-  const items = container.querySelectorAll(".repeater-item");
-  items.forEach((item) => {
-    const btn = item.querySelector(".repeater-remove-btn");
-    if (btn) btn.classList.toggle("d-none", items.length <= 1);
-  });
-}
-
-function renumberItems(container) {
-  container.querySelectorAll(".repeater-item").forEach((item, idx) => {
-    item.querySelector(".repeater-label").textContent = `Item ${idx + 1}`;
-  });
 }
 
 /* ---------- Receive Stock ---------- */
