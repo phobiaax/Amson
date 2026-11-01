@@ -1133,6 +1133,17 @@ function openApprovedModal(order) {
   bootstrap.Modal.getOrCreateInstance(approvedModalEl).show();
 }
 
+// Copies text to the clipboard and briefly shows "Copied!" on the button.
+function copyWithFeedback(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
+    setTimeout(() => {
+      btn.innerHTML = originalHtml;
+    }, 1500);
+  });
+}
+
 // One paste into Lalamove's notes/booking form (REQ103).
 document.getElementById("copyAllDeliveryBtn").addEventListener("click", (e) => {
   const text = (id) => document.getElementById(id).textContent;
@@ -1145,13 +1156,7 @@ document.getElementById("copyAllDeliveryBtn").addEventListener("click", (e) => {
     `Notes: ${text("approvedDeliveryNotes")}`,
   ].join("\n");
   const btn = e.currentTarget;
-  navigator.clipboard.writeText(all).then(() => {
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
-    setTimeout(() => {
-      btn.innerHTML = originalHtml;
-    }, 1500);
-  });
+  copyWithFeedback(btn, all);
 });
 
 approvedModalEl.addEventListener("click", (e) => {
@@ -1159,13 +1164,7 @@ approvedModalEl.addEventListener("click", (e) => {
   if (!btn) return;
 
   const targetText = document.getElementById(btn.dataset.copyTarget).textContent;
-  navigator.clipboard.writeText(targetText).then(() => {
-    const originalHtml = btn.innerHTML;
-    btn.innerHTML = '<i class="bi bi-check2"></i> Copied!';
-    setTimeout(() => {
-      btn.innerHTML = originalHtml;
-    }, 1500);
-  });
+  copyWithFeedback(btn, targetText);
 });
 
 // A plain-text itemized receipt - products, what was paid online, and the
