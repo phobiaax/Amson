@@ -788,90 +788,98 @@ async function chatAiReply(history, question) {
     if (card.type === "login") {
       return `<a class="chat-card-btn" href="${/\/shop\//.test(window.location.pathname) ? "../" : ""}login.html">Log in to see your orders</a>`;
     }
-    if (card.type === "product") {
-      const p = getProductById(card.id);
-      if (!p) return "";
-      return `
-        <div class="chat-card">
-          <a class="fw-medium d-block" href="${shopPath(`product-details.html?id=${encodeURIComponent(p.id)}`)}">${escapeHtml(p.name)}</a>
-          <div class="text-muted" style="font-size:0.78rem;">${formatPeso(p.price)} - ${p.inStock ? `${p.totalStock} in stock` : "Out of stock"}</div>
-          ${p.dosageNotes ? `<div style="font-size:0.75rem;" class="mt-1">${escapeHtml(p.dosageNotes)}</div>` : ""}
-          ${p.inStock ? `<button type="button" class="btn btn-amson btn-sm mt-2 btn-add-cart" data-id="${escapeHtml(p.id)}">+ Add to Cart</button>` : ""}
-        </div>`;
-    }
-    if (card.type === "order") {
-      const o = (myOrders || []).find((x) => x.id === card.id);
-      if (!o) return myOrders === null ? `<div class="chat-card text-muted" style="font-size:0.78rem;">Loading order...</div>` : "";
-      const view = chatOrderView(o);
-      const { issue, status: liveStatus, label: status } = view;
-      const items = o.items || [];
-      const itemCount = items.reduce((n, i) => n + (i.qty || 0), 0);
-      const link = chatTrackingLink(o);
-      const tracking = link && ["dispatched", "delivered", "received"].includes(liveStatus)
-        ? `<a class="chat-card-btn" href="${escapeHtml(safeUrl(link))}" target="_blank" rel="noopener"><i class="bi bi-geo-alt"></i> Track rider</a>`
-        : "";
-      const orderLink = `<a class="chat-card-btn" href="${shopPath(`order-details.html?id=${encodeURIComponent(o.id)}`)}">${issue ? "Fix this order" : "View order"}</a>`;
-      const thumb = (item) => {
-        const imageUrl = item.imageUrl || (getProductById(item.id) || {}).imageUrl;
-        const url = safeUrl(imageUrl) === "#" ? "" : imageUrl;
-        return `<span class="chat-order-thumb" style="${escapeHtml(cartItemImageCss(url))}"></span>`;
-      };
-      const head = `
-          <div class="d-flex justify-content-between gap-2"><span class="fw-bold">${escapeHtml(o.orderNumber || "")}</span><span style="font-size:0.78rem;">${formatPeso(o.total || 0)}</span></div>
-          <div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(o.createdAt)} - ${itemCount} item${itemCount === 1 ? "" : "s"}</div>`;
-
-      // Several orders: a short card each, with a button for the details.
-      if (!card.detail) {
-        return `
-        <div class="chat-card">
-          ${head}
-          <div class="chat-order-thumbs mt-1">${items.slice(0, 4).map(thumb).join("")}${items.length > 4 ? `<span class="text-muted" style="font-size:0.72rem;">+${items.length - 4}</span>` : ""}</div>
-          <div class="mt-1 ${issue ? "text-danger" : ""}" style="font-size:0.8rem; font-weight:600;">${escapeHtml(status)}</div>
-          <div class="d-flex gap-1 flex-wrap mt-2">
-            <button type="button" class="chat-card-btn" data-chat-q="${escapeHtml(`Track order ${o.orderNumber || ""}`)}">Show details</button>
-            ${tracking}
-          </div>
-        </div>`;
-      }
-
-      const { pickup, steps, current } = chatOrderSteps(o, liveStatus);
-      const stamps = o.statusTimestamps || {};
-      const stepper = issue || liveStatus === "closed_unresolved"
-        ? ""
-        : `<div class="chat-order-steps mt-2">${steps
-            .map(([key, label], i) => {
-              const state = i < current ? "done" : i === current ? "now" : "";
-              const when = stamps[key] && stamps[key].toDate ? formatDateMDY(stamps[key]) : "";
-              return `<div class="chat-order-step ${state}"><span class="dot"></span><span class="lbl">${escapeHtml(label)}</span>${when && state ? `<span class="when">${escapeHtml(when)}</span>` : ""}</div>`;
-            })
-            .join("")}</div>`;
-      const shown = items.slice(0, 3);
-      return `
-        <div class="chat-card">
-          ${head}
-          <div class="mt-2">
-            ${shown
-              .map((item) => `
-            <div class="chat-order-item">
-              ${thumb(item)}
-              <span class="flex-grow-1">${escapeHtml(item.name || "")}<span class="text-muted d-block" style="font-size:0.72rem;">Qty ${item.qty || 0} x ${formatPeso(item.price || 0)}</span></span>
-            </div>`)
-              .join("")}
-            ${items.length > shown.length ? `<div class="text-muted" style="font-size:0.72rem;">+${items.length - shown.length} more item${items.length - shown.length === 1 ? "" : "s"}</div>` : ""}
-          </div>
-          <div class="mt-2 ${issue ? "text-danger" : ""}" style="font-size:0.82rem; font-weight:700;">${escapeHtml(status)}</div>
-          ${stepper}
-          <div class="text-muted mt-1" style="font-size:0.75rem;">${pickup ? "Pick-up at the Amson Pharmaceuticals store" : `Delivery by Lalamove to ${escapeHtml([o.shipping.city, o.shipping.province].filter(Boolean).join(", "))}`}</div>
-          ${issue && issue.note ? `<div class="mt-1" style="font-size:0.75rem;">Staff note: ${escapeHtml(issue.note)}</div>` : ""}
-          <div class="chat-order-next mt-2">${escapeHtml(chatOrderNextStep(o, view))}</div>
-          <div class="d-flex gap-1 flex-wrap mt-2">
-            ${orderLink}
-            ${tracking}
-          </div>
-        </div>`;
-    }
+    if (card.type === "product") return productCardHtml(card);
+    if (card.type === "order") return orderCardHtml(card);
     return "";
   }
+
+  // A product the assistant suggests: name, price, stock and Add to Cart.
+  function productCardHtml(card) {
+    const p = getProductById(card.id);
+    if (!p) return "";
+    return `
+      <div class="chat-card">
+        <a class="fw-medium d-block" href="${shopPath(`product-details.html?id=${encodeURIComponent(p.id)}`)}">${escapeHtml(p.name)}</a>
+        <div class="text-muted" style="font-size:0.78rem;">${formatPeso(p.price)} - ${p.inStock ? `${p.totalStock} in stock` : "Out of stock"}</div>
+        ${p.dosageNotes ? `<div style="font-size:0.75rem;" class="mt-1">${escapeHtml(p.dosageNotes)}</div>` : ""}
+        ${p.inStock ? `<button type="button" class="btn btn-amson btn-sm mt-2 btn-add-cart" data-id="${escapeHtml(p.id)}">+ Add to Cart</button>` : ""}
+      </div>`;
+  }
+
+  // One of the customer's orders: a short card when several are listed,
+  // or the full card (items, status steps, next step) for one order.
+  function orderCardHtml(card) {
+    const o = (myOrders || []).find((x) => x.id === card.id);
+    if (!o) return myOrders === null ? `<div class="chat-card text-muted" style="font-size:0.78rem;">Loading order...</div>` : "";
+    const view = chatOrderView(o);
+    const { issue, status: liveStatus, label: status } = view;
+    const items = o.items || [];
+    const itemCount = items.reduce((n, i) => n + (i.qty || 0), 0);
+    const link = chatTrackingLink(o);
+    const tracking = link && ["dispatched", "delivered", "received"].includes(liveStatus)
+      ? `<a class="chat-card-btn" href="${escapeHtml(safeUrl(link))}" target="_blank" rel="noopener"><i class="bi bi-geo-alt"></i> Track rider</a>`
+      : "";
+    const orderLink = `<a class="chat-card-btn" href="${shopPath(`order-details.html?id=${encodeURIComponent(o.id)}`)}">${issue ? "Fix this order" : "View order"}</a>`;
+    const thumb = (item) => {
+      const imageUrl = item.imageUrl || (getProductById(item.id) || {}).imageUrl;
+      const url = safeUrl(imageUrl) === "#" ? "" : imageUrl;
+      return `<span class="chat-order-thumb" style="${escapeHtml(cartItemImageCss(url))}"></span>`;
+    };
+    const head = `
+        <div class="d-flex justify-content-between gap-2"><span class="fw-bold">${escapeHtml(o.orderNumber || "")}</span><span style="font-size:0.78rem;">${formatPeso(o.total || 0)}</span></div>
+        <div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(o.createdAt)} - ${itemCount} item${itemCount === 1 ? "" : "s"}</div>`;
+
+    // Several orders: a short card each, with a button for the details.
+    if (!card.detail) {
+      return `
+      <div class="chat-card">
+        ${head}
+        <div class="chat-order-thumbs mt-1">${items.slice(0, 4).map(thumb).join("")}${items.length > 4 ? `<span class="text-muted" style="font-size:0.72rem;">+${items.length - 4}</span>` : ""}</div>
+        <div class="mt-1 ${issue ? "text-danger" : ""}" style="font-size:0.8rem; font-weight:600;">${escapeHtml(status)}</div>
+        <div class="d-flex gap-1 flex-wrap mt-2">
+          <button type="button" class="chat-card-btn" data-chat-q="${escapeHtml(`Track order ${o.orderNumber || ""}`)}">Show details</button>
+          ${tracking}
+        </div>
+      </div>`;
+    }
+
+    const { pickup, steps, current } = chatOrderSteps(o, liveStatus);
+    const stamps = o.statusTimestamps || {};
+    const stepper = issue || liveStatus === "closed_unresolved"
+      ? ""
+      : `<div class="chat-order-steps mt-2">${steps
+          .map(([key, label], i) => {
+            const state = i < current ? "done" : i === current ? "now" : "";
+            const when = stamps[key] && stamps[key].toDate ? formatDateMDY(stamps[key]) : "";
+            return `<div class="chat-order-step ${state}"><span class="dot"></span><span class="lbl">${escapeHtml(label)}</span>${when && state ? `<span class="when">${escapeHtml(when)}</span>` : ""}</div>`;
+          })
+          .join("")}</div>`;
+    const shown = items.slice(0, 3);
+    return `
+      <div class="chat-card">
+        ${head}
+        <div class="mt-2">
+          ${shown
+            .map((item) => `
+          <div class="chat-order-item">
+            ${thumb(item)}
+            <span class="flex-grow-1">${escapeHtml(item.name || "")}<span class="text-muted d-block" style="font-size:0.72rem;">Qty ${item.qty || 0} x ${formatPeso(item.price || 0)}</span></span>
+          </div>`)
+            .join("")}
+          ${items.length > shown.length ? `<div class="text-muted" style="font-size:0.72rem;">+${items.length - shown.length} more item${items.length - shown.length === 1 ? "" : "s"}</div>` : ""}
+        </div>
+        <div class="mt-2 ${issue ? "text-danger" : ""}" style="font-size:0.82rem; font-weight:700;">${escapeHtml(status)}</div>
+        ${stepper}
+        <div class="text-muted mt-1" style="font-size:0.75rem;">${pickup ? "Pick-up at the Amson Pharmaceuticals store" : `Delivery by Lalamove to ${escapeHtml([o.shipping.city, o.shipping.province].filter(Boolean).join(", "))}`}</div>
+        ${issue && issue.note ? `<div class="mt-1" style="font-size:0.75rem;">Staff note: ${escapeHtml(issue.note)}</div>` : ""}
+        <div class="chat-order-next mt-2">${escapeHtml(chatOrderNextStep(o, view))}</div>
+        <div class="d-flex gap-1 flex-wrap mt-2">
+          ${orderLink}
+          ${tracking}
+        </div>
+      </div>`;
+  }
+
 
   messagesEl.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-chat-q]");
