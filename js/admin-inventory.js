@@ -122,19 +122,12 @@ const confirmOpenSessionBtn = document.getElementById("confirmOpenSessionBtn");
 
 let currentAdminName = "Admin";
 let currentAdminRole = null;
-document.addEventListener("admin:ready", async (e) => {
+document.addEventListener("admin:ready", (e) => {
   const admin = e.detail.admin;
   currentAdminName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Admin";
   currentAdminRole = admin.role;
   if (currentAdminRole !== "admin" && currentAdminRole !== "branch_manager") {
     document.getElementById("submitCountBtn").textContent = "Save Count for Branch Manager";
-  }
-  // Once: unit costs still on the public stock records move to the
-  // staff-only ones (see moveLegacyPrivatePrices).
-  try {
-    await moveLegacyPrivatePrices({ batches: true });
-  } catch (error) {
-    console.error("Couldn't move the batch costs:", error);
   }
   loadInventory();
 });
