@@ -46,9 +46,9 @@ posQtyIncrementBtn.addEventListener("click", () => {
 });
 
 document.addEventListener("admin:ready", async (e) => {
-  const admin = e.detail && e.detail.admin;
-  if (admin) currentCashierName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
-  if (admin) currentStaffRole = admin.role;
+  const admin = e.detail.admin;
+  currentCashierName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
+  currentStaffRole = admin.role;
   // Returns / exchanges: Branch Manager and Technical Staff (as voids).
   document.getElementById("posReturnExchangeBtn").classList.toggle("d-none", !roleCanVoidSales(currentStaffRole));
   loadTodaySales();

@@ -123,9 +123,9 @@ const confirmOpenSessionBtn = document.getElementById("confirmOpenSessionBtn");
 let currentAdminName = "Admin";
 let currentAdminRole = null;
 document.addEventListener("admin:ready", async (e) => {
-  const admin = e.detail && e.detail.admin;
-  if (admin) currentAdminName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Admin";
-  if (admin) currentAdminRole = admin.role;
+  const admin = e.detail.admin;
+  currentAdminName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Admin";
+  currentAdminRole = admin.role;
   if (currentAdminRole !== "admin" && currentAdminRole !== "branch_manager") {
     document.getElementById("submitCountBtn").textContent = "Save Count for Branch Manager";
   }

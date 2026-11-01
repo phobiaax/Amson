@@ -355,8 +355,7 @@ function renderWalkinTable() {
 let currentStaffRole = null;
 let currentStaffName = "Staff";
 document.addEventListener("admin:ready", (e) => {
-  const admin = e.detail && e.detail.admin;
-  if (!admin) return;
+  const admin = e.detail.admin;
   currentStaffRole = admin.role;
   currentStaffName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
 });

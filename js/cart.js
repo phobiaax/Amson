@@ -47,7 +47,7 @@ function saveCart(cart) {
     // Storage blocked (private mode) - the account copy below still saves.
   }
   updateCartBadge();
-  if (cartOwnerUid && typeof db !== "undefined") {
+  if (cartOwnerUid) {
     pendingCartSync = { uid: cartOwnerUid, cart, updatedAt };
     clearTimeout(cartSyncTimer);
     cartSyncTimer = setTimeout(flushCartSync, 400);
@@ -80,43 +80,41 @@ function mergeCarts(a, b) {
   return merged;
 }
 
-if (typeof auth !== "undefined") {
-  auth.onAuthStateChanged(async (user) => {
-    if (!user) {
-      cartOwnerUid = null;
-      try {
-        localStorage.removeItem(CART_OWNER_KEY);
-      } catch (error) {}
-      updateCartBadge();
-      return;
-    }
+auth.onAuthStateChanged(async (user) => {
+  if (!user) {
+    cartOwnerUid = null;
     try {
-      const doc = await db.collection("users").doc(user.uid).get();
-      if (!doc.exists || doc.data().role !== "customer") return;
-      const accountCart = Array.isArray(doc.data().cart) ? doc.data().cart : [];
-      const accountAt = doc.data().cartUpdatedAt || 0;
-      const guestCart = readCartKey(CART_STORAGE_KEY);
-      cartOwnerUid = user.uid;
-      try {
-        localStorage.setItem(CART_OWNER_KEY, user.uid);
-      } catch (error) {}
-      // This browser's copy if it changed more recently than the account's.
-      const localCart = getCart();
-      let localAt = 0;
-      try {
-        localAt = Number(localStorage.getItem(`${cartStorageKey()}:at`)) || 0;
-      } catch (error) {}
-      const localIsNewer = localAt > accountAt;
-      const merged = mergeCarts(localIsNewer ? localCart : accountCart, guestCart);
-      if (guestCart.length) localStorage.removeItem(CART_STORAGE_KEY);
-      if (guestCart.length || localIsNewer || JSON.stringify(merged) !== JSON.stringify(localCart)) saveCart(merged);
-      else updateCartBadge();
-      document.dispatchEvent(new CustomEvent("cart:synced"));
-    } catch (error) {
-      console.error("Failed to load the account cart:", error);
-    }
-  });
-}
+      localStorage.removeItem(CART_OWNER_KEY);
+    } catch (error) {}
+    updateCartBadge();
+    return;
+  }
+  try {
+    const doc = await db.collection("users").doc(user.uid).get();
+    if (!doc.exists || doc.data().role !== "customer") return;
+    const accountCart = Array.isArray(doc.data().cart) ? doc.data().cart : [];
+    const accountAt = doc.data().cartUpdatedAt || 0;
+    const guestCart = readCartKey(CART_STORAGE_KEY);
+    cartOwnerUid = user.uid;
+    try {
+      localStorage.setItem(CART_OWNER_KEY, user.uid);
+    } catch (error) {}
+    // This browser's copy if it changed more recently than the account's.
+    const localCart = getCart();
+    let localAt = 0;
+    try {
+      localAt = Number(localStorage.getItem(`${cartStorageKey()}:at`)) || 0;
+    } catch (error) {}
+    const localIsNewer = localAt > accountAt;
+    const merged = mergeCarts(localIsNewer ? localCart : accountCart, guestCart);
+    if (guestCart.length) localStorage.removeItem(CART_STORAGE_KEY);
+    if (guestCart.length || localIsNewer || JSON.stringify(merged) !== JSON.stringify(localCart)) saveCart(merged);
+    else updateCartBadge();
+    document.dispatchEvent(new CustomEvent("cart:synced"));
+  } catch (error) {
+    console.error("Failed to load the account cart:", error);
+  }
+});
 
 // Both return { qty, capped } - capped is true if the requested quantity
 // had to be reduced to stay within the product's real available stock.

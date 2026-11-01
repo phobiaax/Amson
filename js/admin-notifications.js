@@ -37,7 +37,7 @@ function notifTimeLabel(at) {
 }
 
 document.addEventListener("admin:ready", (e) => {
-  currentNotifUid = e.detail && e.detail.uid;
+  currentNotifUid = e.detail.uid;
   loadNotifications();
 });
 

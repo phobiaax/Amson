@@ -823,8 +823,8 @@ async function markWholesaleOrderReleased(order, account, btn) {
 /* ---------- Wholesale exchange (REQ090, Fig 2.15) ---------- */
 let wholesaleStaffName = "Staff";
 document.addEventListener("admin:ready", (e) => {
-  const admin = e.detail && e.detail.admin;
-  if (admin) wholesaleStaffName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
+  const admin = e.detail.admin;
+  wholesaleStaffName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
 });
 
 async function openExchangeDialog(order, account) {

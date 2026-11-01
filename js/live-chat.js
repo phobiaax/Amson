@@ -132,7 +132,6 @@ const CHAT_STOPWORDS = new Set([
 // match whole product words (or their start), so "for" never matches
 // "Forte".
 function chatProductMatches(text, limit = 8) {
-  if (typeof SAMPLE_PRODUCTS === "undefined") return [];
   const words = chatNormalize(text)
     .trim()
     .split(" ")
@@ -197,7 +196,6 @@ function chatHasHealthCaution(text) {
 }
 
 function chatOtcProducts() {
-  if (typeof SAMPLE_PRODUCTS === "undefined") return [];
   return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false && !p.rxRequired);
 }
 
@@ -236,7 +234,7 @@ function chatLabelVocabulary(max = 300) {
   // Medicine, generic and brand names are left out, so Gemini can only ever
   // return what the customer describes - never a medicine.
   const productWords = new Set();
-  (typeof SAMPLE_PRODUCTS !== "undefined" ? SAMPLE_PRODUCTS : []).forEach((p) =>
+  SAMPLE_PRODUCTS.forEach((p) =>
     chatNormalize(`${p.name || ""} ${p.genericName || ""} ${p.brand || ""}`).trim().split(" ").forEach((w) => productWords.add(w))
   );
   const counts = new Map();

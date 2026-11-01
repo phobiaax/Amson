@@ -7,7 +7,7 @@ const storeBannerCard = document.getElementById("storeBannerCard");
 const storeBannerRef = db.collection("storeSettings").doc("homeBanner");
 
 document.addEventListener("admin:ready", async (e) => {
-  const role = e.detail && e.detail.admin && e.detail.admin.role;
+  const role = e.detail.admin.role;
   if (!["admin", "branch_manager", "technical_staff"].includes(role)) return;
   storeBannerCard.classList.remove("d-none");
   try {
