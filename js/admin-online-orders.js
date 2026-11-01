@@ -937,6 +937,125 @@ issueNoteInput.addEventListener("input", () => {
   issueNoteManuallyEdited = true;
 });
 
+// Payment Issue dialog, "hold" types (invalid payment, payment not received,
+// underpayment): the order goes On Hold for 7 days and the customer is told why.
+async function placeOrderOnPaymentHold(order, note) {
+  const paymentIssue = {
+    type: issueType,
+    note,
+    flaggedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
+  };
+
+  if (issueType === "invalid_payment") {
+    paymentIssue.reason = issueReasonSelect.value;
+    paymentIssue.reasonLabel = issueReasonSelect.selectedOptions[0].textContent;
+  } else if (issueType === "payment_not_received") {
+    paymentIssue.reasonLabel = "Payment Not Received";
+  } else {
+    const received = parseFloat(issueAmountReceivedInput.value) || 0;
+    paymentIssue.amountReceived = received;
+    paymentIssue.outstandingBalance = Math.max(0, order.total - received);
+  }
+
+  await db.collection("orders").doc(order.id).update({ paymentIssue, verification: verificationStamp(`hold_${issueType}`) });
+  logAuditEvent({
+    action: "Order On Hold",
+    details: `Order ${order.orderNumber} - ${(PAYMENT_ISSUE_TYPES[issueType] || {}).label || issueType}${
+      paymentIssue.amountReceived != null ? `, received ${formatPeso(paymentIssue.amountReceived)}` : ""
+    }${note ? `. Note: ${note}` : ""} (7-day hold)`,
+    actor: currentStaffName,
+  });
+  notifyCustomer(
+    order.customerId,
+    `Payment issue on order ${order.orderNumber}`,
+    issueType === "invalid_payment"
+      ? REJECTION_REASON_NOTES[paymentIssue.reason] || "Please check your order for details."
+      : issueType === "payment_not_received"
+      ? note || REJECTION_REASON_NOTES.payment_not_received
+      : UNDERPAYMENT_NOTE,
+    `order-details.html?id=${order.id}`,
+    "danger"
+  );
+
+  order.paymentIssue = paymentIssue;
+  selectedVerificationId = null;
+
+  renderVerificationQueue();
+  renderOrdersTable();
+  bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
+  bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
+}
+
+// Payment Issue dialog, Overpayment: the order is approved like Approve
+// Payment, and the excess becomes the customer's store credit.
+async function approveOverpaidOrder(order, note) {
+  const stockCheck = await warnIfOrderCantBeFulfilled(order);
+  if (stockCheck === "cancel") return;
+  if (stockCheck === "hold") throw new Error("Not enough stock available to fulfill this quantity.");
+
+  const received = parseFloat(issueAmountReceivedInput.value) || order.total;
+  const excessAmount = Math.max(0, received - order.total);
+  const newStatus = order.requiresPrescription ? "delivered" : "payment_confirmed";
+  const paymentOverage = { amountReceived: received, excessAmount, note };
+
+  // Clearing paymentIssue matters here too: an order the customer
+  // resubmitted still carries its old hold record, and leaving it behind
+  // kept the approved order stuck "On Hold" in the Online Orders table.
+  const { invoiceNo, itemsWithBatches } = await confirmOrderSale(
+    order,
+    (allocations, invoiceNo, itemsWithBatches) => {
+      const update = {
+        status: newStatus,
+        invoiceNo,
+        items: itemsWithBatches,
+        "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
+        paymentOverage,
+        paymentIssue: firebase.firestore.FieldValue.delete(),
+        verification: verificationStamp(order.requiresPrescription ? "prescription_and_payment_approved" : "payment_approved_overpaid"),
+      };
+      if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
+      return update;
+    },
+    (transaction) => {
+      if (excessAmount > 0 && order.customerId) {
+        transaction.update(db.collection("users").doc(order.customerId), {
+          creditBalance: firebase.firestore.FieldValue.increment(excessAmount),
+        });
+      }
+    }
+  );
+
+  order.invoiceNo = invoiceNo;
+  notifyOrderApproved(order);
+
+  if (excessAmount > 0 && order.customerId) {
+    notifyCustomer(
+      order.customerId,
+      `You have ${formatPeso(excessAmount)} credit from order ${order.orderNumber}`,
+      "Overpayment kept as credit - it'll be applied automatically to your next order.",
+      `order-details.html?id=${order.id}`,
+      "success"
+    );
+  }
+
+  order.status = newStatus;
+  order.paymentOverage = paymentOverage;
+  order.invoiceNo = invoiceNo;
+  order.items = itemsWithBatches;
+  delete order.paymentIssue;
+  selectedVerificationId = null;
+
+  renderVerificationQueue();
+  renderOrdersTable();
+  bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
+  if (order.requiresPrescription) {
+    bootstrap.Modal.getOrCreateInstance(pickupReadyModalEl).show();
+  } else {
+    openApprovedModal(order);
+  }
+}
+
 issueConfirmBtn.addEventListener("click", async () => {
   const orderId = selectedVerificationId;
   const order = allOrders.find((o) => o.id === orderId);
@@ -980,118 +1099,8 @@ issueConfirmBtn.addEventListener("click", async () => {
   issueConfirmBtn.disabled = true;
 
   try {
-    if (config.mode === "hold") {
-      const paymentIssue = {
-        type: issueType,
-        note,
-        flaggedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        holdUntil: firebase.firestore.Timestamp.fromDate(new Date(Date.now() + HOLD_DURATION_MS)),
-      };
-
-      if (issueType === "invalid_payment") {
-        paymentIssue.reason = issueReasonSelect.value;
-        paymentIssue.reasonLabel = issueReasonSelect.selectedOptions[0].textContent;
-      } else if (issueType === "payment_not_received") {
-        paymentIssue.reasonLabel = "Payment Not Received";
-      } else {
-        const received = parseFloat(issueAmountReceivedInput.value) || 0;
-        paymentIssue.amountReceived = received;
-        paymentIssue.outstandingBalance = Math.max(0, order.total - received);
-      }
-
-      await db.collection("orders").doc(orderId).update({ paymentIssue, verification: verificationStamp(`hold_${issueType}`) });
-      logAuditEvent({
-        action: "Order On Hold",
-        details: `Order ${order.orderNumber} - ${(PAYMENT_ISSUE_TYPES[issueType] || {}).label || issueType}${
-          paymentIssue.amountReceived != null ? `, received ${formatPeso(paymentIssue.amountReceived)}` : ""
-        }${note ? `. Note: ${note}` : ""} (7-day hold)`,
-        actor: currentStaffName,
-      });
-      notifyCustomer(
-        order.customerId,
-        `Payment issue on order ${order.orderNumber}`,
-        issueType === "invalid_payment"
-          ? REJECTION_REASON_NOTES[paymentIssue.reason] || "Please check your order for details."
-          : issueType === "payment_not_received"
-          ? note || REJECTION_REASON_NOTES.payment_not_received
-          : UNDERPAYMENT_NOTE,
-        `order-details.html?id=${orderId}`,
-        "danger"
-      );
-
-      order.paymentIssue = paymentIssue;
-      selectedVerificationId = null;
-
-      renderVerificationQueue();
-      renderOrdersTable();
-      bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
-      bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
-    } else {
-      const stockCheck = await warnIfOrderCantBeFulfilled(order);
-      if (stockCheck === "cancel") return;
-      if (stockCheck === "hold") throw new Error("Not enough stock available to fulfill this quantity.");
-
-      const received = parseFloat(issueAmountReceivedInput.value) || order.total;
-      const excessAmount = Math.max(0, received - order.total);
-      const newStatus = order.requiresPrescription ? "delivered" : "payment_confirmed";
-      const paymentOverage = { amountReceived: received, excessAmount, note };
-
-      // Clearing paymentIssue matters here too: an order the customer
-      // resubmitted still carries its old hold record, and leaving it behind
-      // kept the approved order stuck "On Hold" in the Online Orders table.
-      const { invoiceNo, itemsWithBatches } = await confirmOrderSale(
-        order,
-        (allocations, invoiceNo, itemsWithBatches) => {
-          const update = {
-            status: newStatus,
-            invoiceNo,
-            items: itemsWithBatches,
-            "statusTimestamps.payment_confirmed": firebase.firestore.FieldValue.serverTimestamp(),
-            paymentOverage,
-            paymentIssue: firebase.firestore.FieldValue.delete(),
-            verification: verificationStamp(order.requiresPrescription ? "prescription_and_payment_approved" : "payment_approved_overpaid"),
-          };
-          if (order.requiresPrescription) update["statusTimestamps.delivered"] = firebase.firestore.FieldValue.serverTimestamp();
-          return update;
-        },
-        (transaction) => {
-          if (excessAmount > 0 && order.customerId) {
-            transaction.update(db.collection("users").doc(order.customerId), {
-              creditBalance: firebase.firestore.FieldValue.increment(excessAmount),
-            });
-          }
-        }
-      );
-
-      order.invoiceNo = invoiceNo;
-      notifyOrderApproved(order);
-
-      if (excessAmount > 0 && order.customerId) {
-        notifyCustomer(
-          order.customerId,
-          `You have ${formatPeso(excessAmount)} credit from order ${order.orderNumber}`,
-          "Overpayment kept as credit - it'll be applied automatically to your next order.",
-          `order-details.html?id=${orderId}`,
-          "success"
-        );
-      }
-
-      order.status = newStatus;
-      order.paymentOverage = paymentOverage;
-      order.invoiceNo = invoiceNo;
-      order.items = itemsWithBatches;
-      delete order.paymentIssue;
-      selectedVerificationId = null;
-
-      renderVerificationQueue();
-      renderOrdersTable();
-      bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
-      if (order.requiresPrescription) {
-        bootstrap.Modal.getOrCreateInstance(pickupReadyModalEl).show();
-      } else {
-        openApprovedModal(order);
-      }
-    }
+    if (config.mode === "hold") await placeOrderOnPaymentHold(order, note);
+    else await approveOverpaidOrder(order, note);
   } catch (error) {
     if (error.message === "Not enough stock available to fulfill this quantity.") {
       try {
