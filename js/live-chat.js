@@ -789,7 +789,7 @@ async function chatAiReply(history, question) {
       return `<a class="chat-card-btn" href="${/\/shop\//.test(window.location.pathname) ? "../" : ""}login.html">Log in to see your orders</a>`;
     }
     if (card.type === "product") {
-      const p = typeof getProductById === "function" ? getProductById(card.id) : null;
+      const p = getProductById(card.id);
       if (!p) return "";
       return `
         <div class="chat-card">
@@ -812,7 +812,7 @@ async function chatAiReply(history, question) {
         : "";
       const orderLink = `<a class="chat-card-btn" href="${shopPath(`order-details.html?id=${encodeURIComponent(o.id)}`)}">${issue ? "Fix this order" : "View order"}</a>`;
       const thumb = (item) => {
-        const imageUrl = item.imageUrl || ((typeof getProductById === "function" && getProductById(item.id)) || {}).imageUrl;
+        const imageUrl = item.imageUrl || (getProductById(item.id) || {}).imageUrl;
         const url = safeUrl(imageUrl) === "#" ? "" : imageUrl;
         return `<span class="chat-order-thumb" style="${escapeHtml(cartItemImageCss(url))}"></span>`;
       };
