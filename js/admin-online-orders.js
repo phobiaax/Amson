@@ -668,7 +668,7 @@ async function warnIfOrderCantBeFulfilled(order) {
   if (shortfalls.length === 0) return "proceed";
   const lines = shortfalls.map((s) => `- ${s.name}: ordered ${s.ordered}, in stock ${s.available}`).join("\n");
   const hold = await showAppConfirm(
-    `We can't fulfill this order. ${shortfalls.length === 1 ? "This item doesn't" : "These items don't"} have enough stock:\n\n${lines}\n\nPut the order on a 7-day hold while waiting for a restock (the customer is notified), or cancel and leave it in the queue.`,
+    `We can't fulfill this order. ${shortfalls.length === 1 ? "This item doesn't" : "These items don't"} have enough stock:\n\n${lines}\n\nPut the order on a 7-day hold while waiting for a restock, or cancel and leave it in the queue.`,
     { title: "Not enough stock", confirmLabel: "Put on 7-day hold", cancelLabel: "Cancel" }
   );
   return hold ? "hold" : "cancel";
@@ -677,8 +677,8 @@ async function warnIfOrderCantBeFulfilled(order) {
 // Approving failed for lack of stock. The payment itself was fine - it's
 // purely a fulfillment problem, so this isn't a dead end: the order goes on
 // the same kind of 7-day hold as a payment issue, giving time for a restock
-// before it closes (per the no-cancellation, no-refund policy). The customer
-// is notified and the lists are redrawn.
+// before it closes (per the no-cancellation, no-refund policy). No email or
+// bell notice is sent to the customer for this; the lists are redrawn.
 async function holdOrderForOutOfStock(order) {
   const paymentIssue = {
     type: "out_of_stock",
@@ -688,13 +688,6 @@ async function holdOrderForOutOfStock(order) {
   };
   await db.collection("orders").doc(order.id).update({ paymentIssue });
   logAuditEvent({ action: "Order On Hold", details: `Order ${order.orderNumber} - Item Out of Stock (7-day hold)`, actor: currentStaffName });
-  notifyCustomer(
-    order.customerId,
-    `Order ${order.orderNumber} - item out of stock`,
-    paymentIssue.note,
-    `order-details.html?id=${order.id}`,
-    "danger"
-  );
   order.paymentIssue = paymentIssue;
   selectedVerificationId = null;
   renderVerificationQueue();
