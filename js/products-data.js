@@ -485,7 +485,7 @@ async function computeStaffNotifications() {
     ...staffOrderNotifications(orderSnapshot.docs),
     ...poDiscrepancyAlerts(poSnapshot),
     ...pricePendingAlerts(),
-    ...(await badOrderAlerts()),
+    ...badOrderAlerts(batchSnapshot),
     ...(await wholesaleDocumentAlerts()),
     ...(await wholesaleReleaseAlerts()),
     ...(await waitingChatAlerts()),
@@ -624,26 +624,21 @@ function pricePendingAlerts() {
 }
 
 // Bad Order batches waiting to be disposed of.
-async function badOrderAlerts() {
+function badOrderAlerts(batchSnapshot) {
   const notifications = [];
   // Bad Order batches still waiting to be physically disposed of (REQ067).
-  try {
-    const bo = await liveStockBatches();
-    const pending = bo.docs.filter((d) => d.data().status === "bad_order" && !d.data().disposedAt);
-    if (pending.length) {
-      notifications.push({
-        key: "bad_order_disposal",
-        category: "stock",
-        at: Math.max(0, ...pending.map((d) => staffNotifMillis(d.data().badOrderAt))),
-        signature: pending.map((d) => d.id).sort().join(","),
-        severity: "danger",
-        icon: "bi-trash",
-        message: `${pending.length} Bad Order batch${pending.length === 1 ? " needs" : "es need"} to be pulled out and disposed of.`,
-        link: "inventory.html",
-      });
-    }
-  } catch (error) {
-    console.warn("Bad Order alerts unavailable:", error);
+  const pending = batchSnapshot.docs.filter((d) => d.data().status === "bad_order" && !d.data().disposedAt);
+  if (pending.length) {
+    notifications.push({
+      key: "bad_order_disposal",
+      category: "stock",
+      at: Math.max(0, ...pending.map((d) => staffNotifMillis(d.data().badOrderAt))),
+      signature: pending.map((d) => d.id).sort().join(","),
+      severity: "danger",
+      icon: "bi-trash",
+      message: `${pending.length} Bad Order batch${pending.length === 1 ? " needs" : "es need"} to be pulled out and disposed of.`,
+      link: "inventory.html",
+    });
   }
   return notifications;
 }
