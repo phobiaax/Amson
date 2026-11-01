@@ -706,11 +706,6 @@ async function markBatchBadOrder(batchId) {
   }
 }
 
-// The sections customers see: all 8, always (see js/shop-sections.js).
-function storefrontShopSections() {
-  return SHOP_SECTIONS;
-}
-
 // The branch's own groupings (one sheet each in its month-end inventory
 // report). Only used to seed a brand-new project - after that, categories
 // are whatever staff manage under Products > Manage Categories.
@@ -1283,15 +1278,10 @@ function escapeHtml(text) {
   return String(text == null ? "" : text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
-function renderStorefrontCategoryNav() {
-  // The store menu is the 8 shop sections, the same on every page.
-  renderShopSectionNav();
-}
-
 function renderHomeCategoryCards() {
   const row = document.getElementById("homeCategoryCards");
   if (!row) return;
-  const cards = storefrontShopSections().map((sec) => ({
+  const cards = SHOP_SECTIONS.map((sec) => ({
     href: `products.html?section=${encodeURIComponent(sec.id)}`,
     name: sec.label,
     icon: sec.icon,
@@ -1315,7 +1305,7 @@ function renderHomeCategoryCards() {
 if (document.querySelector(".category-nav") || document.getElementById("homeCategoryCards")) {
   loadCatalogCache()
     .then(() => {
-      renderStorefrontCategoryNav();
+      renderShopSectionNav();
       renderHomeCategoryCards();
     })
     .catch((error) => console.error("Failed to load categories:", error));
