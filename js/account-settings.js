@@ -24,13 +24,6 @@ const addressAlert = document.getElementById("addressAlert");
 const addressSuccess = document.getElementById("addressSuccess");
 const saveAddressBtn = document.getElementById("saveAddressBtn");
 
-const currentPasswordInput = document.getElementById("currentPasswordInput");
-const newPasswordInput = document.getElementById("newPasswordInput");
-const confirmNewPasswordInput = document.getElementById("confirmNewPasswordInput");
-const passwordAlert = document.getElementById("passwordAlert");
-const passwordSuccess = document.getElementById("passwordSuccess");
-const updatePasswordBtn = document.getElementById("updatePasswordBtn");
-
 const storeCreditCard = document.getElementById("storeCreditCard");
 const storeCreditAmount = document.getElementById("storeCreditAmount");
 
@@ -158,52 +151,7 @@ saveAddressBtn.addEventListener("click", async () => {
   }
 });
 
-updatePasswordBtn.addEventListener("click", async () => {
-  const currentPassword = currentPasswordInput.value;
-  const newPassword = newPasswordInput.value;
-  const confirmNewPassword = confirmNewPasswordInput.value;
-
-  passwordAlert.classList.add("d-none");
-  passwordSuccess.classList.add("d-none");
-
-  if (!currentPassword || !newPassword || !confirmNewPassword) {
-    passwordAlert.textContent = "Please fill in all password fields.";
-    passwordAlert.classList.remove("d-none");
-    return;
-  }
-  if (!PASSWORD_PATTERN.test(newPassword)) {
-    passwordAlert.textContent = "Password must be at least 6 characters, with letters, numbers, and a special character.";
-    passwordAlert.classList.remove("d-none");
-    return;
-  }
-  if (newPassword !== confirmNewPassword) {
-    passwordAlert.textContent = "New password and confirmation don't match.";
-    passwordAlert.classList.remove("d-none");
-    return;
-  }
-
-  updatePasswordBtn.disabled = true;
-  try {
-    const user = auth.currentUser;
-    const credential = firebase.auth.EmailAuthProvider.credential(user.email, currentPassword);
-    await user.reauthenticateWithCredential(credential);
-    await user.updatePassword(newPassword);
-
-    passwordSuccess.textContent = "Password updated.";
-    passwordSuccess.classList.remove("d-none");
-    currentPasswordInput.value = "";
-    newPasswordInput.value = "";
-    confirmNewPasswordInput.value = "";
-  } catch (error) {
-    passwordAlert.textContent =
-      error.code === "auth/wrong-password" || error.code === "auth/invalid-credential"
-        ? "Current password is incorrect."
-        : "Something went wrong updating your password. Please try again.";
-    passwordAlert.classList.remove("d-none");
-  } finally {
-    updatePasswordBtn.disabled = false;
-  }
-});
+setupChangePasswordForm();
 
 // ---- Change Email ----
 const openChangeEmailBtn = document.getElementById("openChangeEmailBtn");
