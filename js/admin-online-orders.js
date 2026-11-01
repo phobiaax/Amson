@@ -632,6 +632,46 @@ async function confirmOrderSale(order, buildUpdate, alsoWrite = null) {
   return { invoiceNo, itemsWithBatches };
 }
 
+// Before an approval: compares each item with the stock that can be sold
+// online right now (the same rule the sale itself uses), so staff are told
+// exactly which item is short instead of the order going on hold unexplained.
+async function findOrderStockShortfalls(order) {
+  const needed = new Map();
+  (order.items || []).forEach((item) => {
+    const line = needed.get(item.id) || { name: item.name || "An item", qty: 0 };
+    line.qty += item.qty || 0;
+    needed.set(item.id, line);
+  });
+  const checks = await Promise.all(
+    Array.from(needed, async ([productId, line]) => {
+      const snap = await db.collection("stockBatches").where("productId", "==", productId).where("status", "in", ["active"]).get();
+      const available = snap.docs.reduce((sum, doc) => (isRetailSellableBatch(doc.data()) ? sum + (doc.data().quantity || 0) : sum), 0);
+      return { name: line.name, ordered: line.qty, available };
+    })
+  );
+  return checks.filter((c) => c.available < c.ordered);
+}
+
+// Resolves "proceed" (enough stock), "hold" (staff chose the 7-day hold) or
+// "cancel" (staff closed the warning; the order stays in the queue).
+async function warnIfOrderCantBeFulfilled(order) {
+  let shortfalls;
+  try {
+    shortfalls = await findOrderStockShortfalls(order);
+  } catch (error) {
+    // The check itself failed: let the sale's own stock check decide.
+    console.warn("Stock check before approval failed:", error);
+    return "proceed";
+  }
+  if (shortfalls.length === 0) return "proceed";
+  const lines = shortfalls.map((s) => `- ${s.name}: ordered ${s.ordered}, in stock ${s.available}`).join("\n");
+  const hold = await showAppConfirm(
+    `We can't fulfill this order. ${shortfalls.length === 1 ? "This item doesn't" : "These items don't"} have enough stock:\n\n${lines}\n\nPut the order on a 7-day hold while waiting for a restock (the customer is notified), or cancel and leave it in the queue.`,
+    { title: "Not enough stock", confirmLabel: "Put on 7-day hold", cancelLabel: "Cancel" }
+  );
+  return hold ? "hold" : "cancel";
+}
+
 approvePaymentBtn.addEventListener("click", async () => {
   if (!selectedVerificationId) return;
 
@@ -642,6 +682,12 @@ approvePaymentBtn.addEventListener("click", async () => {
   reviewAlert.classList.add("d-none");
 
   try {
+    // Out of stock: warn first. "hold" goes through the same out-of-stock
+    // hold as below.
+    const stockCheck = await warnIfOrderCantBeFulfilled(order);
+    if (stockCheck === "cancel") return;
+    if (stockCheck === "hold") throw new Error("Not enough stock available to fulfill this quantity.");
+
     // Pick-up (prescription) orders have no courier leg - go straight to
     // "ready for pick-up". The stock deduction, SI# and status change are
     // one transaction.
@@ -975,6 +1021,10 @@ issueConfirmBtn.addEventListener("click", async () => {
       bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
       bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
     } else {
+      const stockCheck = await warnIfOrderCantBeFulfilled(order);
+      if (stockCheck === "cancel") return;
+      if (stockCheck === "hold") throw new Error("Not enough stock available to fulfill this quantity.");
+
       const received = parseFloat(issueAmountReceivedInput.value) || order.total;
       const excessAmount = Math.max(0, received - order.total);
       const newStatus = order.requiresPrescription ? "delivered" : "payment_confirmed";
@@ -1470,7 +1520,7 @@ function openOrderDetails(order) {
     ${
       order.invoiceNo
         ? `<div class="d-flex justify-content-end mt-3"><button type="button" class="btn btn-outline-dark-amson" id="orderDetailsPrintBtn"><i class="bi bi-printer me-1"></i>Print Receipt</button></div>`
-        : `<p class="text-muted small mt-3 mb-0">A receipt can be printed once the payment is approved (it gets its SI No. then).</p>`
+        : `<p class="text-muted small mt-3 mb-0">A receipt can be printed once the payment is approved.</p>`
     }
   `;
   const printBtn = document.getElementById("orderDetailsPrintBtn");
