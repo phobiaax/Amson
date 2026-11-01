@@ -479,7 +479,7 @@ async function computeStaffNotifications() {
   const notifications = [];
   // Each notification carries a category (for the Stock / Orders / Live
   // Chat filters) and `at`, when it happened, so lists show newest first.
-  const ms = (v) => (v && v.toMillis ? v.toMillis() : v ? new Date(v).getTime() || 0 : 0);
+  const ms = staffNotifMillis;
   const lastStockChange = {};
   batchSnapshot.docs.forEach((doc) => {
     const b = doc.data();
