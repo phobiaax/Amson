@@ -83,10 +83,6 @@ function periodRange(period, anchor = dashboardAnchor) {
   return { start: new Date(a.getFullYear(), a.getMonth(), 1), end: new Date(a.getFullYear(), a.getMonth() + 1, 1) }; // month
 }
 
-function periodStartDate(period) {
-  return periodRange(period).start;
-}
-
 // Charts stop at "now" for the current period instead of drawing empty
 // future hours/days/months.
 function periodChartEnd(period) {
@@ -119,7 +115,7 @@ function dashboardBucketLabel(key, period) {
     const [y, m] = key.split("-").map(Number);
     return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "short" });
   }
-  const [y, m, d] = key.split("-").map(Number);
+  const [, m, d] = key.split("-").map(Number);
   return `${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")}`;
 }
 
