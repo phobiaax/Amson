@@ -2553,6 +2553,66 @@ function renderProductCard(product) {
   `;
 }
 
+// Quantity -/+ buttons, subtotal, and Add to Cart / Buy Now for one product:
+// the product page and the quick-view popup (each passes its own element ids).
+function wireProductBuyControls(product, ids) {
+  const qtyInput = document.getElementById(ids.qty);
+  const subtotalText = document.getElementById(ids.subtotal);
+  const maxQty = Math.max(product.totalStock || 0, 0);
+
+  function currentQty() {
+    const val = Math.max(1, parseInt(qtyInput.value, 10) || 1);
+    return maxQty > 0 ? Math.min(val, maxQty) : val;
+  }
+
+  function updateSubtotal() {
+    subtotalText.textContent = formatPeso(product.price * currentQty());
+  }
+
+  document.getElementById(ids.minus).addEventListener("click", () => {
+    qtyInput.value = Math.max(1, currentQty() - 1);
+    updateSubtotal();
+  });
+
+  document.getElementById(ids.plus).addEventListener("click", () => {
+    if (maxQty > 0 && currentQty() >= maxQty) {
+      qtyInput.value = maxQty;
+    } else {
+      qtyInput.value = currentQty() + 1;
+    }
+    updateSubtotal();
+  });
+
+  qtyInput.addEventListener("input", () => {
+    qtyInput.value = qtyInput.value.replace(/[^0-9]/g, "");
+    updateSubtotal();
+  });
+
+  qtyInput.addEventListener("blur", () => {
+    qtyInput.value = currentQty();
+    updateSubtotal();
+  });
+
+  const addToCartBtn = document.getElementById(ids.addToCart);
+  if (addToCartBtn) {
+    addToCartBtn.addEventListener("click", () => {
+      const result = addToCart(product.id, currentQty());
+      if (result.capped && result.qty === 0) {
+        showCartToast("Sorry, that item is out of stock.", "warning");
+      } else if (result.capped) {
+        showCartToast(`Only ${result.qty} in stock - your cart is now at the limit.`, "warning");
+      } else {
+        showCartToast(`Added ${currentQty()} × ${product.name} to cart.`);
+      }
+    });
+  }
+
+  const buyNowBtn = document.getElementById(ids.buyNow);
+  if (buyNowBtn) {
+    buyNowBtn.addEventListener("click", () => buyNow(product.id, currentQty()));
+  }
+}
+
 // ---- Product quick-view (popup instead of a full page navigation) ----
 // Clicking a product card's image/name used to be a full page load to
 // product-details.html - jarring for just glancing at a product. Cards
@@ -2645,61 +2705,14 @@ async function showProductQuickView(productId) {
     </div>
   `;
 
-  const qtyInput = document.getElementById("quickViewQtyInput");
-  const subtotalText = document.getElementById("quickViewSubtotalText");
-  const maxQty = Math.max(product.totalStock || 0, 0);
-
-  function currentQty() {
-    const val = Math.max(1, parseInt(qtyInput.value, 10) || 1);
-    return maxQty > 0 ? Math.min(val, maxQty) : val;
-  }
-
-  function updateSubtotal() {
-    subtotalText.textContent = formatPeso(product.price * currentQty());
-  }
-
-  document.getElementById("quickViewQtyMinus").addEventListener("click", () => {
-    qtyInput.value = Math.max(1, currentQty() - 1);
-    updateSubtotal();
+  wireProductBuyControls(product, {
+    qty: "quickViewQtyInput",
+    subtotal: "quickViewSubtotalText",
+    minus: "quickViewQtyMinus",
+    plus: "quickViewQtyPlus",
+    addToCart: "quickViewAddToCartBtn",
+    buyNow: "quickViewBuyNowBtn",
   });
-
-  document.getElementById("quickViewQtyPlus").addEventListener("click", () => {
-    if (maxQty > 0 && currentQty() >= maxQty) {
-      qtyInput.value = maxQty;
-    } else {
-      qtyInput.value = currentQty() + 1;
-    }
-    updateSubtotal();
-  });
-
-  qtyInput.addEventListener("input", () => {
-    qtyInput.value = qtyInput.value.replace(/[^0-9]/g, "");
-    updateSubtotal();
-  });
-
-  qtyInput.addEventListener("blur", () => {
-    qtyInput.value = currentQty();
-    updateSubtotal();
-  });
-
-  const addToCartBtn = document.getElementById("quickViewAddToCartBtn");
-  if (addToCartBtn) {
-    addToCartBtn.addEventListener("click", () => {
-      const result = addToCart(product.id, currentQty());
-      if (result.capped && result.qty === 0) {
-        showCartToast("Sorry, that item is out of stock.", "warning");
-      } else if (result.capped) {
-        showCartToast(`Only ${result.qty} in stock - your cart is now at the limit.`, "warning");
-      } else {
-        showCartToast(`Added ${currentQty()} × ${product.name} to cart.`);
-      }
-    });
-  }
-
-  const buyNowBtn = document.getElementById("quickViewBuyNowBtn");
-  if (buyNowBtn) {
-    buyNowBtn.addEventListener("click", () => buyNow(product.id, currentQty()));
-  }
 
   bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }
