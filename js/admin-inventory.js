@@ -122,7 +122,7 @@ const confirmOpenSessionBtn = document.getElementById("confirmOpenSessionBtn");
 
 let currentAdminName = "Admin";
 let currentAdminRole = null;
-document.addEventListener("admin:ready", (e) => {
+document.addEventListener("admin:ready", async (e) => {
   const admin = e.detail && e.detail.admin;
   if (admin) currentAdminName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Admin";
   if (admin) currentAdminRole = admin.role;
@@ -131,9 +131,12 @@ document.addEventListener("admin:ready", (e) => {
   }
   // Once: unit costs still on the public stock records move to the
   // staff-only ones (see moveLegacyPrivatePrices).
-  moveLegacyPrivatePrices({ batches: true })
-    .catch((error) => console.error("Couldn't move the batch costs:", error))
-    .then(() => loadInventory());
+  try {
+    await moveLegacyPrivatePrices({ batches: true });
+  } catch (error) {
+    console.error("Couldn't move the batch costs:", error);
+  }
+  loadInventory();
 });
 
 // Today on the branch's calendar (the UTC date is still yesterday until
