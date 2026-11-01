@@ -32,7 +32,7 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
         </div>
         <div class="col-lg-7">
           <h1 class="h3 fw-bold mb-1">${escapeHtml(product.name)}${rxTag(product)}</h1>
-          ${product.genericName ? `<p class="text-muted mb-3">Generic Name: ${product.genericName}</p>` : ""}
+          ${product.genericName ? `<p class="text-muted mb-3">Generic Name: ${escapeHtml(product.genericName)}</p>` : ""}
           <p class="product-detail-price mb-2">${formatPeso(product.price)}</p>
           <div class="d-flex align-items-center gap-3 mb-4 flex-wrap">
             <p class="stock-badge ${product.inStock ? "in-stock" : "out-of-stock"} mb-0">
@@ -72,7 +72,7 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
 
       <div class="product-about">
         <h2>About the Product</h2>
-        <p class="mb-0">${product.description || "No description available yet."}</p>
+        <p class="mb-0">${escapeHtml(product.description || "No description available yet.")}</p>
         ${product.dosageNotes ? `<h2 class="h6 fw-bold mt-3">Dosage / Usage</h2><p class="mb-0">${escapeHtml(product.dosageNotes)}</p>` : ""}
       </div>
     </div>
