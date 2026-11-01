@@ -418,22 +418,25 @@ function getChatFirebaseApp(appMod, v) {
 }
 
 // Loads Firebase AI Logic (modular SDK, separate from the compat SDK the
-// rest of the site uses) only when the AI is first needed.
+// rest of the site uses) only when the AI is first needed, and returns a
+// Gemini model. settings() is called once the SDK has loaded and gives the
+// model's instructions and generation settings.
+async function loadGeminiModel(settings) {
+  const v = CHAT_CONFIG.firebaseModularSdkVersion;
+  const appMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`);
+  const aiMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-ai.js`);
+  const app = await getChatFirebaseApp(appMod, v);
+  const ai = aiMod.getAI(app, { backend: new aiMod.GoogleAIBackend() });
+  return aiMod.getGenerativeModel(ai, { model: CHAT_CONFIG.geminiModel, ...settings() });
+}
+
 function getChatModel() {
   if (CHAT_CONFIG.aiProvider !== "gemini") return Promise.reject(new Error("AI disabled"));
   if (!chatModelPromise) {
-    chatModelPromise = (async () => {
-      const v = CHAT_CONFIG.firebaseModularSdkVersion;
-      const appMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`);
-      const aiMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-ai.js`);
-      const app = await getChatFirebaseApp(appMod, v);
-      const ai = aiMod.getAI(app, { backend: new aiMod.GoogleAIBackend() });
-      return aiMod.getGenerativeModel(ai, {
-        model: CHAT_CONFIG.geminiModel,
-        systemInstruction: chatSystemInstruction(),
-        generationConfig: { maxOutputTokens: 300, temperature: 0.3 },
-      });
-    })();
+    chatModelPromise = loadGeminiModel(() => ({
+      systemInstruction: chatSystemInstruction(),
+      generationConfig: { maxOutputTokens: 300, temperature: 0.3 },
+    }));
     chatModelPromise.catch(() => {
       chatModelPromise = null;
     });
@@ -448,25 +451,17 @@ let chatReaderPromise = null;
 function getChatReaderModel() {
   if (CHAT_CONFIG.aiProvider !== "gemini") return Promise.reject(new Error("AI disabled"));
   if (!chatReaderPromise) {
-    chatReaderPromise = (async () => {
-      const v = CHAT_CONFIG.firebaseModularSdkVersion;
-      const appMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`);
-      const aiMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-ai.js`);
-      const app = await getChatFirebaseApp(appMod, v);
-      const ai = aiMod.getAI(app, { backend: new aiMod.GoogleAIBackend() });
-      return aiMod.getGenerativeModel(ai, {
-        model: CHAT_CONFIG.geminiModel,
-        systemInstruction: [
-          "You read one message sent to a Philippine pharmacy's online chat and return JSON only, never a reply to the customer.",
-          'Return exactly: {"health": boolean, "symptoms": string[], "caution": boolean, "language": "en" | "fil"}.',
-          "health: true if the customer describes symptoms or a condition, or asks what to take or buy for one.",
-          "symptoms: the words from the VOCABULARY list (and only from it) that name what the customer describes. Understand English, Filipino, Taglish, typos and descriptions (for example 'mainit ang noo' or 'nilalagnat' -> 'fever'; 'kumikirot ang tuhod' -> 'pain'). Use [] if nothing in the list fits. Never name a medicine and never diagnose beyond the customer's own words.",
-          "caution: true if it is about a baby or child, pregnancy or breastfeeding, doses or how many or how often to take, another medicine or maintenance medicine, a long-term condition, or a serious sign (chest pain, trouble breathing, fainting, bleeding, seizures, a fever over 3 days, very high fever).",
-          "language: fil if the message is in Filipino or Taglish, otherwise en.",
-        ].join(" "),
-        generationConfig: { maxOutputTokens: 150, temperature: 0, responseMimeType: "application/json" },
-      });
-    })();
+    chatReaderPromise = loadGeminiModel(() => ({
+      systemInstruction: [
+        "You read one message sent to a Philippine pharmacy's online chat and return JSON only, never a reply to the customer.",
+        'Return exactly: {"health": boolean, "symptoms": string[], "caution": boolean, "language": "en" | "fil"}.',
+        "health: true if the customer describes symptoms or a condition, or asks what to take or buy for one.",
+        "symptoms: the words from the VOCABULARY list (and only from it) that name what the customer describes. Understand English, Filipino, Taglish, typos and descriptions (for example 'mainit ang noo' or 'nilalagnat' -> 'fever'; 'kumikirot ang tuhod' -> 'pain'). Use [] if nothing in the list fits. Never name a medicine and never diagnose beyond the customer's own words.",
+        "caution: true if it is about a baby or child, pregnancy or breastfeeding, doses or how many or how often to take, another medicine or maintenance medicine, a long-term condition, or a serious sign (chest pain, trouble breathing, fainting, bleeding, seizures, a fever over 3 days, very high fever).",
+        "language: fil if the message is in Filipino or Taglish, otherwise en.",
+      ].join(" "),
+      generationConfig: { maxOutputTokens: 150, temperature: 0, responseMimeType: "application/json" },
+    }));
     chatReaderPromise.catch(() => {
       chatReaderPromise = null;
     });
