@@ -1661,20 +1661,19 @@ async function verifyVoidApprover(email, password) {
   }
 }
 
-// Voids the given lines ([{ index, qty }], or every remaining unit when
-// omitted), all in one transaction. Units go back to the exact batches
+// Voids the given lines ([{ index, qty }], from promptVoidDetails), all in
+// one transaction. Units go back to the exact batches
 // they were taken from, latest-expiring first. Voiding everything left
 // marks the whole sale voided; anything less is a partial void: the item
 // quantities and the sale total drop by what was voided (so every report
 // counts only what was really sold) and the void is kept in partialVoids.
-async function voidPosSale(sale, { reason, exchange, lines = null, approvedBy = null }, voidedBy) {
+async function voidPosSale(sale, { reason, exchange, lines, approvedBy }, voidedBy) {
   const saleRef = db.collection("posSales").doc(sale.id);
-  const requested = lines || (sale.items || []).map((item, index) => ({ index, qty: item.qty }));
 
   // Sales made before batches were recorded: put the units back on the
   // product's latest-expiring active batch.
   const fallbackRefs = {};
-  for (const { index } of requested) {
+  for (const { index } of lines) {
     const item = (sale.items || [])[index];
     if (!item || (item.batches && item.batches.length) || fallbackRefs[item.productId]) continue;
     const snap = await db.collection("stockBatches").where("productId", "==", item.productId).where("status", "==", "active").get();
@@ -1697,7 +1696,7 @@ async function voidPosSale(sale, { reason, exchange, lines = null, approvedBy = 
     const returns = new Map(); // batchId -> units to put back
     voidedLines = [];
     voidedAmount = 0;
-    for (const { index, qty } of requested) {
+    for (const { index, qty } of lines) {
       const item = items[index];
       if (!item) throw new Error("An item in this void is no longer on the sale. Reopen the sale and try again.");
       if (qty > item.qty) throw new Error(`Only ${item.qty} of ${item.name} is left on this sale to void.`);
