@@ -53,6 +53,20 @@ function isDisposableEmail(email) {
   return DISPOSABLE_EMAIL_DOMAINS.has(domain);
 }
 
+// ---- Show/hide password (eye) buttons: Register and Account Settings ----
+function wirePasswordToggles() {
+  document.querySelectorAll(".toggle-password").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = document.getElementById(btn.dataset.target);
+      const icon = btn.querySelector("i");
+      const isHidden = target.type === "password";
+      target.type = isHidden ? "text" : "password";
+      icon.classList.toggle("bi-eye");
+      icon.classList.toggle("bi-eye-slash");
+    });
+  });
+}
+
 // ---- Change Password form (customer Account Settings and staff Settings) ----
 // Both pages use the same element ids.
 function setupChangePasswordForm() {
