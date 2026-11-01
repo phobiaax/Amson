@@ -429,6 +429,17 @@ function customerName(order) {
   return order.contact ? `${order.contact.firstName} ${order.contact.lastName}` : "-";
 }
 
+// Search box match (term already lower-case): order no., payment reference,
+// SI No. or customer name.
+function orderMatchesSearch(order, term) {
+  return (
+    (order.orderNumber || "").toLowerCase().includes(term) ||
+    (order.paymentReferenceNumber || "").toLowerCase().includes(term) ||
+    (order.invoiceNo || "").includes(term) ||
+    customerName(order).toLowerCase().includes(term)
+  );
+}
+
 function verificationQueue() {
   // Include orders the customer has resubmitted a fix for - their
   // paymentIssue record stays (for staff context) until fully resolved,
@@ -442,13 +453,7 @@ function verificationQueue() {
 
   if (verificationSearchTerm) {
     const term = verificationSearchTerm.toLowerCase();
-    queue = queue.filter(
-      (order) =>
-        (order.orderNumber || "").toLowerCase().includes(term) ||
-        (order.paymentReferenceNumber || "").toLowerCase().includes(term) ||
-        (order.invoiceNo || "").includes(term) ||
-        customerName(order).toLowerCase().includes(term)
-    );
+    queue = queue.filter((order) => orderMatchesSearch(order, term));
   }
 
   queue.sort((a, b) => {
@@ -1292,13 +1297,7 @@ function filteredOrders() {
 
   if (ordersSearchTerm) {
     const term = ordersSearchTerm.toLowerCase();
-    filtered = filtered.filter(
-      (order) =>
-        (order.orderNumber || "").toLowerCase().includes(term) ||
-        (order.paymentReferenceNumber || "").toLowerCase().includes(term) ||
-        (order.invoiceNo || "").includes(term) ||
-        customerName(order).toLowerCase().includes(term)
-    );
+    filtered = filtered.filter((order) => orderMatchesSearch(order, term));
   }
 
   filtered.sort((a, b) => {
