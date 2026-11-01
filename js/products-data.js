@@ -1780,8 +1780,9 @@ function partialVoidSummary(sale) {
   if (!sale.partialVoids || !sale.partialVoids.length) return null;
   return sale.partialVoids
     .map((v) => {
+      const items = v.lines.map((l) => `${l.name} x${l.qty}`).join(", ");
       const when = v.voidedAt ? formatDateMDY(v.voidedAt, true) : "";
-      return `${v.lines.map((l) => `${l.name} x${l.qty}`).join(", ")} (${formatPeso(v.amount)}) - ${v.reason}${v.voidedBy ? ` (by ${v.voidedBy}${when ? `, ${when}` : ""})` : ""}${v.approvedBy ? `, approved by ${v.approvedBy}` : ""}`;
+      return `${items} (${formatPeso(v.amount)}) - ${v.reason}` + voidByText(v.voidedBy, when, v.approvedBy);
     })
     .join("; ");
 }
@@ -1789,7 +1790,16 @@ function partialVoidSummary(sale) {
 function voidSummary(sale) {
   if (!sale.voided) return null;
   const when = sale.voidedAt && sale.voidedAt.toDate ? formatDateMDY(sale.voidedAt, true) : "";
-  return `${sale.voidReason || ""}${sale.voidedBy ? ` (by ${sale.voidedBy}${when ? `, ${when}` : ""})` : ""}${sale.voidApprovedBy ? `, approved by ${sale.voidApprovedBy}` : ""}`;
+  return (sale.voidReason || "") + voidByText(sale.voidedBy, when, sale.voidApprovedBy);
+}
+
+// Who voided it (and when) and who approved it: " (by Rita, 11/01/2026
+// 9:30 AM), approved by Mara". Parts that are missing are left out.
+function voidByText(voidedBy, when, approvedBy) {
+  let text = "";
+  if (voidedBy) text += when ? ` (by ${voidedBy}, ${when})` : ` (by ${voidedBy})`;
+  if (approvedBy) text += `, approved by ${approvedBy}`;
+  return text;
 }
 
 // =====================================================================
