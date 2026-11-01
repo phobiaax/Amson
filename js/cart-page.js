@@ -95,7 +95,7 @@ function renderCartPage() {
             <div class="d-flex align-items-center gap-3">
               <div class="qty-stepper">
                 <button type="button" class="cart-qty-minus" aria-label="Decrease quantity">&minus;</button>
-                <input type="text" class="cart-qty-input" value="${item.qty}" inputmode="numeric" readonly>
+                <input type="text" class="cart-qty-input" value="${item.qty}" inputmode="numeric" aria-label="Quantity">
                 <button type="button" class="cart-qty-plus" aria-label="Increase quantity" ${atLimit ? "disabled" : ""}>+</button>
               </div>
               <a href="#" class="remove-item-link"><i class="bi bi-trash"></i> Remove</a>
@@ -135,6 +135,21 @@ function renderCartPage() {
       if (!item || item.qty <= 1) return;
       updateCartItemQty(productId, item.qty - 1);
       renderCartPage();
+    });
+
+    // Typing a quantity: saved when the box is left or Enter is pressed, and
+    // kept between 1 and the stock available, like the - / + buttons.
+    const qtyInput = row.querySelector(".cart-qty-input");
+    qtyInput.addEventListener("input", () => {
+      qtyInput.value = qtyInput.value.replace(/[^0-9]/g, "");
+    });
+    qtyInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") qtyInput.blur();
+    });
+    qtyInput.addEventListener("change", () => {
+      const result = updateCartItemQty(productId, parseInt(qtyInput.value, 10) || 1);
+      renderCartPage();
+      if (result.capped) showCartToast(`Only ${result.qty} in stock - that's the most you can order.`);
     });
 
     row.querySelector(".remove-item-link").addEventListener("click", (e) => {
