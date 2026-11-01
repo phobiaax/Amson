@@ -850,10 +850,6 @@ a {
 .catalog-pagination button:disabled {
   opacity: 0.4;
 }
-.catalog-pagination-ellipsis {
-  color: var(--amson-text-muted);
-  padding: 0 0.25rem;
-}
 .pagination-summary {
   text-align: center;
   font-size: 0.85rem;
@@ -1476,10 +1472,6 @@ a {
   margin-bottom: 0;
 }
 
-.stat-card-icon {
-  font-size: 1.3rem;
-}
-
 .stat-card-value {
   font-size: 1.9rem;
   font-weight: 700;
@@ -1495,12 +1487,6 @@ a {
   font-size: 0.85rem;
   font-weight: 500;
   color: var(--amson-red);
-}
-
-.stat-card-note {
-  font-size: 0.78rem;
-  color: var(--amson-text-muted);
-  margin-bottom: 0;
 }
 
 /* Chart cards */
@@ -1819,14 +1805,6 @@ a {
   flex-shrink: 0;
 }
 
-.product-checklist {
-  max-height: 220px;
-  overflow-y: auto;
-  border: 1px solid var(--amson-border);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-}
-
 /* ---------- Inventory: action tiles + stat boxes ---------- */
 /* Red-outlined partner to the solid red Receive Stock tile. */
 .btn-outline-amson {
@@ -1953,13 +1931,6 @@ a {
 .batch-status-pill.expired {
   background-color: rgba(238, 49, 55, 0.12);
   color: var(--amson-red);
-}
-
-.reconciliation-table-wrap {
-  max-height: 420px;
-  overflow-y: auto;
-  border: 1px solid var(--amson-border);
-  border-radius: 8px;
 }
 
 /* ---------- Choices.js (searchable selects for product/supplier/batch pickers) ---------- */
