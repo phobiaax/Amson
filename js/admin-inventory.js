@@ -841,7 +841,7 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
 
   let hasInvalid = false;
   rowEls.forEach((tr) => tr.classList.remove("table-danger"));
-  const parsedRows = rowEls.map((tr) => {
+  const lines = rowEls.map((tr) => {
     const get = (cls) => tr.querySelector(`.${cls}`);
     const sku = get("rbr-sku").value.trim();
     const batchNo = get("rbr-batchno").value.trim();
@@ -860,9 +860,9 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
     }
 
     return {
-      product,
+      productId: product ? product.id : null,
       batchNo,
-      expiryDate,
+      expirationDate: expiryDate,
       qty,
       supplierId: supplier ? supplier.id : null,
       supplierReceiptNo: receiptNo,
@@ -875,18 +875,7 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
     showFormAlert(receiveBatchReviewAlert, "Every row needs a recognized SKU, batch number, expiry date, quantity above 0, a supplier name that matches a saved supplier, a receipt / DR no. and a date received (only the unit cost is optional). Fix the highlighted rows, or remove them.");
     return;
   }
-  const plan = planStockReceipt(
-    parsedRows.map((r) => ({
-      productId: r.product.id,
-      batchNo: r.batchNo,
-      expirationDate: r.expiryDate,
-      qty: r.qty,
-      supplierId: r.supplierId,
-      supplierReceiptNo: r.supplierReceiptNo,
-      unitCost: r.unitCost,
-      dateReceived: r.dateReceived,
-    }))
-  );
+  const plan = planStockReceipt(lines);
   if (plan.errors.length) {
     showFormAlert(receiveBatchReviewAlert, plan.errors.join(" "));
     return;
