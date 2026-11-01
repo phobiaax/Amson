@@ -47,7 +47,7 @@ Moving near-expiry stock to wholesale-only and expired stock to Bad Order.
 
 Loading products and stock from Firestore with as few reads as possible, and merging in the staff-only prices.
 
-- Functions: `liveQuery()`, `liveVersion()`, `liveSnapshotAfter()`, `liveStockBatches()`, `catalogBrowserCacheAllowed()`, `clearCatalogCache()`, `catalogCacheReplacer()`, `catalogCacheReviver()`, `readCatalogBrowserCache()`, `writeCatalogBrowserCache()`, `isStaffPage()`, `loadPrivatePrices()`, `setPrivatePrices()`, `attachBatchCosts()`, `moveLegacyPrivatePrices()`, `loadCatalogCache()`
+- Functions: `liveQuery()`, `liveVersion()`, `liveSnapshotAfter()`, `liveStockBatches()`, `catalogBrowserCacheAllowed()`, `clearCatalogCache()`, `catalogCacheReplacer()`, `catalogCacheReviver()`, `readCatalogBrowserCache()`, `writeCatalogBrowserCache()`, `isStaffPage()`, `loadPrivatePrices()`, `setPrivatePrices()`, `attachBatchCosts()`, `loadCatalogCache()`
 - Shared data: `DEFAULT_CATEGORIES`, `liveQueries`, `CATALOG_CACHE_KEY`, `CATALOG_CACHE_MS`, `catalogLoadedOnce`, `PRIVATE_PRICE_FIELDS`
 
 ### progress pop-up for long jobs

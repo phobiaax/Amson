@@ -991,9 +991,7 @@ let catalogLoadedOnce = false;
 // Costing and wholesale prices (productPrices/{productId}) and batch unit
 // costs (batchCosts/{batchId}) are kept out of the public product and stock
 // records, so nobody can read them through the online store. Staff pages
-// merge them back in, so every screen and report works as before. Records
-// from before the move still carry the fields; moveLegacyPrivatePrices()
-// moves them (Products page for the Branch Manager, Inventory for staff).
+// merge them back in, so every screen and report works as before.
 const PRIVATE_PRICE_FIELDS = ["costingPrice", "wholesalePrice"];
 
 function isStaffPage() {
@@ -1053,62 +1051,6 @@ async function attachBatchCosts(batches) {
     }
     return out;
   });
-}
-
-// One-time move of costs still sitting on the public records. Safe to run
-// again: records already moved are skipped. Returns how many were moved.
-async function moveLegacyPrivatePrices({ products = false, batches = false } = {}) {
-  let moved = 0;
-  const commitInGroups = async (ops) => {
-    for (let i = 0; i < ops.length; i += 200) {
-      const batch = db.batch();
-      ops.slice(i, i + 200).forEach((op) => op(batch));
-      await batch.commit();
-    }
-  };
-  if (products) {
-    const snap = await db.collection("products").get();
-    const ops = [];
-    snap.docs.forEach((doc) => {
-      const data = doc.data();
-      if (!PRIVATE_PRICE_FIELDS.some((f) => f in data)) return;
-      moved += 1;
-      ops.push((batch) => {
-        setPrivatePrices(batch, doc.id, { costingPrice: data.costingPrice, wholesalePrice: data.wholesalePrice });
-        batch.update(doc.ref, {
-          costingPrice: firebase.firestore.FieldValue.delete(),
-          wholesalePrice: firebase.firestore.FieldValue.delete(),
-        });
-      });
-    });
-    await commitInGroups(ops);
-  }
-  if (batches) {
-    const snap = await db.collection("stockBatches").get();
-    const ops = [];
-    snap.docs.forEach((doc) => {
-      const data = doc.data();
-      const deliveryHasCost = Array.isArray(data.deliveries) && data.deliveries.some((d) => d && "unitCost" in d);
-      if (!("unitCost" in data) && !deliveryHasCost) return;
-      moved += 1;
-      ops.push((batch) => {
-        const costs = { unitCost: data.unitCost != null ? data.unitCost : null };
-        const update = { unitCost: firebase.firestore.FieldValue.delete() };
-        if (Array.isArray(data.deliveries)) {
-          costs.deliveryCosts = data.deliveries.map((d) => (d && d.unitCost != null ? d.unitCost : null));
-          update.deliveries = data.deliveries.map((d) => {
-            const rest = { ...d };
-            delete rest.unitCost;
-            return rest;
-          });
-        }
-        batch.set(db.collection("batchCosts").doc(doc.id), costs, { merge: true });
-        batch.update(doc.ref, update);
-      });
-    });
-    await commitInGroups(ops);
-  }
-  return moved;
 }
 
 async function loadCatalogCache({ afterStockChange = null } = {}) {

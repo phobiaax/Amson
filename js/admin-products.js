@@ -93,21 +93,9 @@ async function ensureDefaultCategories() {
   await batch.commit();
 }
 
-let legacyPricesChecked = false;
-
 async function loadProducts() {
   try {
     await ensureDefaultCategories();
-    // Once per visit, the Branch Manager's page moves any costing/wholesale
-    // prices still on the public product records to the staff-only ones.
-    if (!legacyPricesChecked && canEditPrices()) {
-      legacyPricesChecked = true;
-      try {
-        if (await moveLegacyPrivatePrices({ products: true })) catalogLoadPromise = null;
-      } catch (error) {
-        console.error("Couldn't move the staff-only prices:", error);
-      }
-    }
     await loadCatalogCache();
     allProducts = SAMPLE_PRODUCTS.slice();
     renderCategorySelect();
