@@ -2063,6 +2063,25 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, re
   });
 }
 
+// Exchanges (wholesale and walk-in): which batches the returned units go back
+// to, latest-expiring first, skipping units already returned earlier. Gives
+// the line's batches with returnedQty updated, the units per batch, and how
+// many units (need) no batch record covers.
+function planBatchReturn(line, returnQty) {
+  const batches = (line.batches || []).map((b) => ({ ...b }));
+  const returnParts = [];
+  let need = returnQty;
+  for (let i = batches.length - 1; i >= 0 && need > 0; i--) {
+    const left = (batches[i].qty || 0) - (batches[i].returnedQty || 0);
+    const take = Math.min(left, need);
+    if (take <= 0) continue;
+    returnParts.push({ batchId: batches[i].batchId, batchNo: batches[i].batchNo, expirationDate: batches[i].expirationDate, qty: take });
+    batches[i].returnedQty = (batches[i].returnedQty || 0) + take;
+    need -= take;
+  }
+  return { batches, returnParts, need };
+}
+
 // ---- Wholesale exchange (REQ090, Fig 2.15) ----
 // No refunds: the buyer returns units from a recorded wholesale order and
 // takes a replacement of equal or higher value, paying any difference. In
@@ -2087,19 +2106,8 @@ async function processWholesaleExchange({ orderId, lineIndex, returnQty, replace
     throw new Error(`The replacement (${formatPeso(replacementValue)}) must be of equal or higher value than the returned items (${formatPeso(returnedValue)}). Refunds aren't given.`);
   }
 
-  // Which batches the returned units go back to, latest-expiring first,
-  // skipping units already returned earlier.
-  const batches = (line.batches || []).map((b) => ({ ...b }));
-  const returnParts = [];
-  let need = returnQty;
-  for (let i = batches.length - 1; i >= 0 && need > 0; i--) {
-    const left = (batches[i].qty || 0) - (batches[i].returnedQty || 0);
-    const take = Math.min(left, need);
-    if (take <= 0) continue;
-    returnParts.push({ batchId: batches[i].batchId, batchNo: batches[i].batchNo, expirationDate: batches[i].expirationDate, qty: take });
-    batches[i].returnedQty = (batches[i].returnedQty || 0) + take;
-    need -= take;
-  }
+  // Which batches the returned units go back to.
+  const { batches, returnParts, need } = planBatchReturn(line, returnQty);
   if (need > 0) throw new Error("This order line has no batch record to return the stock to. Record the return with a write-off/receiving entry instead.");
 
   const counterRef = db.collection("counters").doc("wholesaleExchanges");
@@ -2199,19 +2207,8 @@ async function processWalkinExchange({ saleId, lineIndex, returnQty, replacement
     throw new Error(`The replacement (${formatPeso(replacementValue)}) must be of equal or higher value than the returned items (${formatPeso(returnedValue)}). Refunds aren't given.`);
   }
 
-  // Which batches the returned units came from, latest-expiring first,
-  // skipping units already returned earlier.
-  const batches = (line.batches || []).map((b) => ({ ...b }));
-  const returnParts = [];
-  let need = returnQty;
-  for (let i = batches.length - 1; i >= 0 && need > 0; i--) {
-    const left = (batches[i].qty || 0) - (batches[i].returnedQty || 0);
-    const take = Math.min(left, need);
-    if (take <= 0) continue;
-    returnParts.push({ batchId: batches[i].batchId, batchNo: batches[i].batchNo, expirationDate: batches[i].expirationDate, qty: take });
-    batches[i].returnedQty = (batches[i].returnedQty || 0) + take;
-    need -= take;
-  }
+  // Which batches the returned units came from.
+  const { batches, returnParts, need } = planBatchReturn(line, returnQty);
   if (need > 0 && restock) {
     throw new Error("This sale has no batch record for that item, so it can't go back to a batch automatically. Choose \"Set aside\" or receive it as new stock.");
   }
