@@ -32,16 +32,7 @@ auth.onAuthStateChanged((user) => {
 });
 
 // ---- Password visibility toggles ----
-document.querySelectorAll(".toggle-password").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const target = document.getElementById(btn.dataset.target);
-    const icon = btn.querySelector("i");
-    const isHidden = target.type === "password";
-    target.type = isHidden ? "text" : "password";
-    icon.classList.toggle("bi-eye");
-    icon.classList.toggle("bi-eye-slash");
-  });
-});
+wirePasswordToggles();
 
 // PASSWORD_PATTERN, NAME_PATTERN, EMAIL_PATTERN, PH_PHONE_PATTERN, and
 // normalizePhPhone come from validators.js, shared with Account Settings

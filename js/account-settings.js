@@ -28,16 +28,7 @@ const storeCreditCard = document.getElementById("storeCreditCard");
 const storeCreditAmount = document.getElementById("storeCreditAmount");
 
 // ---- Password visibility toggles ----
-document.querySelectorAll(".toggle-password").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    const target = document.getElementById(btn.dataset.target);
-    const icon = btn.querySelector("i");
-    const isHidden = target.type === "password";
-    target.type = isHidden ? "text" : "password";
-    icon.classList.toggle("bi-eye");
-    icon.classList.toggle("bi-eye-slash");
-  });
-});
+wirePasswordToggles();
 
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
