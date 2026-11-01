@@ -19,34 +19,9 @@ const SHOP_STAFF_ROLES = {
   sales_staff: "Sales Staff",
 };
 
-// The header is drawn from the last confirmed login straight away, so a
-// refresh doesn't flash Login / Register while Firebase checks the login
-// (about a second). The check below then corrects it either way.
-const HEADER_USER_KEY = "amsonHeaderUser";
-
-function rememberHeaderUser(firstName) {
-  try {
-    localStorage.setItem(HEADER_USER_KEY, firstName);
-  } catch (error) {}
-}
-
-function forgetHeaderUser() {
-  try {
-    localStorage.removeItem(HEADER_USER_KEY);
-  } catch (error) {}
-}
-
-(function showLastKnownUser() {
-  let firstName = null;
-  try {
-    firstName = localStorage.getItem(HEADER_USER_KEY);
-  } catch (error) {}
-  // A "Remember me"-off login ends with the browser; don't show it then.
-  if (firstName === null || (typeof browserSessionEnded === "function" && browserSessionEnded())) return;
-  accountFirstName.textContent = firstName || "Account";
-  guestActions.classList.add("d-none");
-  accountActions.classList.remove("d-none");
-})();
+// The last signed-in name is shown straight away by js/header-user.js
+// (rememberHeaderUser / forgetHeaderUser live there too); the login check
+// below then confirms or corrects it.
 
 function showGuestHeader() {
   forgetHeaderUser();
