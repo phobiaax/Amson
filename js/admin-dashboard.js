@@ -267,30 +267,29 @@ function isConfirmedSale(order) {
   return order.status !== "placed" && order.status !== "closed_unresolved";
 }
 
+// Adds up the totals of orders or POS sales per chart point (hour, day or
+// month) of the period. Only points that had a sale get a key.
+function totalsByBucket(records, period) {
+  const totals = {};
+  records.forEach((record) => {
+    if (!record.createdAt) return;
+    const date = record.createdAt.toDate ? record.createdAt.toDate() : new Date(record.createdAt);
+    if (!inPeriod(date, period)) return;
+    const key = dashboardBucketKey(date, period);
+    totals[key] = (totals[key] || 0) + (record.total || 0);
+  });
+  return totals;
+}
+
 let salesChartInstance = null;
 
 function renderSalesChart(orders, posSales) {
   const canvas = document.getElementById("salesChart");
   const emptyState = document.getElementById("salesChartEmpty");
   const period = dashboardPeriod;
-  const onlineTotals = {};
-  const posTotals = {};
+  const onlineTotals = totalsByBucket(orders.filter(isConfirmedSale), period);
+  const posTotals = totalsByBucket(posSales || [], period);
 
-  orders.filter(isConfirmedSale).forEach((order) => {
-    if (!order.createdAt) return;
-    const date = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
-    if (!inPeriod(date, period)) return;
-    const key = dashboardBucketKey(date, period);
-    onlineTotals[key] = (onlineTotals[key] || 0) + (order.total || 0);
-  });
-
-  (posSales || []).forEach((sale) => {
-    if (!sale.createdAt) return;
-    const date = sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(sale.createdAt);
-    if (!inPeriod(date, period)) return;
-    const key = dashboardBucketKey(date, period);
-    posTotals[key] = (posTotals[key] || 0) + (sale.total || 0);
-  });
 
   if (salesChartInstance) {
     salesChartInstance.destroy();
@@ -499,22 +498,8 @@ function buildSalesAnalyticsReport() {
   const orders = lastLoadedOrders;
   const posSales = lastLoadedPosSales;
 
-  const onlineTotals = {};
-  const posTotals = {};
-  orders.filter(isConfirmedSale).forEach((order) => {
-    if (!order.createdAt) return;
-    const date = order.createdAt.toDate ? order.createdAt.toDate() : new Date(order.createdAt);
-    if (!inPeriod(date, period)) return;
-    const key = dashboardBucketKey(date, period);
-    onlineTotals[key] = (onlineTotals[key] || 0) + (order.total || 0);
-  });
-  (posSales || []).forEach((sale) => {
-    if (!sale.createdAt) return;
-    const date = sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(sale.createdAt);
-    if (!inPeriod(date, period)) return;
-    const key = dashboardBucketKey(date, period);
-    posTotals[key] = (posTotals[key] || 0) + (sale.total || 0);
-  });
+  const onlineTotals = totalsByBucket(orders.filter(isConfirmedSale), period);
+  const posTotals = totalsByBucket(posSales || [], period);
   const keys = dashboardAllBucketKeys(period);
   const timeSeries = keys.map((key) => ({
     label: dashboardBucketLabel(key, period),
