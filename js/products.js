@@ -157,7 +157,7 @@ applyFiltersBtn.addEventListener("click", applyFilters);
   // Only sections that have products in the store.
   sectionFilterSelect.innerHTML =
     '<option value="">All sections</option>' +
-    storefrontShopSections().map((sec) => `<option value="${escapeHtml(sec.id)}">${escapeHtml(sec.label)}</option>`).join("");
+    SHOP_SECTIONS.map((sec) => `<option value="${escapeHtml(sec.id)}">${escapeHtml(sec.label)}</option>`).join("");
   currentFiltered = storefrontCatalog();
 
   if (searchTerm) {
