@@ -930,12 +930,10 @@ async function openExchangeDialog(order, account) {
   }
 }
 
-function downloadExchangeDocument(ex) {
-  if (typeof window.jspdf === "undefined") {
-    showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
-    return;
-  }
-  const doc = createPdf();
+// The heading of the wholesale PDFs (exchange document and sales invoice):
+// store name, document title, and its number at the top right. Returns the
+// y position of the title line, where the rest of the document carries on.
+function startWholesalePdf(doc, title, number) {
   let y = 18;
   doc.setFontSize(15);
   doc.setFont(undefined, "bold");
@@ -943,10 +941,20 @@ function downloadExchangeDocument(ex) {
   doc.setFontSize(10);
   doc.setFont(undefined, "normal");
   y += 6;
-  doc.text("Wholesale Exchange - Las Pinas Branch", 14, y);
+  doc.text(title, 14, y);
   doc.setFont(undefined, "bold");
-  doc.text(ex.exchangeNo || "", 196, 18, { align: "right" });
+  doc.text(number, 196, 18, { align: "right" });
   doc.setFont(undefined, "normal");
+  return y;
+}
+
+function downloadExchangeDocument(ex) {
+  if (typeof window.jspdf === "undefined") {
+    showAppAlert("PDF generation isn't available right now. Please try again in a moment.");
+    return;
+  }
+  const doc = createPdf();
+  let y = startWholesalePdf(doc, "Wholesale Exchange - Las Pinas Branch", ex.exchangeNo || "");
   doc.text(`Date: ${formatDateMDY(ex.createdAt || new Date())}`, 196, 24, { align: "right" });
   y += 10;
   [`Buyer: ${ex.buyerName || ""}`, `Original SI No.: ${ex.invoiceNo || "-"}  (purchased ${formatDateMDY(ex.purchasedAt)})`, `Reason: ${ex.reason || ""}`].forEach((line) => {
@@ -995,17 +1003,7 @@ function downloadWholesaleInvoice(order, { print = false } = {}) {
     return;
   }
   const doc = createPdf();
-  let y = 18;
-  doc.setFontSize(15);
-  doc.setFont(undefined, "bold");
-  doc.text("Amson Pharmaceuticals", 14, y);
-  doc.setFontSize(10);
-  doc.setFont(undefined, "normal");
-  y += 6;
-  doc.text("Wholesale Sales Invoice - Las Pinas Branch", 14, y);
-  doc.setFont(undefined, "bold");
-  doc.text(`SI No. ${order.invoiceNo || "-"}`, 196, 18, { align: "right" });
-  doc.setFont(undefined, "normal");
+  let y = startWholesalePdf(doc, "Wholesale Sales Invoice - Las Pinas Branch", `SI No. ${order.invoiceNo || "-"}`);
   doc.text(`Date: ${formatDateMDY(order.createdAt)}`, 196, 24, { align: "right" });
 
   y += 10;
