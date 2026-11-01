@@ -91,10 +91,6 @@ function periodChartEnd(period) {
   return end > now ? now : new Date(end.getTime() - 1);
 }
 
-function localDayKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
 // The bucket a given date falls into for the current period's chart -
 // hourly for a day (a single day has nothing to group by otherwise),
 // daily for Week/Month, monthly for Year (365 daily points would be
@@ -102,7 +98,7 @@ function localDayKey(date) {
 function dashboardBucketKey(date, period) {
   if (period === "today") return String(date.getHours()).padStart(2, "0");
   if (period === "year") return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-  return localDayKey(date);
+  return localISODate(date);
 }
 
 function dashboardBucketLabel(key, period) {
@@ -137,7 +133,7 @@ function dashboardAllBucketKeys(period) {
   }
   const cursor = new Date(start);
   while (cursor <= last) {
-    keys.push(localDayKey(cursor));
+    keys.push(localISODate(cursor));
     cursor.setDate(cursor.getDate() + 1);
   }
   return keys;
@@ -164,8 +160,8 @@ const dashboardRangeNextBtn = document.getElementById("dashboardRangeNextBtn");
 
 function renderDashboardRange() {
   dashboardRangeLabel.textContent = dashboardRangeText(dashboardPeriod);
-  dashboardRangePicker.value = localDayKey(dashboardAnchor);
-  dashboardRangePicker.max = localDayKey(new Date());
+  dashboardRangePicker.value = localISODate(dashboardAnchor);
+  dashboardRangePicker.max = localISODate(new Date());
   // No moving into a period that hasn't started yet.
   dashboardRangeNextBtn.disabled = periodRange(dashboardPeriod).end > new Date();
 }
@@ -647,7 +643,7 @@ document.getElementById("exportAnalyticsPdfBtn").addEventListener("click", () =>
     mostBought.forEach((item, idx) => row(`#${idx + 1} ${item.name}`, `${item.qty} sold`));
   }
 
-  doc.save(`amson-sales-analytics-${period}-${localDayKey(periodRange(period).start)}.pdf`);
+  doc.save(`amson-sales-analytics-${period}-${localISODate(periodRange(period).start)}.pdf`);
 });
 
 document.getElementById("exportAnalyticsExcelBtn").addEventListener("click", () => {
@@ -679,7 +675,7 @@ document.getElementById("exportAnalyticsExcelBtn").addEventListener("click", () 
   );
   XLSX.utils.book_append_sheet(wb, mostBoughtSheet, "Most Bought Items");
 
-  XLSX.writeFile(wb, `amson-sales-analytics-${period}-${localDayKey(periodRange(period).start)}.xlsx`);
+  XLSX.writeFile(wb, `amson-sales-analytics-${period}-${localISODate(periodRange(period).start)}.xlsx`);
 });
 
 // ---- Find a sale by SI No. ----

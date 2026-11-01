@@ -1243,12 +1243,11 @@ function renumberItems(container) {
   });
 }
 
-// An Excel date cell read by SheetJS (cellDates) is local midnight; its
-// UTC form (toISOString) is the day before in the Philippines (UTC+8), so
-// dates are taken from the local calendar parts instead.
-function sheetDateToISO(value) {
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+// A date as YYYY-MM-DD on the branch's own calendar. Built from the local
+// date parts, not toISOString(): that is UTC, which is still yesterday until
+// 8 AM in the Philippines (and an Excel date cell is local midnight).
+function localISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 // ---- Duplicate product names ----
@@ -2220,8 +2219,7 @@ async function processWalkinExchange({ saleId, lineIndex, returnQty, replacement
 
   const counterRef = db.collection("counters").doc("wholesaleExchanges");
   const exchangeRef = db.collection("wholesaleExchanges").doc();
-  const today = new Date();
-  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const todayIso = localISODate(new Date());
   let exchangeNo = null;
 
   await deductStockFEFOMultiple([{ productId: replacement.productId, qty: replacement.qty }], {

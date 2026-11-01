@@ -84,7 +84,7 @@ document.getElementById("uploadCountSheetBtn").addEventListener("click", () => c
 // or an Excel date cell. A month without a day becomes the 1st (the
 // earliest it could expire, so FEFO stays on the safe side).
 function normalizeExpiry(value) {
-  if (value instanceof Date && !isNaN(value)) return sheetDateToISO(value);
+  if (value instanceof Date && !isNaN(value)) return localISODate(value);
   const v = String(value || "").trim();
   if (!v) return null;
   let m;
@@ -99,7 +99,7 @@ function normalizeExpiry(value) {
 
 function validMonthDay(iso) {
   const d = new Date(`${iso}T12:00:00`);
-  return !isNaN(d) && sheetDateToISO(d) === iso;
+  return !isNaN(d) && localISODate(d) === iso;
 }
 
 countSheetFileInput.addEventListener("change", async () => {
