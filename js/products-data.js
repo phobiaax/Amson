@@ -1898,31 +1898,16 @@ async function exportTable({ title, subtitle = "", filenamePrefix, columns, rows
   doc.save(`${filenamePrefix}-${stamp}.pdf`);
 }
 
-// ---- FEFO stock deduction for a single product ----
-// Runs as a Firestore transaction so two staff approving two different
-// orders for the same tightly-stocked product at nearly the same time
-// can't both pass the availability check against stale reads and both
-// succeed - Firestore detects the conflicting read and retries the
-// transaction with fresh data, so the second one correctly re-checks
-// against what the first one actually left behind. A thin wrapper around
-// deductStockFEFOMultiple below - see there for why a multi-item order
-// can't just call this once per item.
-async function deductStockFEFO(productId, qty, opts = {}) {
-  return deductStockFEFOMultiple([{ productId, qty }], opts);
-}
-
-// ---- FEFO stock deduction for a whole multi-item order, atomically ----
-// deductStockFEFO deducts one product per call, each in its own
-// transaction - fine for a single item, but a caller looping it across an
-// order's items has no way to undo the ones that already succeeded if a
-// later item runs out of stock. That left earlier items silently
-// deducted with no order ever actually created/approved to account for
-// it, and retrying the same loop later (once restocked) would deduct
-// those already-decremented items a second time. This does every item in
-// one transaction instead: it reads and validates all of them before
-// writing any of them, so a shortfall on one item aborts the whole thing
-// with nothing changed, exactly like deductStockFEFO does for a single
-// product.
+// ---- FEFO stock deduction (first-expiry, first-out), all items at once ----
+// Runs as one Firestore transaction, so two staff approving two orders for
+// the same tightly-stocked product at nearly the same time can't both pass
+// the availability check against stale reads and both succeed - Firestore
+// detects the conflicting read and retries the transaction with fresh data,
+// so the second one correctly re-checks against what the first one left.
+// Every item of an order is read and validated before any is written, so a
+// shortfall on one item aborts the whole thing with nothing changed.
+// (Deducting item by item, each in its own transaction, used to leave the
+// earlier items deducted with no order to account for them.)
 //
 // Returns { allocations, invoiceNo }. allocations lists, per input item
 // (same order), the batches it was actually taken from - [{ batchId,
