@@ -1400,7 +1400,6 @@ function showSaleReceipt({
   items,
   total,
   paymentMethod,
-  isCash,
   amountPaid,
   change,
   cashier,
@@ -1461,7 +1460,7 @@ function showSaleReceipt({
   }
 
   const changeRow = document.getElementById("posReceiptChangeRow");
-  if (isCash) {
+  if (paymentMethod === "cash") {
     changeRow.classList.remove("d-none");
     document.getElementById("posReceiptChange").textContent = formatPeso(change);
   } else {

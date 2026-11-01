@@ -363,12 +363,10 @@ document.addEventListener("admin:ready", (e) => {
 function openWalkinSaleReceipt(saleId) {
   const sale = allPosSales.find((s) => s.id === saleId);
   if (!sale) return;
-  const isCash = sale.paymentMethod === "cash";
   showSaleReceipt({
     items: sale.items || [],
     total: sale.total,
     paymentMethod: sale.paymentMethod,
-    isCash,
     amountPaid: sale.cashReceived,
     change: sale.change || 0,
     cashier: sale.cashier || "-",
@@ -1538,7 +1536,6 @@ function printOnlineOrderReceipt(order) {
     items: (order.items || []).map((it) => ({ name: it.name || it.id, qty: it.qty, price: it.price || 0 })),
     total: order.total || 0,
     paymentMethod: order.total > 0 ? "gcash" : "free_of_cost",
-    isCash: false,
     amountPaid: paid,
     change: 0,
     cashier: (order.verification && order.verification.by) || "Online order",

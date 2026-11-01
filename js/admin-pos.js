@@ -286,7 +286,6 @@ posCompleteSaleBtn.addEventListener("click", () => {
     items,
     total,
     paymentMethod,
-    isCash,
     amountPaid: isCash ? cash : total,
     change: cash - total,
     cashier: currentCashierName,
@@ -340,7 +339,6 @@ posCompleteSaleBtn.addEventListener("click", () => {
           items,
           total,
           paymentMethod,
-          isCash,
           amountPaid: isCash ? cash : total,
           change: isCash ? cash - total : 0,
           cashier: currentCashierName,
@@ -444,12 +442,10 @@ function listenToTodaySales() {
 // View/print a past sale, and void it if this staff member's role allows.
 function openPosSaleReceipt(sale, afterVoid) {
   if (!sale) return;
-  const isCash = sale.paymentMethod === "cash";
   showSaleReceipt({
     items: sale.items || [],
     total: sale.total,
     paymentMethod: sale.paymentMethod,
-    isCash,
     amountPaid: sale.cashReceived,
     change: sale.change || 0,
     cashier: sale.cashier || "-",
