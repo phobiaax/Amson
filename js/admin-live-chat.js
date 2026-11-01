@@ -70,8 +70,7 @@ function listenToThreads() {
 }
 
 async function loadChatUsage() {
-  const d = new Date();
-  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const key = localISODate(new Date());
   try {
     const doc = await db.collection("chatUsage").doc(key).get();
     const count = doc.exists ? doc.data().count || 0 : 0;

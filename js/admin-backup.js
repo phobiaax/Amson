@@ -88,7 +88,7 @@ if (backupBtn) {
         }
       }
 
-      const stamp = localISODateForBackup(new Date());
+      const stamp = localISODate(new Date());
       const wb = XLSX.utils.book_new();
       BACKUP_COLLECTIONS.forEach(([name, label]) => {
         const rows = data[name];
@@ -118,8 +118,4 @@ if (backupBtn) {
       backupBtn.disabled = false;
     }
   });
-}
-
-function localISODateForBackup(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }

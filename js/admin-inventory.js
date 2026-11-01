@@ -139,7 +139,7 @@ document.addEventListener("admin:ready", (e) => {
 // Today on the branch's calendar (the UTC date is still yesterday until
 // 8 AM in the Philippines).
 function todayISO() {
-  return sheetDateToISO(new Date());
+  return localISODate(new Date());
 }
 
 /* ---------- Load ---------- */
@@ -975,7 +975,7 @@ receiveBatchFileInput.addEventListener("change", async () => {
       const row = {};
       Object.entries(sheetRow).forEach(([key, value]) => {
         const k = key.trim().toLowerCase();
-        row[k] = value instanceof Date ? sheetDateToISO(value) : String(value).trim();
+        row[k] = value instanceof Date ? localISODate(value) : String(value).trim();
       });
       return row;
     });
@@ -1906,7 +1906,7 @@ poBatchFileInput.addEventListener("change", async () => {
     rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { defval: "" }).map((sheetRow) => {
       const row = {};
       Object.entries(sheetRow).forEach(([key, value]) => {
-        row[key.trim().toLowerCase()] = value instanceof Date ? sheetDateToISO(value) : String(value).trim();
+        row[key.trim().toLowerCase()] = value instanceof Date ? localISODate(value) : String(value).trim();
       });
       return row;
     });

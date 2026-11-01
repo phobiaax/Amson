@@ -95,10 +95,7 @@ const cart = getCheckoutCart();
 
 // ---- Delivery schedule modal ----
 // Local date: the UTC one is still yesterday until 8 AM in the Philippines.
-const todayISO = (() => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-})();
+const todayISO = localISODate(new Date());
 deliveryDateInput.min = todayISO;
 
 deliveryAsapCheck.addEventListener("change", () => {

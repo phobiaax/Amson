@@ -507,14 +507,9 @@ async function chatAiReadHealth(question, vocabulary) {
   }
 }
 
-function chatTodayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 // Counts one AI reply against today's limit; false once the limit is reached.
 async function claimChatAiQuota() {
-  const ref = db.collection("chatUsage").doc(chatTodayKey());
+  const ref = db.collection("chatUsage").doc(localISODate(new Date()));
   return db.runTransaction(async (tx) => {
     const doc = await tx.get(ref);
     const count = doc.exists ? doc.data().count || 0 : 0;
