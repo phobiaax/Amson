@@ -585,8 +585,9 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     free: row.querySelector(".order-free-check").checked,
   }));
 
-  const buyer = allWholesaleAccounts.find((w) => w.id === processingAccountId);
-  if (buyer && (documentValidity(buyer.ltoValidUntil) === "expired" || documentValidity(buyer.permitValidUntil) === "expired")) {
+  const account = allWholesaleAccounts.find((w) => w.id === processingAccountId);
+  const buyerName = account ? account.name : "";
+  if (account && (documentValidity(account.ltoValidUntil) === "expired" || documentValidity(account.permitValidUntil) === "expired")) {
     processOrderAlert.textContent = "This buyer's LTO or Business Permit has expired. Update the document and its date in Edit first.";
     processOrderAlert.classList.remove("d-none");
     return;
@@ -626,7 +627,6 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     for (const it of items) {
       total += it.qty * it.unitPrice;
     }
-    const account = allWholesaleAccounts.find((w) => w.id === processingAccountId);
     const paymentMethod = processOrderPaymentSelect.value;
 
     const orderItems = items.map((it) => {
@@ -651,7 +651,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
         build: (allocations, invoiceNo) => ({
           invoiceNo,
           wholesaleAccountId: processingAccountId,
-          buyerName: account ? account.name : "",
+          buyerName: buyerName,
           items: orderItems.map((item, idx) => ({ ...item, ...batchFieldsFromAllocation(allocations[idx]) })),
           total,
           paymentMethod: freeOfCost ? "free_of_cost" : paymentMethod,
@@ -674,22 +674,22 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
       freeOfCost
         ? {
             action: "Free-of-Cost Distribution",
-            details: `SI ${invoiceNo} - ${account ? account.name : ""} - ${orderItems.map((it) => `${it.productName} x${it.qty}`).join(", ")}. Reason: ${freeReason}`,
-            record: `SI ${invoiceNo} - ${account ? account.name : ""}`,
+            details: `SI ${invoiceNo} - ${buyerName} - ${orderItems.map((it) => `${it.productName} x${it.qty}`).join(", ")}. Reason: ${freeReason}`,
+            record: `SI ${invoiceNo} - ${buyerName}`,
             after: `${orderItems.map((it) => `${it.productName} x${it.qty}`).join(", ")} at ${formatPeso(0)}`,
             reason: freeReason,
           }
         : {
             action: "Wholesale Order Recorded",
-            details: `SI ${invoiceNo} - ${account ? account.name : ""} - ${orderItems.length} item(s), Total ${formatPeso(total)}, ${SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod}`,
+            details: `SI ${invoiceNo} - ${buyerName} - ${orderItems.length} item(s), Total ${formatPeso(total)}, ${SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod}`,
           }
     );
     if (!freeOfCost && freeItems.length) {
       const freeList = orderItems.filter((it) => it.free).map((it) => `${it.productName} x${it.qty}`).join(", ");
       await logAuditEvent({
         action: "Wholesale Free Items",
-        details: `SI ${invoiceNo} - ${account ? account.name : ""} - free: ${freeList}. Reason: ${freeReason}`,
-        record: `SI ${invoiceNo} - ${account ? account.name : ""}`,
+        details: `SI ${invoiceNo} - ${buyerName} - free: ${freeList}. Reason: ${freeReason}`,
+        record: `SI ${invoiceNo} - ${buyerName}`,
         after: `${freeList} at ${formatPeso(0)}`,
         reason: freeReason,
       });
