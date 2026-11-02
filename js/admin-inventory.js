@@ -839,6 +839,37 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
     return;
   }
 
+  const { lines, hasInvalid } = readReceiveReviewRows(rowEls);
+  if (hasInvalid) {
+    showFormAlert(receiveBatchReviewAlert, "Every row needs a recognized SKU, batch number, expiry date, quantity above 0, a supplier name that matches a saved supplier, a receipt / DR no. and a date received (only the unit cost is optional). Fix the highlighted rows, or remove them.");
+    return;
+  }
+  const plan = planStockReceipt(lines);
+  if (plan.errors.length) {
+    showFormAlert(receiveBatchReviewAlert, plan.errors.join(" "));
+    return;
+  }
+
+  receiveBatchReviewAlert.classList.add("d-none");
+  receiveBatchReviewConfirmBtn.disabled = true;
+  receiveBatchReviewConfirmBtn.textContent = "Receiving...";
+  const { imported, failed } = await saveReceiptInGroups(plan);
+  receiveBatchReviewConfirmBtn.disabled = false;
+  receiveBatchReviewConfirmBtn.textContent = "Confirm Import";
+  bootstrap.Modal.getInstance(receiveBatchReviewModalEl).hide();
+
+  receiveBatchUploadStatus.textContent = "";
+  if (imported > 0) {
+    await logAuditEvent({ action: "Stock Received (Batch Upload)", details: `${imported} line${imported === 1 ? "" : "s"} imported from file: ${receiptSummary(plan)}` });
+  }
+  receiveBatchFileInput.value = "";
+  await loadInventory();
+  await showReceiveResult(plan, imported, failed);
+});
+
+// Reads the rows of the upload review table into receiving lines. A row
+// with a missing or unrecognized value is highlighted red.
+function readReceiveReviewRows(rowEls) {
   let hasInvalid = false;
   rowEls.forEach((tr) => tr.classList.remove("table-danger"));
   const lines = rowEls.map((tr) => {
@@ -870,23 +901,13 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
       dateReceived,
     };
   });
+  return { lines, hasInvalid };
+}
 
-  if (hasInvalid) {
-    showFormAlert(receiveBatchReviewAlert, "Every row needs a recognized SKU, batch number, expiry date, quantity above 0, a supplier name that matches a saved supplier, a receipt / DR no. and a date received (only the unit cost is optional). Fix the highlighted rows, or remove them.");
-    return;
-  }
-  const plan = planStockReceipt(lines);
-  if (plan.errors.length) {
-    showFormAlert(receiveBatchReviewAlert, plan.errors.join(" "));
-    return;
-  }
-
-  receiveBatchReviewAlert.classList.add("d-none");
-  receiveBatchReviewConfirmBtn.disabled = true;
-  receiveBatchReviewConfirmBtn.textContent = "Receiving...";
-
-  // Saved in groups of up to 400 lines, each group all-or-nothing, so a
-  // failed group can be retried without duplicating the ones before it.
+// Saved in groups of up to 400 lines, each group all-or-nothing, so a
+// failed group can be retried without duplicating the ones before it.
+// Returns how many lines were saved and how many weren't.
+async function saveReceiptInGroups(plan) {
   const ops = plan.newLines.map((line) => ({ line })).concat(plan.topUps.map((t) => ({ topUp: t })));
   let imported = 0;
   let failed = 0;
@@ -904,18 +925,11 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
       break;
     }
   }
+  return { imported, failed };
+}
 
-  receiveBatchReviewConfirmBtn.disabled = false;
-  receiveBatchReviewConfirmBtn.textContent = "Confirm Import";
-  bootstrap.Modal.getInstance(receiveBatchReviewModalEl).hide();
-
-  receiveBatchUploadStatus.textContent = "";
-  if (imported > 0) {
-    await logAuditEvent({ action: "Stock Received (Batch Upload)", details: `${imported} line${imported === 1 ? "" : "s"} imported from file: ${receiptSummary(plan)}` });
-  }
-  receiveBatchFileInput.value = "";
-  await loadInventory();
-
+// The result pop-up after an upload: success, or what didn't save.
+async function showReceiveResult(plan, imported, failed) {
   const lineCount = (n) => `${n} line${n === 1 ? "" : "s"}`;
   const topUpNote = plan.topUps.length ? `\n${lineCount(plan.topUps.length)} added to batches already in stock.` : "";
   await showTaskResult(
@@ -933,7 +947,7 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
           list: receiptLineNames(plan),
         }
   );
-});
+}
 
 // SheetJS reads both real Excel workbooks and plain CSV through the same
 // API. cellDates converts an actual Excel date cell into a JS Date
@@ -1208,97 +1222,18 @@ writeOffStockBtn.addEventListener("click", () => {
 });
 
 saveWriteOffBtn.addEventListener("click", async () => {
-  const rows = Array.from(writeOffItemsContainer.querySelectorAll(".repeater-item"));
-  const items = rows.map((row) => ({
-    batchId: row.querySelector(".writeoff-batch-select").value,
-    productId: row.querySelector(".writeoff-product-select").value,
-    qty: parseInt(row.querySelector(".writeoff-qty-input").value, 10),
-    reason: row.querySelector(".writeoff-reason-input").value.trim(),
-  }));
-
-  const invalid = items.some((it) => !it.batchId || !it.qty || it.qty <= 0 || !it.reason);
-  if (invalid || items.length === 0) {
-    showFormAlert(writeOffModalAlert, "Every item needs a batch, a quantity, and a reason.");
-    return;
-  }
-
-  const overQtyItem = items.find((it) => {
-    const batch = allBatches.find((b) => b.id === it.batchId);
-    return !batch || it.qty > batch.quantity;
-  });
-  if (overQtyItem) {
-    showFormAlert(writeOffModalAlert, "You can't write off more than a batch's current quantity.");
+  const items = readWriteOffForm();
+  const problem = writeOffProblem(items);
+  if (problem) {
+    showFormAlert(writeOffModalAlert, problem);
     return;
   }
 
   saveWriteOffBtn.disabled = true;
   writeOffModalAlert.classList.add("d-none");
-
-  // Deducting each row against the page's cached allBatches snapshot (as
-  // this used to) has two ways to go wrong: another change to the same
-  // batch elsewhere (a sale, another write-off) between page load and
-  // this click gets silently overwritten instead of compounded, and two
-  // rows here writing off the same batch would each validate against
-  // that same stale number instead of each other's deduction, letting
-  // more be written off in one submission than the batch actually holds.
-  // A single transaction that re-reads each distinct batch fresh and
-  // validates the combined quantity against it closes both.
-  const qtyByBatch = {};
-  for (const item of items) {
-    qtyByBatch[item.batchId] = (qtyByBatch[item.batchId] || 0) + item.qty;
-  }
-
   try {
-    await db.runTransaction(async (transaction) => {
-      const batchIds = Object.keys(qtyByBatch);
-      const batchDocs = await Promise.all(
-        batchIds.map((id) => transaction.get(db.collection("stockBatches").doc(id)))
-      );
-
-      batchDocs.forEach((doc, idx) => {
-        const batchId = batchIds[idx];
-        if (!doc.exists || qtyByBatch[batchId] > doc.data().quantity) {
-          throw new Error("You can't write off more than a batch's current quantity.");
-        }
-      });
-
-      batchDocs.forEach((doc, idx) => {
-        const batchId = batchIds[idx];
-        transaction.update(doc.ref, {
-          quantity: doc.data().quantity - qtyByBatch[batchId],
-          lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
-      });
-
-      // The write-off records go in the same transaction, so a retry can't
-      // deduct the stock a second time.
-      for (const item of items) {
-        const batch = allBatches.find((b) => b.id === item.batchId);
-        transaction.set(db.collection("writeOffs").doc(), {
-          batchId: item.batchId,
-          productId: item.productId,
-          batchNo: batch ? batch.batchNo : "",
-          quantity: item.qty,
-          reason: item.reason,
-          writeOffDate: writeOffDateInput.value || todayISO(),
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
-      }
-    });
-
-    for (const item of items) {
-      const batch = allBatches.find((b) => b.id === item.batchId);
-      const product = getProductById(item.productId);
-      await logAuditEvent({
-        action: "Inventory Write-Off",
-        details: `${product ? product.name : item.productId} - Batch ${batch ? batch.batchNo : item.batchId}, Qty ${item.qty}, Reason: ${item.reason}`,
-        record: `${product ? product.name : item.productId} - Batch ${batch ? batch.batchNo : item.batchId}`,
-        before: batch ? `${batch.quantity} units` : "",
-        after: batch ? `${batch.quantity - item.qty} units` : `-${item.qty} units`,
-        reason: item.reason,
-      });
-    }
-
+    await saveWriteOff(items);
+    await logWriteOffs(items);
     bootstrap.Modal.getInstance(writeOffModalEl).hide();
     await loadInventory();
   } catch (error) {
@@ -1307,6 +1242,100 @@ saveWriteOffBtn.addEventListener("click", async () => {
     saveWriteOffBtn.disabled = false;
   }
 });
+
+// The write-off rows: batch, product, quantity and reason.
+function readWriteOffForm() {
+  const rows = Array.from(writeOffItemsContainer.querySelectorAll(".repeater-item"));
+  return rows.map((row) => ({
+    batchId: row.querySelector(".writeoff-batch-select").value,
+    productId: row.querySelector(".writeoff-product-select").value,
+    qty: parseInt(row.querySelector(".writeoff-qty-input").value, 10),
+    reason: row.querySelector(".writeoff-reason-input").value.trim(),
+  }));
+}
+
+// What's wrong with the write-off, or null. Every row needs a batch, a
+// quantity and a reason, and can't take out more than the batch holds.
+function writeOffProblem(items) {
+  const invalid = items.some((it) => !it.batchId || !it.qty || it.qty <= 0 || !it.reason);
+  if (invalid || items.length === 0) return "Every item needs a batch, a quantity, and a reason.";
+  const overQtyItem = items.find((it) => {
+    const batch = allBatches.find((b) => b.id === it.batchId);
+    return !batch || it.qty > batch.quantity;
+  });
+  if (overQtyItem) return "You can't write off more than a batch's current quantity.";
+  return null;
+}
+
+// Saves the write-off in one transaction.
+// Deducting each row against the page's cached allBatches snapshot (as
+// this used to) has two ways to go wrong: another change to the same
+// batch elsewhere (a sale, another write-off) between page load and
+// this click gets silently overwritten instead of compounded, and two
+// rows here writing off the same batch would each validate against
+// that same stale number instead of each other's deduction, letting
+// more be written off in one submission than the batch actually holds.
+// A single transaction that re-reads each distinct batch fresh and
+// validates the combined quantity against it closes both.
+async function saveWriteOff(items) {
+  const qtyByBatch = {};
+  for (const item of items) {
+    qtyByBatch[item.batchId] = (qtyByBatch[item.batchId] || 0) + item.qty;
+  }
+
+  await db.runTransaction(async (transaction) => {
+    const batchIds = Object.keys(qtyByBatch);
+    const batchDocs = await Promise.all(
+      batchIds.map((id) => transaction.get(db.collection("stockBatches").doc(id)))
+    );
+
+    batchDocs.forEach((doc, idx) => {
+      const batchId = batchIds[idx];
+      if (!doc.exists || qtyByBatch[batchId] > doc.data().quantity) {
+        throw new Error("You can't write off more than a batch's current quantity.");
+      }
+    });
+
+    batchDocs.forEach((doc, idx) => {
+      const batchId = batchIds[idx];
+      transaction.update(doc.ref, {
+        quantity: doc.data().quantity - qtyByBatch[batchId],
+        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+
+    // The write-off records go in the same transaction, so a retry can't
+    // deduct the stock a second time.
+    for (const item of items) {
+      const batch = allBatches.find((b) => b.id === item.batchId);
+      transaction.set(db.collection("writeOffs").doc(), {
+        batchId: item.batchId,
+        productId: item.productId,
+        batchNo: batch ? batch.batchNo : "",
+        quantity: item.qty,
+        reason: item.reason,
+        writeOffDate: writeOffDateInput.value || todayISO(),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+  });
+}
+
+// One audit log entry per written-off row.
+async function logWriteOffs(items) {
+  for (const item of items) {
+    const batch = allBatches.find((b) => b.id === item.batchId);
+    const product = getProductById(item.productId);
+    await logAuditEvent({
+      action: "Inventory Write-Off",
+      details: `${product ? product.name : item.productId} - Batch ${batch ? batch.batchNo : item.batchId}, Qty ${item.qty}, Reason: ${item.reason}`,
+      record: `${product ? product.name : item.productId} - Batch ${batch ? batch.batchNo : item.batchId}`,
+      before: batch ? `${batch.quantity} units` : "",
+      after: batch ? `${batch.quantity - item.qty} units` : `-${item.qty} units`,
+      reason: item.reason,
+    });
+  }
+}
 
 /* ---------- Stock Count (stored in "reconciliations") ---------- */
 function findActiveSession() {
@@ -1583,93 +1612,23 @@ submitCountBtn.addEventListener("click", async () => {
     await showAppAlert(`Enter a count for every batch (${blank} left blank). Type 0 if none are on hand.`, { title: "Count Incomplete" });
     return;
   }
-  const updatedItems = rows.map((row) => {
-    const idx = Number(row.dataset.idx);
-    const item = activeSession.items[idx];
-    const countedQty = parseInt(row.querySelector(".reconciliation-counted-input").value, 10) || 0;
-    return { ...item, countedQty, variance: countedQty - item.systemQty };
-  });
+  const updatedItems = readCountedItems(activeSession, rows);
 
   // Only the Branch Manager finalizes (REQ061). Anyone else's count is saved
   // on the session for the Branch Manager to review and submit.
   const canFinalize = currentAdminRole === "admin" || currentAdminRole === "branch_manager";
   if (!canFinalize) {
-    try {
-      await db.collection("reconciliations").doc(activeSession.id).update({
-        items: updatedItems,
-        countSavedBy: currentAdminName,
-        countSavedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
-      activeSession.items = updatedItems;
-      await showAppAlert("Count saved. Only the Branch Manager can finalize it and update the stock.", { title: "Count Saved" });
-    } catch (error) {
-      showFormAlert(reconciliationAlert, "Something went wrong saving the count. Please try again.");
-    }
+    await saveCountForManager(activeSession, updatedItems);
     return;
   }
 
-  const variances = updatedItems.filter((i) => i.variance !== 0);
-  let varianceReason = "";
-  if (variances.length > 0) {
-    const reason = await showAppPrompt(
-      `${variances.length} batch${variances.length === 1 ? " doesn't" : "es don't"} match the system. Stock will be changed to the counted quantities. What's the reason for the difference?`,
-      { title: "Finalize Count", confirmLabel: "Finalize", defaultValue: "" }
-    );
-    if (reason === null) return;
-    varianceReason = reason.trim();
-    if (!varianceReason) {
-      await showAppAlert("A reason is required when the count differs from the system. Nothing was changed.");
-      return;
-    }
-  } else if (!(await showAppConfirm("Submit this count? It matches the system, so no stock changes. This finalizes the stock count.", { confirmLabel: "Submit" }))) {
-    return;
-  }
+  const varianceReason = await askVarianceReason(updatedItems);
+  if (varianceReason === null) return;
 
   submitCountBtn.disabled = true;
   reconciliationAlert.classList.add("d-none");
-
   try {
-    // Apply each batch's variance to its current quantity in one
-    // transaction, so a sale made while counting isn't wiped out (with no
-    // sales in between, this is exactly the counted quantity).
-    const changed = updatedItems.filter((i) => i.variance !== 0);
-    await db.runTransaction(async (transaction) => {
-      const refs = changed.map((i) => db.collection("stockBatches").doc(i.batchId));
-      const docs = [];
-      for (const ref of refs) docs.push(await transaction.get(ref));
-      docs.forEach((doc, idx) => {
-        if (!doc.exists) return;
-        transaction.update(refs[idx], {
-          quantity: Math.max(0, (doc.data().quantity || 0) + changed[idx].variance),
-          lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
-      });
-    });
-
-    await db.collection("reconciliations").doc(activeSession.id).update({
-      items: updatedItems,
-      status: "finalized",
-      varianceReason: varianceReason || null,
-      finalizedBy: currentAdminName,
-      finalizedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-
-    const adjustedCount = updatedItems.filter((i) => i.variance !== 0).length;
-    await logAuditEvent({
-      action: "Stock Count Finalized",
-      details:
-        `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)}) - ${adjustedCount} batch${adjustedCount === 1 ? "" : "es"} adjusted` +
-        (variances.length
-          ? `: ${variances
-              .map((i) => `${(getProductById(i.productId) || {}).name || "Unknown"} batch ${i.batchNo} ${i.systemQty} -> ${i.countedQty}`)
-              .join("; ")}. Reason: ${varianceReason}`
-          : ""),
-      record: `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)})`,
-      before: variances.map((i) => `${(getProductById(i.productId) || {}).name || "Unknown"} ${i.batchNo}: ${i.systemQty}`).join("; "),
-      after: variances.map((i) => `${(getProductById(i.productId) || {}).name || "Unknown"} ${i.batchNo}: ${i.countedQty}`).join("; "),
-      reason: varianceReason || "",
-    });
-
+    await finalizeCount(activeSession, updatedItems, varianceReason);
     await loadInventory();
   } catch (error) {
     showFormAlert(reconciliationAlert, "Something went wrong submitting the count. Please try again.");
@@ -1677,6 +1636,101 @@ submitCountBtn.addEventListener("click", async () => {
     submitCountBtn.disabled = false;
   }
 });
+
+// Each counted batch with its difference from the system quantity.
+function readCountedItems(activeSession, rows) {
+  return rows.map((row) => {
+    const idx = Number(row.dataset.idx);
+    const item = activeSession.items[idx];
+    const countedQty = parseInt(row.querySelector(".reconciliation-counted-input").value, 10) || 0;
+    return { ...item, countedQty, variance: countedQty - item.systemQty };
+  });
+}
+
+// Staff (not the Branch Manager): the count is saved on the session for the
+// Branch Manager to review and finalize.
+async function saveCountForManager(activeSession, updatedItems) {
+  try {
+    await db.collection("reconciliations").doc(activeSession.id).update({
+      items: updatedItems,
+      countSavedBy: currentAdminName,
+      countSavedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    activeSession.items = updatedItems;
+    await showAppAlert("Count saved. Only the Branch Manager can finalize it and update the stock.", { title: "Count Saved" });
+  } catch (error) {
+    showFormAlert(reconciliationAlert, "Something went wrong saving the count. Please try again.");
+  }
+}
+
+// The reason for any difference between the count and the system (asked
+// only when there is one), or "" when they match and the user confirms.
+// Returns null when cancelled.
+async function askVarianceReason(updatedItems) {
+  const variances = updatedItems.filter((i) => i.variance !== 0);
+  let varianceReason = "";
+  if (variances.length > 0) {
+    const reason = await showAppPrompt(
+      `${variances.length} batch${variances.length === 1 ? " doesn't" : "es don't"} match the system. Stock will be changed to the counted quantities. What's the reason for the difference?`,
+      { title: "Finalize Count", confirmLabel: "Finalize", defaultValue: "" }
+    );
+    if (reason === null) return null;
+    varianceReason = reason.trim();
+    if (!varianceReason) {
+      await showAppAlert("A reason is required when the count differs from the system. Nothing was changed.");
+      return null;
+    }
+  } else if (!(await showAppConfirm("Submit this count? It matches the system, so no stock changes. This finalizes the stock count.", { confirmLabel: "Submit" }))) {
+    return null;
+  }
+  return varianceReason;
+}
+
+// Finalizes the count: stock moves by each batch's difference, the session
+// is closed, and the audit log records what changed.
+async function finalizeCount(activeSession, updatedItems, varianceReason) {
+  const variances = updatedItems.filter((i) => i.variance !== 0);
+  // Apply each batch's variance to its current quantity in one
+  // transaction, so a sale made while counting isn't wiped out (with no
+  // sales in between, this is exactly the counted quantity).
+  const changed = updatedItems.filter((i) => i.variance !== 0);
+  await db.runTransaction(async (transaction) => {
+    const refs = changed.map((i) => db.collection("stockBatches").doc(i.batchId));
+    const docs = [];
+    for (const ref of refs) docs.push(await transaction.get(ref));
+    docs.forEach((doc, idx) => {
+      if (!doc.exists) return;
+      transaction.update(refs[idx], {
+        quantity: Math.max(0, (doc.data().quantity || 0) + changed[idx].variance),
+        lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    });
+  });
+
+  await db.collection("reconciliations").doc(activeSession.id).update({
+    items: updatedItems,
+    status: "finalized",
+    varianceReason: varianceReason || null,
+    finalizedBy: currentAdminName,
+    finalizedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+
+  const adjustedCount = updatedItems.filter((i) => i.variance !== 0).length;
+  await logAuditEvent({
+    action: "Stock Count Finalized",
+    details:
+      `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)}) - ${adjustedCount} batch${adjustedCount === 1 ? "" : "es"} adjusted` +
+      (variances.length
+        ? `: ${variances
+            .map((i) => `${(getProductById(i.productId) || {}).name || "Unknown"} batch ${i.batchNo} ${i.systemQty} -> ${i.countedQty}`)
+            .join("; ")}. Reason: ${varianceReason}`
+        : ""),
+    record: `${activeSession.rcnNumber} (${formatPeriodLabel(activeSession.period)})`,
+    before: variances.map((i) => `${(getProductById(i.productId) || {}).name || "Unknown"} ${i.batchNo}: ${i.systemQty}`).join("; "),
+    after: variances.map((i) => `${(getProductById(i.productId) || {}).name || "Unknown"} ${i.batchNo}: ${i.countedQty}`).join("; "),
+    reason: varianceReason || "",
+  });
+}
 
 /* ---------- Export Report ---------- */
 exportInventoryBtn.addEventListener("click", async () => {
