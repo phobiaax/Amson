@@ -149,6 +149,7 @@ async function loadCustomerNotifications(uid, readMap) {
           detail: "Your order has been dispatched for delivery.",
           key: `dispatched:${doc.id}`,
           severity: "info",
+          icon: "bi-truck",
         };
       } else if (order.status === "delivered" && order.requiresPrescription) {
         entry = {
@@ -158,6 +159,7 @@ async function loadCustomerNotifications(uid, readMap) {
           detail: "Please bring a valid ID (and the original prescription, if applicable) when you collect it.",
           key: `ready_for_pickup:${doc.id}`,
           severity: "warning",
+          icon: "bi-bag-check",
         };
       } else if (order.status === "delivered") {
         entry = {
@@ -167,6 +169,7 @@ async function loadCustomerNotifications(uid, readMap) {
           detail: "Let us know if anything's missing or damaged.",
           key: `delivered:${doc.id}`,
           severity: "success",
+          icon: "bi-check-circle",
         };
       }
       if (entry) {
@@ -214,23 +217,26 @@ function renderCustomerNotifications(uid, notifications) {
 
   if (notifEmptyState) notifEmptyState.remove();
 
+  // Same look as the staff bell: a thin colored edge and a colored icon.
+  notifDropdownList.style.minWidth = "320px";
+  const severityIcons = { danger: "bi-exclamation-octagon", warning: "bi-exclamation-triangle", info: "bi-info-circle", success: "bi-check-circle" };
   notifDropdownList.innerHTML =
     notifications
-      .map(
-        (n, idx) => `
+      .map((n, idx) => {
+        const severityColor = SEVERITY_COLORS[n.severity] || SEVERITY_COLORS.info;
+        const icon = n.icon || severityIcons[n.severity] || severityIcons.info;
+        return `
           <li>
-            <a class="dropdown-item customer-notif-item" href="${n.link}" data-idx="${idx}" style="white-space:normal; border-left:5px solid ${SEVERITY_COLORS[n.severity] || SEVERITY_COLORS.info}; background-color:${SEVERITY_BACKGROUNDS[n.severity] || SEVERITY_BACKGROUNDS.info}; ${n.isRead ? "opacity:0.6;" : "font-weight:600;"}">
-              <div class="d-flex align-items-start gap-2">
-                ${n.isRead ? "" : '<span class="rounded-circle bg-primary flex-shrink-0 mt-1" style="width:6px; height:6px; display:inline-block;"></span>'}
-                <div>
-                  <div>${n.title}</div>
-                  <div class="text-muted" style="font-size:0.78rem; font-weight:400;">${n.detail}</div>
-                </div>
-              </div>
+            <a class="dropdown-item d-flex align-items-start gap-2 py-2 customer-notif-item" href="${n.link}" data-idx="${idx}" style="white-space:normal; border-left:3px solid ${severityColor}; ${n.isRead ? "opacity:0.6;" : "font-weight:600;"}">
+              <i class="bi ${icon} mt-1" style="color:${severityColor};"></i>
+              <span class="flex-grow-1" style="font-size:0.85rem;">
+                ${escapeHtml(n.title || "")}
+                <span class="d-block text-muted" style="font-size:0.78rem; font-weight:400;">${escapeHtml(n.detail || "")}</span>
+              </span>
             </a>
           </li>
-        `
-      )
+        `;
+      })
       .join("") +
     (unreadCount > 0
       ? `<li><hr class="dropdown-divider"></li><li><button type="button" class="dropdown-item text-center small" id="markAllNotifsReadLink">Mark all as read</button></li>`
