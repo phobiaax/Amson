@@ -518,6 +518,17 @@ function renderReviewPanel(order) {
 
   document.getElementById("reviewOrderNumber").textContent = order.orderNumber;
   document.getElementById("reviewCustomerName").textContent = customerName(order);
+  // What the customer ordered, so staff can check it against the proof.
+  document.getElementById("reviewItemsList").innerHTML =
+    (order.items || [])
+      .map(
+        (item) => `
+      <div class="review-item-row">
+        <span>${escapeHtml(item.name || "")}<span class="d-block text-muted">${item.qty || 0} x ${formatPeso(item.price || 0)}</span></span>
+        <span class="text-nowrap">${formatPeso((item.price || 0) * (item.qty || 0))}</span>
+      </div>`
+      )
+      .join("") || '<p class="text-muted mb-0">No items on this order.</p>';
   document.getElementById("reviewOrderTotal").textContent = formatPeso(order.total);
   const reviewSubtotalRow = document.getElementById("reviewSubtotalRow");
   const reviewCreditRow = document.getElementById("reviewCreditRow");

@@ -1699,6 +1699,30 @@ a {
   white-space: nowrap;
 }
 
+/* Payment Verification: the items on the order being reviewed. */
+.review-items {
+  border: 1px solid var(--amson-border);
+  border-radius: 8px;
+  padding: 0 0.75rem;
+}
+
+.review-item-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+  font-size: 0.88rem;
+  border-bottom: 1px solid var(--amson-border);
+}
+
+.review-item-row:last-child {
+  border-bottom: none;
+}
+
+.review-item-row .text-muted {
+  font-size: 0.78rem;
+}
+
 .issue-amount-result {
   background-color: var(--amson-gray-bg);
   border: 1px solid var(--amson-border);
