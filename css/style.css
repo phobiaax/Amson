@@ -89,6 +89,22 @@ a {
   color: #fff;
 }
 
+/* Void on a sale receipt: same shape and weight as the buttons beside it,
+   in the Amson red. */
+#posReceiptModalFooter .btn-outline-danger {
+  --bs-btn-color: var(--amson-red);
+  --bs-btn-border-color: var(--amson-red);
+  --bs-btn-hover-bg: var(--amson-red);
+  --bs-btn-hover-border-color: var(--amson-red);
+  --bs-btn-active-bg: var(--amson-red);
+  --bs-btn-active-border-color: var(--amson-red);
+  background-color: #fff;
+  font-weight: 500;
+}
+#posReceiptModalFooter .btn-outline-danger:hover {
+  background-color: var(--amson-red);
+}
+
 .btn-amson {
   background-color: var(--amson-red);
   border: 1px solid var(--amson-red);

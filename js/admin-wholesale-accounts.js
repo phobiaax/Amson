@@ -861,16 +861,26 @@ async function openExchangeDialog(order, account) {
     return;
   }
 
+  let exchange = null;
   const ok = await showAppConfirm(`Exchange items from SI No. ${order.invoiceNo || "-"} (${order.buyerName || ""}). No refunds: the replacement must be of equal or higher value.`, {
     title: "Wholesale Exchange",
     confirmLabel: "Process Exchange",
     fieldHtml: wholesaleExchangeDialogHtml(lines),
     onRender: () => wireWholesaleExchangeDialog(order, account),
+    // Saved right here, so a problem shows inside the dialog, which stays
+    // open to fix it.
+    validate: async () => {
+      try {
+        exchange = await processWholesaleExchange(readWholesaleExchangeDialog(order));
+        return null;
+      } catch (error) {
+        return error.message || "Something went wrong recording the exchange. Please try again.";
+      }
+    },
   });
   if (!ok) return;
 
   try {
-    const exchange = await processWholesaleExchange(readWholesaleExchangeDialog(order));
     catalogLoadPromise = null;
     await loadCatalogCache();
     const download = await showAppConfirm(
