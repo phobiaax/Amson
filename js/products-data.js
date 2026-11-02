@@ -1723,18 +1723,7 @@ async function verifyVoidApprover(email, password) {
 // counts only what was really sold) and the void is kept in partialVoids.
 async function voidPosSale(sale, { reason, exchange, lines, approvedBy }, voidedBy) {
   const saleRef = db.collection("posSales").doc(sale.id);
-
-  // Sales made before batches were recorded: put the units back on the
-  // product's latest-expiring active batch.
-  const fallbackRefs = {};
-  for (const { index } of lines) {
-    const item = (sale.items || [])[index];
-    if (!item || (item.batches && item.batches.length) || fallbackRefs[item.productId]) continue;
-    const snap = await db.collection("stockBatches").where("productId", "==", item.productId).where("status", "==", "active").get();
-    const latest = snap.docs.sort((a, b) => new Date(b.data().expirationDate) - new Date(a.data().expirationDate))[0];
-    if (!latest) throw new Error(`No active batch of ${item.name} to return the stock to. Receive stock first, then void.`);
-    fallbackRefs[item.productId] = latest.ref;
-  }
+  const fallbackRefs = await findFallbackBatches(sale, lines);
 
   let voidedLines = [];
   let fullVoid = false;
@@ -1747,33 +1736,8 @@ async function voidPosSale(sale, { reason, exchange, lines, approvedBy }, voided
     if (data.voided) throw new Error("This sale was already voided.");
 
     const items = JSON.parse(JSON.stringify(data.items || []));
-    const returns = new Map(); // batchId -> units to put back
-    voidedLines = [];
-    voidedAmount = 0;
-    for (const { index, qty } of lines) {
-      const item = items[index];
-      if (!item) throw new Error("An item in this void is no longer on the sale. Reopen the sale and try again.");
-      if (qty > item.qty) throw new Error(`Only ${item.qty} of ${item.name} is left on this sale to void.`);
-      if (qty <= 0) continue;
-      let need = qty;
-      if (item.batches && item.batches.length) {
-        for (let i = item.batches.length - 1; i >= 0 && need > 0; i--) {
-          const take = Math.min(item.batches[i].qty, need);
-          if (take <= 0) continue;
-          returns.set(item.batches[i].batchId, (returns.get(item.batches[i].batchId) || 0) + take);
-          item.batches[i].qty -= take;
-          need -= take;
-        }
-        if (need > 0) throw new Error(`The batch record for ${item.name} doesn't cover this quantity; void the whole sale instead.`);
-      } else {
-        const fallback = fallbackRefs[item.productId];
-        returns.set(fallback.id, (returns.get(fallback.id) || 0) + qty);
-      }
-      item.qty -= qty;
-      item.voidedQty = (item.voidedQty || 0) + qty;
-      voidedAmount += qty * (item.price || 0);
-      voidedLines.push({ name: item.name, qty, amount: qty * (item.price || 0) });
-    }
+    let returns;
+    ({ returns, voidedLines, voidedAmount } = takeVoidedUnits(items, lines, fallbackRefs));
     if (voidedLines.length === 0) throw new Error("Nothing was selected to void.");
     fullVoid = items.every((item) => item.qty === 0);
 
@@ -1813,6 +1777,61 @@ async function voidPosSale(sale, { reason, exchange, lines, approvedBy }, voided
     }
   });
 
+  await logVoid(sale, { fullVoid, voidedAmount, voidedLines, reason, exchange, approvedBy });
+  return { fullVoid, voidedAmount, voidedLines };
+}
+
+// Sales made before batches were recorded: the units go back on the
+// product's latest-expiring active batch.
+async function findFallbackBatches(sale, lines) {
+  const fallbackRefs = {};
+  for (const { index } of lines) {
+    const item = (sale.items || [])[index];
+    if (!item || (item.batches && item.batches.length) || fallbackRefs[item.productId]) continue;
+    const snap = await db.collection("stockBatches").where("productId", "==", item.productId).where("status", "==", "active").get();
+    const latest = snap.docs.sort((a, b) => new Date(b.data().expirationDate) - new Date(a.data().expirationDate))[0];
+    if (!latest) throw new Error(`No active batch of ${item.name} to return the stock to. Receive stock first, then void.`);
+    fallbackRefs[item.productId] = latest.ref;
+  }
+  return fallbackRefs;
+}
+
+// Takes the voided units off the sale's items (changing them), and works out
+// which batches they go back to and how much is voided. Units go back to the
+// batches they were taken from, latest-expiring first.
+function takeVoidedUnits(items, lines, fallbackRefs) {
+  const returns = new Map(); // batchId -> units to put back
+  const voidedLines = [];
+  let voidedAmount = 0;
+  for (const { index, qty } of lines) {
+    const item = items[index];
+    if (!item) throw new Error("An item in this void is no longer on the sale. Reopen the sale and try again.");
+    if (qty > item.qty) throw new Error(`Only ${item.qty} of ${item.name} is left on this sale to void.`);
+    if (qty <= 0) continue;
+    let need = qty;
+    if (item.batches && item.batches.length) {
+      for (let i = item.batches.length - 1; i >= 0 && need > 0; i--) {
+        const take = Math.min(item.batches[i].qty, need);
+        if (take <= 0) continue;
+        returns.set(item.batches[i].batchId, (returns.get(item.batches[i].batchId) || 0) + take);
+        item.batches[i].qty -= take;
+        need -= take;
+      }
+      if (need > 0) throw new Error(`The batch record for ${item.name} doesn't cover this quantity; void the whole sale instead.`);
+    } else {
+      const fallback = fallbackRefs[item.productId];
+      returns.set(fallback.id, (returns.get(fallback.id) || 0) + qty);
+    }
+    item.qty -= qty;
+    item.voidedQty = (item.voidedQty || 0) + qty;
+    voidedAmount += qty * (item.price || 0);
+    voidedLines.push({ name: item.name, qty, amount: qty * (item.price || 0) });
+  }
+  return { returns, voidedLines, voidedAmount };
+}
+
+// The audit log entry for a void.
+async function logVoid(sale, { fullVoid, voidedAmount, voidedLines, reason, exchange, approvedBy }) {
   await logAuditEvent({
     action: fullVoid ? "Walk-in Sale Voided" : "Walk-in Sale Items Voided",
     details:
@@ -1825,8 +1844,6 @@ async function voidPosSale(sale, { reason, exchange, lines, approvedBy }, voided
     after: fullVoid ? "Voided" : `Total ${formatPeso(Math.round(((sale.total || 0) - voidedAmount) * 100) / 100)}`,
     reason,
   });
-
-  return { fullVoid, voidedAmount, voidedLines };
 }
 
 // Receipt banner text for a voided or partly voided sale, or null.
@@ -2229,7 +2246,18 @@ async function processWholesaleExchange({ orderId, lineIndex, returnQty, replace
 // (write-off) so they never reach a shelf. The customer is recorded as where
 // the returned stock came from. Kept with the wholesale exchanges (kind
 // "walkin") so the Return / Exchange report and EX numbers cover both.
-async function processWalkinExchange({ saleId, lineIndex, returnQty, replacement, restock, reason, customerName, processedBy }) {
+async function processWalkinExchange(request) {
+  const facts = await checkWalkinExchange(request);
+  const { exchangeRef, exchangeNo } = await saveWalkinExchange(request, facts);
+  await logWalkinExchange(request, facts, exchangeNo);
+  const saved = await exchangeRef.get();
+  return { id: exchangeRef.id, ...saved.data() };
+}
+
+// Checks a walk-in return / exchange is allowed (the sale, the quantity, a
+// reason, and a replacement worth at least as much) and works out the
+// values. Throws with the reason when it isn't allowed.
+async function checkWalkinExchange({ saleId, lineIndex, returnQty, replacement, reason, customerName }) {
   const saleRef = db.collection("posSales").doc(saleId);
   const saleSnap = await saleRef.get();
   if (!saleSnap.exists) throw new Error("This sale no longer exists.");
@@ -2241,7 +2269,7 @@ async function processWalkinExchange({ saleId, lineIndex, returnQty, replacement
   if (!(returnQty > 0) || returnQty > remaining) throw new Error(`Only ${remaining} of ${line.name} can still be returned from this sale.`);
   if (!reason || !reason.trim()) throw new Error("A reason for the return is required.");
   // Optional: a return without a name is recorded as from a walk-in customer.
-  customerName = (customerName || "").trim() || "Walk-in";
+  const buyerName = (customerName || "").trim() || "Walk-in";
   if (!replacement || !replacement.productId || !(replacement.qty > 0)) throw new Error("Choose the replacement item and quantity.");
   const replacementProduct = getProductById(replacement.productId);
   if (!replacementProduct) throw new Error("That replacement item isn't in the catalog.");
@@ -2253,7 +2281,16 @@ async function processWalkinExchange({ saleId, lineIndex, returnQty, replacement
   if (replacementValue < returnedValue) {
     throw new Error(`The replacement (${formatPeso(replacementValue)}) must be of equal or higher value than the returned items (${formatPeso(returnedValue)}). Refunds aren't given.`);
   }
+  return { saleRef, sale, line, buyerName, replacementProduct, unitPrice, returnedValue, replacementUnit, replacementValue };
+}
 
+// Saves the exchange in one transaction: the returned units go back to their
+// batch (or are recorded as a pull-out), the replacement is taken by FEFO,
+// the sale line remembers what was returned, and the exchange is recorded.
+async function saveWalkinExchange(
+  { saleId, lineIndex, returnQty, replacement, restock, reason, processedBy },
+  { saleRef, sale, line, buyerName, replacementProduct, unitPrice, returnedValue, replacementUnit, replacementValue }
+) {
   // Which batches the returned units came from.
   const { batches, returnParts, need } = planBatchReturn(line, returnQty);
   if (need > 0 && restock) {
@@ -2306,7 +2343,7 @@ async function processWalkinExchange({ saleId, lineIndex, returnQty, replacement
         exchangeNo,
         posSaleId: saleId,
         invoiceNo: sale.invoiceNo || "",
-        buyerName: customerName.trim(),
+        buyerName: buyerName,
         purchasedAt: sale.createdAt || null,
         restocked: !!restock,
         returned: { productId: line.productId, productName: line.name, qty: returnQty, unitPrice, value: returnedValue, batches: returnParts },
@@ -2325,11 +2362,15 @@ async function processWalkinExchange({ saleId, lineIndex, returnQty, replacement
       });
     },
   });
+  return { exchangeRef, exchangeNo };
+}
 
+// The audit log entry for a walk-in return / exchange.
+async function logWalkinExchange({ returnQty, replacement, restock, reason }, { sale, line, buyerName, replacementProduct, returnedValue, replacementValue }, exchangeNo) {
   await logAuditEvent({
     action: "Walk-in Return / Exchange",
     details:
-      `${exchangeNo} - ${customerName.trim()}, SI ${sale.invoiceNo || "-"}: returned ${line.name} x${returnQty} (${formatPeso(returnedValue)}, ` +
+      `${exchangeNo} - ${buyerName}, SI ${sale.invoiceNo || "-"}: returned ${line.name} x${returnQty} (${formatPeso(returnedValue)}, ` +
       `${restock ? "back to stock" : "set aside / pulled out"}), replaced with ${replacementProduct.name} x${replacement.qty} (${formatPeso(replacementValue)}), ` +
       `difference ${formatPeso(replacementValue - returnedValue)}. Reason: ${reason.trim()}`,
     record: `${exchangeNo} (SI ${sale.invoiceNo || "-"})`,
@@ -2337,9 +2378,6 @@ async function processWalkinExchange({ saleId, lineIndex, returnQty, replacement
     after: `${replacementProduct.name} x${replacement.qty} (${formatPeso(replacementValue)})`,
     reason: reason.trim(),
   });
-
-  const saved = await exchangeRef.get();
-  return { id: exchangeRef.id, ...saved.data() };
 }
 
 // The dialog behind "Return / Exchange" on a walk-in sale. Resolves with the
@@ -2357,78 +2395,20 @@ async function openWalkinExchangeDialog(sale, processedBy) {
     await showAppAlert("Every item on this sale has already been returned or voided.");
     return null;
   }
-  const productOptions = SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInPOS !== false && p.inStock)
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((p) => `<option value="${p.id}">${escapeHtml(p.name)} - ${formatPeso(p.price || 0)} (${p.totalStock} in stock)</option>`)
-    .join("");
 
   const ok = await showAppConfirm(
     `Return items from SI No. ${sale.invoiceNo || "-"}. No refunds: the customer takes a replacement of equal or higher value and pays any difference.`,
     {
       title: "Walk-in Return / Exchange",
       confirmLabel: "Process Exchange",
-      fieldHtml: `
-        <label class="form-label" for="wxCustomer">Customer name (optional)</label>
-        <input type="text" class="form-control mb-2" id="wxCustomer" maxlength="80" value="${escapeHtml(sale.customerName && sale.customerName !== "Walk-in" ? sale.customerName : "")}" placeholder="Leave blank for Walk-in">
-        <label class="form-label" for="wxLine">Item being returned</label>
-        <select class="form-select mb-2" id="wxLine">
-          ${lines.map((l) => `<option value="${l.idx}">${escapeHtml(l.it.name)} - ${l.left} returnable @ ${formatPeso(l.it.price || 0)}</option>`).join("")}
-        </select>
-        <label class="form-label" for="wxQty">Quantity returned</label>
-        <input type="number" class="form-control mb-2" id="wxQty" min="1" step="1" value="1">
-        <p class="form-label mb-1">Can the returned item be sold again?</p>
-        <div class="form-check"><input class="form-check-input" type="radio" name="wxRestock" id="wxRestockYes" value="yes" checked><label class="form-check-label" for="wxRestockYes">Yes, back to stock (same batch and expiry)</label></div>
-        <div class="form-check mb-3"><input class="form-check-input" type="radio" name="wxRestock" id="wxRestockNo" value="no"><label class="form-check-label" for="wxRestockNo">No, set aside (recorded as a pull-out)</label></div>
-        <label class="form-label" for="wxProduct">Replacement item</label>
-        <select class="form-select mb-2" id="wxProduct">${productOptions}</select>
-        <label class="form-label" for="wxRepQty">Replacement quantity</label>
-        <input type="number" class="form-control mb-2" id="wxRepQty" min="1" step="1" value="1">
-        <p class="mb-3" style="font-size:0.85rem;" id="wxDiff"></p>
-        <label class="form-label" for="wxReason">Reason for return *</label>
-        <textarea class="form-control" id="wxReason" rows="2" placeholder="e.g. Wrong item bought / damaged box"></textarea>
-      `,
-      onRender: () => {
-        const lineSel = document.getElementById("wxLine");
-        const qty = document.getElementById("wxQty");
-        const prodSel = document.getElementById("wxProduct");
-        const repQty = document.getElementById("wxRepQty");
-        const diffEl = document.getElementById("wxDiff");
-        const line = () => sale.items[Number(lineSel.value)];
-        const update = () => {
-          const returned = (parseInt(qty.value, 10) || 0) * (line().price || 0);
-          const p = getProductById(prodSel.value);
-          const repl = (parseInt(repQty.value, 10) || 0) * (p ? p.price || 0 : 0);
-          const diff = repl - returned;
-          diffEl.innerHTML = `Returned <strong>${formatPeso(returned)}</strong> - Replacement <strong>${formatPeso(repl)}</strong> - ${
-            diff >= 0 ? `Customer pays <strong>${formatPeso(diff)}</strong>` : '<span class="text-danger">Replacement is worth less than the return (not allowed)</span>'
-          }`;
-        };
-        const setDefaults = () => {
-          if (getProductById(line().productId) && prodSel.querySelector(`option[value="${line().productId}"]`)) prodSel.value = line().productId;
-          qty.max = String((line().qty || 0) - (line().returnedQty || 0));
-          update();
-        };
-        lineSel.addEventListener("change", setDefaults);
-        [prodSel, qty, repQty].forEach((el) => el.addEventListener("input", update));
-        prodSel.addEventListener("change", update);
-        setDefaults();
-      },
+      fieldHtml: exchangeDialogHtml(sale, lines),
+      onRender: () => wireExchangeDialog(sale),
     }
   );
   if (!ok) return null;
 
-  const payload = {
-    saleId: sale.id,
-    lineIndex: Number(document.getElementById("wxLine").value),
-    returnQty: parseInt(document.getElementById("wxQty").value, 10),
-    restock: document.getElementById("wxRestockYes").checked,
-    replacement: { productId: document.getElementById("wxProduct").value, qty: parseInt(document.getElementById("wxRepQty").value, 10) },
-    reason: document.getElementById("wxReason").value,
-    customerName: document.getElementById("wxCustomer").value,
-    processedBy,
-  };
   try {
-    const exchange = await processWalkinExchange(payload);
+    const exchange = await processWalkinExchange(readExchangeDialog(sale, processedBy));
     const print = await showAppConfirm(
       `Exchange ${exchange.exchangeNo} recorded. ${exchange.restocked ? "The returned item is back in stock" : "The returned item was set aside (pull-out)"}, and the replacement was taken from stock.${
         exchange.priceDifference > 0 ? ` Collect ${formatPeso(exchange.priceDifference)} from the customer.` : ""
@@ -2441,6 +2421,78 @@ async function openWalkinExchangeDialog(sale, processedBy) {
     await showAppAlert(error.message || "Something went wrong recording the exchange. Please try again.");
     return null;
   }
+}
+
+// The form inside the exchange dialog: which item comes back, whether it can
+// be sold again, the replacement, and the reason.
+function exchangeDialogHtml(sale, lines) {
+  const productOptions = SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInPOS !== false && p.inStock)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((p) => `<option value="${p.id}">${escapeHtml(p.name)} - ${formatPeso(p.price || 0)} (${p.totalStock} in stock)</option>`)
+    .join("");
+  return `
+    <label class="form-label" for="wxCustomer">Customer name (optional)</label>
+    <input type="text" class="form-control mb-2" id="wxCustomer" maxlength="80" value="${escapeHtml(sale.customerName && sale.customerName !== "Walk-in" ? sale.customerName : "")}" placeholder="Leave blank for Walk-in">
+    <label class="form-label" for="wxLine">Item being returned</label>
+    <select class="form-select mb-2" id="wxLine">
+      ${lines.map((l) => `<option value="${l.idx}">${escapeHtml(l.it.name)} - ${l.left} returnable @ ${formatPeso(l.it.price || 0)}</option>`).join("")}
+    </select>
+    <label class="form-label" for="wxQty">Quantity returned</label>
+    <input type="number" class="form-control mb-2" id="wxQty" min="1" step="1" value="1">
+    <p class="form-label mb-1">Can the returned item be sold again?</p>
+    <div class="form-check"><input class="form-check-input" type="radio" name="wxRestock" id="wxRestockYes" value="yes" checked><label class="form-check-label" for="wxRestockYes">Yes, back to stock (same batch and expiry)</label></div>
+    <div class="form-check mb-3"><input class="form-check-input" type="radio" name="wxRestock" id="wxRestockNo" value="no"><label class="form-check-label" for="wxRestockNo">No, set aside (recorded as a pull-out)</label></div>
+    <label class="form-label" for="wxProduct">Replacement item</label>
+    <select class="form-select mb-2" id="wxProduct">${productOptions}</select>
+    <label class="form-label" for="wxRepQty">Replacement quantity</label>
+    <input type="number" class="form-control mb-2" id="wxRepQty" min="1" step="1" value="1">
+    <p class="mb-3" style="font-size:0.85rem;" id="wxDiff"></p>
+    <label class="form-label" for="wxReason">Reason for return *</label>
+    <textarea class="form-control" id="wxReason" rows="2" placeholder="e.g. Wrong item bought / damaged box"></textarea>
+  `;
+}
+
+// Keeps the "Returned - Replacement - Customer pays" line up to date while
+// staff fill in the exchange dialog.
+function wireExchangeDialog(sale) {
+  const lineSel = document.getElementById("wxLine");
+  const qty = document.getElementById("wxQty");
+  const prodSel = document.getElementById("wxProduct");
+  const repQty = document.getElementById("wxRepQty");
+  const diffEl = document.getElementById("wxDiff");
+  const line = () => sale.items[Number(lineSel.value)];
+  const update = () => {
+    const returned = (parseInt(qty.value, 10) || 0) * (line().price || 0);
+    const p = getProductById(prodSel.value);
+    const repl = (parseInt(repQty.value, 10) || 0) * (p ? p.price || 0 : 0);
+    const diff = repl - returned;
+    diffEl.innerHTML = `Returned <strong>${formatPeso(returned)}</strong> - Replacement <strong>${formatPeso(repl)}</strong> - ${
+      diff >= 0 ? `Customer pays <strong>${formatPeso(diff)}</strong>` : '<span class="text-danger">Replacement is worth less than the return (not allowed)</span>'
+    }`;
+  };
+  const setDefaults = () => {
+    if (getProductById(line().productId) && prodSel.querySelector(`option[value="${line().productId}"]`)) prodSel.value = line().productId;
+    qty.max = String((line().qty || 0) - (line().returnedQty || 0));
+    update();
+  };
+  lineSel.addEventListener("change", setDefaults);
+  [prodSel, qty, repQty].forEach((el) => el.addEventListener("input", update));
+  prodSel.addEventListener("change", update);
+  setDefaults();
+}
+
+// What staff entered in the exchange dialog.
+function readExchangeDialog(sale, processedBy) {
+  return {
+    saleId: sale.id,
+    lineIndex: Number(document.getElementById("wxLine").value),
+    returnQty: parseInt(document.getElementById("wxQty").value, 10),
+    restock: document.getElementById("wxRestockYes").checked,
+    replacement: { productId: document.getElementById("wxProduct").value, qty: parseInt(document.getElementById("wxRepQty").value, 10) },
+    reason: document.getElementById("wxReason").value,
+    customerName: document.getElementById("wxCustomer").value,
+    processedBy,
+  };
 }
 
 function printWalkinExchangeSlip(ex) {
