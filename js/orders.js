@@ -398,8 +398,6 @@ function downloadOrderReceipt(order) {
   }
   y += 6;
   doc.text(`Date: ${formatOrderDate(order.createdAt)}`, 14, y);
-  y += 6;
-  doc.text(`Status: ${orderBadgeLabel(order)}`, 14, y);
 
   y += 10;
   doc.setFont(undefined, "bold");
@@ -454,12 +452,6 @@ function downloadOrderReceipt(order) {
   doc.setFont(undefined, "bold");
   doc.text("Total", 14, y);
   doc.text(formatPeso(order.total), 196, y, { align: "right" });
-
-  y += 16;
-  doc.setFontSize(9);
-  doc.setFont(undefined, "normal");
-  doc.setTextColor(120, 120, 120);
-  doc.text("Generated electronically for your records.", 14, y);
 
   doc.save(`${order.orderNumber}-receipt.pdf`);
 }
