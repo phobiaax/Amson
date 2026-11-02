@@ -135,8 +135,11 @@ function renderPaymentIssue(order) {
     : "";
 }
 
+// Resubmit stays clickable: pressing it with something missing says what's
+// still needed. Any change to the form clears that message.
 function updateResubmitButtonState() {
-  issueResubmitBtn.disabled = !(issueProofInput.files[0] && (isPrescriptionIssue(currentOrder) || issueReferenceNumberInput.value.trim()));
+  issueResubmitBtn.disabled = false;
+  issueResubmitError.classList.add("d-none");
 }
 
 issueUploadDropzone.addEventListener("click", () => issueProofInput.click());
@@ -170,7 +173,17 @@ issueResubmitBtn.addEventListener("click", async () => {
   const file = issueProofInput.files[0];
   const referenceNumber = issueReferenceNumberInput.value.trim();
   const rxIssue = isPrescriptionIssue(currentOrder);
-  if (!currentOrderRef || !file || (!rxIssue && !referenceNumber)) return;
+  if (!currentOrderRef) return;
+  const problems = [];
+  if (!file) problems.push(rxIssue ? "Upload a clear photo of your prescription." : "Upload a screenshot of your payment.");
+  if (!rxIssue && !referenceNumber) problems.push("Enter the reference number from your proof of payment.");
+  else if (!rxIssue && !isValidReferenceNumber(referenceNumber)) problems.push(REFERENCE_NUMBER_HINT);
+  if (problems.length) {
+    issueResubmitError.style.whiteSpace = "pre-line";
+    issueResubmitError.textContent = `Please complete the following:\n- ${problems.join("\n- ")}`;
+    issueResubmitError.classList.remove("d-none");
+    return;
+  }
 
   issueResubmitError.classList.add("d-none");
   issueResubmitBtn.disabled = true;
