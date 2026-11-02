@@ -238,6 +238,12 @@ saveSupplierBtn.addEventListener("click", async () => {
     supplierModalAlert.classList.remove("d-none");
     return;
   }
+  const address = supplierAddressInput.value.trim();
+  if (address && !ONE_LINE_ADDRESS_PATTERN.test(address)) {
+    supplierModalAlert.textContent = ONE_LINE_ADDRESS_HINT;
+    supplierModalAlert.classList.remove("d-none");
+    return;
+  }
 
   saveSupplierBtn.disabled = true;
   supplierModalAlert.classList.add("d-none");
