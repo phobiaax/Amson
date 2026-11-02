@@ -159,6 +159,30 @@ async function buildDailySalesReport(start, end) {
     (b.batchId && batchesById.get(b.batchId)) ||
     Array.from(batchesById.values()).find((x) => x.productId === productId && b.batchNo && x.batchNo === b.batchNo) ||
     null;
+  const { byDay, items, byBatch } = tallyDailySales(sales, findBatch, supplierNames);
+  const days = Array.from(byDay.entries());
+
+  return {
+    title: "AMSON PHARMACEUTICALS",
+    subtitle: rangeSubtitle(start, end),
+    filename: `daily-sales-${localISODate(start)}`,
+    notes: [
+      "All sales are shown as VAT-exempt, as in the branch's current report. Discounts and pay-in/pay-out are not recorded in the system.",
+      "Retail = walk-in (POS) and online orders; online orders count on the day their payment was confirmed. Voided sales are excluded.",
+      "Wholesale exchanges count on the day of the exchange: the returned items come off, the replacement is added, and the total is the price difference paid.",
+    ],
+    sheets: [
+      {
+        name: "Daily Sales",
+        sections: dailySalesSections(days, items, byBatch),
+      },
+    ],
+  };
+}
+
+// Adds up the sales per day (orders, retail / wholesale, payment methods),
+// per item, and per item and batch.
+function tallyDailySales(sales, findBatch, supplierNames) {
   const byBatch = new Map();
   const byDay = new Map();
   const ensureDay = (key) => {
@@ -211,7 +235,11 @@ async function buildDailySalesReport(start, end) {
     });
   });
 
-  const days = Array.from(byDay.entries());
+  return { byDay, items, byBatch };
+}
+
+// The sections of the Daily Sales sheet, from the day / item / batch totals.
+function dailySalesSections(days, items, byBatch) {
   const sum = (f) => days.reduce((n, [, d]) => n + f(d), 0);
   const money = (n) => reportNumber(n);
   const qty = (n) => reportNumber(n, 0);
@@ -244,51 +272,36 @@ async function buildDailySalesReport(start, end) {
       .forEach(([method, m]) => methodRows.push([date, (REPORT_PAYMENT_LABELS[method] || method).toUpperCase(), qty(m.orders), money(m.amount)]));
   });
 
-  return {
-    title: "AMSON PHARMACEUTICALS",
-    subtitle: rangeSubtitle(start, end),
-    filename: `daily-sales-${localISODate(start)}`,
-    notes: [
-      "All sales are shown as VAT-exempt, as in the branch's current report. Discounts and pay-in/pay-out are not recorded in the system.",
-      "Retail = walk-in (POS) and online orders; online orders count on the day their payment was confirmed. Voided sales are excluded.",
-      "Wholesale exchanges count on the day of the exchange: the returned items come off, the replacement is added, and the total is the price difference paid.",
-    ],
-    sheets: [
-      {
-        name: "Daily Sales",
-        sections: [
-          salesSection,
-          channelSection("Retail Sales", (d) => d.retailItems, (d) => d.retailTotal),
-          channelSection("Wholesale Sales", (d) => d.wholesaleItems, (d) => d.wholesaleTotal),
-          {
-            heading: "Payment Method",
-            columns: [{ label: "Date", width: 1.5 }, { label: "Payment Method", width: 2 }, { label: "No. of Orders", align: "right", width: 1.5 }, { label: "Total Amount", align: "right", width: 1.5 }],
-            rows: methodRows,
-            totals: [["", "TOTAL", qty(sum((d) => d.orders)), money(sum((d) => d.total))]],
-          },
-          {
-            heading: "Item Sold",
-            columns: [{ label: "Item", width: 4 }, { label: "No. of Items", align: "right" }, { label: "Total Amount", align: "right" }, { label: "Discount/Deductions", align: "right" }],
-            rows: Array.from(items.values())
-              .sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name))
-              .map((it) => [it.name, qty(it.qty), money(it.amount), money(0)]),
-            totals: [["TOTAL", qty(Array.from(items.values()).reduce((n, i) => n + i.qty, 0)), money(Array.from(items.values()).reduce((n, i) => n + i.amount, 0)), money(0)]],
-          },
-          {
-            heading: "Item Sold by Batch",
-            columns: [
-              { label: "Item", width: 3 }, { label: "Batch No", width: 1.2 }, { label: "Exp" }, { label: "Date Received" },
-              { label: "Supplier", width: 1.8 }, { label: "No. of Items", align: "right" }, { label: "Total Amount", align: "right" },
-            ],
-            rows: Array.from(byBatch.values())
-              .sort((a, b) => a.name.localeCompare(b.name) || String(a.expirationDate).localeCompare(String(b.expirationDate)))
-              .map((r) => [r.name, r.batchNo, r.expirationDate ? formatDateMDY(r.expirationDate) : "", r.dateReceived ? formatDateMDY(r.dateReceived) : "", r.supplier, qty(r.qty), money(r.amount)]),
-            totals: [["TOTAL", "", "", "", "", qty(Array.from(byBatch.values()).reduce((n, r) => n + r.qty, 0)), money(Array.from(byBatch.values()).reduce((n, r) => n + r.amount, 0))]],
-          },
-        ],
-      },
-    ],
-  };
+  return [
+    salesSection,
+    channelSection("Retail Sales", (d) => d.retailItems, (d) => d.retailTotal),
+    channelSection("Wholesale Sales", (d) => d.wholesaleItems, (d) => d.wholesaleTotal),
+    {
+      heading: "Payment Method",
+      columns: [{ label: "Date", width: 1.5 }, { label: "Payment Method", width: 2 }, { label: "No. of Orders", align: "right", width: 1.5 }, { label: "Total Amount", align: "right", width: 1.5 }],
+      rows: methodRows,
+      totals: [["", "TOTAL", qty(sum((d) => d.orders)), money(sum((d) => d.total))]],
+    },
+    {
+      heading: "Item Sold",
+      columns: [{ label: "Item", width: 4 }, { label: "No. of Items", align: "right" }, { label: "Total Amount", align: "right" }, { label: "Discount/Deductions", align: "right" }],
+      rows: Array.from(items.values())
+        .sort((a, b) => b.qty - a.qty || a.name.localeCompare(b.name))
+        .map((it) => [it.name, qty(it.qty), money(it.amount), money(0)]),
+      totals: [["TOTAL", qty(Array.from(items.values()).reduce((n, i) => n + i.qty, 0)), money(Array.from(items.values()).reduce((n, i) => n + i.amount, 0)), money(0)]],
+    },
+    {
+      heading: "Item Sold by Batch",
+      columns: [
+        { label: "Item", width: 3 }, { label: "Batch No", width: 1.2 }, { label: "Exp" }, { label: "Date Received" },
+        { label: "Supplier", width: 1.8 }, { label: "No. of Items", align: "right" }, { label: "Total Amount", align: "right" },
+      ],
+      rows: Array.from(byBatch.values())
+        .sort((a, b) => a.name.localeCompare(b.name) || String(a.expirationDate).localeCompare(String(b.expirationDate)))
+        .map((r) => [r.name, r.batchNo, r.expirationDate ? formatDateMDY(r.expirationDate) : "", r.dateReceived ? formatDateMDY(r.dateReceived) : "", r.supplier, qty(r.qty), money(r.amount)]),
+      totals: [["TOTAL", "", "", "", "", qty(Array.from(byBatch.values()).reduce((n, r) => n + r.qty, 0)), money(Array.from(byBatch.values()).reduce((n, r) => n + r.amount, 0))]],
+    },
+  ];
 }
 
 async function buildCustomerFileReport(start, end) {
@@ -365,8 +378,32 @@ async function buildMonthlyInventoryReport(year, month) {
   };
   const recon = reconSnap.docs.map((d) => d.data()).filter((r) => r.status === "finalized").sort((a, b) => (tsToDate(b.finalizedAt) || 0) - (tsToDate(a.finalizedAt) || 0))[0];
 
-  // Lines: from the finalized count for that month when there is one (its
-  // system qty is the POS stock at count time), else today's batches.
+  const lines = inventoryLines(batchSnap, batchesById, recon, supplierOf);
+  const sheets = categorySheets(lines);
+  const monthName = new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const { sheet: expiredSheetData, expired, expiredProducts, expiredTotal } = expiredSheet(batchSnap, year, month, monthName, supplierOf);
+  if (expiredSheetData) sheets.push(expiredSheetData);
+
+  return {
+    title: `${monthName.toUpperCase()} END INVENTORY`,
+    subtitle: recon
+      ? `From stock count ${recon.rcnNumber || ""} finalized ${formatDateMDY(recon.finalizedAt, true)} by ${recon.finalizedBy || "-"}`
+      : `No finalized stock count for ${monthName}: POS stock is as of ${formatDateMDY(new Date(), true)} and the Physical column is blank`,
+    filename: `monthly-inventory-${period}`,
+    notes: [
+      "One sheet per category, one row per batch. Prices are the current product prices.",
+      expired.length
+        ? `${expired.length} batch${expired.length === 1 ? "" : "es"} of ${expiredProducts} product${expiredProducts === 1 ? "" : "s"} expired in ${monthName} (${reportNumber(expiredTotal, 0)} units) - see the EXPIRED sheet. Units are what was written off as Bad Order, or what is still in stock.`
+        : `No batches expired in ${monthName}.`,
+    ],
+    sheets,
+  };
+}
+
+// One line per batch: from the finalized count for the month when there is
+// one, else today's batches; active products with no batch get an empty line.
+function inventoryLines(batchSnap, batchesById, recon, supplierOf) {
+  // A finalized count's system qty is the POS stock at count time.
   let lines;
   if (recon) {
     lines = (recon.items || []).map((i) => ({ productId: i.productId, batchNo: i.batchNo, expirationDate: i.expirationDate, posQty: i.systemQty, physical: i.countedQty, supplier: supplierOf(batchesById[i.batchId]) }));
@@ -380,7 +417,11 @@ async function buildMonthlyInventoryReport(year, month) {
   SAMPLE_PRODUCTS.filter((p) => p.status === "active" && !withLines.has(p.id)).forEach((p) =>
     lines.push({ productId: p.id, batchNo: "", expirationDate: "", posQty: 0, physical: recon ? 0 : "" })
   );
+  return lines;
+}
 
+// One sheet per category (and one for uncategorized products), one row per batch.
+function categorySheets(lines) {
   const sheets = [];
   const categories = Object.entries(CATEGORY_LABELS).sort((a, b) => a[1].localeCompare(b[1]));
   const uncategorized = [["", "Uncategorized"]];
@@ -421,11 +462,13 @@ async function buildMonthlyInventoryReport(year, month) {
       ],
     });
   });
+  return sheets;
+}
 
-  const monthName = new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-
-  // Batches whose expiry date falls in this month, whatever happened to
-  // them (written off as Bad Order beforehand, still on hand, or sold out).
+// The EXPIRED sheet: batches whose expiry date falls in the month, whatever
+// happened to them (written off as Bad Order beforehand, still on hand, or
+// sold out). Also returns the counts for the report's note.
+function expiredSheet(batchSnap, year, month, monthName, supplierOf) {
   const monthStart = new Date(year, month, 1);
   const monthEnd = new Date(year, month + 1, 1);
   const expired = batchSnap.docs
@@ -440,40 +483,24 @@ async function buildMonthlyInventoryReport(year, month) {
     b.status === "bad_order" ? (b.disposedAt ? "Written off (Bad Order), disposed" : "Written off (Bad Order)") : (b.quantity || 0) > 0 ? "Still in stock" : "Sold out before expiry";
   const expiredProducts = new Set(expired.map((b) => b.productId)).size;
   const expiredTotal = expired.reduce((n, b) => n + expiredUnits(b), 0);
-  if (expired.length) {
-    sheets.push({
-      name: "EXPIRED",
-      sections: [
-        {
-          heading: `EXPIRED IN ${monthName.toUpperCase()}`,
-          columns: [
-            { label: "Product", width: 3 }, { label: "Category", width: 1.4 }, { label: "Batch #", width: 1.2 }, { label: "Expiry Date", width: 1.1 },
-            { label: "Supplier", width: 1.6 }, { label: "Units", align: "right", width: 0.8 }, { label: "Status", width: 2 },
-          ],
-          rows: expired.map((b) => {
-            const p = getProductById(b.productId) || {};
-            return [p.name || b.productId, CATEGORY_LABELS[p.category] || "", b.batchNo || "", formatDateMDY(`${b.expirationDate}T12:00:00`), supplierOf(b), reportNumber(expiredUnits(b), 0), expiredStatus(b)];
-          }),
-          totals: [[`TOTAL: ${expired.length} batch${expired.length === 1 ? "" : "es"}, ${expiredProducts} product${expiredProducts === 1 ? "" : "s"}`, "", "", "", "", reportNumber(expiredTotal, 0), ""]],
-        },
-      ],
-    });
-  }
-
-  return {
-    title: `${monthName.toUpperCase()} END INVENTORY`,
-    subtitle: recon
-      ? `From stock count ${recon.rcnNumber || ""} finalized ${formatDateMDY(recon.finalizedAt, true)} by ${recon.finalizedBy || "-"}`
-      : `No finalized stock count for ${monthName}: POS stock is as of ${formatDateMDY(new Date(), true)} and the Physical column is blank`,
-    filename: `monthly-inventory-${period}`,
-    notes: [
-      "One sheet per category, one row per batch. Prices are the current product prices.",
-      expired.length
-        ? `${expired.length} batch${expired.length === 1 ? "" : "es"} of ${expiredProducts} product${expiredProducts === 1 ? "" : "s"} expired in ${monthName} (${reportNumber(expiredTotal, 0)} units) - see the EXPIRED sheet. Units are what was written off as Bad Order, or what is still in stock.`
-        : `No batches expired in ${monthName}.`,
+  const sheet = {
+    name: "EXPIRED",
+    sections: [
+      {
+        heading: `EXPIRED IN ${monthName.toUpperCase()}`,
+        columns: [
+          { label: "Product", width: 3 }, { label: "Category", width: 1.4 }, { label: "Batch #", width: 1.2 }, { label: "Expiry Date", width: 1.1 },
+          { label: "Supplier", width: 1.6 }, { label: "Units", align: "right", width: 0.8 }, { label: "Status", width: 2 },
+        ],
+        rows: expired.map((b) => {
+          const p = getProductById(b.productId) || {};
+          return [p.name || b.productId, CATEGORY_LABELS[p.category] || "", b.batchNo || "", formatDateMDY(`${b.expirationDate}T12:00:00`), supplierOf(b), reportNumber(expiredUnits(b), 0), expiredStatus(b)];
+        }),
+        totals: [[`TOTAL: ${expired.length} batch${expired.length === 1 ? "" : "es"}, ${expiredProducts} product${expiredProducts === 1 ? "" : "s"}`, "", "", "", "", reportNumber(expiredTotal, 0), ""]],
+      },
     ],
-    sheets,
   };
+  return { sheet: expired.length ? sheet : null, expired, expiredProducts, expiredTotal };
 }
 
 async function buildSupplierPurchasesReport(year, month) {
@@ -736,95 +763,109 @@ function downloadReportPdf(report) {
   }
   const doc = createPdf({ orientation: "landscape" });
   const marginX = 10;
-  const pageWidth = doc.internal.pageSize.getWidth() - marginX * 2;
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const lineHeight = 3.8;
-  let y = 14;
+  // What the drawing steps share; y is how far down the page we are.
+  const pdf = { doc, marginX, pageWidth: doc.internal.pageSize.getWidth() - marginX * 2, pageHeight: doc.internal.pageSize.getHeight(), lineHeight: 3.8, y: 14 };
 
-  const newPageIfNeeded = (height) => {
-    if (y + height > pageHeight - 12) {
-      doc.addPage();
-      y = 14;
-      return true;
-    }
-    return false;
-  };
-
-  doc.setFontSize(13);
-  doc.setFont(undefined, "bold");
-  doc.text(report.title, doc.internal.pageSize.getWidth() / 2, y, { align: "center" });
-  y += 6;
-  doc.setFontSize(9);
-  doc.setFont(undefined, "normal");
-  doc.text(report.subtitle, doc.internal.pageSize.getWidth() / 2, y, { align: "center" });
-  y += 8;
-
+  drawPdfReportTitle(pdf, report);
   report.sheets.forEach((sheet) => {
     if (report.sheets.length > 1) {
-      newPageIfNeeded(14);
+      pdfNewPageIfNeeded(pdf, 14);
       doc.setFontSize(11);
       doc.setFont(undefined, "bold");
-      doc.text(sheet.name, marginX, y);
-      y += 6;
+      doc.text(sheet.name, marginX, pdf.y);
+      pdf.y += 6;
     }
-    sheet.sections.forEach((section) => {
-      const totalShare = section.columns.reduce((n, c) => n + (c.width || 1), 0);
-      const widths = section.columns.map((c) => ((c.width || 1) / totalShare) * pageWidth);
-      const drawRow = (cells, bold) => {
-        doc.setFont(undefined, bold ? "bold" : "normal");
-        const wrapped = cells.map((v, i) => doc.splitTextToSize(String(v), widths[i] - 5));
-        const height = Math.max(1, ...wrapped.map((w) => w.length)) * lineHeight + 1.6;
-        if (newPageIfNeeded(height) && !bold) {
-          drawRow(section.columns.map((c) => c.label), true);
-          doc.setFont(undefined, "normal");
-        }
-        let x = marginX;
-        wrapped.forEach((lines, i) => {
-          // Right-aligned numbers stop 4mm short of the next column.
-          if (section.columns[i] && section.columns[i].align === "right") doc.text(lines, x + widths[i] - 4, y, { align: "right" });
-          else doc.text(lines, x, y);
-          x += widths[i];
-        });
-        y += height;
-        doc.setDrawColor(225);
-        doc.line(marginX, y - 1.6, marginX + pageWidth, y - 1.6);
-      };
-      newPageIfNeeded(20);
-      if (section.heading && !(report.sheets.length > 1 && section.heading === sheet.name)) {
-        doc.setFontSize(10);
-        doc.setFont(undefined, "bold");
-        doc.text(section.heading, doc.internal.pageSize.getWidth() / 2, y, { align: "center" });
-        y += 6;
-      }
-      doc.setFontSize(8);
-      drawRow(section.columns.map((c) => c.label), true);
-      if (section.rows.length === 0) {
-        doc.setFont(undefined, "normal");
-        doc.text("No records for this period.", marginX, y);
-        y += 5;
-      }
-      section.rows.forEach((r) => {
-        const { cells, total, blank } = reportRow(r);
-        if (blank) {
-          y += 2;
-          return;
-        }
-        drawRow(cells, total);
-      });
-      section.totals.forEach((t) => drawRow(t, true));
-      y += 6;
-    });
+    sheet.sections.forEach((section) => drawPdfReportSection(pdf, section, report.sheets.length > 1 && section.heading === sheet.name));
   });
+  drawPdfReportNotes(pdf, report);
+  doc.save(`${report.filename}.pdf`);
+}
 
+// Starts a new page when the next thing (this tall) wouldn't fit.
+function pdfNewPageIfNeeded(pdf, height) {
+  if (pdf.y + height > pdf.pageHeight - 12) {
+    pdf.doc.addPage();
+    pdf.y = 14;
+    return true;
+  }
+  return false;
+}
+
+// The report's title and subtitle, centered at the top of the first page.
+function drawPdfReportTitle(pdf, report) {
+  const { doc } = pdf;
+  doc.setFontSize(13);
+  doc.setFont(undefined, "bold");
+  doc.text(report.title, doc.internal.pageSize.getWidth() / 2, pdf.y, { align: "center" });
+  pdf.y += 6;
+  doc.setFontSize(9);
+  doc.setFont(undefined, "normal");
+  doc.text(report.subtitle, doc.internal.pageSize.getWidth() / 2, pdf.y, { align: "center" });
+  pdf.y += 8;
+}
+
+// One table: its heading (unless it repeats the sheet name), the column
+// labels (repeated on each new page), the rows and the totals.
+function drawPdfReportSection(pdf, section, headingIsSheetName) {
+  const { doc, marginX, pageWidth, lineHeight } = pdf;
+  const totalShare = section.columns.reduce((n, c) => n + (c.width || 1), 0);
+  const widths = section.columns.map((c) => ((c.width || 1) / totalShare) * pageWidth);
+  const drawRow = (cells, bold) => {
+    doc.setFont(undefined, bold ? "bold" : "normal");
+    const wrapped = cells.map((v, i) => doc.splitTextToSize(String(v), widths[i] - 5));
+    const height = Math.max(1, ...wrapped.map((w) => w.length)) * lineHeight + 1.6;
+    if (pdfNewPageIfNeeded(pdf, height) && !bold) {
+      drawRow(section.columns.map((c) => c.label), true);
+      doc.setFont(undefined, "normal");
+    }
+    let x = marginX;
+    wrapped.forEach((lines, i) => {
+      // Right-aligned numbers stop 4mm short of the next column.
+      if (section.columns[i] && section.columns[i].align === "right") doc.text(lines, x + widths[i] - 4, pdf.y, { align: "right" });
+      else doc.text(lines, x, pdf.y);
+      x += widths[i];
+    });
+    pdf.y += height;
+    doc.setDrawColor(225);
+    doc.line(marginX, pdf.y - 1.6, marginX + pageWidth, pdf.y - 1.6);
+  };
+  pdfNewPageIfNeeded(pdf, 20);
+  if (section.heading && !headingIsSheetName) {
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.text(section.heading, doc.internal.pageSize.getWidth() / 2, pdf.y, { align: "center" });
+    pdf.y += 6;
+  }
+  doc.setFontSize(8);
+  drawRow(section.columns.map((c) => c.label), true);
+  if (section.rows.length === 0) {
+    doc.setFont(undefined, "normal");
+    doc.text("No records for this period.", marginX, pdf.y);
+    pdf.y += 5;
+  }
+  section.rows.forEach((r) => {
+    const { cells, total, blank } = reportRow(r);
+    if (blank) {
+      pdf.y += 2;
+      return;
+    }
+    drawRow(cells, total);
+  });
+  section.totals.forEach((t) => drawRow(t, true));
+  pdf.y += 6;
+}
+
+// The notes and the "Generated" line under the last table.
+function drawPdfReportNotes(pdf, report) {
+  const { doc, marginX, pageWidth } = pdf;
   doc.setFontSize(7.5);
   doc.setFont(undefined, "normal");
   doc.setTextColor(110);
   (report.notes || []).concat([`Generated ${formatDateMDY(new Date(), true)}`]).forEach((n) => {
-    newPageIfNeeded(5);
-    doc.text(doc.splitTextToSize(n, pageWidth), marginX, y);
-    y += 4.5;
+    pdfNewPageIfNeeded(pdf, 5);
+    doc.text(doc.splitTextToSize(n, pageWidth), marginX, pdf.y);
+    pdf.y += 4.5;
   });
-  doc.save(`${report.filename}.pdf`);
 }
 
 // Numbers go into Excel as numbers so the main office can add them up.
