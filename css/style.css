@@ -276,6 +276,12 @@ a {
   box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
 }
 
+/* A field marked invalid by a form's own check (e.g. checkout) is outlined
+   in red like any other field, even though it has an icon. */
+.input-icon-group .form-control.is-invalid {
+  border-color: var(--bs-form-invalid-border-color);
+}
+
 .input-icon-group .form-control.is-invalid:focus,
 .was-validated .input-icon-group .form-control:invalid:focus {
   border-color: var(--amson-red);
