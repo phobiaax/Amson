@@ -117,6 +117,23 @@ saveProfileBtn.addEventListener("click", async () => {
 saveAddressBtn.addEventListener("click", async () => {
   addressAlert.classList.add("d-none");
   addressSuccess.classList.add("d-none");
+
+  const inputs = { streetAddress: streetAddressInput, city: cityInput, province: provinceInput, zipCode: zipCodeInput };
+  Object.values(inputs).forEach((input) => input.classList.remove("is-invalid"));
+  const problems = addressProblems({
+    streetAddress: streetAddressInput.value.trim(),
+    city: cityInput.value.trim(),
+    province: provinceInput.value.trim(),
+    zipCode: zipCodeInput.value.trim(),
+  });
+  if (problems.length) {
+    problems.forEach((p) => inputs[p.field].classList.add("is-invalid"));
+    addressAlert.style.whiteSpace = "pre-line";
+    addressAlert.textContent = problems.map((p) => p.message).join("\n");
+    addressAlert.classList.remove("d-none");
+    return;
+  }
+
   saveAddressBtn.disabled = true;
 
   try {
