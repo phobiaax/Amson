@@ -42,6 +42,7 @@ function ensureAppDialogModal() {
           <h2 class="h5 fw-bold mb-2" id="appDialogTitle"></h2>
           <p class="mb-3" id="appDialogMessage" style="white-space:pre-line;"></p>
           <div class="mb-4 d-none" id="appDialogField"></div>
+          <div class="alert alert-danger auth-alert d-none mb-3" id="appDialogError" role="alert" style="white-space:pre-line;"></div>
           <div class="d-flex justify-content-end gap-2">
             <button type="button" class="btn btn-outline-dark-amson d-none" id="appDialogCancelBtn">Cancel</button>
             <button type="button" class="btn btn-amson" id="appDialogOkBtn">OK</button>
@@ -60,6 +61,7 @@ function showAppAlert(message, { title = "Notice" } = {}) {
     document.getElementById("appDialogTitle").textContent = title;
     document.getElementById("appDialogMessage").textContent = message;
     setAppDialogField(null);
+    document.getElementById("appDialogError").classList.add("d-none");
     const cancelBtn = document.getElementById("appDialogCancelBtn");
     const okBtn = document.getElementById("appDialogOkBtn");
     cancelBtn.classList.add("d-none");
@@ -90,12 +92,17 @@ function setAppDialogField(html) {
 
 // Replaces window.confirm() - resolves true/false. Dismissing without
 // clicking Confirm (Esc, or clicking Cancel) resolves false.
-function showAppConfirm(message, { title = "Please Confirm", confirmLabel = "Confirm", cancelLabel = "Cancel", fieldHtml = null, onRender = null } = {}) {
+// `validate` (optional) runs when Confirm is clicked: it returns (or
+// resolves) an error message to show inside the dialog, which stays open,
+// or nothing to close it. Both buttons wait while it runs.
+function showAppConfirm(message, { title = "Please Confirm", confirmLabel = "Confirm", cancelLabel = "Cancel", fieldHtml = null, onRender = null, validate = null } = {}) {
   ensureAppDialogModal();
   return new Promise((resolve) => {
     document.getElementById("appDialogTitle").textContent = title;
     document.getElementById("appDialogMessage").textContent = message;
     setAppDialogField(fieldHtml);
+    const errorEl = document.getElementById("appDialogError");
+    errorEl.classList.add("d-none");
     if (onRender) onRender();
     const cancelBtn = document.getElementById("appDialogCancelBtn");
     const okBtn = document.getElementById("appDialogOkBtn");
@@ -107,19 +114,44 @@ function showAppConfirm(message, { title = "Please Confirm", confirmLabel = "Con
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
 
     let confirmed = false;
-    const onOk = () => {
+    let busy = false;
+    const onOk = async () => {
+      if (validate) {
+        busy = true;
+        okBtn.disabled = true;
+        cancelBtn.disabled = true;
+        let problem = null;
+        try {
+          problem = await validate();
+        } catch (error) {
+          problem = (error && error.message) || "Something went wrong. Please try again.";
+        }
+        busy = false;
+        okBtn.disabled = false;
+        cancelBtn.disabled = false;
+        if (problem) {
+          showFormAlert(errorEl, problem);
+          return;
+        }
+      }
       confirmed = true;
       modal.hide();
     };
     const onCancel = () => modal.hide();
+    // Not closed (Esc) while a check or save is still running.
+    const onHide = (e) => {
+      if (busy) e.preventDefault();
+    };
     const onHidden = () => {
       okBtn.removeEventListener("click", onOk);
       cancelBtn.removeEventListener("click", onCancel);
+      modalEl.removeEventListener("hide.bs.modal", onHide);
       modalEl.removeEventListener("hidden.bs.modal", onHidden);
       resolve(confirmed);
     };
     okBtn.addEventListener("click", onOk);
     cancelBtn.addEventListener("click", onCancel);
+    modalEl.addEventListener("hide.bs.modal", onHide);
     modalEl.addEventListener("hidden.bs.modal", onHidden);
     modal.show();
   });
@@ -1539,7 +1571,7 @@ function setReceiptButtons(modalEl, { onConfirm = null, onEdit = null, onVoid = 
     // View mode (Walk-in Orders, Today's Sales, or right after a sale is
     // confirmed): print it, and - for authorized roles - void it.
     footer.innerHTML = `
-      ${onVoid ? `<button type="button" class="btn btn-outline-dark-amson" id="posReceiptVoidBtn" style="border-color:var(--amson-red); color:var(--amson-red);">Void</button>` : ""}
+      ${onVoid ? `<button type="button" class="btn btn-outline-danger" id="posReceiptVoidBtn">Void</button>` : ""}
       ${onExchange ? `<button type="button" class="btn btn-outline-dark-amson" id="posReceiptExchangeBtn">Return / Exchange</button>` : ""}
       <button type="button" class="btn btn-outline-dark-amson flex-fill" id="posReceiptPrintBtn"><i class="bi bi-printer me-1"></i>Print</button>
       <button type="button" class="btn btn-amson flex-fill" data-bs-dismiss="modal">Close</button>
@@ -1608,6 +1640,7 @@ async function promptVoidDetails(sale, { requireApproval = false } = {}) {
         : ""
     )
     .join("");
+  let details = null;
   const ok = await showAppConfirm(`Void items from SI No. ${sale.invoiceNo || "-"} (${formatPeso(sale.total)})? Voided items go back into stock.`, {
     title: "Void Walk-in Sale",
     confirmLabel: "Void Selected",
@@ -1633,18 +1666,27 @@ async function promptVoidDetails(sale, { requireApproval = false } = {}) {
           : ""
       }
     `,
-  });
-  if (!ok) return null;
-  let approvedBy = null;
-  if (requireApproval) {
-    try {
-      approvedBy = await verifyVoidApprover(document.getElementById("voidApproverEmail").value.trim(), document.getElementById("voidApproverPassword").value);
-    } catch (error) {
-      await showAppAlert(`${error.message} Nothing was changed.`);
+    // Problems show inside the dialog, which stays open to fix them.
+    validate: async () => {
+      const read = readVoidDialog(items);
+      if (read.problem) return read.problem;
+      let approvedBy = null;
+      if (requireApproval) {
+        try {
+          approvedBy = await verifyVoidApprover(document.getElementById("voidApproverEmail").value.trim(), document.getElementById("voidApproverPassword").value);
+        } catch (error) {
+          return error.message;
+        }
+      }
+      details = { ...read.details, approvedBy };
       return null;
-    }
-  }
+    },
+  });
+  return ok ? details : null;
+}
 
+// What staff entered in the void dialog: { details } or { problem }.
+function readVoidDialog(items) {
   const lines = [];
   let invalidQty = false;
   document.querySelectorAll(".void-line-check").forEach((check) => {
@@ -1655,31 +1697,23 @@ async function promptVoidDetails(sale, { requireApproval = false } = {}) {
     if (!qty || qty < 1 || qty > items[idx].qty) invalidQty = true;
     else lines.push({ index: idx, qty });
   });
-  if (invalidQty) {
-    await showAppAlert("Each quantity to void must be between 1 and the quantity sold. Nothing was changed.");
-    return null;
-  }
-  if (lines.length === 0) {
-    await showAppAlert("Select at least one item to void. Nothing was changed.");
-    return null;
-  }
+  if (invalidQty) return { problem: "Each quantity to void must be between 1 and the quantity sold." };
+  if (lines.length === 0) return { problem: "Select at least one item to void." };
   const reason = document.getElementById("voidReasonInput").value.trim();
-  if (!reason) {
-    await showAppAlert("A reason is required to void a sale. Nothing was changed.");
-    return null;
-  }
+  if (!reason) return { problem: "A reason is required to void a sale." };
   const exchanging = document.getElementById("voidExchangeCheck").checked;
   const diff = parseFloat(document.getElementById("voidExchangeDiffInput").value);
   return {
-    reason,
-    lines,
-    approvedBy,
-    exchange: exchanging
-      ? {
-          replacementItems: document.getElementById("voidExchangeItemsInput").value.trim(),
-          priceDifference: isNaN(diff) ? 0 : diff,
-        }
-      : null,
+    details: {
+      reason,
+      lines,
+      exchange: exchanging
+        ? {
+            replacementItems: document.getElementById("voidExchangeItemsInput").value.trim(),
+            priceDifference: isNaN(diff) ? 0 : diff,
+          }
+        : null,
+    },
   };
 }
 
@@ -2371,7 +2405,8 @@ async function logWalkinExchange({ returnQty, replacement, restock, reason }, { 
 }
 
 // The dialog behind "Return / Exchange" on a walk-in sale. Resolves with the
-// saved exchange, or null if cancelled or it failed (the error is shown).
+// saved exchange, or null if cancelled. If saving fails, the reason shows
+// inside the dialog, which stays open.
 async function openWalkinExchangeDialog(sale, processedBy) {
   if (!sale) return null;
   if (sale.voided) {
@@ -2386,6 +2421,7 @@ async function openWalkinExchangeDialog(sale, processedBy) {
     return null;
   }
 
+  let exchange = null;
   const ok = await showAppConfirm(
     `Return items from SI No. ${sale.invoiceNo || "-"}. No refunds: the customer takes a replacement of equal or higher value and pays any difference.`,
     {
@@ -2393,24 +2429,28 @@ async function openWalkinExchangeDialog(sale, processedBy) {
       confirmLabel: "Process Exchange",
       fieldHtml: exchangeDialogHtml(sale, lines),
       onRender: () => wireExchangeDialog(sale),
+      // Saved right here, so a problem (cheaper replacement, no reason...)
+      // shows inside the dialog, which stays open to fix it.
+      validate: async () => {
+        try {
+          exchange = await processWalkinExchange(readExchangeDialog(sale, processedBy));
+          return null;
+        } catch (error) {
+          return error.message || "Something went wrong recording the exchange. Please try again.";
+        }
+      },
     }
   );
   if (!ok) return null;
 
-  try {
-    const exchange = await processWalkinExchange(readExchangeDialog(sale, processedBy));
-    const print = await showAppConfirm(
-      `Exchange ${exchange.exchangeNo} recorded. ${exchange.restocked ? "The returned item is back in stock" : "The returned item was set aside (pull-out)"}, and the replacement was taken from stock.${
-        exchange.priceDifference > 0 ? ` Collect ${formatPeso(exchange.priceDifference)} from the customer.` : ""
-      }`,
-      { title: "Exchange Recorded", confirmLabel: "Print Exchange Slip", cancelLabel: "Close" }
-    );
-    if (print) printWalkinExchangeSlip(exchange);
-    return exchange;
-  } catch (error) {
-    await showAppAlert(error.message || "Something went wrong recording the exchange. Please try again.");
-    return null;
-  }
+  const print = await showAppConfirm(
+    `Exchange ${exchange.exchangeNo} recorded. ${exchange.restocked ? "The returned item is back in stock" : "The returned item was set aside (pull-out)"}, and the replacement was taken from stock.${
+      exchange.priceDifference > 0 ? ` Collect ${formatPeso(exchange.priceDifference)} from the customer.` : ""
+    }`,
+    { title: "Exchange Recorded", confirmLabel: "Print Exchange Slip", cancelLabel: "Close" }
+  );
+  if (print) printWalkinExchangeSlip(exchange);
+  return exchange;
 }
 
 // The form inside the exchange dialog: which item comes back, whether it can
