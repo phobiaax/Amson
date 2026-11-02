@@ -88,7 +88,7 @@ The sale receipt pop-up (POS, Walk-in Orders, online order receipts).
 
 Voiding a walk-in sale (whole or some items), with Branch Manager approval when needed.
 
-- Functions: `roleCanVoidSales()`, `promptVoidDetails()`, `verifyVoidApprover()`, `voidPosSale()`, `partialVoidSummary()`, `voidSummary()`, `voidByText()`
+- Functions: `roleCanVoidSales()`, `promptVoidDetails()`, `verifyVoidApprover()`, `voidPosSale()` (with `findFallbackBatches()`, `takeVoidedUnits()`, `logVoid()`), `partialVoidSummary()`, `voidSummary()`, `voidByText()`
 
 ### exports
 
@@ -106,7 +106,7 @@ Taking stock out first-expiry, first-out in one transaction, and giving each sal
 
 Wholesale and walk-in returns/exchanges and the exchange slip.
 
-- Functions: `planBatchReturn()`, `processWholesaleExchange()`, `processWalkinExchange()`, `openWalkinExchangeDialog()`, `printWalkinExchangeSlip()`
+- Functions: `planBatchReturn()`, `processWholesaleExchange()`, `processWalkinExchange()` (with `checkWalkinExchange()`, `saveWalkinExchange()`, `logWalkinExchange()`), `openWalkinExchangeDialog()` (with `exchangeDialogHtml()`, `wireExchangeDialog()`, `readExchangeDialog()`), `printWalkinExchangeSlip()`
 
 ### audit log
 
