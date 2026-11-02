@@ -572,11 +572,157 @@ async function chatAiReply(history, question) {
   }
 }
 
+/* ---------- Chat box HTML ---------- */
+// The chat box itself: header, messages, quick questions and the input.
+function chatPanelHtml() {
+  return `
+  <div class="chat-panel-header">
+    <div>
+      <p class="fw-bold mb-0">Amson Pharmaceuticals</p>
+      <p class="mb-0 chat-status-text" id="chatStatusText">Assistant</p>
+    </div>
+    <button type="button" class="chat-close-btn" id="chatCloseBtn" aria-label="Close chat"><i class="bi bi-x-lg"></i></button>
+  </div>
+  <div class="chat-messages" id="chatMessages" aria-live="polite"></div>
+  <div class="chat-quick" id="chatQuick">
+    <button type="button" data-q="Where is my order?">My orders</button>
+    <button type="button" data-q="How do I pay?">How do I pay?</button>
+    <button type="button" data-q="How much is the delivery fee?">Delivery fee</button>
+    <button type="button" data-q="How do prescription orders work?">Prescription orders</button>
+    <button type="button" data-q="I want to talk to staff" id="chatTalkToStaffBtn">Talk to staff</button>
+    <button type="button" class="d-none" id="chatBackToAssistantBtn">Back to assistant</button>
+  </div>
+  <form class="chat-input-row" id="chatForm">
+    <input type="text" class="form-control" id="chatInput" maxlength="${CHAT_MAX_LENGTH}" placeholder="Type your question..." autocomplete="off" aria-label="Message">
+    <button type="submit" class="btn btn-amson" id="chatSendBtn" aria-label="Send"><i class="bi bi-send"></i></button>
+  </form>
+  <p class="chat-disclaimer">Our assistant can't give medical advice. For dosage or health questions, please ask our pharmacist.</p>
+  `;
+}
+
+// One message in the chat, with any cards and buttons under it.
+function chatMessageHtml(m, myOrders) {
+  if (m.sender === "system") return `<div class="chat-msg chat-msg-system">${escapeHtml(m.text)}</div>`;
+  const cls = ["customer", "staff"].includes(m.sender) ? `chat-msg-${m.sender}` : "chat-msg-assistant";
+  const who = m.sender === "staff" ? `<span class="chat-msg-who">${escapeHtml(m.staffName || "Staff")}</span>` : "";
+  // Buttons sit side by side under the cards.
+  const list = Array.isArray(m.cards) ? m.cards : [];
+  const cardHtml = (card) => chatCardHtml(card, myOrders);
+  const buttons = list.filter((c) => c.type === "button").map(cardHtml).join("");
+  const cards = list.length
+    ? `<div class="chat-cards">${list.filter((c) => c.type !== "button").map(cardHtml).join("")}${buttons ? `<div class="chat-card-actions">${buttons}</div>` : ""}</div>`
+    : "";
+  return `<div class="chat-msg ${cls}">${who}${escapeHtml(m.text)}</div>${cards}`;
+}
+
+const chatShopPath = (page) => `${/\/shop\//.test(window.location.pathname) ? "" : "shop/"}${page}`;
+
+// Cards under a message. Product and order cards show live data.
+function chatCardHtml(card, myOrders) {
+  if (card.type === "button") {
+    return `<button type="button" class="chat-card-btn" data-chat-q="${escapeHtml(card.q || card.label)}">${escapeHtml(card.label)}</button>`;
+  }
+  if (card.type === "login") {
+    return `<a class="chat-card-btn" href="${/\/shop\//.test(window.location.pathname) ? "../" : ""}login.html">Log in to see your orders</a>`;
+  }
+  if (card.type === "product") return chatProductCardHtml(card);
+  if (card.type === "order") return chatOrderCardHtml(card, myOrders);
+  return "";
+}
+
+// A product the assistant suggests: name, price, stock and Add to Cart.
+function chatProductCardHtml(card) {
+  const p = getProductById(card.id);
+  if (!p) return "";
+  return `
+    <div class="chat-card">
+      <a class="fw-medium d-block" href="${chatShopPath(`product-details.html?id=${encodeURIComponent(p.id)}`)}">${escapeHtml(p.name)}</a>
+      <div class="text-muted" style="font-size:0.78rem;">${formatPeso(p.price)} - ${p.inStock ? `${p.totalStock} in stock` : "Out of stock"}</div>
+      ${p.dosageNotes ? `<div style="font-size:0.75rem;" class="mt-1">${escapeHtml(p.dosageNotes)}</div>` : ""}
+      ${p.inStock ? `<button type="button" class="btn btn-amson btn-sm mt-2 btn-add-cart" data-id="${escapeHtml(p.id)}">+ Add to Cart</button>` : ""}
+    </div>`;
+}
+
+// One of the customer's orders: a short card when several are listed,
+// or the full card (items, status steps, next step) for one order.
+function chatOrderCardHtml(card, myOrders) {
+  const o = (myOrders || []).find((x) => x.id === card.id);
+  if (!o) return myOrders === null ? `<div class="chat-card text-muted" style="font-size:0.78rem;">Loading order...</div>` : "";
+  const view = chatOrderView(o);
+  const { issue, status: liveStatus, label: status } = view;
+  const items = o.items || [];
+  const itemCount = items.reduce((n, i) => n + (i.qty || 0), 0);
+  const link = chatTrackingLink(o);
+  const tracking = link && ["dispatched", "delivered", "received"].includes(liveStatus)
+    ? `<a class="chat-card-btn" href="${escapeHtml(safeUrl(link))}" target="_blank" rel="noopener"><i class="bi bi-geo-alt"></i> Track rider</a>`
+    : "";
+  const orderLink = `<a class="chat-card-btn" href="${chatShopPath(`order-details.html?id=${encodeURIComponent(o.id)}`)}">${issue ? "Fix this order" : "View order"}</a>`;
+  const thumb = (item) => {
+    const imageUrl = item.imageUrl || (getProductById(item.id) || {}).imageUrl;
+    const url = safeUrl(imageUrl) === "#" ? "" : imageUrl;
+    return `<span class="chat-order-thumb" style="${escapeHtml(cartItemImageCss(url))}"></span>`;
+  };
+  const head = `
+      <div class="d-flex justify-content-between gap-2"><span class="fw-bold">${escapeHtml(o.orderNumber || "")}</span><span style="font-size:0.78rem;">${formatPeso(o.total || 0)}</span></div>
+      <div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(o.createdAt)} - ${itemCount} item${itemCount === 1 ? "" : "s"}</div>`;
+
+  // Several orders: a short card each, with a button for the details.
+  if (!card.detail) {
+    return `
+    <div class="chat-card">
+      ${head}
+      <div class="chat-order-thumbs mt-1">${items.slice(0, 4).map(thumb).join("")}${items.length > 4 ? `<span class="text-muted" style="font-size:0.72rem;">+${items.length - 4}</span>` : ""}</div>
+      <div class="mt-1 ${issue ? "text-danger" : ""}" style="font-size:0.8rem; font-weight:600;">${escapeHtml(status)}</div>
+      <div class="d-flex gap-1 flex-wrap mt-2">
+        <button type="button" class="chat-card-btn" data-chat-q="${escapeHtml(`Track order ${o.orderNumber || ""}`)}">Show details</button>
+        ${tracking}
+      </div>
+    </div>`;
+  }
+
+  const { pickup, steps, current } = chatOrderSteps(o, liveStatus);
+  const stamps = o.statusTimestamps || {};
+  const stepper = issue || liveStatus === "closed_unresolved"
+    ? ""
+    : `<div class="chat-order-steps mt-2">${steps
+        .map(([key, label], i) => {
+          const state = i < current ? "done" : i === current ? "now" : "";
+          const when = stamps[key] && stamps[key].toDate ? formatDateMDY(stamps[key]) : "";
+          return `<div class="chat-order-step ${state}"><span class="dot"></span><span class="lbl">${escapeHtml(label)}</span>${when && state ? `<span class="when">${escapeHtml(when)}</span>` : ""}</div>`;
+        })
+        .join("")}</div>`;
+  const shown = items.slice(0, 3);
+  return `
+    <div class="chat-card">
+      ${head}
+      <div class="mt-2">
+        ${shown
+          .map((item) => `
+        <div class="chat-order-item">
+          ${thumb(item)}
+          <span class="flex-grow-1">${escapeHtml(item.name || "")}<span class="text-muted d-block" style="font-size:0.72rem;">Qty ${item.qty || 0} x ${formatPeso(item.price || 0)}</span></span>
+        </div>`)
+          .join("")}
+        ${items.length > shown.length ? `<div class="text-muted" style="font-size:0.72rem;">+${items.length - shown.length} more item${items.length - shown.length === 1 ? "" : "s"}</div>` : ""}
+      </div>
+      <div class="mt-2 ${issue ? "text-danger" : ""}" style="font-size:0.82rem; font-weight:700;">${escapeHtml(status)}</div>
+      ${stepper}
+      <div class="text-muted mt-1" style="font-size:0.75rem;">${pickup ? "Pick-up at the Amson Pharmaceuticals store" : `Delivery by Lalamove to ${escapeHtml([o.shipping.city, o.shipping.province].filter(Boolean).join(", "))}`}</div>
+      ${issue && issue.note ? `<div class="mt-1" style="font-size:0.75rem;">Staff note: ${escapeHtml(issue.note)}</div>` : ""}
+      <div class="chat-order-next mt-2">${escapeHtml(chatOrderNextStep(o, view))}</div>
+      <div class="d-flex gap-1 flex-wrap mt-2">
+        ${orderLink}
+        ${tracking}
+      </div>
+    </div>`;
+}
+
 /* ---------- Widget ---------- */
 (function initLiveChat() {
   const entries = document.querySelectorAll("[data-chat-entry]");
   if (!entries.length || typeof db === "undefined") return;
 
+  // ---- 1. The chat box and what it remembers ----
   let threadId = null;
   let threadRef = null;
   let thread = null; // latest thread doc data (null until the first message)
@@ -596,29 +742,7 @@ async function chatAiReply(history, question) {
   panel.id = "chatPanel";
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-label", "Chat with Amson Pharmaceuticals");
-  panel.innerHTML = `
-    <div class="chat-panel-header">
-      <div>
-        <p class="fw-bold mb-0">Amson Pharmaceuticals</p>
-        <p class="mb-0 chat-status-text" id="chatStatusText">Assistant</p>
-      </div>
-      <button type="button" class="chat-close-btn" id="chatCloseBtn" aria-label="Close chat"><i class="bi bi-x-lg"></i></button>
-    </div>
-    <div class="chat-messages" id="chatMessages" aria-live="polite"></div>
-    <div class="chat-quick" id="chatQuick">
-      <button type="button" data-q="Where is my order?">My orders</button>
-      <button type="button" data-q="How do I pay?">How do I pay?</button>
-      <button type="button" data-q="How much is the delivery fee?">Delivery fee</button>
-      <button type="button" data-q="How do prescription orders work?">Prescription orders</button>
-      <button type="button" data-q="I want to talk to staff" id="chatTalkToStaffBtn">Talk to staff</button>
-      <button type="button" class="d-none" id="chatBackToAssistantBtn">Back to assistant</button>
-    </div>
-    <form class="chat-input-row" id="chatForm">
-      <input type="text" class="form-control" id="chatInput" maxlength="${CHAT_MAX_LENGTH}" placeholder="Type your question..." autocomplete="off" aria-label="Message">
-      <button type="submit" class="btn btn-amson" id="chatSendBtn" aria-label="Send"><i class="bi bi-send"></i></button>
-    </form>
-    <p class="chat-disclaimer">Our assistant can't give medical advice. For dosage or health questions, please ask our pharmacist.</p>
-  `;
+  panel.innerHTML = chatPanelHtml();
   document.body.appendChild(panel);
 
   const messagesEl = panel.querySelector("#chatMessages");
@@ -634,6 +758,7 @@ async function chatAiReply(history, question) {
     resolved: "Assistant",
   };
 
+  // ---- 2. Who is chatting, and loading their conversation ----
   function guestThreadId() {
     let id = null;
     try {
@@ -707,24 +832,12 @@ async function chatAiReply(history, question) {
       );
   }
 
+  // ---- 3. Drawing the messages ----
   function renderMessages() {
     const welcome = `<div class="chat-msg chat-msg-assistant">Hi! I'm the Amson Pharmaceuticals assistant. Ask me about products, ordering, payment, delivery or prescription orders. Type "talk to staff" anytime to reach our team.</div>`;
     messagesEl.innerHTML =
       welcome +
-      messages
-        .map((m) => {
-          if (m.sender === "system") return `<div class="chat-msg chat-msg-system">${escapeHtml(m.text)}</div>`;
-          const cls = ["customer", "staff"].includes(m.sender) ? `chat-msg-${m.sender}` : "chat-msg-assistant";
-          const who = m.sender === "staff" ? `<span class="chat-msg-who">${escapeHtml(m.staffName || "Staff")}</span>` : "";
-          // Buttons sit side by side under the cards.
-          const list = Array.isArray(m.cards) ? m.cards : [];
-          const buttons = list.filter((c) => c.type === "button").map(cardHtml).join("");
-          const cards = list.length
-            ? `<div class="chat-cards">${list.filter((c) => c.type !== "button").map(cardHtml).join("")}${buttons ? `<div class="chat-card-actions">${buttons}</div>` : ""}</div>`
-            : "";
-          return `<div class="chat-msg ${cls}">${who}${escapeHtml(m.text)}</div>${cards}`;
-        })
-        .join("");
+      messages.map((m) => chatMessageHtml(m, myOrders)).join("");
     messagesEl.scrollTop = messagesEl.scrollHeight;
     // Order cards need the customer's orders; load them once, then redraw.
     if (myOrders === null && customerId && messages.some((m) => (m.cards || []).some((c) => c.type === "order"))) {
@@ -777,109 +890,7 @@ async function chatAiReply(history, question) {
     return myOrdersReady;
   }
 
-  const shopPath = (page) => `${/\/shop\//.test(window.location.pathname) ? "" : "shop/"}${page}`;
-
-  // Cards under a message. Product and order cards show live data.
-  function cardHtml(card) {
-    if (card.type === "button") {
-      return `<button type="button" class="chat-card-btn" data-chat-q="${escapeHtml(card.q || card.label)}">${escapeHtml(card.label)}</button>`;
-    }
-    if (card.type === "login") {
-      return `<a class="chat-card-btn" href="${/\/shop\//.test(window.location.pathname) ? "../" : ""}login.html">Log in to see your orders</a>`;
-    }
-    if (card.type === "product") return productCardHtml(card);
-    if (card.type === "order") return orderCardHtml(card);
-    return "";
-  }
-
-  // A product the assistant suggests: name, price, stock and Add to Cart.
-  function productCardHtml(card) {
-    const p = getProductById(card.id);
-    if (!p) return "";
-    return `
-      <div class="chat-card">
-        <a class="fw-medium d-block" href="${shopPath(`product-details.html?id=${encodeURIComponent(p.id)}`)}">${escapeHtml(p.name)}</a>
-        <div class="text-muted" style="font-size:0.78rem;">${formatPeso(p.price)} - ${p.inStock ? `${p.totalStock} in stock` : "Out of stock"}</div>
-        ${p.dosageNotes ? `<div style="font-size:0.75rem;" class="mt-1">${escapeHtml(p.dosageNotes)}</div>` : ""}
-        ${p.inStock ? `<button type="button" class="btn btn-amson btn-sm mt-2 btn-add-cart" data-id="${escapeHtml(p.id)}">+ Add to Cart</button>` : ""}
-      </div>`;
-  }
-
-  // One of the customer's orders: a short card when several are listed,
-  // or the full card (items, status steps, next step) for one order.
-  function orderCardHtml(card) {
-    const o = (myOrders || []).find((x) => x.id === card.id);
-    if (!o) return myOrders === null ? `<div class="chat-card text-muted" style="font-size:0.78rem;">Loading order...</div>` : "";
-    const view = chatOrderView(o);
-    const { issue, status: liveStatus, label: status } = view;
-    const items = o.items || [];
-    const itemCount = items.reduce((n, i) => n + (i.qty || 0), 0);
-    const link = chatTrackingLink(o);
-    const tracking = link && ["dispatched", "delivered", "received"].includes(liveStatus)
-      ? `<a class="chat-card-btn" href="${escapeHtml(safeUrl(link))}" target="_blank" rel="noopener"><i class="bi bi-geo-alt"></i> Track rider</a>`
-      : "";
-    const orderLink = `<a class="chat-card-btn" href="${shopPath(`order-details.html?id=${encodeURIComponent(o.id)}`)}">${issue ? "Fix this order" : "View order"}</a>`;
-    const thumb = (item) => {
-      const imageUrl = item.imageUrl || (getProductById(item.id) || {}).imageUrl;
-      const url = safeUrl(imageUrl) === "#" ? "" : imageUrl;
-      return `<span class="chat-order-thumb" style="${escapeHtml(cartItemImageCss(url))}"></span>`;
-    };
-    const head = `
-        <div class="d-flex justify-content-between gap-2"><span class="fw-bold">${escapeHtml(o.orderNumber || "")}</span><span style="font-size:0.78rem;">${formatPeso(o.total || 0)}</span></div>
-        <div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(o.createdAt)} - ${itemCount} item${itemCount === 1 ? "" : "s"}</div>`;
-
-    // Several orders: a short card each, with a button for the details.
-    if (!card.detail) {
-      return `
-      <div class="chat-card">
-        ${head}
-        <div class="chat-order-thumbs mt-1">${items.slice(0, 4).map(thumb).join("")}${items.length > 4 ? `<span class="text-muted" style="font-size:0.72rem;">+${items.length - 4}</span>` : ""}</div>
-        <div class="mt-1 ${issue ? "text-danger" : ""}" style="font-size:0.8rem; font-weight:600;">${escapeHtml(status)}</div>
-        <div class="d-flex gap-1 flex-wrap mt-2">
-          <button type="button" class="chat-card-btn" data-chat-q="${escapeHtml(`Track order ${o.orderNumber || ""}`)}">Show details</button>
-          ${tracking}
-        </div>
-      </div>`;
-    }
-
-    const { pickup, steps, current } = chatOrderSteps(o, liveStatus);
-    const stamps = o.statusTimestamps || {};
-    const stepper = issue || liveStatus === "closed_unresolved"
-      ? ""
-      : `<div class="chat-order-steps mt-2">${steps
-          .map(([key, label], i) => {
-            const state = i < current ? "done" : i === current ? "now" : "";
-            const when = stamps[key] && stamps[key].toDate ? formatDateMDY(stamps[key]) : "";
-            return `<div class="chat-order-step ${state}"><span class="dot"></span><span class="lbl">${escapeHtml(label)}</span>${when && state ? `<span class="when">${escapeHtml(when)}</span>` : ""}</div>`;
-          })
-          .join("")}</div>`;
-    const shown = items.slice(0, 3);
-    return `
-      <div class="chat-card">
-        ${head}
-        <div class="mt-2">
-          ${shown
-            .map((item) => `
-          <div class="chat-order-item">
-            ${thumb(item)}
-            <span class="flex-grow-1">${escapeHtml(item.name || "")}<span class="text-muted d-block" style="font-size:0.72rem;">Qty ${item.qty || 0} x ${formatPeso(item.price || 0)}</span></span>
-          </div>`)
-            .join("")}
-          ${items.length > shown.length ? `<div class="text-muted" style="font-size:0.72rem;">+${items.length - shown.length} more item${items.length - shown.length === 1 ? "" : "s"}</div>` : ""}
-        </div>
-        <div class="mt-2 ${issue ? "text-danger" : ""}" style="font-size:0.82rem; font-weight:700;">${escapeHtml(status)}</div>
-        ${stepper}
-        <div class="text-muted mt-1" style="font-size:0.75rem;">${pickup ? "Pick-up at the Amson Pharmaceuticals store" : `Delivery by Lalamove to ${escapeHtml([o.shipping.city, o.shipping.province].filter(Boolean).join(", "))}`}</div>
-        ${issue && issue.note ? `<div class="mt-1" style="font-size:0.75rem;">Staff note: ${escapeHtml(issue.note)}</div>` : ""}
-        <div class="chat-order-next mt-2">${escapeHtml(chatOrderNextStep(o, view))}</div>
-        <div class="d-flex gap-1 flex-wrap mt-2">
-          ${orderLink}
-          ${tracking}
-        </div>
-      </div>`;
-  }
-
-
+  // ---- 4. Answering questions ----
   messagesEl.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-chat-q]");
     if (btn) send(btn.dataset.chatQ);
@@ -998,6 +1009,7 @@ async function chatAiReply(history, question) {
   }
 
 
+  // ---- 5. Saving the conversation and handing over to staff ----
   // Creates the thread on the first message, reopens a resolved one.
   async function touchThread(text) {
     const base = {
@@ -1040,6 +1052,7 @@ async function chatAiReply(history, question) {
     await addMessage("system", note || "I've passed your chat to our staff. A staff member will reply here as soon as they can during store hours.");
   }
 
+  // ---- 6. Choosing the answer: staff, orders, health, FAQ, then the AI ----
   async function respond(text) {
     const status = thread ? thread.status : "ai";
     if (status === "staff" || status === "waiting_staff") return; // staff will answer
@@ -1064,6 +1077,12 @@ async function chatAiReply(history, question) {
       return;
     }
 
+    await askAssistant(text);
+  }
+
+  // Nothing above matched: ask the AI assistant, or fall back to a product
+  // search, or pass the chat to staff.
+  async function askAssistant(text) {
     if (typeof loadCatalogCache === "function") {
       try {
         await loadCatalogCache();
@@ -1109,6 +1128,7 @@ async function chatAiReply(history, question) {
     );
   }
 
+  // ---- 7. Sending, opening and closing, and the buttons ----
   async function send(text) {
     text = String(text || "").trim().slice(0, CHAT_MAX_LENGTH);
     if (!text || sending) return;
