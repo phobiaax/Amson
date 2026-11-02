@@ -3,16 +3,16 @@
    ========================================================================== */
 
 :root {
-  --amson-red: #EE3137;
+  --amson-red: #ee3137;
   --amson-red-dark: #d42630;
-  --amson-dark: #12121B;
+  --amson-dark: #12121b;
   --amson-gray-bg: #f4f4f6;
   --amson-border: #e5e5ea;
   --amson-text-muted: #7a7a85;
 }
 
 body {
-  font-family: 'Roboto', sans-serif;
+  font-family: "Roboto", sans-serif;
   color: var(--amson-dark);
   background-color: #ffffff;
   min-height: 100vh;
@@ -737,8 +737,12 @@ a {
   background-color: transparent;
 }
 @keyframes skeleton-shimmer {
-  0% { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .skeleton {
@@ -2567,9 +2571,15 @@ a {
   line-height: 1;
   margin-bottom: 0.5rem;
 }
-.task-modal-icon.success { color: #1e8e3e; }
-.task-modal-icon.warning { color: #b7791f; }
-.task-modal-icon.danger { color: var(--amson-red); }
+.task-modal-icon.success {
+  color: #1e8e3e;
+}
+.task-modal-icon.warning {
+  color: #b7791f;
+}
+.task-modal-icon.danger {
+  color: var(--amson-red);
+}
 .min-w-0 {
   min-width: 0;
 }
