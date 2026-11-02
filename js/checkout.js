@@ -106,6 +106,44 @@ saveDeliveryScheduleBtn.addEventListener("click", () => {
   deliveryScheduleLabel.textContent = `${date} · ${TIME_SLOT_LABELS[slot]}`;
 });
 
+// ---- Checking the form before going to payment ----
+// Every missing or invalid field is outlined in red and listed above the
+// Proceed to Payment button, so it's clear what still needs fixing.
+const checkoutErrorAlert = document.getElementById("checkoutErrorAlert");
+
+function checkoutFormIsValid() {
+  const value = (id) => document.getElementById(id).value.trim();
+  const problems = [];
+  if (!value("firstName")) problems.push({ id: "firstName", message: "Enter your first name." });
+  else if (!NAME_PATTERN.test(value("firstName"))) problems.push({ id: "firstName", message: "First name: letters, spaces, periods and dashes only." });
+  if (!value("lastName")) problems.push({ id: "lastName", message: "Enter your last name." });
+  else if (!NAME_PATTERN.test(value("lastName"))) problems.push({ id: "lastName", message: "Last name: letters, spaces, periods and dashes only." });
+  if (!value("email")) problems.push({ id: "email", message: "Enter your email address." });
+  else if (!EMAIL_PATTERN.test(value("email"))) problems.push({ id: "email", message: "Enter a valid email address." });
+  if (!value("contactNumber")) problems.push({ id: "contactNumber", message: "Enter your contact number." });
+  else if (!PH_PHONE_PATTERN.test(normalizePhPhone(value("contactNumber"))))
+    problems.push({ id: "contactNumber", message: "Contact number: a Philippine mobile number (e.g. 0917 123 4567)." });
+  if (!requiresPrescription) {
+    const ids = { streetAddress: "streetAddress", city: "city", province: "province", zipCode: "zipCode" };
+    addressProblems({ streetAddress: value("streetAddress"), city: value("city"), province: value("province"), zipCode: value("zipCode") }).forEach((p) =>
+      problems.push({ id: ids[p.field], message: p.message })
+    );
+  }
+
+  checkoutForm.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));
+  problems.forEach((p) => document.getElementById(p.id).classList.add("is-invalid"));
+  if (problems.length === 0) {
+    checkoutErrorAlert.classList.add("d-none");
+    return true;
+  }
+  showFormAlert(checkoutErrorAlert, `Please fix the following before continuing:\n- ${problems.map((p) => p.message).join("\n- ")}`);
+  document.getElementById(problems[0].id).focus();
+  return false;
+}
+
+// A field stops being outlined in red as soon as it's changed.
+checkoutForm.addEventListener("input", (e) => e.target.classList.remove("is-invalid"));
+
 // ---- Proceed to Payment ----
 let signedInUid = null;
 
@@ -115,10 +153,7 @@ proceedToPaymentBtn.addEventListener("click", async () => {
     return;
   }
 
-  if (!checkoutForm.checkValidity()) {
-    checkoutForm.classList.add("was-validated");
-    return;
-  }
+  if (!checkoutFormIsValid()) return;
 
   const shipping = requiresPrescription
     ? null

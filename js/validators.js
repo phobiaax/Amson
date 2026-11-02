@@ -53,6 +53,40 @@ function isDisposableEmail(email) {
   return DISPOSABLE_EMAIL_DOMAINS.has(domain);
 }
 
+// ---- Addresses (Philippines) ----
+// Street, house no., barangay: 5-150 characters with at least one letter -
+// letters (incl. ñ and accents), numbers, spaces and . , # - ' / ( ) & :
+const STREET_ADDRESS_PATTERN = /^(?=.*[A-Za-zÀ-ÖØ-öø-ÿ])[A-Za-zÀ-ÖØ-öø-ÿ0-9 .,#'\/()&:-]{5,150}$/;
+// City / municipality and province: 2-60 letters, spaces, . - '
+const PLACE_NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ .'-]{1,59}$/;
+// Philippine ZIP codes are 4 digits.
+const PH_ZIP_PATTERN = /^\d{4}$/;
+
+// What's wrong with a shipping address ({ streetAddress, city, province,
+// zipCode }, already trimmed), as [{ field, message }]; empty when it's fine.
+function addressProblems(address) {
+  const problems = [];
+  if (!address.streetAddress) problems.push({ field: "streetAddress", message: "Enter your street address." });
+  else if (!STREET_ADDRESS_PATTERN.test(address.streetAddress))
+    problems.push({ field: "streetAddress", message: "Street address: 5-150 characters - letters, numbers, spaces and . , # - ' / ( ) & : only." });
+  if (!address.city) problems.push({ field: "city", message: "Enter your city or municipality." });
+  else if (!PLACE_NAME_PATTERN.test(address.city)) problems.push({ field: "city", message: "City: letters, spaces, periods and dashes only." });
+  if (!address.province) problems.push({ field: "province", message: "Enter your province." });
+  else if (!PLACE_NAME_PATTERN.test(address.province)) problems.push({ field: "province", message: "Province: letters, spaces, periods and dashes only." });
+  if (!address.zipCode) problems.push({ field: "zipCode", message: "Enter your ZIP code." });
+  else if (!PH_ZIP_PATTERN.test(address.zipCode)) problems.push({ field: "zipCode", message: "ZIP code: 4 digits (e.g. 1740)." });
+  return problems;
+}
+
+// ---- Payment reference numbers (G-Cash, QR Ph, bank, card terminal) ----
+// 6-30 letters or digits; spaces and dashes in between are allowed, since
+// they're often copied that way from the app or the slip.
+function isValidReferenceNumber(value) {
+  const v = String(value || "").trim();
+  return /^[A-Za-z0-9][A-Za-z0-9 -]*[A-Za-z0-9]$/.test(v) && /^[A-Za-z0-9]{6,30}$/.test(v.replace(/[\s-]/g, ""));
+}
+const REFERENCE_NUMBER_HINT = "Reference number: 6-30 letters or numbers, exactly as shown on your proof of payment.";
+
 // ---- Show/hide password (eye) buttons: Register and Account Settings ----
 function wirePasswordToggles() {
   document.querySelectorAll(".toggle-password").forEach((btn) => {
