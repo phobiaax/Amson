@@ -164,6 +164,16 @@ const ordersTableEmpty = document.getElementById("ordersTableEmpty");
 const ordersPagination = document.getElementById("ordersPagination");
 
 const holdModalEl = document.getElementById("holdModal");
+
+// "Placed on hold!" after a payment issue (the customer is told) or after
+// running out of stock (the customer isn't told about that).
+function showHoldModal(outOfStock = false) {
+  document.getElementById("holdModalMessage").textContent = outOfStock
+    ? "The order will stay on hold for 7 days or until it's restocked. The customer isn't notified about out-of-stock holds."
+    : "Customer has been notified and the order will be placed on hold for 7 days or until resolved.";
+  bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
+}
+
 const approvedModalEl = document.getElementById("approvedModal");
 const trackingLinkInput = document.getElementById("trackingLinkInput");
 const trackingLinkError = document.getElementById("trackingLinkError");
@@ -757,7 +767,7 @@ approvePaymentBtn.addEventListener("click", async () => {
     if (error.message === "Not enough stock available to fulfill this quantity.") {
       try {
         await holdOrderForOutOfStock(order);
-        bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
+        showHoldModal(true);
       } catch (holdError) {
         showFormAlert(reviewAlert, "Not enough stock to approve this order, and it couldn't be placed on hold automatically. Please try again.");
       }
@@ -843,7 +853,7 @@ rejectPrescriptionBtn.addEventListener("click", async () => {
     selectedVerificationId = null;
     renderVerificationQueue();
     renderOrdersTable();
-    bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
+    showHoldModal();
   } catch (error) {
     showFormAlert(reviewAlert, error.message || "Something went wrong rejecting this prescription. Please try again.");
   } finally {
@@ -988,7 +998,7 @@ async function placeOrderOnPaymentHold(order, note) {
   renderVerificationQueue();
   renderOrdersTable();
   bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
-  bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
+  showHoldModal();
 }
 
 // Payment Issue dialog, Overpayment: the order is approved like Approve
@@ -1110,7 +1120,7 @@ issueConfirmBtn.addEventListener("click", async () => {
       try {
         await holdOrderForOutOfStock(order);
         bootstrap.Modal.getInstance(paymentIssueModalEl).hide();
-        bootstrap.Modal.getOrCreateInstance(holdModalEl).show();
+        showHoldModal(true);
       } catch (holdError) {
         await showAppAlert("Not enough stock to approve this order, and it couldn't be placed on hold automatically. Please try again.");
       }
