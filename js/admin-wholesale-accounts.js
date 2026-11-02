@@ -576,9 +576,44 @@ processOrderPoDocInput.addEventListener("change", () => {
   selectedPoDocFile = processOrderPoDocInput.files[0] || null;
 });
 
+// ---- Process Wholesale Order: Confirm ----
+// Read the form -> check it -> save the order (stock, SI No.) -> audit log ->
+// remember agreed prices -> offer to print the sales invoice.
 confirmProcessOrderBtn.addEventListener("click", async () => {
   if (!processingAccountId) return;
+  const account = allWholesaleAccounts.find((w) => w.id === processingAccountId);
+  const order = readProcessOrderForm();
+  if (!checkProcessOrder(account, order)) return;
 
+  confirmProcessOrderBtn.disabled = true;
+  processOrderAlert.classList.add("d-none");
+
+  try {
+    const saved = await saveWholesaleOrder(account, order);
+    await logWholesaleOrder(saved, order);
+    if (!order.freeOfCost && document.getElementById("processOrderSavePricesCheck").checked && account) {
+      await saveAgreedPrices(account, order.items);
+    }
+
+    bootstrap.Modal.getInstance(processOrderModalEl).hide();
+    await loadWholesaleAccounts();
+    const savedDoc = await saved.orderRef.get();
+    const print = await showAppConfirm(`Wholesale order recorded (SI No. ${saved.invoiceNo}) and stock deducted. Mark it Released in the buyer's purchase history once it's picked up or delivered.`, {
+      title: "Order Recorded",
+      confirmLabel: "Print Sales Invoice",
+      cancelLabel: "Close",
+    });
+    if (print && savedDoc.exists) downloadWholesaleInvoice({ id: savedDoc.id, ...savedDoc.data() }, { print: true });
+  } catch (error) {
+    showFormAlert(processOrderAlert, error.message || "Something went wrong recording this order. Please try again.");
+  } finally {
+    confirmProcessOrderBtn.disabled = false;
+  }
+});
+
+// Reads the order form: the items, and whether it's free of cost. Free items
+// (or every item, for a free-of-cost order) are priced at 0.
+function readProcessOrderForm() {
   const rows = Array.from(processOrderItemsContainer.querySelectorAll(".repeater-item"));
   const items = rows.map((row) => ({
     productId: row.querySelector(".order-product-select").value,
@@ -586,147 +621,139 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     unitPrice: parseFloat(row.querySelector(".order-price-input").value),
     free: row.querySelector(".order-free-check").checked,
   }));
-
-  const account = allWholesaleAccounts.find((w) => w.id === processingAccountId);
-  const buyerName = account ? account.name : "";
-  if (account && (documentValidity(account.ltoValidUntil) === "expired" || documentValidity(account.permitValidUntil) === "expired")) {
-    showFormAlert(processOrderAlert, "This buyer's LTO or Business Permit has expired. Update the document and its date in Edit first.");
-    return;
-  }
-
   const freeOfCost = processOrderFreeCheck.checked;
   const freeReason = processOrderFreeReasonInput.value.trim();
   if (freeOfCost) items.forEach((it) => (it.free = false));
   items.forEach((it) => {
     if (freeOfCost || it.free) it.unitPrice = 0;
   });
-  const freeItems = items.filter((it) => it.free);
+  return { items, freeOfCost, freeReason, freeItems: items.filter((it) => it.free) };
+}
+
+// The buyer's documents must be valid, a free order or free items need a
+// reason, and every item needs a product, quantity and price. Shows the
+// first problem found and returns false, or returns true.
+function checkProcessOrder(account, { items, freeOfCost, freeReason, freeItems }) {
+  if (account && (documentValidity(account.ltoValidUntil) === "expired" || documentValidity(account.permitValidUntil) === "expired")) {
+    showFormAlert(processOrderAlert, "This buyer's LTO or Business Permit has expired. Update the document and its date in Edit first.");
+    return false;
+  }
   if ((freeOfCost || freeItems.length) && !freeReason) {
     showFormAlert(
       processOrderAlert,
       freeOfCost ? "A reason is required for a free-of-cost distribution." : "A reason is required for the items given free."
     );
-    return;
+    return false;
   }
-
   const invalid = items.some((it) => !it.productId || !it.qty || it.qty <= 0 || isNaN(it.unitPrice) || it.unitPrice < 0);
   if (invalid || items.length === 0) {
     showFormAlert(processOrderAlert, "Every item needs a product, a quantity, and a unit price (type one where it says no wholesale price is set).");
-    return;
+    return false;
   }
+  return true;
+}
 
-  confirmProcessOrderBtn.disabled = true;
-  processOrderAlert.classList.add("d-none");
+// Saves the order: the buyer's PO file is uploaded first (a failed upload
+// shouldn't leave stock already deducted), then the stock deduction, SI No.
+// and the order record happen in one transaction.
+async function saveWholesaleOrder(account, { items, freeOfCost, freeReason, freeItems }) {
+  const buyerName = account ? account.name : "";
+  let poDocumentUrl = null;
+  if (selectedPoDocFile) poDocumentUrl = await uploadToCloudinary(selectedPoDocFile, { kind: "document" });
 
+  let total = 0;
+  for (const it of items) {
+    total += it.qty * it.unitPrice;
+  }
+  const paymentMethod = processOrderPaymentSelect.value;
+
+  const orderItems = items.map((it) => {
+    const product = getProductById(it.productId);
+    return {
+      productId: it.productId,
+      productName: product ? product.name : it.productId,
+      qty: it.qty,
+      unitPrice: it.unitPrice,
+      subtotal: it.qty * it.unitPrice,
+      ...(it.free ? { free: true } : {}),
+    };
+  });
+
+  const orderRef = db.collection("wholesaleOrders").doc();
+  const { invoiceNo } = await deductStockFEFOMultiple(items, {
+    includeWholesaleOnly: true,
+    record: {
+      ref: orderRef,
+      mode: "set",
+      build: (allocations, invoiceNo) => ({
+        invoiceNo,
+        wholesaleAccountId: processingAccountId,
+        buyerName: buyerName,
+        items: orderItems.map((item, idx) => ({ ...item, ...batchFieldsFromAllocation(allocations[idx]) })),
+        total,
+        paymentMethod: freeOfCost ? "free_of_cost" : paymentMethod,
+        freeOfCost,
+        freeOfCostReason: freeOfCost ? freeReason : null,
+        freeItemsReason: !freeOfCost && freeItems.length ? freeReason : null,
+        contactPerson: account ? account.contactPerson || "" : "",
+        buyerAddress: account ? account.address || "" : "",
+        poRefNumber: processOrderPoRefInput.value.trim(),
+        poDocumentUrl,
+        notes: processOrderNotesInput.value.trim(),
+        // Pending until the client picks it up or it's delivered.
+        releaseStatus: "pending",
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      }),
+    },
+  });
+  return { orderRef, invoiceNo, orderItems, total, paymentMethod, buyerName };
+}
+
+// Audit log: a free-of-cost distribution or a normal wholesale order, plus
+// a separate entry for any items given free.
+async function logWholesaleOrder({ invoiceNo, orderItems, total, paymentMethod, buyerName }, { freeOfCost, freeReason, freeItems }) {
+  await logAuditEvent(
+    freeOfCost
+      ? {
+          action: "Free-of-Cost Distribution",
+          details: `SI ${invoiceNo} - ${buyerName} - ${orderItems.map((it) => `${it.productName} x${it.qty}`).join(", ")}. Reason: ${freeReason}`,
+          record: `SI ${invoiceNo} - ${buyerName}`,
+          after: `${orderItems.map((it) => `${it.productName} x${it.qty}`).join(", ")} at ${formatPeso(0)}`,
+          reason: freeReason,
+        }
+      : {
+          action: "Wholesale Order Recorded",
+          details: `SI ${invoiceNo} - ${buyerName} - ${orderItems.length} item(s), Total ${formatPeso(total)}, ${SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod}`,
+        }
+  );
+  if (!freeOfCost && freeItems.length) {
+    const freeList = orderItems.filter((it) => it.free).map((it) => `${it.productName} x${it.qty}`).join(", ");
+    await logAuditEvent({
+      action: "Wholesale Free Items",
+      details: `SI ${invoiceNo} - ${buyerName} - free: ${freeList}. Reason: ${freeReason}`,
+      record: `SI ${invoiceNo} - ${buyerName}`,
+      after: `${freeList} at ${formatPeso(0)}`,
+      reason: freeReason,
+    });
+  }
+}
+
+// Remembers the prices used as this buyer's agreed prices (REQ085). A free
+// item's 0 is a one-off, not the buyer's price.
+async function saveAgreedPrices(account, items) {
+  const agreedPrices = { ...(account.agreedPrices || {}) };
+  items.filter((it) => !it.free).forEach((it) => (agreedPrices[it.productId] = it.unitPrice));
   try {
-    // Upload first: a failed upload shouldn't leave stock already deducted.
-    let poDocumentUrl = null;
-    if (selectedPoDocFile) poDocumentUrl = await uploadToCloudinary(selectedPoDocFile, { kind: "document" });
-
-    let total = 0;
-    for (const it of items) {
-      total += it.qty * it.unitPrice;
-    }
-    const paymentMethod = processOrderPaymentSelect.value;
-
-    const orderItems = items.map((it) => {
-      const product = getProductById(it.productId);
-      return {
-        productId: it.productId,
-        productName: product ? product.name : it.productId,
-        qty: it.qty,
-        unitPrice: it.unitPrice,
-        subtotal: it.qty * it.unitPrice,
-        ...(it.free ? { free: true } : {}),
-      };
+    await db.collection("wholesaleAccounts").doc(account.id).update({ agreedPrices });
+    account.agreedPrices = agreedPrices;
+    await logAuditEvent({
+      action: "Wholesale Agreed Prices Saved",
+      details: `${account.name}: ${items.map((it) => `${(getProductById(it.productId) || {}).name || it.productId} ${formatPeso(it.unitPrice)}`).join(", ")}`,
     });
-
-    // Stock deduction, SI# and the order record in one transaction.
-    const orderRef = db.collection("wholesaleOrders").doc();
-    const { invoiceNo } = await deductStockFEFOMultiple(items, {
-      includeWholesaleOnly: true,
-      record: {
-        ref: orderRef,
-        mode: "set",
-        build: (allocations, invoiceNo) => ({
-          invoiceNo,
-          wholesaleAccountId: processingAccountId,
-          buyerName: buyerName,
-          items: orderItems.map((item, idx) => ({ ...item, ...batchFieldsFromAllocation(allocations[idx]) })),
-          total,
-          paymentMethod: freeOfCost ? "free_of_cost" : paymentMethod,
-          freeOfCost,
-          freeOfCostReason: freeOfCost ? freeReason : null,
-          freeItemsReason: !freeOfCost && freeItems.length ? freeReason : null,
-          contactPerson: account ? account.contactPerson || "" : "",
-          buyerAddress: account ? account.address || "" : "",
-          poRefNumber: processOrderPoRefInput.value.trim(),
-          poDocumentUrl,
-          notes: processOrderNotesInput.value.trim(),
-          // Pending until the client picks it up or it's delivered.
-          releaseStatus: "pending",
-          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        }),
-      },
-    });
-
-    await logAuditEvent(
-      freeOfCost
-        ? {
-            action: "Free-of-Cost Distribution",
-            details: `SI ${invoiceNo} - ${buyerName} - ${orderItems.map((it) => `${it.productName} x${it.qty}`).join(", ")}. Reason: ${freeReason}`,
-            record: `SI ${invoiceNo} - ${buyerName}`,
-            after: `${orderItems.map((it) => `${it.productName} x${it.qty}`).join(", ")} at ${formatPeso(0)}`,
-            reason: freeReason,
-          }
-        : {
-            action: "Wholesale Order Recorded",
-            details: `SI ${invoiceNo} - ${buyerName} - ${orderItems.length} item(s), Total ${formatPeso(total)}, ${SALE_RECEIPT_PAYMENT_METHOD_LABELS[paymentMethod] || paymentMethod}`,
-          }
-    );
-    if (!freeOfCost && freeItems.length) {
-      const freeList = orderItems.filter((it) => it.free).map((it) => `${it.productName} x${it.qty}`).join(", ");
-      await logAuditEvent({
-        action: "Wholesale Free Items",
-        details: `SI ${invoiceNo} - ${buyerName} - free: ${freeList}. Reason: ${freeReason}`,
-        record: `SI ${invoiceNo} - ${buyerName}`,
-        after: `${freeList} at ${formatPeso(0)}`,
-        reason: freeReason,
-      });
-    }
-
-    // Remember the prices used as this buyer's agreed prices (REQ085).
-    if (!freeOfCost && document.getElementById("processOrderSavePricesCheck").checked && account) {
-      const agreedPrices = { ...(account.agreedPrices || {}) };
-      // A free item's 0 is a one-off, not the buyer's price.
-      items.filter((it) => !it.free).forEach((it) => (agreedPrices[it.productId] = it.unitPrice));
-      try {
-        await db.collection("wholesaleAccounts").doc(account.id).update({ agreedPrices });
-        account.agreedPrices = agreedPrices;
-        await logAuditEvent({
-          action: "Wholesale Agreed Prices Saved",
-          details: `${account.name}: ${items.map((it) => `${(getProductById(it.productId) || {}).name || it.productId} ${formatPeso(it.unitPrice)}`).join(", ")}`,
-        });
-      } catch (error) {
-        console.error("Failed to save agreed prices:", error);
-      }
-    }
-
-    bootstrap.Modal.getInstance(processOrderModalEl).hide();
-    await loadWholesaleAccounts();
-    const saved = await orderRef.get();
-    const print = await showAppConfirm(`Wholesale order recorded (SI No. ${invoiceNo}) and stock deducted. Mark it Released in the buyer's purchase history once it's picked up or delivered.`, {
-      title: "Order Recorded",
-      confirmLabel: "Print Sales Invoice",
-      cancelLabel: "Close",
-    });
-    if (print && saved.exists) downloadWholesaleInvoice({ id: saved.id, ...saved.data() }, { print: true });
   } catch (error) {
-    showFormAlert(processOrderAlert, error.message || "Something went wrong recording this order. Please try again.");
-  } finally {
-    confirmProcessOrderBtn.disabled = false;
+    console.error("Failed to save agreed prices:", error);
   }
-});
+}
 
 processOrderFreeCheck.addEventListener("change", () => {
   // Each row sets its own price: 0 while the whole order is free, back to
