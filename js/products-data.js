@@ -919,7 +919,7 @@ function liveQuery(key, query) {
           else if (!snapshot.metadata.fromCache) answer(snapshot);
           else entry.latest = snapshot;
         },
-        (error) => {
+        () => {
           // Listener refused or dropped: fall back to a plain read so the page
           // still loads, and let the next call open a new listener.
           liveQueries.delete(key);
@@ -1009,7 +1009,7 @@ function writeCatalogBrowserCache() {
   if (!catalogBrowserCacheAllowed()) return;
   try {
     // Timestamps are converted by the replacer before JSON.stringify sees them.
-    const toJson = (v) => JSON.stringify(v, function (key, value) {
+    const toJson = (v) => JSON.stringify(v, function (key) {
       return catalogCacheReplacer(key, this[key]);
     });
     localStorage.setItem(CATALOG_CACHE_KEY, toJson({ savedAt: Date.now(), categories: CATEGORY_LABELS, products: SAMPLE_PRODUCTS }));
