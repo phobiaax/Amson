@@ -86,14 +86,15 @@ function addressProblems(address) {
 }
 
 // ---- Payment reference numbers (G-Cash, QR Ph, bank, card terminal) ----
-// Kept loose so a real reference is never refused, however it was copied
-// ("Ref No. 1234 5678", "#A1B2C3"...): up to 40 characters with at least 4
-// letters or numbers. Only < and > are refused (no HTML/code).
+// Up to 40 characters with at least 4 letters or numbers, as copied from
+// the receipt ("Ref No. 1234 5678", "GC-2026-001", "Ref#: 99887766"...).
+// Only letters, numbers, spaces and - . # : are allowed - other symbols
+// never appear in a payment reference.
 function isValidReferenceNumber(value) {
   const v = String(value || "").trim();
-  return v.length <= 40 && !/[<>]/.test(v) && (v.match(/[A-Za-z0-9]/g) || []).length >= 4;
+  return v.length <= 40 && /^[A-Za-z0-9 .#:-]+$/.test(v) && (v.match(/[A-Za-z0-9]/g) || []).length >= 4;
 }
-const REFERENCE_NUMBER_HINT = "Reference number: at least 4 letters or numbers (up to 40 characters), as shown on your proof of payment.";
+const REFERENCE_NUMBER_HINT = "Reference number: at least 4 letters or numbers (up to 40 characters), as shown on your proof of payment. Only letters, numbers, spaces and - . # : are allowed.";
 
 // ---- Show/hide password (eye) buttons: Register and Account Settings ----
 function wirePasswordToggles() {

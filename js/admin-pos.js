@@ -266,7 +266,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
     return;
   }
   if (needsReference && !isValidReferenceNumber(referenceNo)) {
-    posAlert.textContent = "Reference No.: at least 4 letters or numbers (up to 40 characters), as shown on the payment slip or receipt.";
+    posAlert.textContent = "Reference No.: at least 4 letters or numbers (up to 40 characters), as shown on the payment slip or receipt. Only letters, numbers, spaces and - . # : are allowed.";
     posAlert.classList.remove("d-none");
     return;
   }
