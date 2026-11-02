@@ -261,7 +261,6 @@ productsSortBtn.addEventListener("click", () => {
   renderProductsTable();
 });
 
-
 /* ---------- Segmented toggles ---------- */
 wireSegmentedToggle(productRxToggle);
 wireSegmentedToggle(productStatusToggle);

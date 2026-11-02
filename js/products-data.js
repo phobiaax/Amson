@@ -2831,4 +2831,3 @@ async function showProductQuickView(productId) {
 
   bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }
-
