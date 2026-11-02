@@ -61,6 +61,11 @@ function chatFaqAnswers() {
         `We're Amson Pharmaceuticals, Las Piñas branch.${info.address ? ` Address: ${info.address}.` : ""}${info.hours ? ` Open ${info.hours}.` : ""}${contact ? ` You can also ${contact}.` : ""}${info.address || contact ? "" : ' Type "talk to staff" and our team will send you the address and contact details.'}`,
     },
     {
+      keys: ["branch", "other store", "sangay", "bambang"],
+      answer:
+        "Amson Pharmaceuticals also has branches in Parañaque and in Bambang, Manila, but this online store is for the Las Piñas branch only: online orders are prepared and delivered from Las Piñas. To buy from the Parañaque or Bambang branch, please visit them in person.",
+    },
+    {
       keys: ["wholesale", "bulk", "maramihan"],
       answer:
         "Wholesale orders (drugstores, clinics, hospitals) are handled directly by the branch, not through the online store. You'll need a valid License to Operate and Business Permit. Type \"talk to staff\" and our team will help you.",
@@ -375,6 +380,7 @@ function chatOrderNextStep(o, view) {
 function chatSystemInstruction() {
   return [
     "You are the online assistant of Amson Pharmaceuticals, Las Piñas branch, a pharmacy in the Philippines.",
+    "Amson also has branches in Parañaque and in Bambang, Manila, but the online store is for the Las Piñas branch only; for the other branches, customers visit them in person.",
     "Reply in the customer's language (English, Filipino or Taglish), warmly and briefly: at most 80 words, plain text, no markdown.",
     "Store policies: Payment is by QR Ph only; the customer uploads a screenshot and reference number, and staff verify it before the order is confirmed.",
     "Non-prescription orders are delivered by Lalamove; the delivery fee is paid to the rider and is not part of the order total.",
@@ -382,7 +388,7 @@ function chatSystemInstruction() {
     "Paid orders cannot be cancelled or refunded. Wrong items sent by the store are exchanged. Unverified payments are held up to 7 days; verified amounts become store credit applied to the next order.",
     "Medicines within 6 months of expiry are not sold online. Wholesale buyers are served directly by the branch.",
     "Never give medical advice, dosages, diagnoses, drug interactions or prescription validation; tell the customer to ask a pharmacist or doctor.",
-    "Only mention products, prices and stock from the product list given with the question. If a product isn't listed, say you couldn't find it and suggest searching the shop or asking staff. Never invent prices.",
+    "Only mention products, prices and stock from the product list given with the question (it covers the question and the customer's recent messages, so a follow-up like \"can I order that\" still has the product). To order, the customer adds the product to the cart in the shop. If a product isn't listed, say you couldn't find it and suggest searching the shop or asking staff. Never invent prices.",
     "Never ask for passwords, payment details or personal information.",
     "If the customer needs help with their specific order or payment, has a complaint, asks for a person, or you are not sure, answer briefly and end your reply with the exact text [[STAFF]].",
     "If the customer describes symptoms or a health condition, or asks what medicine to take or buy for one, reply with only the exact text [[HEALTH]] and nothing else.",
@@ -530,7 +536,10 @@ async function chatAiReply(history, question) {
   }
   if (!allowed) return { limitReached: true };
 
-  const products = chatProductMatches(question);
+  // A follow-up ("can I order that?") names no product, so the list also
+  // covers the customer's last few messages - this question's matches first.
+  const recent = history.filter((m) => m.sender === "customer").slice(-3).reverse().map((m) => m.text);
+  const products = [...new Set([question, ...recent].flatMap((text) => chatProductMatches(text)))].slice(0, 8);
   const contents = history.map((m) => ({
     role: m.sender === "customer" ? "user" : "model",
     parts: [{ text: m.sender === "staff" ? `(Staff) ${m.text}` : m.text }],
