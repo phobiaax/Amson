@@ -265,6 +265,11 @@ posCompleteSaleBtn.addEventListener("click", () => {
     posAlert.classList.remove("d-none");
     return;
   }
+  if (needsReference && !isValidReferenceNumber(referenceNo)) {
+    posAlert.textContent = "Reference No.: 6-30 letters or numbers, exactly as shown on the payment slip or receipt.";
+    posAlert.classList.remove("d-none");
+    return;
+  }
 
   const rxIncluded = posCartHasRx();
   if (rxIncluded && !posRxVerifiedCheck.checked) {
