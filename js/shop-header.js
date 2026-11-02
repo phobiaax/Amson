@@ -102,7 +102,7 @@ auth.onAuthStateChanged(async (user) => {
       }
     }
 
-    loadCustomerNotifications(user.uid, data.notifReadMap || {});
+    watchCustomerNotifications(user.uid, data.notifReadMap || {});
   } catch (error) {
     showGuestHeader();
   }
@@ -116,75 +116,106 @@ auth.onAuthStateChanged(async (user) => {
 // ones reuse the same key+signature trick as the staff notification bell:
 // a small read-map on the customer's own user doc records what state was
 // last seen, so marking read doesn't stick once the order moves on.
-async function loadCustomerNotifications(uid, readMap) {
+//
+// Both lists are listened to live, so a payment hold or a dispatched order
+// shows in the bell straight away, without a refresh.
+let customerNotifWatch = null;
+
+function watchCustomerNotifications(uid, readMap) {
   if (!notifDropdownList) return;
+  if (customerNotifWatch) customerNotifWatch.stop();
+  const watch = { uid, readMap, notifDocs: null, orderDocs: null };
+  const redraw = () => {
+    // Wait for both lists before drawing the bell the first time.
+    if (watch.notifDocs && watch.orderDocs) {
+      renderCustomerNotifications(uid, buildCustomerNotifications(watch.notifDocs, watch.orderDocs, watch.readMap));
+    }
+  };
+  const onError = (error) => console.error("Failed to load notifications:", error);
+  const stopNotifs = db
+    .collection("customerNotifications")
+    .where("customerId", "==", uid)
+    .onSnapshot((snap) => {
+      watch.notifDocs = snap.docs;
+      redraw();
+    }, onError);
+  const stopOrders = db
+    .collection("orders")
+    .where("customerId", "==", uid)
+    .onSnapshot((snap) => {
+      watch.orderDocs = snap.docs;
+      redraw();
+    }, onError);
+  watch.redraw = redraw;
+  watch.stop = () => {
+    stopNotifs();
+    stopOrders();
+  };
+  customerNotifWatch = watch;
+}
 
-  try {
-    const notifSnapshot = await db.collection("customerNotifications").where("customerId", "==", uid).get();
-    const notifications = notifSnapshot.docs.map((doc) => {
-      const n = doc.data();
-      return {
-        priority: 0,
-        sortKey: n.createdAt && n.createdAt.toMillis ? n.createdAt.toMillis() : 0,
-        link: n.link || "orders.html",
-        title: n.title,
-        detail: n.detail,
-        severity: n.severity || "info",
-        persisted: true,
-        docId: doc.id,
-        isRead: n.read === true,
+// The newest 8 notifications: payment issues and credit first, then orders
+// on their way, ready for pick-up or delivered.
+function buildCustomerNotifications(notifDocs, orderDocs, readMap) {
+  const notifications = notifDocs.map((doc) => {
+    const n = doc.data();
+    return {
+      priority: 0,
+      sortKey: n.createdAt && n.createdAt.toMillis ? n.createdAt.toMillis() : 0,
+      link: n.link || "orders.html",
+      title: n.title,
+      detail: n.detail,
+      severity: n.severity || "info",
+      persisted: true,
+      docId: doc.id,
+      isRead: n.read === true,
+    };
+  });
+
+  orderDocs.forEach((doc) => {
+    const order = doc.data();
+    let entry = null;
+    if (order.status === "dispatched") {
+      entry = {
+        priority: 1,
+        link: `order-details.html?id=${doc.id}`,
+        title: `Order ${order.orderNumber} is on its way`,
+        detail: "Your order has been dispatched for delivery.",
+        key: `dispatched:${doc.id}`,
+        severity: "info",
+        icon: "bi-truck",
       };
-    });
+    } else if (order.status === "delivered" && order.requiresPrescription) {
+      entry = {
+        priority: 1,
+        link: `order-details.html?id=${doc.id}`,
+        title: `Order ${order.orderNumber} is ready for pick-up`,
+        detail: "Please bring a valid ID (and the original prescription, if applicable) when you collect it.",
+        key: `ready_for_pickup:${doc.id}`,
+        severity: "warning",
+        icon: "bi-bag-check",
+      };
+    } else if (order.status === "delivered") {
+      entry = {
+        priority: 2,
+        link: `order-details.html?id=${doc.id}`,
+        title: `Order ${order.orderNumber} has been delivered`,
+        detail: "Let us know if anything's missing or damaged.",
+        key: `delivered:${doc.id}`,
+        severity: "success",
+        icon: "bi-check-circle",
+      };
+    }
+    if (entry) {
+      entry.persisted = false;
+      entry.signature = order.status;
+      entry.isRead = readMap[entry.key] === entry.signature;
+      notifications.push(entry);
+    }
+  });
 
-    const snapshot = await db.collection("orders").where("customerId", "==", uid).get();
-
-    snapshot.docs.forEach((doc) => {
-      const order = doc.data();
-      let entry = null;
-      if (order.status === "dispatched") {
-        entry = {
-          priority: 1,
-          link: `order-details.html?id=${doc.id}`,
-          title: `Order ${order.orderNumber} is on its way`,
-          detail: "Your order has been dispatched for delivery.",
-          key: `dispatched:${doc.id}`,
-          severity: "info",
-          icon: "bi-truck",
-        };
-      } else if (order.status === "delivered" && order.requiresPrescription) {
-        entry = {
-          priority: 1,
-          link: `order-details.html?id=${doc.id}`,
-          title: `Order ${order.orderNumber} is ready for pick-up`,
-          detail: "Please bring a valid ID (and the original prescription, if applicable) when you collect it.",
-          key: `ready_for_pickup:${doc.id}`,
-          severity: "warning",
-          icon: "bi-bag-check",
-        };
-      } else if (order.status === "delivered") {
-        entry = {
-          priority: 2,
-          link: `order-details.html?id=${doc.id}`,
-          title: `Order ${order.orderNumber} has been delivered`,
-          detail: "Let us know if anything's missing or damaged.",
-          key: `delivered:${doc.id}`,
-          severity: "success",
-          icon: "bi-check-circle",
-        };
-      }
-      if (entry) {
-        entry.persisted = false;
-        entry.signature = order.status;
-        entry.isRead = readMap[entry.key] === entry.signature;
-        notifications.push(entry);
-      }
-    });
-
-    notifications.sort((a, b) => a.priority - b.priority || (b.sortKey || 0) - (a.sortKey || 0));
-    renderCustomerNotifications(uid, notifications.slice(0, 8));
-  } catch (error) {
-    console.error("Failed to load notifications:", error);
-  }
+  notifications.sort((a, b) => a.priority - b.priority || (b.sortKey || 0) - (a.sortKey || 0));
+  return notifications.slice(0, 8);
 }
 
 async function markCustomerNotifRead(uid, n) {
@@ -195,12 +226,14 @@ async function markCustomerNotifRead(uid, n) {
     // dotted-string key - only update() does. The user's own doc always
     // already exists here (they're signed in), so no need to ensure it first.
     await db.collection("users").doc(uid).update({ [`notifReadMap.${n.key}`]: n.signature });
+    if (customerNotifWatch) customerNotifWatch.readMap = { ...customerNotifWatch.readMap, [n.key]: n.signature };
   }
 }
 
 function renderCustomerNotifications(uid, notifications) {
   if (notifications.length === 0) {
     if (notifBadge) notifBadge.classList.add("d-none");
+    notifDropdownList.innerHTML = '<li class="px-3 py-2 text-muted">Nothing new right now.</li>';
     return;
   }
 
@@ -262,9 +295,8 @@ function renderCustomerNotifications(uid, notifications) {
       markAllBtn.disabled = true;
       try {
         await Promise.all(notifications.filter((n) => !n.isRead).map((n) => markCustomerNotifRead(uid, n)));
-        const freshDoc = await db.collection("users").doc(uid).get();
-        const freshReadMap = freshDoc.exists ? freshDoc.data().notifReadMap || {} : {};
-        await loadCustomerNotifications(uid, freshReadMap);
+        // Persisted ones redraw through their listener; this covers the rest.
+        if (customerNotifWatch) customerNotifWatch.redraw();
       } catch (error) {
         console.error("Failed to mark all notifications read:", error);
       } finally {
