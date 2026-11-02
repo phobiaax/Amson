@@ -83,11 +83,13 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
+// Submit Order stays clickable: pressing it with something missing lists
+// what's still needed (see submitOrderBtn below). Any change to the form
+// clears that list.
+const submitOrderErrorAlert = document.getElementById("submitOrderErrorAlert");
 function updateSubmitButtonState() {
-  const hasProof = fullyCoveredByCredit || !!proofOfPaymentInput.files[0];
-  const hasReferenceNumber = fullyCoveredByCredit || !!referenceNumberInput.value.trim();
-  const hasPrescription = !requiresPrescription || !!prescriptionPhotoInput.files[0];
-  submitOrderBtn.disabled = !(hasProof && hasReferenceNumber && hasPrescription);
+  submitOrderBtn.disabled = false;
+  submitOrderErrorAlert.classList.add("d-none");
 }
 
 (async function init() {
@@ -176,14 +178,27 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     const file = proofOfPaymentInput.files[0];
     const prescriptionFile = prescriptionPhotoInput.files[0];
     const referenceNumber = referenceNumberInput.value.trim();
-    if (!fullyCoveredByCredit && (!file || !referenceNumber || (requiresPrescription && !prescriptionFile))) {
-      if (!referenceNumber) {
-        referenceNumberErrorText.textContent = "Please enter the reference number from your proof of payment.";
-        referenceNumberErrorText.classList.remove("d-none");
-      }
+    // Everything still missing or invalid, each also shown under its own field.
+    const problems = [];
+    if (requiresPrescription && !prescriptionFile) {
+      problems.push("Upload a clear photo of your prescription.");
+      showFormAlert(rxUploadErrorText, "Please upload a photo of your prescription.");
+    }
+    if (!fullyCoveredByCredit && !file) {
+      problems.push("Upload a screenshot of your payment.");
+      showFormAlert(uploadErrorText, "Please upload a screenshot of your QR PH payment.");
+    }
+    if (!fullyCoveredByCredit && !referenceNumber) {
+      problems.push("Enter the reference number from your proof of payment.");
+      showFormAlert(referenceNumberErrorText, "Please enter the reference number from your proof of payment.");
+    } else if (!fullyCoveredByCredit && !isValidReferenceNumber(referenceNumber)) {
+      problems.push(REFERENCE_NUMBER_HINT);
+      showFormAlert(referenceNumberErrorText, REFERENCE_NUMBER_HINT);
+    }
+    if (problems.length) {
+      showFormAlert(submitOrderErrorAlert, `Please complete the following before submitting:\n- ${problems.join("\n- ")}`);
       return;
     }
-    if (fullyCoveredByCredit && requiresPrescription && !prescriptionFile) return;
 
     uploadErrorText.classList.add("d-none");
     rxUploadErrorText.classList.add("d-none");
