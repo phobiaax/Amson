@@ -61,102 +61,107 @@ function renderCartPage() {
   cartHeading.textContent = `Shopping Cart (${count})`;
 
   if (cart.length === 0) {
-    cartItemsContainer.innerHTML = `
-      <div class="text-center py-4">
-        <p class="text-muted mb-3">Your cart is empty.</p>
-        <a href="products.html" class="btn btn-amson">Browse Products</a>
-      </div>
-    `;
-    cartTotalText.textContent = formatPeso(0);
-    selectedCountText.textContent = "0 of 0 items selected";
-    noSelectionNotice.classList.add("d-none");
-    selectAllRow.classList.add("d-none");
-    checkoutBtn.classList.add("disabled");
-    checkoutBtn.setAttribute("aria-disabled", "true");
-    clearCartLink.classList.add("d-none");
+    showEmptyCart();
     return;
   }
 
   clearCartLink.classList.remove("d-none");
   selectAllRow.classList.remove("d-none");
-
-  cartItemsContainer.innerHTML = cart
-    .map((item) => {
-      const product = getProductById(item.id);
-      if (!product) return "";
-      const atLimit = item.qty >= product.totalStock;
-      const isSelected = selectedIds.has(item.id);
-      return `
-        <div class="cart-item-row ${isSelected ? "" : "unselected"}" data-id="${product.id}">
-          <input type="checkbox" class="cart-item-checkbox" data-id="${product.id}" ${isSelected ? "checked" : ""} aria-label="Select ${product.name} for checkout">
-          <div class="cart-item-image" style="${cartItemImageCss(product.imageUrl)}"></div>
-          <div class="cart-item-details">
-            <h3 class="product-name mb-2">${escapeHtml(product.name)}${rxTag(product)}</h3>
-            <div class="d-flex align-items-center gap-3">
-              <div class="qty-stepper">
-                <button type="button" class="cart-qty-minus" aria-label="Decrease quantity">&minus;</button>
-                <input type="text" class="cart-qty-input" value="${item.qty}" inputmode="numeric" aria-label="Quantity">
-                <button type="button" class="cart-qty-plus" aria-label="Increase quantity" ${atLimit ? "disabled" : ""}>+</button>
-              </div>
-              <a href="#" class="remove-item-link"><i class="bi bi-trash"></i> Remove</a>
-            </div>
-            <p class="text-muted mb-0 mt-1" style="font-size:0.78rem;">${product.totalStock} available</p>
-          </div>
-          <div class="product-price mb-0">${formatPeso(product.price * item.qty)}</div>
-        </div>
-      `;
-    })
-    .join("");
-
+  cartItemsContainer.innerHTML = cart.map(cartRowHtml).join("");
   updateSelectionSummary(cart);
+  cartItemsContainer.querySelectorAll(".cart-item-row").forEach(wireCartRow);
+}
 
-  cartItemsContainer.querySelectorAll(".cart-item-row").forEach((row) => {
-    const productId = row.dataset.id;
+function showEmptyCart() {
+  cartItemsContainer.innerHTML = `
+    <div class="text-center py-4">
+      <p class="text-muted mb-3">Your cart is empty.</p>
+      <a href="products.html" class="btn btn-amson">Browse Products</a>
+    </div>
+  `;
+  cartTotalText.textContent = formatPeso(0);
+  selectedCountText.textContent = "0 of 0 items selected";
+  noSelectionNotice.classList.add("d-none");
+  selectAllRow.classList.add("d-none");
+  checkoutBtn.classList.add("disabled");
+  checkoutBtn.setAttribute("aria-disabled", "true");
+  clearCartLink.classList.add("d-none");
+}
 
-    row.querySelector(".cart-item-checkbox").addEventListener("change", (e) => {
-      if (e.target.checked) {
-        selectedIds.add(productId);
-      } else {
-        selectedIds.delete(productId);
-      }
-      renderCartPage();
-    });
+// One cart line: tick box, photo, name, quantity -/+ and Remove, price.
+function cartRowHtml(item) {
+  const product = getProductById(item.id);
+  if (!product) return "";
+  const atLimit = item.qty >= product.totalStock;
+  const isSelected = selectedIds.has(item.id);
+  return `
+    <div class="cart-item-row ${isSelected ? "" : "unselected"}" data-id="${product.id}">
+      <input type="checkbox" class="cart-item-checkbox" data-id="${product.id}" ${isSelected ? "checked" : ""} aria-label="Select ${product.name} for checkout">
+      <div class="cart-item-image" style="${cartItemImageCss(product.imageUrl)}"></div>
+      <div class="cart-item-details">
+        <h3 class="product-name mb-2">${escapeHtml(product.name)}${rxTag(product)}</h3>
+        <div class="d-flex align-items-center gap-3">
+          <div class="qty-stepper">
+            <button type="button" class="cart-qty-minus" aria-label="Decrease quantity">&minus;</button>
+            <input type="text" class="cart-qty-input" value="${item.qty}" inputmode="numeric" aria-label="Quantity">
+            <button type="button" class="cart-qty-plus" aria-label="Increase quantity" ${atLimit ? "disabled" : ""}>+</button>
+          </div>
+          <a href="#" class="remove-item-link"><i class="bi bi-trash"></i> Remove</a>
+        </div>
+        <p class="text-muted mb-0 mt-1" style="font-size:0.78rem;">${product.totalStock} available</p>
+      </div>
+      <div class="product-price mb-0">${formatPeso(product.price * item.qty)}</div>
+    </div>
+  `;
+}
 
-    row.querySelector(".cart-qty-plus").addEventListener("click", () => {
-      const item = getCart().find((i) => i.id === productId);
-      if (!item) return;
-      const result = updateCartItemQty(productId, item.qty + 1);
-      renderCartPage();
-      if (result.capped) showCartToast(`Only ${result.qty} in stock - that's the most you can order.`);
-    });
+// The tick box, - / + buttons, quantity box and Remove link of one line.
+function wireCartRow(row) {
+  const productId = row.dataset.id;
 
-    row.querySelector(".cart-qty-minus").addEventListener("click", () => {
-      const item = getCart().find((i) => i.id === productId);
-      if (!item || item.qty <= 1) return;
-      updateCartItemQty(productId, item.qty - 1);
-      renderCartPage();
-    });
+  row.querySelector(".cart-item-checkbox").addEventListener("change", (e) => {
+    if (e.target.checked) {
+      selectedIds.add(productId);
+    } else {
+      selectedIds.delete(productId);
+    }
+    renderCartPage();
+  });
 
-    // Typing a quantity: saved when the box is left or Enter is pressed, and
-    // kept between 1 and the stock available, like the - / + buttons.
-    const qtyInput = row.querySelector(".cart-qty-input");
-    qtyInput.addEventListener("input", () => {
-      qtyInput.value = qtyInput.value.replace(/[^0-9]/g, "");
-    });
-    qtyInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") qtyInput.blur();
-    });
-    qtyInput.addEventListener("change", () => {
-      const result = updateCartItemQty(productId, parseInt(qtyInput.value, 10) || 1);
-      renderCartPage();
-      if (result.capped) showCartToast(`Only ${result.qty} in stock - that's the most you can order.`);
-    });
+  row.querySelector(".cart-qty-plus").addEventListener("click", () => {
+    const item = getCart().find((i) => i.id === productId);
+    if (!item) return;
+    const result = updateCartItemQty(productId, item.qty + 1);
+    renderCartPage();
+    if (result.capped) showCartToast(`Only ${result.qty} in stock - that's the most you can order.`);
+  });
 
-    row.querySelector(".remove-item-link").addEventListener("click", (e) => {
-      e.preventDefault();
-      removeFromCart(productId);
-      renderCartPage();
-    });
+  row.querySelector(".cart-qty-minus").addEventListener("click", () => {
+    const item = getCart().find((i) => i.id === productId);
+    if (!item || item.qty <= 1) return;
+    updateCartItemQty(productId, item.qty - 1);
+    renderCartPage();
+  });
+
+  // Typing a quantity: saved when the box is left or Enter is pressed, and
+  // kept between 1 and the stock available, like the - / + buttons.
+  const qtyInput = row.querySelector(".cart-qty-input");
+  qtyInput.addEventListener("input", () => {
+    qtyInput.value = qtyInput.value.replace(/[^0-9]/g, "");
+  });
+  qtyInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") qtyInput.blur();
+  });
+  qtyInput.addEventListener("change", () => {
+    const result = updateCartItemQty(productId, parseInt(qtyInput.value, 10) || 1);
+    renderCartPage();
+    if (result.capped) showCartToast(`Only ${result.qty} in stock - that's the most you can order.`);
+  });
+
+  row.querySelector(".remove-item-link").addEventListener("click", (e) => {
+    e.preventDefault();
+    removeFromCart(productId);
+    renderCartPage();
   });
 }
 
