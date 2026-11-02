@@ -81,7 +81,7 @@ Turning dates, peso amounts and text into what is shown or printed.
 
 The sale receipt pop-up (POS, Walk-in Orders, online order receipts).
 
-- Functions: `showSaleReceipt()`
+- Functions: `showSaleReceipt()` (with `fillReceipt()`, `setReceiptButtons()`, `showVoidBanner()`)
 - Shared data: `SALE_RECEIPT_PAYMENT_METHOD_LABELS`, `POS_BRANCH_NAME`
 
 ### voids

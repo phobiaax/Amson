@@ -1440,7 +1440,22 @@ const SALE_RECEIPT_PAYMENT_METHOD_LABELS = {
 
 const POS_BRANCH_NAME = "Amson Pharmaceuticals";
 
-function showSaleReceipt({
+// Shows the sale receipt pop-up: fills it in, sets up its buttons, and marks
+// a voided sale. Used by the POS (preview before confirming, and after),
+// Walk-in Orders and online order receipts.
+function showSaleReceipt(receipt) {
+  const modalEl = document.getElementById("posReceiptModal");
+  fillReceipt(receipt);
+  setReceiptButtons(modalEl, receipt);
+  showVoidBanner(modalEl, receipt);
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  // Every finished sale gets a paper copy: the print window opens by itself
+  // once the receipt is on screen (the Print button is there for reprints).
+  if (receipt.autoPrint) setTimeout(() => window.print(), 500);
+}
+
+// The receipt's details: store, date, SI No., customer, items and payment.
+function fillReceipt({
   items,
   total,
   paymentMethod,
@@ -1454,12 +1469,6 @@ function showSaleReceipt({
   referenceNo = "",
   title = "Sale Receipt",
   onConfirm = null,
-  onEdit = null,
-  onVoid = null,
-  voidInfo = null,
-  partialVoidInfo = null,
-  autoPrint = false,
-  onExchange = null,
 }) {
   document.getElementById("posReceiptModalTitle").textContent = title;
   document.getElementById("posReceiptBranch").textContent = branch;
@@ -1505,8 +1514,12 @@ function showSaleReceipt({
   } else {
     changeRow.classList.add("d-none");
   }
+}
 
-  const modalEl = document.getElementById("posReceiptModal");
+// The buttons under the receipt. Before a POS sale is confirmed: Edit and
+// Confirm. Otherwise: Print, Close, and Void / Return-Exchange for roles
+// allowed to do those.
+function setReceiptButtons(modalEl, { onConfirm = null, onEdit = null, onVoid = null, onExchange = null }) {
   const footer = document.getElementById("posReceiptModalFooter");
   if (onConfirm) {
     // Preview mode (POS, before the sale is actually committed) - give
@@ -1555,8 +1568,10 @@ function showSaleReceipt({
       });
     }
   }
+}
 
-  // A voided sale still opens (it's a record), clearly marked.
+// A voided (or partly voided) sale still opens - it's a record - clearly marked.
+function showVoidBanner(modalEl, { voidInfo = null, partialVoidInfo = null }) {
   let voidBanner = document.getElementById("posReceiptVoidBanner");
   if (!voidBanner) {
     voidBanner = document.createElement("div");
@@ -1569,11 +1584,6 @@ function showSaleReceipt({
   if (partialVoidInfo) bannerLines.push(`ITEMS VOIDED - ${partialVoidInfo}`);
   voidBanner.classList.toggle("d-none", bannerLines.length === 0);
   voidBanner.textContent = bannerLines.join(" | ");
-
-  bootstrap.Modal.getOrCreateInstance(modalEl).show();
-  // Every finished sale gets a paper copy: the print window opens by itself
-  // once the receipt is on screen (the Print button is there for reprints).
-  if (autoPrint) setTimeout(() => window.print(), 500);
 }
 
 // =====================================================================
