@@ -132,97 +132,15 @@ registerForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   hideAlert();
 
-  if (!registerForm.checkValidity()) {
-    registerForm.classList.add("was-validated");
-    const fieldsMissing = [...registerForm.elements].some((el) => el !== agreeTermsInput && el.willValidate && !el.checkValidity());
-    showAlert(
-      fieldsMissing && !agreeTermsInput.checked
-        ? "Please fill in all the fields marked in red, and accept the Terms and Conditions and Privacy Policy."
-        : fieldsMissing
-          ? "Please fill in all the fields marked in red."
-          : "Please agree to the Terms and Conditions and Privacy Policy."
-    );
-    return;
-  }
-
-  if (!NAME_PATTERN.test(firstNameInput.value.trim()) || !NAME_PATTERN.test(lastNameInput.value.trim())) {
-    showAlert("Use letters, spaces, periods (e.g. Ma. or Jr.) and dashes between letters (e.g. Anne-Marie).");
-    return;
-  }
-
-  if (!EMAIL_PATTERN.test(emailInput.value.trim())) {
-    showAlert("Please enter a valid email address.");
-    return;
-  }
-
-  if (isDisposableEmail(emailInput.value.trim())) {
-    showAlert("Please use a permanent email address, not a temporary/disposable one.");
-    return;
-  }
-
-  if (!PH_PHONE_PATTERN.test(normalizePhPhone(contactNumberInput.value))) {
-    showAlert("Please enter a valid Philippine mobile number (e.g. 0917 123 4567).");
-    return;
-  }
-
-  if (!PASSWORD_PATTERN.test(passwordInput.value)) {
-    showAlert("Password must be at least 6 characters, with letters, numbers, and a special character.");
-    return;
-  }
-
-  if (passwordInput.value !== confirmPasswordInput.value) {
-    showAlert("Passwords do not match.");
-    return;
-  }
-
-  if (!agreeTermsInput.checked) {
-    showAlert("Please agree to the Terms and Conditions and Privacy Policy.");
-    return;
-  }
-
-  const recaptchaResponse =
-    typeof grecaptcha !== "undefined" ? grecaptcha.getResponse() : "";
-  if (!recaptchaResponse) {
-    showAlert("Please complete the reCAPTCHA verification.");
+  const problem = registerFormProblem();
+  if (problem) {
+    showAlert(problem);
     return;
   }
 
   setLoading(true);
   try {
-    const email = emailInput.value.trim().toLowerCase();
-    const credential = await auth.createUserWithEmailAndPassword(
-      email,
-      passwordInput.value
-    );
-
-    const otpCode = generateOtpCode();
-    const otpExpiresAt = Date.now() + 10 * 60 * 1000;
-
-    await db.collection("users").doc(credential.user.uid).set({
-      firstName: firstNameInput.value.trim(),
-      lastName: lastNameInput.value.trim(),
-      email: email,
-      contactNumber: normalizePhPhone(contactNumberInput.value),
-      role: "customer",
-      emailVerified: false,
-      emailVerificationCode: otpCode,
-      emailVerificationExpiresAt: otpExpiresAt,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // The account exists now, so go on to the code page even if the email
-    // didn't send - the customer can tap Resend there.
-    let codeSent = false;
-    try {
-      codeSent = await sendOtpEmail(email, otpCode, firstNameInput.value.trim());
-    } catch (error) {
-      console.warn("Verification email not sent:", error);
-    }
-    if (!codeSent) sessionStorage.setItem("amsonOtpSendFailed", "1");
-    sessionStorage.setItem("amsonPendingVerificationEmail", email);
-    // After the code, new accounts go to the login page (not straight in).
-    sessionStorage.setItem("amsonFromRegistration", "1");
-    window.location.href = "verify-email.html";
+    await createCustomerAccount();
   } catch (error) {
     showAlert(mapAuthError(error));
     if (typeof grecaptcha !== "undefined") grecaptcha.reset();
@@ -230,3 +148,91 @@ registerForm.addEventListener("submit", async (e) => {
     setLoading(false);
   }
 });
+
+// The first thing wrong with the form (as the message to show), or null
+// when everything is filled in correctly.
+function registerFormProblem() {
+  if (!registerForm.checkValidity()) {
+    registerForm.classList.add("was-validated");
+    const fieldsMissing = [...registerForm.elements].some((el) => el !== agreeTermsInput && el.willValidate && !el.checkValidity());
+    if (fieldsMissing && !agreeTermsInput.checked) {
+      return "Please fill in all the fields marked in red, and accept the Terms and Conditions and Privacy Policy.";
+    }
+    return fieldsMissing ? "Please fill in all the fields marked in red." : "Please agree to the Terms and Conditions and Privacy Policy.";
+  }
+
+  if (!NAME_PATTERN.test(firstNameInput.value.trim()) || !NAME_PATTERN.test(lastNameInput.value.trim())) {
+    return "Use letters, spaces, periods (e.g. Ma. or Jr.) and dashes between letters (e.g. Anne-Marie).";
+  }
+
+  if (!EMAIL_PATTERN.test(emailInput.value.trim())) {
+    return "Please enter a valid email address.";
+  }
+
+  if (isDisposableEmail(emailInput.value.trim())) {
+    return "Please use a permanent email address, not a temporary/disposable one.";
+  }
+
+  if (!PH_PHONE_PATTERN.test(normalizePhPhone(contactNumberInput.value))) {
+    return "Please enter a valid Philippine mobile number (e.g. 0917 123 4567).";
+  }
+
+  if (!PASSWORD_PATTERN.test(passwordInput.value)) {
+    return "Password must be at least 6 characters, with letters, numbers, and a special character.";
+  }
+
+  if (passwordInput.value !== confirmPasswordInput.value) {
+    return "Passwords do not match.";
+  }
+
+  if (!agreeTermsInput.checked) {
+    return "Please agree to the Terms and Conditions and Privacy Policy.";
+  }
+
+  const recaptchaResponse =
+    typeof grecaptcha !== "undefined" ? grecaptcha.getResponse() : "";
+  if (!recaptchaResponse) {
+    return "Please complete the reCAPTCHA verification.";
+  }
+
+  return null;
+}
+
+// Creates the login and the customer profile with a sign-up code, emails
+// the code, and moves on to the code page.
+async function createCustomerAccount() {
+  const email = emailInput.value.trim().toLowerCase();
+  const credential = await auth.createUserWithEmailAndPassword(
+    email,
+    passwordInput.value
+  );
+
+  const otpCode = generateOtpCode();
+  const otpExpiresAt = Date.now() + 10 * 60 * 1000;
+
+  await db.collection("users").doc(credential.user.uid).set({
+    firstName: firstNameInput.value.trim(),
+    lastName: lastNameInput.value.trim(),
+    email: email,
+    contactNumber: normalizePhPhone(contactNumberInput.value),
+    role: "customer",
+    emailVerified: false,
+    emailVerificationCode: otpCode,
+    emailVerificationExpiresAt: otpExpiresAt,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // The account exists now, so go on to the code page even if the email
+  // didn't send - the customer can tap Resend there.
+  let codeSent = false;
+  try {
+    codeSent = await sendOtpEmail(email, otpCode, firstNameInput.value.trim());
+  } catch (error) {
+    console.warn("Verification email not sent:", error);
+  }
+  if (!codeSent) sessionStorage.setItem("amsonOtpSendFailed", "1");
+  sessionStorage.setItem("amsonPendingVerificationEmail", email);
+  // After the code, new accounts go to the login page (not straight in).
+  sessionStorage.setItem("amsonFromRegistration", "1");
+  window.location.href = "verify-email.html";
+}
