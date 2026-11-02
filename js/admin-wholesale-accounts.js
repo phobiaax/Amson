@@ -925,6 +925,8 @@ function wireWholesaleExchangeDialog(order, account) {
   const repQty = document.getElementById("exReplacementQty");
   const repPrice = document.getElementById("exReplacementPrice");
   const diffText = document.getElementById("exDifferenceText");
+  // Searchable, like the other product pickers on this page.
+  const prodChoices = makeSearchableSelect(prodSel);
   const line = () => order.items[Number(lineSel.value)];
   const update = () => {
     const returned = (parseInt(retQty.value, 10) || 0) * (line().unitPrice || 0);
@@ -935,7 +937,7 @@ function wireWholesaleExchangeDialog(order, account) {
     }`;
   };
   const setDefaults = () => {
-    prodSel.value = line().productId;
+    prodChoices.setChoiceByValue(line().productId);
     const p = getProductById(prodSel.value);
     // Same product: the price this buyer actually paid on the order.
     repPrice.value = line().unitPrice || (p ? p.wholesalePrice || 0 : 0);

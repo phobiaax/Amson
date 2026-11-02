@@ -2460,6 +2460,8 @@ function wireExchangeDialog(sale) {
   const prodSel = document.getElementById("wxProduct");
   const repQty = document.getElementById("wxRepQty");
   const diffEl = document.getElementById("wxDiff");
+  // Searchable, like the POS product picker.
+  const prodChoices = makeSearchableSelect(prodSel);
   const line = () => sale.items[Number(lineSel.value)];
   const update = () => {
     const returned = (parseInt(qty.value, 10) || 0) * (line().price || 0);
@@ -2471,7 +2473,7 @@ function wireExchangeDialog(sale) {
     }`;
   };
   const setDefaults = () => {
-    if (getProductById(line().productId) && prodSel.querySelector(`option[value="${line().productId}"]`)) prodSel.value = line().productId;
+    if (getProductById(line().productId) && prodSel.querySelector(`option[value="${line().productId}"]`)) prodChoices.setChoiceByValue(line().productId);
     qty.max = String((line().qty || 0) - (line().returnedQty || 0));
     update();
   };
