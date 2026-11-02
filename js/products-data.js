@@ -863,8 +863,7 @@ const DEFAULT_CATEGORIES = {
 // liveQuery(key, query) answers like query.get(): it waits for data the
 // server has confirmed, so callers see exactly what a fresh read would show.
 // Underneath it keeps a listener open for the rest of the page's life, so
-// later calls return the latest data instantly, and with the browser copy
-// a new page only downloads documents that changed since the last visit.
+// later calls return the latest data instantly.
 // One listener per key: queries that read the same data share a key.
 const liveQueries = new Map();
 
@@ -968,19 +967,16 @@ function liveStockBatches() {
   return liveQuery("stockBatches", db.collection("stockBatches"));
 }
 
-// In a tab without the live data copy (see LIVE_READS - another tab has it,
-// or a private window / older browser), shop pages keep a copy of the catalog for a
-// few minutes, so each page a customer opens doesn't re-read every product
-// and batch (Firestore's free plan allows about 50,000 reads a day). With the
-// live copy that isn't needed, so new stock shows on the next page opened.
-// Staff pages always read fresh, and checkout re-checks stock and prices
+// Shop pages keep a copy of the catalog in the browser for a few minutes, so
+// each page a customer opens doesn't re-read every product and batch
+// (Firestore's free plan allows about 50,000 reads a day). Staff pages always
+// read fresh, and checkout re-checks stock and prices
 // live (clearCatalogCache) before an order is created.
 const CATALOG_CACHE_KEY = "amsonCatalogCache";
 
 const CATALOG_CACHE_MS = 5 * 60 * 1000;
 
 function catalogBrowserCacheAllowed() {
-  if (!browserCopyOff) return false;
   return !/\/admin\//.test(window.location.pathname);
 }
 
@@ -1100,9 +1096,6 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
   if (catalogLoadPromise) return catalogLoadPromise;
 
   catalogLoadPromise = (async () => {
-    // Whether this tab keeps the browser copy decides whether the short
-    // catalog copy below is used.
-    await browserCopyReady;
     const cached = readCatalogBrowserCache();
     if (cached) {
       CATEGORY_LABELS = cached.categories || {};
