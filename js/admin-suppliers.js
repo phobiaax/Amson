@@ -170,7 +170,6 @@ suppliersSearchInput.addEventListener("input", () => {
   renderSuppliersGrid();
 });
 
-
 /* ---------- View modal ---------- */
 function openViewModal(supplier) {
   if (!supplier) return;

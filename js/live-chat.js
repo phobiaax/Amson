@@ -1008,7 +1008,6 @@ function chatOrderCardHtml(card, myOrders) {
     return true;
   }
 
-
   // ---- 5. Saving the conversation and handing over to staff ----
   // Creates the thread on the first message, reopens a resolved one.
   async function touchThread(text) {

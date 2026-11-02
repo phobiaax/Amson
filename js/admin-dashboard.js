@@ -290,7 +290,6 @@ function renderSalesChart(orders, posSales) {
   const onlineTotals = totalsByBucket(orders.filter(isConfirmedSale), period);
   const posTotals = totalsByBucket(posSales || [], period);
 
-
   if (salesChartInstance) {
     salesChartInstance.destroy();
     salesChartInstance = null;

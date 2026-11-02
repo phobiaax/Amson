@@ -336,4 +336,3 @@ loginForm.addEventListener("submit", (e) => {
   }
   performLogin(emailInput.value.trim(), passwordInput.value);
 });
-
