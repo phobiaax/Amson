@@ -118,16 +118,17 @@ function orderStepLabels(order) {
 }
 
 // What the customer sees while an order is on hold and waiting on them.
+// An out-of-stock hold isn't shown to customers: the order keeps its normal
+// status while staff wait for a restock.
 const CUSTOMER_HOLD_BADGE_LABELS = {
   invalid_payment: "Payment Rejected - Re-upload Needed",
   payment_not_received: "Payment Rejected - Re-upload Needed",
   underpayment: "On Hold - Balance Due",
-  out_of_stock: "On Hold - Out of Stock",
   prescription_rejected: "Prescription Rejected - Re-upload Needed",
 };
 
 function orderBadgeLabel(order) {
-  if (order.paymentIssue && order.status === "placed") {
+  if (order.paymentIssue && order.status === "placed" && order.paymentIssue.type !== "out_of_stock") {
     if (order.paymentIssue.resolvedByCustomerAt) return "Resubmitted - Under Review";
     return CUSTOMER_HOLD_BADGE_LABELS[order.paymentIssue.type] || "On Hold";
   }

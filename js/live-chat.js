@@ -294,15 +294,16 @@ const CHAT_HOLD_LABELS = {
   invalid_payment: "On hold: payment screenshot couldn't be verified",
   underpayment: "On hold: payment is less than the total",
   payment_not_received: "On hold: payment not received",
-  out_of_stock: "On hold: an item is out of stock",
   prescription_rejected: "On hold: prescription not accepted",
 };
 
 // The order as the customer should see it now: a hold whose 7 days have run
-// out reads as closed (staff pages record the closure).
+// out reads as closed (staff pages record the closure). An out-of-stock hold
+// isn't shown to the customer, so the order reads as its normal status.
 function chatOrderView(o) {
   const holdOver = o.paymentIssue && o.paymentIssue.holdUntil && o.paymentIssue.holdUntil.toMillis && o.paymentIssue.holdUntil.toMillis() < Date.now();
-  const issue = holdOver ? null : o.paymentIssue || null;
+  const shownIssue = o.paymentIssue && o.paymentIssue.type !== "out_of_stock" ? o.paymentIssue : null;
+  const issue = holdOver ? null : shownIssue;
   const status = holdOver ? "closed_unresolved" : o.status;
   const label = issue
     ? CHAT_HOLD_LABELS[issue.type] || "On hold"
@@ -343,8 +344,6 @@ function chatOrderNextStep(o, view) {
     const by = view.issue.holdUntil && view.issue.holdUntil.toDate ? ` by ${formatDateMDY(view.issue.holdUntil)}` : " within 7 days";
     return view.issue.type === "prescription_rejected"
       ? `Open the order and upload a clearer, valid prescription${by}.`
-      : view.issue.type === "out_of_stock"
-      ? `Open the order to choose what to do${by}, or talk to staff.`
       : `Open the order and upload a new payment screenshot and reference number${by}.`;
   }
   switch (view.status) {

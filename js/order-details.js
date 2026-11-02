@@ -98,17 +98,15 @@ function renderPaymentIssue(order) {
   const issue = order.paymentIssue;
   // Once the customer has resubmitted, the order is back with staff for
   // re-review - nothing more for the customer to do until it's resolved.
-  if (!issue || issue.resolvedByCustomerAt) {
+  // An out-of-stock hold isn't shown to the customer (staff handle it).
+  if (!issue || issue.resolvedByCustomerAt || issue.type === "out_of_stock") {
     paymentIssueSection.classList.add("d-none");
     return;
   }
 
   paymentIssueSection.classList.remove("d-none");
 
-  // Out of stock isn't something the customer can fix by uploading
-  // anything - it's purely informational, so the resubmit form doesn't
-  // apply here.
-  issueActionsContainer.classList.toggle("d-none", issue.type === "out_of_stock");
+  issueActionsContainer.classList.remove("d-none");
   const rxIssue = issue.type === "prescription_rejected";
   issueReferenceGroup.classList.toggle("d-none", rxIssue);
   issueUploadPrompt.textContent = rxIssue ? "Click to upload a clear photo of a valid prescription" : "Click to upload a corrected payment screenshot";
@@ -127,11 +125,6 @@ function renderPaymentIssue(order) {
   } else if (rxIssue) {
     paymentIssueTitle.textContent = `Prescription Not Accepted: ${issue.reasonLabel || "Please upload a valid prescription"}`;
     paymentIssueDetail.textContent = issue.note || "Please upload a clear photo of a valid prescription below.";
-  } else if (issue.type === "out_of_stock") {
-    paymentIssueTitle.textContent = "Order Issue: Item Out of Stock";
-    paymentIssueDetail.textContent =
-      issue.note ||
-      "One or more items in your order are currently out of stock. We're checking on a restock - no action is needed from you right now.";
   } else {
     paymentIssueTitle.textContent = "Payment Issue";
     paymentIssueDetail.textContent = issue.note || "There's a problem with your payment. Please contact us or upload a corrected screenshot below.";
