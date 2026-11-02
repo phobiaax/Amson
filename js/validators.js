@@ -62,6 +62,12 @@ const PLACE_NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ .'-]{
 // Philippine ZIP codes are 4 digits.
 const PH_ZIP_PATTERN = /^\d{4}$/;
 
+// A one-line address ("Street, City") on the staff forms (suppliers,
+// wholesale buyers): optional, but when given, 5-200 characters with at
+// least one letter, same characters as a street address.
+const ONE_LINE_ADDRESS_PATTERN = /^(?=.*[A-Za-zÀ-ÖØ-öø-ÿ])[A-Za-zÀ-ÖØ-öø-ÿ0-9 .,#'\/()&:-]{5,200}$/;
+const ONE_LINE_ADDRESS_HINT = "Address: 5-200 characters - letters, numbers, spaces and . , # - ' / ( ) & : only (or leave it blank).";
+
 // What's wrong with a shipping address ({ streetAddress, city, province,
 // zipCode }, already trimmed), as [{ field, message }]; empty when it's fine.
 function addressProblems(address) {

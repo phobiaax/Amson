@@ -354,6 +354,11 @@ saveWholesaleBtn.addEventListener("click", async () => {
     showFormAlert(wholesaleModalAlert, "Company name is required.");
     return;
   }
+  const address = wholesaleAddressInput.value.trim();
+  if (address && !ONE_LINE_ADDRESS_PATTERN.test(address)) {
+    showFormAlert(wholesaleModalAlert, ONE_LINE_ADDRESS_HINT);
+    return;
+  }
 
   saveWholesaleBtn.disabled = true;
   wholesaleModalAlert.classList.add("d-none");
