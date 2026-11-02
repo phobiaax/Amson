@@ -101,24 +101,7 @@ auth.onAuthStateChanged = function (...args) {
   };
 };
 
-// Keep a copy of the data in the browser (IndexedDB) so a page reopened
-// within ~30 minutes only downloads what changed since (Firestore bills
-// unchanged documents as cached, not as new reads), while live listeners
-// stay live. One tab at a time keeps the copy: shared between tabs, a
-// second tab's reads never answered while the first stayed open (product
-// lists stayed empty). Other tabs, and browsers that can't keep a copy
-// (private windows, some older browsers), read straight from the database.
-// Set LIVE_READS to false to go back to plain reads.
-// BROWSER_COPY is off: on phones a tab frozen in the background could keep
-// hold of the copy and leave every other tab of the site stuck loading.
-// Live listeners still keep pages up to date; shop pages keep a short
-// catalog copy instead (products-data.js).
+// Live reads (see liveQuery in products-data.js): pages keep listening for
+// changes, so they stay up to date without a refresh. Set to false to go
+// back to plain one-time reads.
 const LIVE_READS = true;
-const BROWSER_COPY = false;
-let browserCopyOff = !(LIVE_READS && BROWSER_COPY);
-const browserCopyReady = !browserCopyOff
-  ? db.enablePersistence().catch((error) => {
-      browserCopyOff = true;
-      console.info("Browser copy of the data is in use by another tab or unavailable here (reads work as normal):", error.code || error);
-    })
-  : Promise.resolve();
