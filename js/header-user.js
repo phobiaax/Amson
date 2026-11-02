@@ -36,6 +36,9 @@ function headerLoginEndedWithBrowser() {
   try {
     firstName = localStorage.getItem(HEADER_USER_KEY);
   } catch (error) {}
+  // The small script in each page's <head> kept Login / Register blank until
+  // now; from here the header shows one or the other.
+  document.documentElement.classList.remove("header-known-user");
   if (firstName === null || headerLoginEndedWithBrowser()) return;
   document.getElementById("accountFirstName").textContent = firstName || "Account";
   document.getElementById("guestActions").classList.add("d-none");

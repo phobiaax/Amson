@@ -17,6 +17,9 @@
 <!-- Custom styles -->
 <link rel="icon" type="image/png" href="../assets/logo-transp.png">
 <link rel="stylesheet" href="../css/style.css">
+<!-- Signed in on this browser before? Keep the Login / Register spot blank
+     until js/header-user.js shows the name (no flash on refresh). -->
+<script>try { if (localStorage.getItem("amsonHeaderUser") !== null) document.documentElement.classList.add("header-known-user"); } catch (e) {}</script>
 </head>
 <body>
 

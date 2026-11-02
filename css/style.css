@@ -1699,6 +1699,13 @@ a {
   white-space: nowrap;
 }
 
+/* Shop header on refresh: a customer who was signed in on this browser sees
+   a blank spot (not Login / Register) until js/header-user.js shows their
+   name. Set by a one-line script in each shop page's <head>. */
+.header-known-user #guestActions {
+  visibility: hidden;
+}
+
 /* Payment Verification: the items on the order being reviewed. */
 .review-items {
   border: 1px solid var(--amson-border);
