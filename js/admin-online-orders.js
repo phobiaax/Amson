@@ -1122,7 +1122,6 @@ function openApprovedModal(order) {
   document.getElementById("approvedContactNo").textContent = order.contact ? order.contact.contactNumber : "";
   document.getElementById("approvedDeliveryNotes").textContent = shipping.deliveryNotes || "None";
   document.getElementById("approvedOrderNumber").textContent = order.orderNumber || "";
-  document.getElementById("approvedSchedule").textContent = formatDeliverySchedule(order.deliverySchedule);
   document.getElementById("internalDeliveryNotesInput").value = order.internalDeliveryNotes || "";
   trackingLinkInput.value = order.trackingLink || "";
   trackingLinkInput.classList.remove("is-invalid");
@@ -1153,7 +1152,6 @@ document.getElementById("copyAllDeliveryBtn").addEventListener("click", (e) => {
     `Name: ${text("approvedCustomerName")}`,
     `Contact No.: ${text("approvedContactNo")}`,
     `Address: ${text("approvedAddress")}`,
-    `Schedule: ${text("approvedSchedule")}`,
     `Notes: ${text("approvedDeliveryNotes")}`,
   ].join("\n");
   const btn = e.currentTarget;
