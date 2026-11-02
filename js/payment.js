@@ -92,13 +92,21 @@ function updateSubmitButtonState() {
   submitOrderErrorAlert.classList.add("d-none");
 }
 
+// ---- Page start ----
 (async function init() {
-if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
-  noPendingOrderNotice.classList.remove("d-none");
-  paymentContent.classList.add("d-none");
-} else {
+  if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
+    noPendingOrderNotice.classList.remove("d-none");
+    paymentContent.classList.add("d-none");
+    return;
+  }
   await loadCatalogCache();
+  showOrderSummary();
+  setUpUploads();
+  submitOrderBtn.addEventListener("click", submitOrder);
+})();
 
+// ---- 1. What's being ordered, and the total ----
+function showOrderSummary() {
   requiresPrescription = pendingOrder.cart.some((item) => {
     const product = getProductById(item.id);
     return product && product.rxRequired;
@@ -109,230 +117,246 @@ if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
 
   paymentItemsSummary.innerHTML = checkoutSummaryItemsHtml(pendingOrder.cart);
 
+  cartSubtotal = cartTotalNow();
+  paymentTotalText.textContent = formatPeso(cartSubtotal);
+  renderCreditPreview();
+}
+
+// The cart's total at the catalog's current prices.
+function cartTotalNow() {
   let total = 0;
   for (const item of pendingOrder.cart) {
     const product = getProductById(item.id);
     if (product) total += product.price * item.qty;
   }
+  return total;
+}
 
-  paymentTotalText.textContent = formatPeso(total);
-  cartSubtotal = total;
-  renderCreditPreview();
-
-  uploadDropzone.addEventListener("click", () => proofOfPaymentInput.click());
-
+// ---- 2. The payment screenshot, prescription photo and reference number ----
+function setUpUploads() {
   referenceNumberInput.addEventListener("input", () => {
     referenceNumberErrorText.classList.add("d-none");
     updateSubmitButtonState();
   });
-
-  proofOfPaymentInput.addEventListener("change", () => {
-    const file = proofOfPaymentInput.files[0];
-    if (!file) return;
-
-    uploadErrorText.classList.add("d-none");
-
-    if (file.size > MAX_PROOF_FILE_SIZE_BYTES) {
-      uploadErrorText.textContent = "That file is too large. Please upload an image under 10MB.";
-      uploadErrorText.classList.remove("d-none");
-      proofOfPaymentInput.value = "";
-      uploadEmptyState.classList.remove("d-none");
-      uploadPreviewState.classList.add("d-none");
-      updateSubmitButtonState();
-      return;
-    }
-
-    uploadPreviewImage.src = URL.createObjectURL(file);
-    uploadPreviewFilename.textContent = file.name;
-    uploadEmptyState.classList.add("d-none");
-    uploadPreviewState.classList.remove("d-none");
-    updateSubmitButtonState();
+  setUpFilePicker({
+    dropzone: uploadDropzone,
+    input: proofOfPaymentInput,
+    errorText: uploadErrorText,
+    emptyState: uploadEmptyState,
+    previewState: uploadPreviewState,
+    previewImage: uploadPreviewImage,
+    previewFilename: uploadPreviewFilename,
   });
-
-  rxUploadDropzone.addEventListener("click", () => prescriptionPhotoInput.click());
-
-  prescriptionPhotoInput.addEventListener("change", () => {
-    const file = prescriptionPhotoInput.files[0];
-    if (!file) return;
-
-    rxUploadErrorText.classList.add("d-none");
-
-    if (file.size > MAX_PROOF_FILE_SIZE_BYTES) {
-      rxUploadErrorText.textContent = "That file is too large. Please upload an image under 10MB.";
-      rxUploadErrorText.classList.remove("d-none");
-      prescriptionPhotoInput.value = "";
-      rxUploadEmptyState.classList.remove("d-none");
-      rxUploadPreviewState.classList.add("d-none");
-      updateSubmitButtonState();
-      return;
-    }
-
-    rxUploadPreviewImage.src = URL.createObjectURL(file);
-    rxUploadPreviewFilename.textContent = file.name;
-    rxUploadEmptyState.classList.add("d-none");
-    rxUploadPreviewState.classList.remove("d-none");
-    updateSubmitButtonState();
-  });
-
-  submitOrderBtn.addEventListener("click", async () => {
-    const file = proofOfPaymentInput.files[0];
-    const prescriptionFile = prescriptionPhotoInput.files[0];
-    const referenceNumber = referenceNumberInput.value.trim();
-    // Everything still missing or invalid, each also shown under its own field.
-    const problems = [];
-    if (requiresPrescription && !prescriptionFile) {
-      problems.push("Upload a clear photo of your prescription.");
-      showFormAlert(rxUploadErrorText, "Please upload a photo of your prescription.");
-    }
-    if (!fullyCoveredByCredit && !file) {
-      problems.push("Upload a screenshot of your payment.");
-      showFormAlert(uploadErrorText, "Please upload a screenshot of your QR PH payment.");
-    }
-    if (!fullyCoveredByCredit && !referenceNumber) {
-      problems.push("Enter the reference number from your proof of payment.");
-      showFormAlert(referenceNumberErrorText, "Please enter the reference number from your proof of payment.");
-    } else if (!fullyCoveredByCredit && !isValidReferenceNumber(referenceNumber)) {
-      problems.push(REFERENCE_NUMBER_HINT);
-      showFormAlert(referenceNumberErrorText, REFERENCE_NUMBER_HINT);
-    }
-    if (problems.length) {
-      showFormAlert(submitOrderErrorAlert, `Please complete the following before submitting:\n- ${problems.join("\n- ")}`);
-      return;
-    }
-
-    uploadErrorText.classList.add("d-none");
-    rxUploadErrorText.classList.add("d-none");
-    referenceNumberErrorText.classList.add("d-none");
-    submitOrderBtn.disabled = true;
-    submitOrderBtn.textContent = "Checking stock...";
-
-    // Stock may have changed since the cart was filled (another customer
-    // bought it, or it just hasn't been received yet) - re-check against
-    // live numbers right before the order is created, not the possibly
-    // stale numbers from when checkout started.
-    clearCatalogCache();
-    await loadCatalogCache();
-
-    // A product taken off the online store since it was added to the cart
-    // counts as unavailable too.
-    const onlineProduct = (id) => storefrontCatalog().find((p) => p.id === id) || null;
-    const outOfStockItems = pendingOrder.cart
-      .map((item) => ({ item, product: onlineProduct(item.id) }))
-      .filter(({ item, product }) => item.qty > (product ? product.totalStock : 0));
-
-    if (outOfStockItems.length > 0) {
-      const details = outOfStockItems
-        .map(({ item, product }) =>
-          product
-            ? `${product.name} (only ${product.totalStock} left, ${item.qty} in your cart)`
-            : "an item that's no longer available online"
-        )
-        .join("; ");
-      uploadErrorText.textContent = `Some items in your cart exceed what's currently in stock: ${details}. Please go back to your cart and adjust the quantity.`;
-      uploadErrorText.classList.remove("d-none");
-      submitOrderBtn.disabled = false;
-      submitOrderBtn.textContent = "Submit Order";
-      return;
-    }
-
-    // Prices may have changed too: charge what the catalog says now, and
-    // show the new total before submitting.
-    let freshTotal = 0;
-    pendingOrder.cart.forEach((item) => (freshTotal += getProductById(item.id).price * item.qty));
-    if (Math.abs(freshTotal - total) > 0.001) {
-      total = freshTotal;
-      cartSubtotal = total;
-      renderCreditPreview();
-      uploadErrorText.textContent = `Some prices changed since you opened this page. Your new total is ${formatPeso(total)}. Please check it and tap Submit Order again.`;
-      uploadErrorText.classList.remove("d-none");
-      submitOrderBtn.textContent = "Submit Order";
-      updateSubmitButtonState();
-      return;
-    }
-    // Prescription pre-orders are always picked up at the store.
-    requiresPrescription = pendingOrder.cart.some((item) => getProductById(item.id).rxRequired);
-    if (requiresPrescription && !prescriptionFile) {
-      prescriptionUploadBox.classList.remove("d-none");
-      rxUploadErrorText.textContent = "This order has a prescription item. Please upload a photo of your prescription.";
-      rxUploadErrorText.classList.remove("d-none");
-      submitOrderBtn.textContent = "Submit Order";
-      updateSubmitButtonState();
-      return;
-    }
-
-    submitOrderBtn.textContent = "Submitting...";
-
-    try {
-      const user = auth.currentUser;
-      const proofOfPaymentUrl = file ? await uploadToCloudinary(file) : null;
-      const prescriptionPhotoUrl = prescriptionFile ? await uploadToCloudinary(prescriptionFile, { kind: "document" }) : null;
-      const orderNumber = await generateOrderNumber();
-
-      const items = pendingOrder.cart.map((item) => {
-        const product = getProductById(item.id);
-        return {
-          id: item.id,
-          name: product ? product.name : "Unknown product",
-          price: product ? product.price : 0,
-          qty: item.qty,
-          imageUrl: product ? product.imageUrl || null : null,
-        };
-      });
-
-      await createOrderWithCreditRedemption({
-        orderNumber,
-        customerId: user ? user.uid : null,
-        contact: pendingOrder.contact,
-        shipping: requiresPrescription ? null : pendingOrder.shipping,
-        deliverySchedule: requiresPrescription ? null : pendingOrder.deliverySchedule,
-        items,
-        total,
-        proofOfPaymentUrl,
-        paymentReferenceNumber: referenceNumber || null,
-        requiresPrescription,
-        prescriptionPhotoUrl,
-        status: "placed",
-        statusTimestamps: {
-          placed: firebase.firestore.FieldValue.serverTimestamp(),
-          payment_confirmed: null,
-          dispatched: null,
-          delivered: null,
-          received: null,
-        },
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      }, { expectFullCredit: fullyCoveredByCredit });
-
-      // Order submission notification (Fig 2.10).
-      if (user) {
-        notifyCustomer(
-          user.uid,
-          `Order ${orderNumber} placed`,
-          requiresPrescription
-            ? "We received your prescription pre-order. Our pharmacist will check your prescription and payment, and we'll tell you when it's ready for pick-up."
-            : "We received your order and payment proof. We'll let you know once our staff verify your payment.",
-          "orders.html",
-          "info",
-          "order_placed"
-        );
-      }
-
-      removeItemsFromCart(pendingOrder.cart.map((item) => item.id));
-      sessionStorage.removeItem("amsonPendingOrder");
-      clearCatalogCache(); // stock just went down
-      sessionStorage.removeItem("amsonCheckoutSelectedIds");
-      document.getElementById("confirmedOrderNumber").textContent = `Order Number: ${orderNumber}`;
-      if (user) {
-        document.getElementById("viewOrdersLink").classList.remove("d-none");
-      }
-      paymentContent.classList.add("d-none");
-      orderConfirmation.classList.remove("d-none");
-    } catch (error) {
-      uploadErrorText.textContent =
-        error.message || "Something went wrong submitting your order. Please try again.";
-      uploadErrorText.classList.remove("d-none");
-      submitOrderBtn.disabled = false;
-      submitOrderBtn.textContent = "Submit Order";
-    }
+  setUpFilePicker({
+    dropzone: rxUploadDropzone,
+    input: prescriptionPhotoInput,
+    errorText: rxUploadErrorText,
+    emptyState: rxUploadEmptyState,
+    previewState: rxUploadPreviewState,
+    previewImage: rxUploadPreviewImage,
+    previewFilename: rxUploadPreviewFilename,
   });
 }
-})();
+
+// One image picker: clicking the box opens the file chooser; a chosen image
+// is previewed, and one over 10MB is refused.
+function setUpFilePicker({ dropzone, input, errorText, emptyState, previewState, previewImage, previewFilename }) {
+  dropzone.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => {
+    const file = input.files[0];
+    if (!file) return;
+
+    errorText.classList.add("d-none");
+
+    if (file.size > MAX_PROOF_FILE_SIZE_BYTES) {
+      errorText.textContent = "That file is too large. Please upload an image under 10MB.";
+      errorText.classList.remove("d-none");
+      input.value = "";
+      emptyState.classList.remove("d-none");
+      previewState.classList.add("d-none");
+      updateSubmitButtonState();
+      return;
+    }
+
+    previewImage.src = URL.createObjectURL(file);
+    previewFilename.textContent = file.name;
+    emptyState.classList.add("d-none");
+    previewState.classList.remove("d-none");
+    updateSubmitButtonState();
+  });
+}
+
+// ---- Submit Order: check the form, re-check stock and prices, place it ----
+async function submitOrder() {
+  const file = proofOfPaymentInput.files[0];
+  const prescriptionFile = prescriptionPhotoInput.files[0];
+  const referenceNumber = referenceNumberInput.value.trim();
+  if (!checkPaymentForm(file, prescriptionFile, referenceNumber)) return;
+
+  uploadErrorText.classList.add("d-none");
+  rxUploadErrorText.classList.add("d-none");
+  referenceNumberErrorText.classList.add("d-none");
+  submitOrderBtn.disabled = true;
+  submitOrderBtn.textContent = "Checking stock...";
+  if (!(await stockAndPricesStillOk(prescriptionFile))) return;
+
+  submitOrderBtn.textContent = "Submitting...";
+  await placeOrder(file, prescriptionFile, referenceNumber);
+}
+
+// ---- 3. Is anything missing? ----
+// Lists everything still missing or invalid above the button, and under
+// each field. Returns true when the form is complete.
+function checkPaymentForm(file, prescriptionFile, referenceNumber) {
+  const problems = [];
+  if (requiresPrescription && !prescriptionFile) {
+    problems.push("Upload a clear photo of your prescription.");
+    showFormAlert(rxUploadErrorText, "Please upload a photo of your prescription.");
+  }
+  if (!fullyCoveredByCredit && !file) {
+    problems.push("Upload a screenshot of your payment.");
+    showFormAlert(uploadErrorText, "Please upload a screenshot of your QR PH payment.");
+  }
+  if (!fullyCoveredByCredit && !referenceNumber) {
+    problems.push("Enter the reference number from your proof of payment.");
+    showFormAlert(referenceNumberErrorText, "Please enter the reference number from your proof of payment.");
+  } else if (!fullyCoveredByCredit && !isValidReferenceNumber(referenceNumber)) {
+    problems.push(REFERENCE_NUMBER_HINT);
+    showFormAlert(referenceNumberErrorText, REFERENCE_NUMBER_HINT);
+  }
+  if (problems.length) {
+    showFormAlert(submitOrderErrorAlert, `Please complete the following before submitting:\n- ${problems.join("\n- ")}`);
+    return false;
+  }
+  return true;
+}
+
+// ---- 4. Last check of stock and prices ----
+// Stock may have changed since the cart was filled (another customer bought
+// it, or it hasn't been received yet), and prices may have changed too, so
+// both are re-checked against live numbers right before the order is made.
+// Returns true when it's fine to go ahead; otherwise explains why not.
+async function stockAndPricesStillOk(prescriptionFile) {
+  clearCatalogCache();
+  await loadCatalogCache();
+
+  // A product taken off the online store since it was added to the cart
+  // counts as unavailable too.
+  const onlineProduct = (id) => storefrontCatalog().find((p) => p.id === id) || null;
+  const outOfStockItems = pendingOrder.cart
+    .map((item) => ({ item, product: onlineProduct(item.id) }))
+    .filter(({ item, product }) => item.qty > (product ? product.totalStock : 0));
+  if (outOfStockItems.length > 0) {
+    const details = outOfStockItems
+      .map(({ item, product }) =>
+        product ? `${product.name} (only ${product.totalStock} left, ${item.qty} in your cart)` : "an item that's no longer available online"
+      )
+      .join("; ");
+    uploadErrorText.textContent = `Some items in your cart exceed what's currently in stock: ${details}. Please go back to your cart and adjust the quantity.`;
+    uploadErrorText.classList.remove("d-none");
+    submitOrderBtn.disabled = false;
+    submitOrderBtn.textContent = "Submit Order";
+    return false;
+  }
+
+  // Prices changed: show the new total before submitting.
+  const freshTotal = cartTotalNow();
+  if (Math.abs(freshTotal - cartSubtotal) > 0.001) {
+    cartSubtotal = freshTotal;
+    renderCreditPreview();
+    uploadErrorText.textContent = `Some prices changed since you opened this page. Your new total is ${formatPeso(cartSubtotal)}. Please check it and tap Submit Order again.`;
+    uploadErrorText.classList.remove("d-none");
+    submitOrderBtn.textContent = "Submit Order";
+    updateSubmitButtonState();
+    return false;
+  }
+
+  // Prescription pre-orders are always picked up at the store.
+  requiresPrescription = pendingOrder.cart.some((item) => getProductById(item.id).rxRequired);
+  if (requiresPrescription && !prescriptionFile) {
+    prescriptionUploadBox.classList.remove("d-none");
+    rxUploadErrorText.textContent = "This order has a prescription item. Please upload a photo of your prescription.";
+    rxUploadErrorText.classList.remove("d-none");
+    submitOrderBtn.textContent = "Submit Order";
+    updateSubmitButtonState();
+    return false;
+  }
+  return true;
+}
+
+// ---- 5. Place the order ----
+// Uploads the photos, saves the order (using any store credit), tells the
+// customer it was received, empties those items from the cart, and shows
+// the confirmation.
+async function placeOrder(file, prescriptionFile, referenceNumber) {
+  try {
+    const user = auth.currentUser;
+    const proofOfPaymentUrl = file ? await uploadToCloudinary(file) : null;
+    const prescriptionPhotoUrl = prescriptionFile ? await uploadToCloudinary(prescriptionFile, { kind: "document" }) : null;
+    const orderNumber = await generateOrderNumber();
+
+    const items = pendingOrder.cart.map((item) => {
+      const product = getProductById(item.id);
+      return {
+        id: item.id,
+        name: product ? product.name : "Unknown product",
+        price: product ? product.price : 0,
+        qty: item.qty,
+        imageUrl: product ? product.imageUrl || null : null,
+      };
+    });
+
+    await createOrderWithCreditRedemption({
+      orderNumber,
+      customerId: user ? user.uid : null,
+      contact: pendingOrder.contact,
+      shipping: requiresPrescription ? null : pendingOrder.shipping,
+      deliverySchedule: requiresPrescription ? null : pendingOrder.deliverySchedule,
+      items,
+      total: cartSubtotal,
+      proofOfPaymentUrl,
+      paymentReferenceNumber: referenceNumber || null,
+      requiresPrescription,
+      prescriptionPhotoUrl,
+      status: "placed",
+      statusTimestamps: {
+        placed: firebase.firestore.FieldValue.serverTimestamp(),
+        payment_confirmed: null,
+        dispatched: null,
+        delivered: null,
+        received: null,
+      },
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { expectFullCredit: fullyCoveredByCredit });
+
+    // Order submission notification (Fig 2.10).
+    if (user) {
+      notifyCustomer(
+        user.uid,
+        `Order ${orderNumber} placed`,
+        requiresPrescription
+          ? "We received your prescription pre-order. Our pharmacist will check your prescription and payment, and we'll tell you when it's ready for pick-up."
+          : "We received your order and payment proof. We'll let you know once our staff verify your payment.",
+        "orders.html",
+        "info",
+        "order_placed"
+      );
+    }
+
+    removeItemsFromCart(pendingOrder.cart.map((item) => item.id));
+    sessionStorage.removeItem("amsonPendingOrder");
+    clearCatalogCache(); // stock just went down
+    sessionStorage.removeItem("amsonCheckoutSelectedIds");
+    document.getElementById("confirmedOrderNumber").textContent = `Order Number: ${orderNumber}`;
+    if (user) {
+      document.getElementById("viewOrdersLink").classList.remove("d-none");
+    }
+    paymentContent.classList.add("d-none");
+    orderConfirmation.classList.remove("d-none");
+  } catch (error) {
+    uploadErrorText.textContent = error.message || "Something went wrong submitting your order. Please try again.";
+    uploadErrorText.classList.remove("d-none");
+    submitOrderBtn.disabled = false;
+    submitOrderBtn.textContent = "Submit Order";
+  }
+}
