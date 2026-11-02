@@ -860,89 +860,17 @@ async function openExchangeDialog(order, account) {
     await showAppAlert("Every item on this order has already been returned.");
     return;
   }
-  const productOptions = SAMPLE_PRODUCTS.filter((p) => p.status === "active")
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
-    .join("");
 
   const ok = await showAppConfirm(`Exchange items from SI No. ${order.invoiceNo || "-"} (${order.buyerName || ""}). No refunds: the replacement must be of equal or higher value.`, {
     title: "Wholesale Exchange",
     confirmLabel: "Process Exchange",
-    fieldHtml: `
-      <label class="form-label" for="exReturnLine">Item being returned</label>
-      <select class="form-select mb-2" id="exReturnLine">
-        ${lines.map((l) => `<option value="${l.idx}">${escapeHtml(l.it.productName)} - ${l.left} returnable @ ${formatPeso(l.it.unitPrice || 0)}</option>`).join("")}
-      </select>
-      <label class="form-label" for="exReturnQty">Quantity returned</label>
-      <input type="number" class="form-control mb-3" id="exReturnQty" min="1" step="1" value="1">
-      <label class="form-label" for="exReplacementProduct">Replacement item</label>
-      <select class="form-select mb-2" id="exReplacementProduct">${productOptions}</select>
-      <div class="row g-2 mb-2">
-        <div class="col-6">
-          <label class="form-label" for="exReplacementQty">Quantity</label>
-          <input type="number" class="form-control" id="exReplacementQty" min="1" step="1" value="1">
-        </div>
-        <div class="col-6">
-          <label class="form-label" for="exReplacementPrice">Unit price (₱)</label>
-          <input type="number" class="form-control" id="exReplacementPrice" min="0" step="0.01">
-        </div>
-      </div>
-      <p class="mb-3" style="font-size:0.85rem;" id="exDifferenceText"></p>
-      <label class="form-label" for="exReason">Reason for exchange *</label>
-      <textarea class="form-control" id="exReason" rows="2" placeholder="e.g. Wrong item delivered / damaged packaging"></textarea>
-    `,
-    onRender: () => {
-      const lineSel = document.getElementById("exReturnLine");
-      const retQty = document.getElementById("exReturnQty");
-      const prodSel = document.getElementById("exReplacementProduct");
-      const repQty = document.getElementById("exReplacementQty");
-      const repPrice = document.getElementById("exReplacementPrice");
-      const diffText = document.getElementById("exDifferenceText");
-      const line = () => order.items[Number(lineSel.value)];
-      const update = () => {
-        const returned = (parseInt(retQty.value, 10) || 0) * (line().unitPrice || 0);
-        const repl = (parseInt(repQty.value, 10) || 0) * (parseFloat(repPrice.value) || 0);
-        const diff = repl - returned;
-        diffText.innerHTML = `Returned value <strong>${formatPeso(returned)}</strong> - Replacement value <strong>${formatPeso(repl)}</strong> - ${
-          diff >= 0 ? `Buyer pays <strong>${formatPeso(diff)}</strong>` : '<span class="text-danger">Replacement is worth less than the return (not allowed)</span>'
-        }`;
-      };
-      const setDefaults = () => {
-        prodSel.value = line().productId;
-        const p = getProductById(prodSel.value);
-        // Same product: the price this buyer actually paid on the order.
-        repPrice.value = line().unitPrice || (p ? p.wholesalePrice || 0 : 0);
-        retQty.max = String(order.items[Number(lineSel.value)].qty - (order.items[Number(lineSel.value)].returnedQty || 0));
-        update();
-      };
-      lineSel.addEventListener("change", setDefaults);
-      prodSel.addEventListener("change", () => {
-        const p = getProductById(prodSel.value);
-        const agreed = account && account.agreedPrices ? account.agreedPrices[prodSel.value] : null;
-        repPrice.value =
-          prodSel.value === line().productId ? line().unitPrice || 0 : agreed != null ? agreed : p ? p.wholesalePrice || 0 : 0;
-        update();
-      });
-      [retQty, repQty, repPrice].forEach((el) => el.addEventListener("input", update));
-      setDefaults();
-    },
+    fieldHtml: wholesaleExchangeDialogHtml(lines),
+    onRender: () => wireWholesaleExchangeDialog(order, account),
   });
   if (!ok) return;
 
-  const payload = {
-    orderId: order.id,
-    lineIndex: Number(document.getElementById("exReturnLine").value),
-    returnQty: parseInt(document.getElementById("exReturnQty").value, 10),
-    replacement: {
-      productId: document.getElementById("exReplacementProduct").value,
-      qty: parseInt(document.getElementById("exReplacementQty").value, 10),
-      unitPrice: parseFloat(document.getElementById("exReplacementPrice").value) || 0,
-    },
-    reason: document.getElementById("exReason").value,
-    processedBy: wholesaleStaffName,
-  };
   try {
-    const exchange = await processWholesaleExchange(payload);
+    const exchange = await processWholesaleExchange(readWholesaleExchangeDialog(order));
     catalogLoadPromise = null;
     await loadCatalogCache();
     const download = await showAppConfirm(
@@ -954,6 +882,92 @@ async function openExchangeDialog(order, account) {
   } catch (error) {
     await showAppAlert(error.message || "Something went wrong recording the exchange. Please try again.");
   }
+}
+
+// The form inside the wholesale exchange dialog: the item coming back, the
+// replacement and its price, and the reason.
+function wholesaleExchangeDialogHtml(lines) {
+  const productOptions = SAMPLE_PRODUCTS.filter((p) => p.status === "active")
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+    .join("");
+  return `
+    <label class="form-label" for="exReturnLine">Item being returned</label>
+    <select class="form-select mb-2" id="exReturnLine">
+      ${lines.map((l) => `<option value="${l.idx}">${escapeHtml(l.it.productName)} - ${l.left} returnable @ ${formatPeso(l.it.unitPrice || 0)}</option>`).join("")}
+    </select>
+    <label class="form-label" for="exReturnQty">Quantity returned</label>
+    <input type="number" class="form-control mb-3" id="exReturnQty" min="1" step="1" value="1">
+    <label class="form-label" for="exReplacementProduct">Replacement item</label>
+    <select class="form-select mb-2" id="exReplacementProduct">${productOptions}</select>
+    <div class="row g-2 mb-2">
+      <div class="col-6">
+        <label class="form-label" for="exReplacementQty">Quantity</label>
+        <input type="number" class="form-control" id="exReplacementQty" min="1" step="1" value="1">
+      </div>
+      <div class="col-6">
+        <label class="form-label" for="exReplacementPrice">Unit price (₱)</label>
+        <input type="number" class="form-control" id="exReplacementPrice" min="0" step="0.01">
+      </div>
+    </div>
+    <p class="mb-3" style="font-size:0.85rem;" id="exDifferenceText"></p>
+    <label class="form-label" for="exReason">Reason for exchange *</label>
+    <textarea class="form-control" id="exReason" rows="2" placeholder="e.g. Wrong item delivered / damaged packaging"></textarea>
+  `;
+}
+
+// Keeps the replacement price and the "Buyer pays" line up to date while
+// staff fill in the wholesale exchange dialog.
+function wireWholesaleExchangeDialog(order, account) {
+  const lineSel = document.getElementById("exReturnLine");
+  const retQty = document.getElementById("exReturnQty");
+  const prodSel = document.getElementById("exReplacementProduct");
+  const repQty = document.getElementById("exReplacementQty");
+  const repPrice = document.getElementById("exReplacementPrice");
+  const diffText = document.getElementById("exDifferenceText");
+  const line = () => order.items[Number(lineSel.value)];
+  const update = () => {
+    const returned = (parseInt(retQty.value, 10) || 0) * (line().unitPrice || 0);
+    const repl = (parseInt(repQty.value, 10) || 0) * (parseFloat(repPrice.value) || 0);
+    const diff = repl - returned;
+    diffText.innerHTML = `Returned value <strong>${formatPeso(returned)}</strong> - Replacement value <strong>${formatPeso(repl)}</strong> - ${
+      diff >= 0 ? `Buyer pays <strong>${formatPeso(diff)}</strong>` : '<span class="text-danger">Replacement is worth less than the return (not allowed)</span>'
+    }`;
+  };
+  const setDefaults = () => {
+    prodSel.value = line().productId;
+    const p = getProductById(prodSel.value);
+    // Same product: the price this buyer actually paid on the order.
+    repPrice.value = line().unitPrice || (p ? p.wholesalePrice || 0 : 0);
+    retQty.max = String(order.items[Number(lineSel.value)].qty - (order.items[Number(lineSel.value)].returnedQty || 0));
+    update();
+  };
+  lineSel.addEventListener("change", setDefaults);
+  prodSel.addEventListener("change", () => {
+    const p = getProductById(prodSel.value);
+    const agreed = account && account.agreedPrices ? account.agreedPrices[prodSel.value] : null;
+    repPrice.value =
+      prodSel.value === line().productId ? line().unitPrice || 0 : agreed != null ? agreed : p ? p.wholesalePrice || 0 : 0;
+    update();
+  });
+  [retQty, repQty, repPrice].forEach((el) => el.addEventListener("input", update));
+  setDefaults();
+}
+
+// What staff entered in the wholesale exchange dialog.
+function readWholesaleExchangeDialog(order) {
+  return {
+    orderId: order.id,
+    lineIndex: Number(document.getElementById("exReturnLine").value),
+    returnQty: parseInt(document.getElementById("exReturnQty").value, 10),
+    replacement: {
+      productId: document.getElementById("exReplacementProduct").value,
+      qty: parseInt(document.getElementById("exReplacementQty").value, 10),
+      unitPrice: parseFloat(document.getElementById("exReplacementPrice").value) || 0,
+    },
+    reason: document.getElementById("exReason").value,
+    processedBy: wholesaleStaffName,
+  };
 }
 
 // The heading of the wholesale PDFs (exchange document and sales invoice):
