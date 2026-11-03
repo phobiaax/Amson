@@ -1618,10 +1618,10 @@ function roleCanVoidSales(role) {
   return ["admin", "branch_manager", "technical_staff"].includes(role);
 }
 
-// Asks which items (and how many of each) to void, the reason (required)
-// and, if the customer is exchanging, what they're taking instead and the
-// price difference. Resolves the details or null if cancelled. Leaving every
-// item at its full quantity voids the whole sale.
+// Asks which items (and how many of each) to void and the reason
+// (required). Resolves the details or null if cancelled. Leaving every item
+// at its full quantity voids the whole sale. (A customer swapping items uses
+// Return / Exchange instead.)
 // requireApproval: the client's rule that a void is never done by one
 // junior staff member alone - a Branch Manager signs off with their own
 // email and password (checked without signing anyone out).
@@ -1648,14 +1648,7 @@ async function promptVoidDetails(sale, { requireApproval = false } = {}) {
       <p class="detail-label mb-2">Items to void (untick or lower the quantity to keep an item)</p>
       ${rows}
       <label class="form-label mt-2" for="voidReasonInput">Reason for void *</label>
-      <textarea class="form-control mb-3" id="voidReasonInput" rows="2" placeholder="e.g. Wrong item rung up"></textarea>
-      <div class="form-check mb-2">
-        <input class="form-check-input" type="checkbox" id="voidExchangeCheck">
-        <label class="form-check-label" for="voidExchangeCheck">Customer is exchanging for other items</label>
-      </div>
-      <input type="text" class="form-control mb-2" id="voidExchangeItemsInput" placeholder="Replacement item(s), e.g. Biogesic 500mg x10">
-      <input type="number" step="0.01" class="form-control" id="voidExchangeDiffInput" placeholder="Price difference paid by customer (₱)">
-      <p class="text-muted mt-2 mb-0" style="font-size:0.78rem;">Ring up the replacement as a new sale in the POS.</p>
+      <textarea class="form-control" id="voidReasonInput" rows="2" placeholder="e.g. Wrong item rung up"></textarea>
       ${
         requireApproval
           ? `
@@ -1701,20 +1694,7 @@ function readVoidDialog(items) {
   if (lines.length === 0) return { problem: "Select at least one item to void." };
   const reason = document.getElementById("voidReasonInput").value.trim();
   if (!reason) return { problem: "A reason is required to void a sale." };
-  const exchanging = document.getElementById("voidExchangeCheck").checked;
-  const diff = parseFloat(document.getElementById("voidExchangeDiffInput").value);
-  return {
-    details: {
-      reason,
-      lines,
-      exchange: exchanging
-        ? {
-            replacementItems: document.getElementById("voidExchangeItemsInput").value.trim(),
-            priceDifference: isNaN(diff) ? 0 : diff,
-          }
-        : null,
-    },
-  };
+  return { details: { reason, lines } };
 }
 
 // Checks a Branch Manager's email and password on a separate Firebase app
@@ -1745,7 +1725,7 @@ async function verifyVoidApprover(email, password) {
 // marks the whole sale voided; anything less is a partial void: the item
 // quantities and the sale total drop by what was voided (so every report
 // counts only what was really sold) and the void is kept in partialVoids.
-async function voidPosSale(sale, { reason, exchange, lines, approvedBy }, voidedBy) {
+async function voidPosSale(sale, { reason, lines, approvedBy }, voidedBy) {
   const saleRef = db.collection("posSales").doc(sale.id);
   const fallbackRefs = await findFallbackBatches(sale, lines);
 
@@ -1783,7 +1763,6 @@ async function voidPosSale(sale, { reason, exchange, lines, approvedBy }, voided
       transaction.update(saleRef, {
         voided: true,
         voidReason: reason,
-        voidExchange: exchange,
         voidedBy,
         voidApprovedBy: approvedBy,
         voidedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1795,13 +1774,13 @@ async function voidPosSale(sale, { reason, exchange, lines, approvedBy }, voided
         originalTotal: data.originalTotal != null ? data.originalTotal : data.total || 0,
         voidedAmount: Math.round(((data.voidedAmount || 0) + voidedAmount) * 100) / 100,
         partialVoids: (data.partialVoids || []).concat([
-          { lines: voidedLines, amount: voidedAmount, reason, exchange, voidedBy, approvedBy, voidedAt: new Date() },
+          { lines: voidedLines, amount: voidedAmount, reason, voidedBy, approvedBy, voidedAt: new Date() },
         ]),
       });
     }
   });
 
-  await logVoid(sale, { fullVoid, voidedAmount, voidedLines, reason, exchange, approvedBy });
+  await logVoid(sale, { fullVoid, voidedAmount, voidedLines, reason, approvedBy });
   return { fullVoid, voidedAmount, voidedLines };
 }
 
@@ -1855,13 +1834,12 @@ function takeVoidedUnits(items, lines, fallbackRefs) {
 }
 
 // The audit log entry for a void.
-async function logVoid(sale, { fullVoid, voidedAmount, voidedLines, reason, exchange, approvedBy }) {
+async function logVoid(sale, { fullVoid, voidedAmount, voidedLines, reason, approvedBy }) {
   await logAuditEvent({
     action: fullVoid ? "Walk-in Sale Voided" : "Walk-in Sale Items Voided",
     details:
       `SI ${sale.invoiceNo || sale.id} - ${formatPeso(voidedAmount)} voided - Reason: ${reason}` +
       (approvedBy ? ` - Approved by ${approvedBy}` : "") +
-      (exchange ? ` - Exchange: ${exchange.replacementItems || "unspecified"}, price difference ${formatPeso(exchange.priceDifference)}` : "") +
       ` - Items returned to stock: ${voidedLines.map((l) => `${l.name} x${l.qty}`).join(", ")}`,
     record: `SI ${sale.invoiceNo || sale.id}`,
     before: `Total ${formatPeso(sale.total || 0)}`,
