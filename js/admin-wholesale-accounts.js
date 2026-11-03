@@ -427,7 +427,7 @@ async function deleteWholesaleAccount(id) {
 /* ---------- Process Wholesale Order ---------- */
 function populateOrderProductSelect(selectEl) {
   // Only products that can be sold: active and already priced.
-  selectEl.innerHTML = SAMPLE_PRODUCTS.filter((p) => p.status === "active" && !p.pricePending)
+  selectEl.innerHTML = productsByName(SAMPLE_PRODUCTS.filter((p) => p.status === "active" && !p.pricePending))
     .map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
     .join("");
   selectEl._choices = makeSearchableSelect(selectEl);

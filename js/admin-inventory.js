@@ -483,7 +483,7 @@ inventorySortFieldSelect.addEventListener("change", () => {
 
 /* ---------- Shared repeater helpers ---------- */
 function populateProductSelect(selectEl) {
-  selectEl.innerHTML = SAMPLE_PRODUCTS.map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+  selectEl.innerHTML = productsByName().map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
   selectEl._choices = makeSearchableSelect(selectEl);
 }
 
@@ -1011,7 +1011,7 @@ function refreshSupplierSelects() {
 }
 
 function refreshProductSelects(newProductId) {
-  const options = SAMPLE_PRODUCTS.map((p) => ({ value: p.id, label: p.name }));
+  const options = productsByName().map((p) => ({ value: p.id, label: p.name }));
   document.querySelectorAll(".receive-product-select, .writeoff-product-select, .po-product-select").forEach((sel) => {
     if (!sel._choices) return;
     const previousValue = sel.value;
