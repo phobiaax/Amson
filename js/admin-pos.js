@@ -86,7 +86,7 @@ function posEligibleProducts() {
 }
 
 function populatePosProductSelect() {
-  const options = posEligibleProducts().map((p) => ({
+  const options = productsByName(posEligibleProducts()).map((p) => ({
     value: p.id,
     label: `${p.name} - ${formatPeso(p.price)} (${p.totalStock} in stock)`,
   }));

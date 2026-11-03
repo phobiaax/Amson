@@ -1299,6 +1299,13 @@ function getToggleValue(container) {
 
 // ---- Searchable dropdowns (Choices.js) and "Item 1, Item 2..." lists ----
 // Inventory, Wholesale Accounts and the POS.
+
+// Products A-Z by name, for product dropdowns (the catalog itself stays in
+// database order).
+function productsByName(products = SAMPLE_PRODUCTS) {
+  return products.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+}
+
 function makeSearchableSelect(selectEl) {
   return new Choices(selectEl, {
     searchEnabled: true,
