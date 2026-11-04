@@ -58,7 +58,7 @@ function renderCreditPreview() {
   }
   paymentTotalText.textContent = formatPeso(finalTotal);
 
-  // Credit can fully cover the order - there's nothing to pay via QR PH,
+  // Credit can fully cover the order - there's nothing to pay via QR Ph,
   // so don't ask for a screenshot/reference number for a payment that
   // never happens.
   fullyCoveredByCredit = finalTotal <= 0 && cartSubtotal > 0;
@@ -215,7 +215,7 @@ function checkPaymentForm(file, prescriptionFile, referenceNumber) {
   }
   if (!fullyCoveredByCredit && !file) {
     problems.push("Upload a screenshot of your payment.");
-    showFormAlert(uploadErrorText, "Please upload a screenshot of your QR PH payment.");
+    showFormAlert(uploadErrorText, "Please upload a screenshot of your QR Ph payment.");
   }
   if (!fullyCoveredByCredit && !referenceNumber) {
     problems.push("Enter the reference number from your proof of payment.");
