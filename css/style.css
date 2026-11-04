@@ -1534,6 +1534,11 @@ a {
   position: relative;
   height: 260px;
 }
+/* Before a chart has drawn, its canvas is the browser's default 300px wide,
+   which pushed small-laptop screens into sideways scrolling. */
+.chart-canvas-wrap canvas {
+  max-width: 100%;
+}
 
 .chart-empty-note {
   text-align: center;
