@@ -90,20 +90,54 @@ function documentBadges(account) {
 document.addEventListener("admin:ready", loadWholesaleAccounts);
 
 /* ---------- Load ---------- */
-// Orders recorded but not yet picked up / delivered, per buyer. Orders
-// saved before this existed have no releaseStatus and count as released.
+// Orders recorded but not yet picked up / delivered: listed at the top of
+// the page and counted per buyer. Orders saved before this existed have no
+// releaseStatus and count as released.
 let pendingReleaseByAccount = {};
+let pendingReleaseOrders = [];
 async function loadPendingReleaseCounts() {
   pendingReleaseByAccount = {};
+  pendingReleaseOrders = [];
   try {
     const pending = await db.collection("wholesaleOrders").where("releaseStatus", "==", "pending").get();
     pending.docs.forEach((d) => {
       const id = d.data().wholesaleAccountId;
       pendingReleaseByAccount[id] = (pendingReleaseByAccount[id] || 0) + 1;
+      pendingReleaseOrders.push({ id: d.id, ...d.data() });
     });
   } catch (error) {
     console.warn("Couldn't load pending wholesale orders:", error);
   }
+}
+
+// "Waiting for release": every pending order, the longest-waiting first,
+// each with its own Mark Released button.
+function renderPendingReleasePanel() {
+  const card = document.getElementById("pendingReleaseCard");
+  const body = document.getElementById("pendingReleaseBody");
+  card.classList.toggle("d-none", pendingReleaseOrders.length === 0);
+  const millis = (o) => (o.createdAt && o.createdAt.toMillis ? o.createdAt.toMillis() : 0);
+  const orders = pendingReleaseOrders.slice().sort((a, b) => millis(a) - millis(b));
+  body.innerHTML = orders
+    .map((o) => {
+      const account = allWholesaleAccounts.find((w) => w.id === o.wholesaleAccountId);
+      return `<tr>
+        <td class="fw-medium">${escapeHtml(o.invoiceNo || "-")}</td>
+        <td>${escapeHtml((account && account.name) || o.buyerName || "-")}</td>
+        <td>${formatDateMDY(o.createdAt)}</td>
+        <td>${(o.items || []).map((it) => `${escapeHtml(it.productName)} x${it.qty}`).join(", ")}</td>
+        <td>${formatPeso(o.total || 0)}</td>
+        <td class="text-end"><button type="button" class="btn btn-amson btn-sm text-nowrap pending-release-btn" data-id="${o.id}">Mark Released</button></td>
+      </tr>`;
+    })
+    .join("");
+  body.querySelectorAll(".pending-release-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const order = pendingReleaseOrders.find((o) => o.id === btn.dataset.id);
+      const account = allWholesaleAccounts.find((w) => w.id === order.wholesaleAccountId) || { name: order.buyerName || "the buyer" };
+      markWholesaleOrderReleased(order, account, btn, { reopenHistory: false });
+    });
+  });
 }
 
 async function loadWholesaleAccounts() {
@@ -112,7 +146,13 @@ async function loadWholesaleAccounts() {
     const snapshot = await db.collection("wholesaleAccounts").get();
     allWholesaleAccounts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     await loadPendingReleaseCounts();
+    renderPendingReleasePanel();
     renderWholesaleGrid();
+    // From the bell's "waiting to be picked up or delivered": show the list.
+    if (window.location.hash === "#pendingReleaseCard" && pendingReleaseOrders.length && !scrolledToPendingRelease) {
+      scrolledToPendingRelease = true;
+      document.getElementById("pendingReleaseCard").scrollIntoView({ block: "start" });
+    }
     // Opened from the Dashboard's "Find a sale by SI No.": show that
     // buyer's purchase history once.
     const historyFor = new URLSearchParams(window.location.search).get("history");
@@ -126,6 +166,7 @@ async function loadWholesaleAccounts() {
   }
 }
 let openedLinkedHistory = false;
+let scrolledToPendingRelease = false;
 
 /* ---------- Grid ---------- */
 function filteredWholesaleAccounts() {
@@ -198,7 +239,7 @@ function renderWholesaleCard(account) {
         <p class="contact-line mb-2"><i class="bi bi-geo-alt"></i> ${escapeHtml(account.address || "-")}</p>
         <div class="mb-3" style="font-size:0.75rem;">${documentBadges(account)}${
           pendingReleaseByAccount[account.id]
-            ? ` <span class="badge text-bg-warning">${pendingReleaseByAccount[account.id]} order${pendingReleaseByAccount[account.id] === 1 ? "" : "s"} pending release</span>`
+            ? ` <button type="button" class="badge text-bg-warning border-0 wholesale-history-btn" data-id="${account.id}" title="Open purchase history to mark it released">${pendingReleaseByAccount[account.id]} order${pendingReleaseByAccount[account.id] === 1 ? "" : "s"} pending release <i class="bi bi-chevron-right"></i></button>`
             : ""
         }</div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -598,7 +639,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
     bootstrap.Modal.getInstance(processOrderModalEl).hide();
     await loadWholesaleAccounts();
     const savedDoc = await saved.orderRef.get();
-    const print = await showAppConfirm(`Wholesale order recorded (SI No. ${saved.invoiceNo}) and stock deducted. Mark it Released in the buyer's purchase history once it's picked up or delivered.`, {
+    const print = await showAppConfirm(`Wholesale order recorded (SI No. ${saved.invoiceNo}) and stock deducted. It's listed under "Waiting for release" at the top of this page - mark it released there once it's picked up or delivered.`, {
       title: "Order Recorded",
       confirmLabel: "Print Sales Invoice",
       cancelLabel: "Close",
@@ -822,8 +863,9 @@ async function openHistoryModal(account) {
   });
 }
 
-// The client has picked up the order, or it has been delivered.
-async function markWholesaleOrderReleased(order, account, btn) {
+// The client has picked up the order, or it has been delivered. From the
+// purchase history, that history reopens with the order updated.
+async function markWholesaleOrderReleased(order, account, btn, { reopenHistory = true } = {}) {
   if (!order) return;
   const ok = await showAppConfirm(`Mark SI ${order.invoiceNo || ""} as released to ${account.name} (picked up or delivered)?`, {
     title: "Release Wholesale Order",
@@ -839,7 +881,7 @@ async function markWholesaleOrderReleased(order, account, btn) {
     });
     await logAuditEvent({ action: "Wholesale Order Released", details: `SI ${order.invoiceNo || order.id} - ${account.name}` });
     await loadWholesaleAccounts();
-    openHistoryModal(account);
+    if (reopenHistory) openHistoryModal(account);
   } catch (error) {
     btn.disabled = false;
     showAppAlert("Couldn't update this order. Please try again.");

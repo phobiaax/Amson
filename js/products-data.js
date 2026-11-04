@@ -714,7 +714,7 @@ async function wholesaleReleaseAlerts() {
         severity: "info",
         icon: "bi-truck",
         message: `${pending.size} wholesale order${pending.size === 1 ? " is" : "s are"} waiting to be picked up or delivered.`,
-        link: "wholesale-accounts.html",
+        link: "wholesale-accounts.html#pendingReleaseCard",
       });
     }
   } catch (error) {
