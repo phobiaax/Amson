@@ -417,14 +417,31 @@ service cloud.firestore {
     // list would hand anyone every address that has tried to log in.
     // Only a count and a lock no longer than a few minutes from now, so
     // nobody can lock an address (the Branch Manager's, say) for good.
+    // The count only goes up by one per failed try, nothing changes while a
+    // lock is on, and a lock is at most 3 minutes (the page uses 2) - so a
+    // script can't reset the tries, and nobody can lock an address for long.
+    // Cleared by the account's owner once signed in, or by anyone after the
+    // lock has run out.
+    function loginLockValid() {
+      return !("lockedUntil" in request.resource.data) ||
+        (request.resource.data.lockedUntil is number &&
+         request.resource.data.lockedUntil <= request.time.toMillis() + 3 * 60 * 1000);
+    }
     match /loginAttempts/{email} {
-      allow get, delete: if true;
-      allow create, update: if request.resource.data.keys().hasOnly(["count", "lockedUntil"]) &&
+      allow get: if true;
+      allow create: if request.resource.data.keys().hasOnly(["count", "lockedUntil"]) &&
+        request.resource.data.count == 1 &&
+        loginLockValid();
+      allow update: if request.resource.data.keys().hasOnly(["count", "lockedUntil"]) &&
         request.resource.data.count is int &&
-        request.resource.data.count >= 0 && request.resource.data.count <= 1000 &&
-        (!("lockedUntil" in request.resource.data) ||
-         (request.resource.data.lockedUntil is number &&
-          request.resource.data.lockedUntil <= request.time.toMillis() + 10 * 60 * 1000));
+        request.resource.data.count == resource.data.get("count", 0) + 1 &&
+        request.resource.data.count <= 1000 &&
+        resource.data.get("lockedUntil", 0) <= request.time.toMillis() &&
+        loginLockValid();
+      allow delete: if (isSignedIn() && request.auth.token.email != null && request.auth.token.email.lower() == email) ||
+        (resource != null && resource.data.get("lockedUntil", 0) > 0 &&
+         resource.data.get("lockedUntil", 0) <= request.time.toMillis()) ||
+        isManager();
       allow list: if isManager();
     }
 
