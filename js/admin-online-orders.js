@@ -539,6 +539,40 @@ function orderPriceProblems(order) {
   return problems;
 }
 
+// A reference number already on another online order or walk-in sale may
+// be an old payment shown again: warn staff (they still check the GCash /
+// bank app that this payment really arrived).
+async function warnIfReferenceReused(order) {
+  const warning = document.getElementById("reviewReusedRefWarning");
+  warning.classList.add("d-none");
+  const ref = String(order.paymentReferenceNumber || "").trim();
+  if (!ref) return;
+  // As typed, and without spaces or dashes ("1234 5678" / "12345678").
+  const forms = [...new Set([ref, ref.replace(/[\s-]/g, "")])];
+  try {
+    const snaps = await Promise.all(
+      forms.flatMap((r) => [
+        db.collection("orders").where("paymentReferenceNumber", "==", r).get(),
+        db.collection("posSales").where("referenceNo", "==", r).get(),
+      ])
+    );
+    if (selectedVerificationId !== order.id) return; // another order was opened meanwhile
+    const used = new Set();
+    snaps.forEach((snap, i) =>
+      snap.docs.forEach((d) => {
+        if (d.id === order.id) return;
+        const data = d.data();
+        used.add(i % 2 === 0 ? `order ${data.orderNumber || d.id}` : `walk-in sale SI ${data.invoiceNo || d.id}`);
+      })
+    );
+    if (!used.size) return;
+    warning.textContent = `This reference number was already used on ${[...used].join(", ")}. Check in the GCash / bank app that this is a new payment before approving.`;
+    warning.classList.remove("d-none");
+  } catch (error) {
+    console.warn("Couldn't check the reference number:", error);
+  }
+}
+
 // Before approving: if the prices don't check out, staff must confirm.
 // Resolves true to go ahead.
 async function confirmPriceProblems(order) {
@@ -584,6 +618,7 @@ function renderReviewPanel(order) {
 
   const priceWarning = document.getElementById("reviewPriceWarning");
   const problems = orderPriceProblems(order);
+  warnIfReferenceReused(order);
   priceWarning.textContent = problems.length ? `Check before approving: ${problems.join("; ")}.` : "";
   priceWarning.classList.toggle("d-none", problems.length === 0);
 
