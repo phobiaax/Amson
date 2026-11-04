@@ -136,7 +136,9 @@ const CHAT_STOPWORDS = new Set([
 // Catalog lines for products the message names (public info only). Words
 // match whole product words (or their start), so "for" never matches
 // "Forte".
-function chatProductMatches(text, limit = 8) {
+// Products whose name, generic name or brand matches words in the text,
+// best matches first.
+function chatFindProducts(text, limit = 8) {
   const words = chatNormalize(text)
     .trim()
     .split(" ")
@@ -151,9 +153,43 @@ function chatProductMatches(text, limit = 8) {
     .filter((m) => m.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
-    .map(({ p }) =>
-      `${p.name}${p.genericName ? ` (${p.genericName})` : ""} - ${formatPeso(p.price)} - ${p.inStock ? `${p.totalStock} in stock` : "out of stock"}${p.rxRequired ? " - prescription required, pick-up only" : ""}`
-    );
+    .map(({ p }) => p);
+}
+
+// One product as a line of the list the AI is given.
+function chatProductLine(p) {
+  return `${p.name}${p.genericName ? ` (${p.genericName})` : ""} - ${formatPeso(p.price)} - ${p.inStock ? `${p.totalStock} in stock` : "out of stock"}${p.rxRequired ? " - prescription required, pick-up only" : ""}`;
+}
+
+// A message that refers back to something said before ("can I order
+// that?", "magkano yan?").
+const CHAT_FOLLOWUP = / (that|it|this|these|those|them|yan|iyan|ito|yun|iyon|yon) /;
+
+// The products a question is about: the ones it names, or - for a
+// follow-up that names none - the ones from the customer's last few
+// messages (newest first).
+function chatProductsInContext(question, recentCustomerTexts, limit = 8) {
+  const named = chatFindProducts(question, limit);
+  if (named.length || !CHAT_FOLLOWUP.test(chatNormalize(question))) return named;
+  for (const text of recentCustomerTexts) {
+    const earlier = chatFindProducts(text, limit);
+    if (earlier.length) return earlier;
+  }
+  return [];
+}
+
+// The products (from `products`) that a reply mentions by a distinctive
+// word of their name, e.g. "Lozemed" - for cards under the reply.
+function chatProductsMentioned(replyText, products, limit = 3) {
+  const said = chatNormalize(replyText);
+  return products
+    .filter((p) =>
+      chatNormalize(`${p.name} ${p.brand || ""}`)
+        .trim()
+        .split(" ")
+        .some((w) => w.length >= 4 && !/^\d+$/.test(w) && !CHAT_STOPWORDS.has(w) && said.includes(` ${w} `))
+    )
+    .slice(0, limit);
 }
 
 // ---- "What we carry for this" (health questions) ----
@@ -539,7 +575,8 @@ async function chatAiReply(history, question) {
   // A follow-up ("can I order that?") names no product, so the list also
   // covers the customer's last few messages - this question's matches first.
   const recent = history.filter((m) => m.sender === "customer").slice(-3).reverse().map((m) => m.text);
-  const products = [...new Set([question, ...recent].flatMap((text) => chatProductMatches(text)))].slice(0, 8);
+  const listed = [...new Set([question, ...recent].flatMap((text) => chatFindProducts(text)))].slice(0, 8);
+  const products = listed.map(chatProductLine);
   const contents = history.map((m) => ({
     role: m.sender === "customer" ? "user" : "model",
     parts: [{ text: m.sender === "staff" ? `(Staff) ${m.text}` : m.text }],
@@ -574,7 +611,8 @@ async function chatAiReply(history, question) {
     const handoff = text.includes("[[STAFF]]");
     text = text.replace(/\[\[STAFF\]\]/g, "").trim();
     if (!text) return handoff ? { text: "", handoff } : null;
-    return { text, handoff };
+    // Cards for the products the reply talks about.
+    return { text, handoff, products: chatProductsMentioned(text, listed) };
   } catch (error) {
     console.warn("Chat AI request failed:", error);
     return null;
@@ -742,6 +780,9 @@ function chatOrderCardHtml(card, myOrders) {
   let unsubscribeThread = null;
   let sending = false;
   let lastSentAt = 0;
+  // True while the assistant works on a reply: "typing" dots show under the
+  // customer's message until the answer arrives.
+  let thinking = false;
   // The signed-in customer's orders, for order cards (read live, not copied
   // into the chat).
   let myOrders = null;
@@ -844,9 +885,15 @@ function chatOrderCardHtml(card, myOrders) {
   // ---- 3. Drawing the messages ----
   function renderMessages() {
     const welcome = `<div class="chat-msg chat-msg-assistant">Hi! I'm the Amson Pharmaceuticals assistant. Ask me about products, ordering, payment, delivery or prescription orders. Type "talk to staff" anytime to reach our team.</div>`;
+    const last = messages[messages.length - 1];
+    const typing =
+      thinking && last && last.sender === "customer"
+        ? '<div class="chat-msg chat-msg-assistant chat-typing" role="status" aria-label="The assistant is typing"><span></span><span></span><span></span></div>'
+        : "";
     messagesEl.innerHTML =
       welcome +
-      messages.map((m) => chatMessageHtml(m, myOrders)).join("");
+      messages.map((m) => chatMessageHtml(m, myOrders)).join("") +
+      typing;
     messagesEl.scrollTop = messagesEl.scrollHeight;
     // Order cards need the customer's orders; load them once, then redraw.
     if (myOrders === null && customerId && messages.some((m) => (m.cards || []).some((c) => c.type === "order"))) {
@@ -1115,7 +1162,7 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
     if (reply && reply.text) {
-      await addMessage("assistant", reply.text);
+      await addMessage("assistant", reply.text, (reply.products || []).map((p) => ({ type: "product", id: p.id })));
       if (reply.handoff) await handOffToStaff("assistant_unsure");
       return;
     }
@@ -1124,10 +1171,20 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
 
-    // No AI answer (unavailable or over today's limit).
-    const products = chatProductMatches(text, 5);
+    // No AI answer (unavailable or over today's limit): show the products
+    // the question is about as cards - including a follow-up like "can I
+    // order that?" about a product named earlier.
+    const recent = history.filter((m) => m.sender === "customer").slice(-3).reverse().map((m) => m.text);
+    const products = chatProductsInContext(text, recent, 3);
     if (products.length) {
-      await addMessage("assistant", `Here's what I found in our shop: ${products.join("; ")}. For anything else, type "talk to staff".`);
+      const followUp = !chatFindProducts(text).length;
+      await addMessage(
+        "assistant",
+        followUp
+          ? `Here it is. Tap Add to Cart to order it, or open it for details. For anything else, type "talk to staff".`
+          : `Here's what I found in our shop. Tap a product for details, or Add to Cart to order it. For anything else, type "talk to staff".`,
+        products.map((p) => ({ type: "product", id: p.id }))
+      );
       return;
     }
     await handOffToStaff(
@@ -1149,8 +1206,17 @@ function chatOrderCardHtml(card, myOrders) {
       await identityReady;
       await touchThread(text);
       await addMessage("customer", text);
+      // Staff answer chats they've taken over; otherwise show the dots.
+      if (!thread || !["staff", "waiting_staff"].includes(thread.status)) {
+        thinking = true;
+        renderMessages();
+      }
       await respond(text);
+      thinking = false;
+      renderMessages();
     } catch (error) {
+      thinking = false;
+      renderMessages();
       console.error("Chat send failed:", error);
       messagesEl.insertAdjacentHTML(
         "beforeend",
