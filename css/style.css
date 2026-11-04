@@ -2237,6 +2237,13 @@ a {
   background-color: #fff;
   border: 1px solid var(--amson-border);
 }
+/* The AI's App Check (reCAPTCHA) badge would sit over the chat button; the
+   chat's disclaimer carries the "Protected by reCAPTCHA" notice instead, as
+   Google allows. (The login / register checkbox is a different widget.) */
+.grecaptcha-badge {
+  visibility: hidden;
+}
+
 /* "The assistant is typing": three dots while a reply is on its way. */
 .chat-typing {
   display: inline-flex;
@@ -2435,6 +2442,9 @@ a {
   color: var(--amson-text-muted);
   padding: 0 0.75rem 0.6rem;
   margin: 0;
+}
+.chat-disclaimer a {
+  color: inherit;
 }
 @media (max-width: 575.98px) {
   .chat-panel {

@@ -20,4 +20,11 @@ const CHAT_CONFIG = {
   dailyAiLimit: 400,
   // How many earlier messages of the conversation the AI sees.
   historyMessages: 8,
+  // Firebase App Check for the AI (reCAPTCHA Enterprise / Fraud Defense,
+  // score-based - not the login checkbox key). Firebase AI Logic only
+  // answers requests that prove they come from this site. The key is
+  // public; it's registered under Firebase > App Check > Apps. On the local
+  // server a debug token is printed in the browser console instead - add it
+  // under App Check > Apps > Manage debug tokens. Empty = no App Check.
+  appCheckSiteKey: "6LdUdw8uAAAAANEQGQEw-Q2l7gaj9ouqz-aK8ZFd",
 };

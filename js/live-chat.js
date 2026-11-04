@@ -443,9 +443,12 @@ function getChatFirebaseApp(appMod, v) {
       const existing = appMod.getApps().find((a) => a.name === "amson-chat");
       if (existing) return existing;
       const app = appMod.initializeApp(firebaseConfig, "amson-chat");
-      if (typeof APP_CHECK_SITE_KEY !== "undefined" && APP_CHECK_SITE_KEY) {
+      // App Check for the AI only (see CHAT_CONFIG.appCheckSiteKey).
+      const siteKey = CHAT_CONFIG.appCheckSiteKey;
+      if (siteKey) {
+        if (["localhost", "127.0.0.1"].includes(location.hostname)) self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
         const checkMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-app-check.js`);
-        checkMod.initializeAppCheck(app, { provider: new checkMod.ReCaptchaV3Provider(APP_CHECK_SITE_KEY), isTokenAutoRefreshEnabled: true });
+        checkMod.initializeAppCheck(app, { provider: new checkMod.ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true });
       }
       return app;
     })();
@@ -643,7 +646,7 @@ function chatPanelHtml() {
     <input type="text" class="form-control" id="chatInput" maxlength="${CHAT_MAX_LENGTH}" placeholder="Type your question..." autocomplete="off" aria-label="Message">
     <button type="submit" class="btn btn-amson" id="chatSendBtn" aria-label="Send"><i class="bi bi-send"></i></button>
   </form>
-  <p class="chat-disclaimer">Our assistant can't give medical advice. For dosage or health questions, please ask our pharmacist.</p>
+  <p class="chat-disclaimer">Our assistant can't give medical advice. For dosage or health questions, please ask our pharmacist.<br>Protected by reCAPTCHA: Google's <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a> apply.</p>
   `;
 }
 
