@@ -2024,6 +2024,19 @@ a {
   border-bottom: 1px solid var(--amson-border);
 }
 
+/* Long product names wrap between words (the library breaks anywhere,
+   mid-word), and use the full width (it keeps 100px free on the right for
+   a "Press to select" hint this site turns off). */
+.choices__list--dropdown,
+.choices__list[aria-expanded] {
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+.choices__list--dropdown .choices__item--selectable,
+.choices__list[aria-expanded] .choices__item--selectable {
+  padding-right: 10px;
+}
+
 .choices .choices__list--dropdown .choices__item--selectable.is-highlighted {
   background-color: var(--amson-red);
   color: #fff;
