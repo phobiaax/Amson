@@ -760,6 +760,7 @@ function downloadReportPdf(report) {
     }
     sheet.sections.forEach((section) => drawPdfReportSection(pdf, section, report.sheets.length > 1 && section.heading === sheet.name));
   });
+  drawPdfGeneratedLine(pdf);
   doc.save(`${report.filename}.pdf`);
 }
 
@@ -835,6 +836,16 @@ function drawPdfReportSection(pdf, section, headingIsSheetName) {
   });
   section.totals.forEach((t) => drawRow(t, true));
   pdf.y += 6;
+}
+
+// "Generated <date and time>" under the last table.
+function drawPdfGeneratedLine(pdf) {
+  const { doc, marginX } = pdf;
+  doc.setFontSize(7.5);
+  doc.setFont(undefined, "normal");
+  doc.setTextColor(110);
+  pdfNewPageIfNeeded(pdf, 5);
+  doc.text(`Generated ${formatDateMDY(new Date(), true)}`, marginX, pdf.y);
 }
 
 // Numbers go into Excel as numbers so the main office can add them up.
