@@ -82,6 +82,27 @@
         </div>
       </div>
 
+      <!-- Orders recorded but not yet picked up or delivered (hidden when none) -->
+      <div class="checkout-card p-4 mb-4 d-none" id="pendingReleaseCard">
+        <h2 class="h6 fw-bold mb-1"><i class="bi bi-truck me-1"></i>Waiting for release</h2>
+        <p class="text-muted mb-3" style="font-size:0.85rem;">Wholesale orders recorded but not yet picked up or delivered. Mark each one released when it leaves the store.</p>
+        <div class="table-responsive">
+          <table class="table admin-orders-table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>SI No.</th>
+                <th>Buyer</th>
+                <th>Date</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="pendingReleaseBody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="row g-3" id="wholesaleGrid"></div>
       <p class="text-muted text-center py-5 d-none" id="wholesaleEmpty">No wholesale accounts yet. Click "Add Wholesale Account" to get started.</p>
 
