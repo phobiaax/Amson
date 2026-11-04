@@ -17,6 +17,22 @@
 const CHAT_GUEST_KEY = "amsonChatGuestThread";
 const CHAT_MAX_LENGTH = 500;
 
+// An AI reply that gives a dose or a schedule ("take 2 tablets", "every 4
+// hours", "3 times a day") is never shown - the pharmacist message is,
+// however the question was worded. Product names ("500mg") don't count.
+const CHAT_DOSAGE_PATTERNS = [
+  /\b(take|give|inumin|uminom|painumin)\s+(\d+|one|two|three|four|half|isa|isang|dalawa|dalawang|tatlo|tatlong|kalahati)\b/i,
+  /\b(every|tuwing|kada)\s+\d+(\s*(-|to)\s*\d+)?\s*(hours?|hrs?|oras)\b/i,
+  /\b(\d+|one|two|three|four|isang|dalawang|tatlong|apat na)\s*(times?|x|beses)\s*(a|per|sa isang|kada|isang)?\s*(day|daily|araw)\b/i,
+  /\b(once|twice|thrice)\s+(a\s+day|daily|per\s+day)\b/i,
+  /\b\d+(\.\d+)?\s*(mg|mcg|ml|g)\s*(\/|per|a)\s*(kg|day|dose|araw)\b/i,
+  /\b\d+(\.\d+)?\s*(teaspoons?|tsp|tablespoons?|tbsp|drops|puffs)\b/i,
+];
+
+function chatLooksLikeDosage(text) {
+  return CHAT_DOSAGE_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 // The "Talk to staff" button under an assistant reply.
 const CHAT_STAFF_BUTTON = { type: "button", label: "Talk to staff", q: "I want to talk to staff" };
 
@@ -1231,6 +1247,12 @@ function chatOrderCardHtml(card, myOrders) {
     // ...or an order question worded in a way the word list doesn't know.
     if (reply && reply.orders) {
       await answerOrders(text);
+      return;
+    }
+    if (reply && reply.text && chatLooksLikeDosage(reply.text)) {
+      await addMessage("assistant", CHAT_HEALTH_TEXT[chatLooksFilipino(text) ? "fil" : "en"].none, [
+        { type: "button", label: "Ask our pharmacist", q: "I want to ask the pharmacist" },
+      ]);
       return;
     }
     if (reply && reply.text) {
