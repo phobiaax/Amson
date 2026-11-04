@@ -795,14 +795,14 @@ const receiveBatchReviewConfirmBtn = document.getElementById("receiveBatchReview
 function receiveBatchReviewRowHtml(row = {}) {
   return `
     <tr>
-      <td><input type="text" class="form-control form-control-sm rbr-sku" value="${row.sku || ""}" placeholder="e.g. SKU-0001"></td>
-      <td><input type="text" class="form-control form-control-sm rbr-batchno" value="${row.batchno || ""}"></td>
-      <td><input type="date" class="form-control form-control-sm rbr-expirydate" value="${row.expirydate || ""}"></td>
-      <td><input type="number" min="1" step="1" class="form-control form-control-sm rbr-qty" value="${row.qtyreceived || ""}"></td>
-      <td><input type="number" min="0" step="0.01" class="form-control form-control-sm rbr-unitcost" value="${row.unitcost || ""}"></td>
+      <td><input type="text" class="form-control form-control-sm rbr-sku" value="${escapeHtml(row.sku || "")}" placeholder="e.g. SKU-0001"></td>
+      <td><input type="text" class="form-control form-control-sm rbr-batchno" value="${escapeHtml(row.batchno || "")}"></td>
+      <td><input type="date" class="form-control form-control-sm rbr-expirydate" value="${escapeHtml(row.expirydate || "")}"></td>
+      <td><input type="number" min="1" step="1" class="form-control form-control-sm rbr-qty" value="${escapeHtml(row.qtyreceived || "")}"></td>
+      <td><input type="number" min="0" step="0.01" class="form-control form-control-sm rbr-unitcost" value="${escapeHtml(row.unitcost || "")}"></td>
       <td><input type="text" class="form-control form-control-sm rbr-supplier" value="${escapeHtml(row.suppliername || "")}"></td>
-      <td><input type="text" class="form-control form-control-sm rbr-receiptno" value="${row.receiptno || ""}"></td>
-      <td><input type="date" class="form-control form-control-sm rbr-datereceived" value="${row.datereceived || todayISO()}"></td>
+      <td><input type="text" class="form-control form-control-sm rbr-receiptno" value="${escapeHtml(row.receiptno || "")}"></td>
+      <td><input type="date" class="form-control form-control-sm rbr-datereceived" value="${escapeHtml(row.datereceived || todayISO())}"></td>
       <td><button type="button" class="icon-btn rbr-remove" aria-label="Remove row"><i class="bi bi-trash text-danger"></i></button></td>
     </tr>
   `;
@@ -1156,7 +1156,7 @@ function populateBatchSelectForProduct(batchSelectEl, productId) {
   if (batchSelectEl._choices) {
     batchSelectEl._choices.setChoices(choicesData, "value", "label", true);
   } else {
-    batchSelectEl.innerHTML = choicesData.map((c) => `<option value="${c.value}">${c.label}</option>`).join("");
+    batchSelectEl.innerHTML = choicesData.map((c) => `<option value="${escapeHtml(c.value)}">${escapeHtml(c.label)}</option>`).join("");
     batchSelectEl._choices = makeSearchableSelect(batchSelectEl);
   }
 }

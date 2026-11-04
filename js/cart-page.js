@@ -96,7 +96,7 @@ function cartRowHtml(item) {
   const isSelected = selectedIds.has(item.id);
   return `
     <div class="cart-item-row ${isSelected ? "" : "unselected"}" data-id="${product.id}">
-      <input type="checkbox" class="cart-item-checkbox" data-id="${product.id}" ${isSelected ? "checked" : ""} aria-label="Select ${product.name} for checkout">
+      <input type="checkbox" class="cart-item-checkbox" data-id="${product.id}" ${isSelected ? "checked" : ""} aria-label="Select ${escapeHtml(product.name)} for checkout">
       <div class="cart-item-image" style="${cartItemImageCss(product.imageUrl)}"></div>
       <div class="cart-item-details">
         <h3 class="product-name mb-2">${escapeHtml(product.name)}${rxTag(product)}</h3>
