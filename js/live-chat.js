@@ -17,10 +17,16 @@
 const CHAT_GUEST_KEY = "amsonChatGuestThread";
 const CHAT_MAX_LENGTH = 500;
 
+// The "Talk to staff" button under an assistant reply.
+const CHAT_STAFF_BUTTON = { type: "button", label: "Talk to staff", q: "I want to talk to staff" };
+
+// Asking for a person: the chat goes to staff straight away.
 const CHAT_HANDOFF_WORDS = [
-  "staff", "human", "agent", "real person", "talk to someone", "pharmacist", "tao", "kausap",
-  "complaint", "reklamo", "wrong item", "maling item", "damaged", "sira",
+  "staff", "human", "agent", "real person", "talk to someone", "pharmacist", "tao", "kausap", "makausap",
 ];
+// A problem with an order (wrong or damaged item): the assistant says sorry
+// and offers a "Talk to staff" button - the customer decides.
+const CHAT_COMPLAINT_WORDS = ["complaint", "reklamo", "wrong item", "maling item", "damaged", "sira", "defective", "nasira"];
 
 // Built-in answers for the questions customers ask most (no AI call).
 function chatFaqAnswers() {
@@ -89,9 +95,15 @@ function chatNormalize(text) {
   return ` ${String(text).toLowerCase().replace(/[^a-z0-9ñ ]+/g, " ").replace(/\s+/g, " ")} `;
 }
 
+// Whole words only ("tao" is not "taon").
 function chatWantsStaff(text) {
   const t = chatNormalize(text);
-  return CHAT_HANDOFF_WORDS.some((w) => t.includes(` ${w} `) || t.includes(` ${w}`));
+  return CHAT_HANDOFF_WORDS.some((w) => t.includes(` ${w} `));
+}
+
+function chatHasComplaint(text) {
+  const t = chatNormalize(text);
+  return CHAT_COMPLAINT_WORDS.some((w) => t.includes(` ${w} `));
 }
 
 // A built-in answer only for short, clearly-matching questions; longer or
@@ -287,10 +299,17 @@ function chatLabelVocabulary(max = 300) {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, max).map(([w]) => w);
 }
 
-const CHAT_FILIPINO_WORDS = ["po", "ang", "ng", "ba", "ako", "ko", "sa", "ano", "anong", "pwede", "puwede", "gamot", "mayroon", "meron", "kayo", "para", "yung", "mga", "masakit", "sakit", "ako", "nyo", "niyo", "lang"];
+const CHAT_FILIPINO_WORDS = [
+  "po", "opo", "ang", "ng", "ba", "ako", "ko", "sa", "ano", "anong", "pwede", "puwede", "gamot", "mayroon", "meron", "kayo",
+  "para", "yung", "mga", "masakit", "sakit", "nyo", "niyo", "lang", "kumusta", "kamusta", "salamat", "naman", "yan", "iyan",
+  "ito", "wala", "magkano", "saan", "nasaan", "paano", "kailan", "hindi", "bili", "bibili", "gusto", "talaga", "sana", "din", "rin",
+];
+// Two Filipino words, one in a short message ("kumusta po", "magkano?"), or
+// "po" / "opo" anywhere ("what is the price po").
 function chatLooksFilipino(text) {
   const t = chatNormalize(text);
-  return CHAT_FILIPINO_WORDS.filter((w) => t.includes(` ${w} `)).length >= 2;
+  const hits = CHAT_FILIPINO_WORDS.filter((w) => t.includes(` ${w} `)).length;
+  return hits >= 2 || (hits === 1 && (t.trim().split(" ").length <= 3 || / (po|opo) /.test(t)));
 }
 
 // Filipino for common label words that aren't a symptom group's name.
@@ -417,7 +436,7 @@ function chatSystemInstruction() {
   return [
     "You are the online assistant of Amson Pharmaceuticals, Las Piñas branch, a pharmacy in the Philippines.",
     "Amson also has branches in Parañaque and in Bambang, Manila, but the online store is for the Las Piñas branch only; for the other branches, customers visit them in person.",
-    "Reply in the customer's language (English, Filipino or Taglish), warmly and briefly: at most 80 words, plain text, no markdown.",
+    "Reply in the language of the customer's latest message - the note [Reply in English] or [Reply in Filipino] with the question says which - even if earlier messages were in another language. Filipino may be Taglish. Be warm and brief: at most 80 words, plain text, no markdown.",
     "Store policies: Payment is by QR Ph only; the customer uploads a screenshot and reference number, and staff verify it before the order is confirmed.",
     "Non-prescription orders are delivered by Lalamove; the delivery fee is paid to the rider and is not part of the order total.",
     "Prescription medicines are pick-up only; the customer uploads a prescription photo when ordering and brings the original prescription and a valid ID at pick-up.",
@@ -426,7 +445,7 @@ function chatSystemInstruction() {
     "Never give medical advice, dosages, diagnoses, drug interactions or prescription validation; tell the customer to ask a pharmacist or doctor.",
     "Only mention products, prices and stock from the product list given with the question (it covers the question and the customer's recent messages, so a follow-up like \"can I order that\" still has the product). To order, the customer adds the product to the cart in the shop. If a product isn't listed, say you couldn't find it and suggest searching the shop or asking staff. Never invent prices.",
     "Never ask for passwords, payment details or personal information.",
-    "If the customer needs help with their specific order or payment, has a complaint, asks for a person, or you are not sure, answer briefly and end your reply with the exact text [[STAFF]].",
+    "Only when the customer clearly asks to talk to a person or staff, end your reply with the exact text [[STAFF]]. If you can't answer something, or it needs staff (a problem with a specific order, payment or item), say so briefly and suggest tapping \"Talk to staff\" - don't add [[STAFF]] for that.",
     "If the customer describes symptoms or a health condition, or asks what medicine to take or buy for one, reply with only the exact text [[HEALTH]] and nothing else.",
     "If the customer asks about their own order (where it is, its status, tracking, the rider, what they bought), reply with only the exact text [[ORDERS]] and nothing else.",
   ].join(" ");
@@ -588,7 +607,7 @@ async function chatAiReply(history, question) {
     role: "user",
     parts: [
       {
-        text: `${question}\n\n[Product list for this question: ${products.length ? products.join("; ") : "no matching products found"}]`,
+        text: `${question}\n\n[Reply in ${chatLooksFilipino(question) ? "Filipino" : "English"}]\n[Product list for this question: ${products.length ? products.join("; ") : "no matching products found"}]`,
       },
     ],
   });
@@ -893,10 +912,17 @@ function chatOrderCardHtml(card, myOrders) {
       thinking && last && last.sender === "customer"
         ? '<div class="chat-msg chat-msg-assistant chat-typing" role="status" aria-label="The assistant is typing"><span></span><span></span><span></span></div>'
         : "";
+    // Messages sent while waiting for staff get no assistant reply: say so
+    // (on screen only, not saved).
+    const waiting =
+      thread && thread.status === "waiting_staff" && last && last.sender === "customer"
+        ? '<div class="chat-msg chat-msg-system">Our staff will reply here as soon as they can during store hours. Tap "Back to assistant" to keep chatting with the assistant meanwhile.</div>'
+        : "";
     messagesEl.innerHTML =
       welcome +
       messages.map((m) => chatMessageHtml(m, myOrders)).join("") +
-      typing;
+      typing +
+      waiting;
     messagesEl.scrollTop = messagesEl.scrollHeight;
     // Order cards need the customer's orders; load them once, then redraw.
     if (myOrders === null && customerId && messages.some((m) => (m.cards || []).some((c) => c.type === "order"))) {
@@ -985,7 +1011,7 @@ function chatOrderCardHtml(card, myOrders) {
       await addMessage("assistant", "You don't have any orders yet. Browse the shop to place your first one.");
       return;
     }
-    const staffButton = { type: "button", label: "Talk to staff", q: "I want to talk to staff" };
+    const staffButton = CHAT_STAFF_BUTTON;
     if (picked.length > 1) {
       const held = picked.some((o) => chatOrderView(o).issue);
       await addMessage(
@@ -1120,6 +1146,18 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
 
+    // Wrong or damaged item: say sorry and offer staff - not a forced handover.
+    if (chatHasComplaint(text)) {
+      await addMessage(
+        "assistant",
+        chatLooksFilipino(text)
+          ? "Pasensya na po sa abala. Ang staff po namin ang nag-aasikaso ng maling o sirang item - i-tap lang ang \"Talk to staff\" sa ibaba at tutulungan nila kayo."
+          : "Sorry about that. Our staff handle wrong or damaged items - tap \"Talk to staff\" below and they'll sort it out for you.",
+        [CHAT_STAFF_BUTTON]
+      );
+      return;
+    }
+
     if (chatWantsOrders(text)) {
       await answerOrders(text);
       return;
@@ -1147,7 +1185,13 @@ function chatOrderCardHtml(card, myOrders) {
       } catch (error) {}
     }
 
-    const earlier = messages.filter((m) => m.sender !== "system");
+    // Only what was said since the last handover / "back to the assistant"
+    // (system messages mark those), so an old topic doesn't come back.
+    let lastSystem = -1;
+    messages.forEach((m, i) => {
+      if (m.sender === "system") lastSystem = i;
+    });
+    const earlier = messages.slice(lastSystem + 1);
     // The message just sent is passed separately as the question.
     const last = earlier[earlier.length - 1];
     if (last && last.sender === "customer" && last.text === text) earlier.pop();
@@ -1165,7 +1209,10 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
     if (reply && reply.text) {
-      await addMessage("assistant", reply.text, (reply.products || []).map((p) => ({ type: "product", id: p.id })));
+      // A reply that suggests staff gets the button for it.
+      const cards = (reply.products || []).map((p) => ({ type: "product", id: p.id }));
+      if (!reply.handoff && /staff/i.test(reply.text)) cards.push(CHAT_STAFF_BUTTON);
+      await addMessage("assistant", reply.text, cards);
       if (reply.handoff) await handOffToStaff("assistant_unsure");
       return;
     }
