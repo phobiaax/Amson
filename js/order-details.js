@@ -121,7 +121,7 @@ function renderPaymentIssue(order) {
       `(${formatPeso(issue.outstandingBalance)} short). ${issue.note || "Please send the remaining balance and upload a screenshot of the new payment below."}`;
   } else if (issue.type === "payment_not_received") {
     paymentIssueTitle.textContent = "Payment Issue: Payment Not Received";
-    paymentIssueDetail.textContent = issue.note || "We have not received your payment. Please upload proof of a completed QR PH transaction below.";
+    paymentIssueDetail.textContent = issue.note || "We have not received your payment. Please upload proof of a completed QR Ph transaction below.";
   } else if (rxIssue) {
     paymentIssueTitle.textContent = `Prescription Not Accepted: ${issue.reasonLabel || "Please upload a valid prescription"}`;
     paymentIssueDetail.textContent = issue.note || "Please upload a clear photo of a valid prescription below.";

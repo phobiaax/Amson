@@ -8,19 +8,19 @@ const HOLD_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 const PAYMENT_ISSUE_TYPES = {
   invalid_payment: {
     label: "Invalid payment",
-    banner: "Customer will be notified to re-upload a valid QR PH payment screenshot.",
+    banner: "Customer will be notified to re-upload a valid QR Ph payment screenshot.",
     confirmLabel: "Confirm & place on hold",
     mode: "hold",
   },
   underpayment: {
     label: "Underpayment",
-    banner: "Customer will be notified to top up the remaining balance via QR PH before this order can proceed.",
+    banner: "Customer will be notified to top up the remaining balance via QR Ph before this order can proceed.",
     confirmLabel: "Confirm & place on hold",
     mode: "hold",
   },
   payment_not_received: {
     label: "Payment Not Received",
-    banner: "Customer will be notified that no matching payment was received and asked to upload proof of a completed QR PH transaction.",
+    banner: "Customer will be notified that no matching payment was received and asked to upload proof of a completed QR Ph transaction.",
     confirmLabel: "Confirm & place on hold",
     mode: "hold",
   },
@@ -100,15 +100,15 @@ function orderItemsText(order) {
 }
 
 const REJECTION_REASON_NOTES = {
-  unclear_screenshot: "Please re-upload a clear screenshot showing completed QR PH transaction.",
+  unclear_screenshot: "Please re-upload a clear screenshot showing completed QR Ph transaction.",
   incomplete_screenshot:
-    "Please re-upload a screenshot showing the complete QR PH transaction, including the reference number and amount.",
+    "Please re-upload a screenshot showing the complete QR Ph transaction, including the reference number and amount.",
   payment_not_received:
-    "We have not received your payment. Please double-check and re-upload proof of a completed QR PH transaction.",
+    "We have not received your payment. Please double-check and re-upload proof of a completed QR Ph transaction.",
   other: "",
 };
 
-const UNDERPAYMENT_NOTE = "Please send the remaining balance to our QR PH and re-upload your screenshot.";
+const UNDERPAYMENT_NOTE = "Please send the remaining balance to our QR Ph and re-upload your screenshot.";
 const OVERPAYMENT_NOTE = "We've noted an excess payment. This will be applied automatically to your next order.";
 
 let allOrders = [];
