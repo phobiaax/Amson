@@ -166,11 +166,6 @@ async function buildDailySalesReport(start, end) {
     title: "AMSON PHARMACEUTICALS",
     subtitle: rangeSubtitle(start, end),
     filename: `daily-sales-${localISODate(start)}`,
-    notes: [
-      "All sales are shown as VAT-exempt, as in the branch's current report. Discounts and pay-in/pay-out are not recorded in the system.",
-      "Retail = walk-in (POS) and online orders; online orders count on the day their payment was confirmed. Voided sales are excluded.",
-      "Wholesale exchanges count on the day of the exchange: the returned items come off, the replacement is added, and the total is the price difference paid.",
-    ],
     sheets: [
       {
         name: "Daily Sales",
@@ -354,7 +349,6 @@ async function buildCustomerFileReport(start, end) {
     title: "AMSON PHARMACEUTICALS - Customer Report",
     subtitle: rangeSubtitle(start, end),
     filename: `customer-file-${localISODate(start)}`,
-    notes: ["Every line sold, per customer, with its Sales Invoice number, batch and expiry. Walk-in sales without a name are grouped as Walk-in."],
     sheets: [{ name: "Customer Report", sections: [{ heading: "", columns, rows, totals: [] }] }],
   };
 }
@@ -381,8 +375,8 @@ async function buildMonthlyInventoryReport(year, month) {
   const lines = inventoryLines(batchSnap, batchesById, recon, supplierOf);
   const sheets = categorySheets(lines);
   const monthName = new Date(year, month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  const { sheet: expiredSheetData, expired, expiredProducts, expiredTotal } = expiredSheet(batchSnap, year, month, monthName, supplierOf);
-  if (expiredSheetData) sheets.push(expiredSheetData);
+  const expired = expiredSheet(batchSnap, year, month, monthName, supplierOf);
+  if (expired) sheets.push(expired);
 
   return {
     title: `${monthName.toUpperCase()} END INVENTORY`,
@@ -390,12 +384,6 @@ async function buildMonthlyInventoryReport(year, month) {
       ? `From stock count ${recon.rcnNumber || ""} finalized ${formatDateMDY(recon.finalizedAt, true)} by ${recon.finalizedBy || "-"}`
       : `No finalized stock count for ${monthName}: POS stock is as of ${formatDateMDY(new Date(), true)} and the Physical column is blank`,
     filename: `monthly-inventory-${period}`,
-    notes: [
-      "One sheet per category, one row per batch. Prices are the current product prices.",
-      expired.length
-        ? `${expired.length} batch${expired.length === 1 ? "" : "es"} of ${expiredProducts} product${expiredProducts === 1 ? "" : "s"} expired in ${monthName} (${reportNumber(expiredTotal, 0)} units) - see the EXPIRED sheet. Units are what was written off as Bad Order, or what is still in stock.`
-        : `No batches expired in ${monthName}.`,
-    ],
     sheets,
   };
 }
@@ -467,7 +455,7 @@ function categorySheets(lines) {
 
 // The EXPIRED sheet: batches whose expiry date falls in the month, whatever
 // happened to them (written off as Bad Order beforehand, still on hand, or
-// sold out). Also returns the counts for the report's note.
+// sold out). None when nothing expired that month.
 function expiredSheet(batchSnap, year, month, monthName, supplierOf) {
   const monthStart = new Date(year, month, 1);
   const monthEnd = new Date(year, month + 1, 1);
@@ -500,7 +488,7 @@ function expiredSheet(batchSnap, year, month, monthName, supplierOf) {
       },
     ],
   };
-  return { sheet: expired.length ? sheet : null, expired, expiredProducts, expiredTotal };
+  return expired.length ? sheet : null;
 }
 
 async function buildSupplierPurchasesReport(year, month) {
@@ -566,7 +554,6 @@ async function buildSupplierPurchasesReport(year, month) {
     title: "AMSON PHARMACEUTICALS - Supplier Purchases",
     subtitle: monthName,
     filename: `supplier-purchases-${localISODate(start).slice(0, 7)}`,
-    notes: ["Stock received during the month, per supplier. Price is the unit cost entered at receiving; blank when it wasn't entered."],
     // One sheet: the branch sells medicines and medical supplies only (the
     // old report's separate grocery sheet isn't needed).
     sheets: [sheetFor("SUPPLIER DRUGSTORE", received)],
@@ -600,7 +587,6 @@ async function buildPullOutReport(start, end) {
     title: "AMSON PHARMACEUTICALS - Pull-Out Report",
     subtitle: rangeSubtitle(start, end),
     filename: `pull-out-${localISODate(start)}`,
-    notes: ["Stock removed from inventory (expired, damaged or unsellable). Cost is the batch's unit cost, or the product's costing price."],
     sheets: [
       {
         name: "Pull-Out",
@@ -656,7 +642,6 @@ async function buildReturnsExchangeReport(start, end) {
     title: "AMSON PHARMACEUTICALS - Return / Exchange Report",
     subtitle: rangeSubtitle(start, end),
     filename: `returns-exchanges-${localISODate(start)}`,
-    notes: ["Items returned by walk-in customers and wholesale buyers, and what they took in exchange. No refunds are given; the customer pays any price difference."],
     sheets: [
       {
         name: "Return to POS",
@@ -698,7 +683,6 @@ async function buildPoDiscrepancyReport(start, end) {
     title: "AMSON PHARMACEUTICALS - Purchase Order Discrepancies",
     subtitle: rangeSubtitle(start, end),
     filename: `po-discrepancy-${localISODate(start)}`,
-    notes: ["Purchase orders received during the period whose delivered quantity differed from the order."],
     sheets: [
       {
         name: "PO Discrepancies",
@@ -752,7 +736,6 @@ function renderReportPreview(report) {
     ${report.sheets
       .map((sheet) => `${report.sheets.length > 1 ? `<h3 class="h6 fw-bold mt-4 border-bottom pb-1">${escapeHtml(sheet.name)}</h3>` : ""}${sheet.sections.map((sec) => sectionHtml(sec, report.sheets.length > 1 ? sheet.name : null)).join("")}`)
       .join("")}
-    ${(report.notes || []).map((n) => `<p class="text-muted mb-1" style="font-size:0.78rem;">${escapeHtml(n)}</p>`).join("")}
   `;
 }
 
@@ -777,7 +760,6 @@ function downloadReportPdf(report) {
     }
     sheet.sections.forEach((section) => drawPdfReportSection(pdf, section, report.sheets.length > 1 && section.heading === sheet.name));
   });
-  drawPdfReportNotes(pdf, report);
   doc.save(`${report.filename}.pdf`);
 }
 
@@ -855,19 +837,6 @@ function drawPdfReportSection(pdf, section, headingIsSheetName) {
   pdf.y += 6;
 }
 
-// The notes and the "Generated" line under the last table.
-function drawPdfReportNotes(pdf, report) {
-  const { doc, marginX, pageWidth } = pdf;
-  doc.setFontSize(7.5);
-  doc.setFont(undefined, "normal");
-  doc.setTextColor(110);
-  (report.notes || []).concat([`Generated ${formatDateMDY(new Date(), true)}`]).forEach((n) => {
-    pdfNewPageIfNeeded(pdf, 5);
-    doc.text(doc.splitTextToSize(n, pageWidth), marginX, pdf.y);
-    pdf.y += 4.5;
-  });
-}
-
 // Numbers go into Excel as numbers so the main office can add them up.
 function excelValue(v) {
   if (typeof v === "number") return v;
@@ -901,7 +870,6 @@ function downloadReportExcel(report) {
       section.totals.forEach((t) => aoa.push(t.map(excelValue)));
       aoa.push([]);
     });
-    (report.notes || []).forEach((n) => aoa.push([n]));
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws["!cols"] = Array.from({ length: maxCols }, (_, i) => ({ wch: i === 0 ? 34 : 16 }));
     let name = (sheet.name || "Report").replace(/[\\/?*[\]:]/g, " ").slice(0, 31);
