@@ -119,7 +119,7 @@ function renderCategorySelect() {
     categorySelectChoices.setChoices(choicesData, "value", "label", true);
   } else {
     productCategorySelect.innerHTML = choicesData
-      .map((c) => `<option value="${c.value}">${c.label}</option>`)
+      .map((c) => `<option value="${escapeHtml(c.value)}">${escapeHtml(c.label)}</option>`)
       .join("");
     categorySelectChoices = new Choices(productCategorySelect, {
       searchEnabled: true,
@@ -195,15 +195,15 @@ function renderProductsTable() {
 function renderProductRow(product) {
   return `
     <tr>
-      <td class="fw-medium">${product.sku || "-"}</td>
+      <td class="fw-medium">${escapeHtml(product.sku || "-")}</td>
       <td>
         <div class="d-flex align-items-center gap-2">
-          <div class="product-thumb" ${product.imageUrl ? `style="background-image:url('${cloudinaryImageUrl(product.imageUrl, 120)}');"` : ""}></div>
+          <div class="product-thumb" ${product.imageUrl ? `style="background-image:url('${escapeHtml(cloudinaryImageUrl(product.imageUrl, 120))}');"` : ""}></div>
           <span>${escapeHtml(product.name)}</span>
         </div>
       </td>
       <td>${escapeHtml(product.brand || "-")}</td>
-      <td>${CATEGORY_LABELS[product.category] || "-"}</td>
+      <td>${escapeHtml(CATEGORY_LABELS[product.category] || "-")}</td>
       <td class="product-price">${formatPeso(product.retailPrice)}</td>
       <td>${product.rxRequired ? '<span class="badge rounded-pill text-bg-danger">Yes</span>' : '<span class="badge rounded-pill text-bg-light text-dark">No</span>'}</td>
       <td>
