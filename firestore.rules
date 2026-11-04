@@ -140,6 +140,15 @@ service cloud.firestore {
     }
 
     // ---- retail orders ----
+    // Proof-of-payment and prescription photos are uploaded to the shop's
+    // own Cloudinary account; a link anywhere else is refused, so staff
+    // never review an image the customer didn't upload through the site.
+    // Empty (null) is fine: no file, e.g. an order paid by store credit.
+    function photoLinkOk(data, field) {
+      return !(field in data) || data[field] == null ||
+        (data[field] is string && data[field].matches("https://res[.]cloudinary[.]com/wb6wxped/.+"));
+    }
+
     match /orders/{orderId} {
       allow read: if isSignedIn() && resource.data.customerId == myUid();
       allow read: if isOpsStaff();
@@ -157,6 +166,8 @@ service cloud.firestore {
         request.resource.data.status == "placed" &&
         request.resource.data.get("total", 0) >= 0 &&
         !request.resource.data.keys().hasAny(["paymentIssue", "invoiceNo", "unappliedCredit", "paymentOverage", "verification", "closedReason"]) &&
+        photoLinkOk(request.resource.data, "proofOfPaymentUrl") &&
+        photoLinkOk(request.resource.data, "prescriptionPhotoUrl") &&
         (request.resource.data.get("creditApplied", 0) == 0 ||
          (request.resource.data.creditApplied > 0 &&
           getAfter(/databases/$(database)/documents/users/$(myUid())).data.get("lastCreditOrderId", null) == orderId &&
@@ -190,6 +201,11 @@ service cloud.firestore {
          request.resource.data.get("paymentIssue", null) != null &&
          request.resource.data.diff(resource.data).affectedKeys()
            .hasOnly(["proofOfPaymentUrl", "paymentReferenceNumber", "paymentIssue", "prescriptionPhotoUrl"]) &&
+         // Only the photo being replaced is checked.
+         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["proofOfPaymentUrl"]) ||
+          photoLinkOk(request.resource.data, "proofOfPaymentUrl")) &&
+         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["prescriptionPhotoUrl"]) ||
+          photoLinkOk(request.resource.data, "prescriptionPhotoUrl")) &&
          // Within the hold record the customer may only mark it resolved
          // (and clear its deadline) - never change its type or amounts.
          request.resource.data.paymentIssue.diff(resource.data.paymentIssue).affectedKeys()
