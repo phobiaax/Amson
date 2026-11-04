@@ -2395,14 +2395,14 @@ async function logWalkinExchange({ returnQty, replacement, restock, reason }, { 
 async function openWalkinExchangeDialog(sale, processedBy) {
   if (!sale) return null;
   if (sale.voided) {
-    await showAppAlert("This sale was voided, so nothing on it can be returned.");
+    await showAppAlert(`SI No. ${sale.invoiceNo || "-"} was voided, so nothing on it can be returned.`);
     return null;
   }
   const lines = (sale.items || [])
     .map((it, idx) => ({ idx, it, left: (it.qty || 0) - (it.returnedQty || 0) }))
     .filter((l) => l.left > 0);
   if (!lines.length) {
-    await showAppAlert("Every item on this sale has already been returned or voided.");
+    await showAppAlert(`Every item on SI No. ${sale.invoiceNo || "-"} has already been returned or voided.`);
     return null;
   }
 

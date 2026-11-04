@@ -75,7 +75,9 @@ document.getElementById("posReturnExchangeBtn").addEventListener("click", async 
       return;
     }
     const doc = snap.docs[0];
-    openPosSaleReceipt({ id: doc.id, ...doc.data() }, loadTodaySales);
+    // Straight to the Return / Exchange form (it says so if the sale was
+    // voided or everything on it was already returned).
+    exchangeWalkinSale({ id: doc.id, ...doc.data() }, loadTodaySales);
   } catch (error) {
     await showAppAlert("Couldn't look up that sale. Please try again.");
   }
@@ -445,6 +447,18 @@ function listenToTodaySales() {
 }
 
 // View/print a past sale, and void it if this staff member's role allows.
+// Return / Exchange on a walk-in sale, then the product list and today's
+// sales are refreshed (the returned and replacement items changed stock).
+async function exchangeWalkinSale(sale, afterExchange) {
+  const stockVersion = liveVersion("stockBatches");
+  const exchange = await openWalkinExchangeDialog(sale, currentCashierName);
+  if (!exchange) return;
+  catalogLoadPromise = null;
+  await loadCatalogCache({ afterStockChange: stockVersion });
+  populatePosProductSelect();
+  if (afterExchange) afterExchange();
+}
+
 function openPosSaleReceipt(sale, afterVoid) {
   if (!sale) return;
   showSaleReceipt({
@@ -462,18 +476,7 @@ function openPosSaleReceipt(sale, afterVoid) {
     title: "Sale Receipt",
     voidInfo: voidSummary(sale),
     partialVoidInfo: partialVoidSummary(sale),
-    onExchange:
-      !sale.voided && roleCanVoidSales(currentStaffRole)
-        ? async () => {
-            const stockVersion = liveVersion("stockBatches");
-            const exchange = await openWalkinExchangeDialog(sale, currentCashierName);
-            if (!exchange) return;
-            catalogLoadPromise = null;
-            await loadCatalogCache({ afterStockChange: stockVersion });
-            populatePosProductSelect();
-            if (afterVoid) afterVoid();
-          }
-        : null,
+    onExchange: !sale.voided && roleCanVoidSales(currentStaffRole) ? () => exchangeWalkinSale(sale, afterVoid) : null,
     onVoid:
       !sale.voided && roleCanVoidSales(currentStaffRole)
         ? async () => {
