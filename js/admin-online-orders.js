@@ -522,6 +522,34 @@ function selectVerificationItem(id) {
   renderVerificationQueue();
 }
 
+// The database can't check an order's prices (the customer's browser sends
+// them), so flag any that don't match the catalog, or don't add up.
+function orderPriceProblems(order) {
+  const problems = [];
+  // Skipped if the catalog couldn't load, so it can't flag every item.
+  (SAMPLE_PRODUCTS.length ? order.items || [] : []).forEach((item) => {
+    const product = getProductById(item.id);
+    if (!product) problems.push(`${item.name || item.id} is no longer in the catalog`);
+    else if (Math.abs((item.price || 0) - (product.price || 0)) > 0.001) problems.push(`${product.name} is ${formatPeso(item.price || 0)} on this order but ${formatPeso(product.price || 0)} in the catalog`);
+  });
+  const itemsTotal = (order.items || []).reduce((n, i) => n + (i.price || 0) * (i.qty || 0), 0);
+  if (Math.abs(itemsTotal - ((order.total || 0) + (order.creditApplied || 0))) > 0.001) {
+    problems.push(`the items add up to ${formatPeso(itemsTotal)}, not the order total`);
+  }
+  return problems;
+}
+
+// Before approving: if the prices don't check out, staff must confirm.
+// Resolves true to go ahead.
+async function confirmPriceProblems(order) {
+  const problems = orderPriceProblems(order);
+  if (!problems.length) return true;
+  return showAppConfirm(
+    `This order's prices don't match the catalog:\n\n${problems.map((p) => `- ${p}`).join("\n")}\n\nOnly approve if the payment received covers the correct amount.`,
+    { title: "Check the prices", confirmLabel: "Approve anyway", cancelLabel: "Cancel" }
+  );
+}
+
 function renderReviewPanel(order) {
   verificationReviewEmpty.classList.add("d-none");
   verificationReviewPanel.classList.remove("d-none");
@@ -554,20 +582,8 @@ function renderReviewPanel(order) {
   document.getElementById("reviewSubmittedAt").textContent = formatOrderDateTime(order.createdAt);
   reviewReferenceNumber.textContent = order.paymentReferenceNumber || "-";
 
-  // The database can't check an order's prices, so flag any that don't
-  // match the catalog (or don't add up) before staff approve it.
   const priceWarning = document.getElementById("reviewPriceWarning");
-  const problems = [];
-  // Skipped if the catalog couldn't load, so it can't flag every item.
-  (SAMPLE_PRODUCTS.length ? order.items || [] : []).forEach((item) => {
-    const product = getProductById(item.id);
-    if (!product) problems.push(`${item.name || item.id} is no longer in the catalog`);
-    else if (Math.abs((item.price || 0) - (product.price || 0)) > 0.001) problems.push(`${product.name} is ${formatPeso(item.price || 0)} on this order but ${formatPeso(product.price || 0)} in the catalog`);
-  });
-  const itemsTotal = (order.items || []).reduce((n, i) => n + (i.price || 0) * (i.qty || 0), 0);
-  if (Math.abs(itemsTotal - ((order.total || 0) + (order.creditApplied || 0))) > 0.001) {
-    problems.push(`the items add up to ${formatPeso(itemsTotal)}, not the order total`);
-  }
+  const problems = orderPriceProblems(order);
   priceWarning.textContent = problems.length ? `Check before approving: ${problems.join("; ")}.` : "";
   priceWarning.classList.toggle("d-none", problems.length === 0);
 
@@ -725,6 +741,7 @@ approvePaymentBtn.addEventListener("click", async () => {
   reviewAlert.classList.add("d-none");
 
   try {
+    if (!(await confirmPriceProblems(order))) return;
     // Out of stock: warn first. "hold" goes through the same out-of-stock
     // hold as below.
     const stockCheck = await warnIfOrderCantBeFulfilled(order);
@@ -1004,6 +1021,7 @@ async function placeOrderOnPaymentHold(order, note) {
 // Payment Issue dialog, Overpayment: the order is approved like Approve
 // Payment, and the excess becomes the customer's store credit.
 async function approveOverpaidOrder(order, note) {
+  if (!(await confirmPriceProblems(order))) return;
   const stockCheck = await warnIfOrderCantBeFulfilled(order);
   if (stockCheck === "cancel") return;
   if (stockCheck === "hold") throw new Error("Not enough stock available to fulfill this quantity.");
