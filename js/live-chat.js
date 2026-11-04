@@ -20,13 +20,19 @@ const CHAT_MAX_LENGTH = 500;
 // The "Talk to staff" button under an assistant reply.
 const CHAT_STAFF_BUTTON = { type: "button", label: "Talk to staff", q: "I want to talk to staff" };
 
-// Asking for a person: the chat goes to staff straight away.
-const CHAT_HANDOFF_WORDS = [
-  "staff", "human", "agent", "real person", "talk to someone", "pharmacist", "tao", "kausap", "makausap",
+// Asking for a person: the chat goes to staff straight away. Phrases, not
+// single words - "the staff told me..." isn't asking for staff.
+const CHAT_HANDOFF_PHRASES = [
+  "talk to staff", "talk to a staff", "talk to your staff", "talk to the staff", "speak to staff", "speak to a staff",
+  "contact staff", "staff please", "real person", "talk to someone", "talk to a person", "talk to a human", "speak to a human",
+  "human agent", "live agent", "customer service", "ask the pharmacist", "ask a pharmacist", "ask your pharmacist",
+  "talk to the pharmacist", "talk to a pharmacist", "kausap", "makausap", "gusto ko ng tao", "may tao ba",
 ];
+// ...or a message that is just one of these words.
+const CHAT_HANDOFF_ALONE = ["staff", "human", "agent", "person", "pharmacist", "tao"];
 // A problem with an order (wrong or damaged item): the assistant says sorry
 // and offers a "Talk to staff" button - the customer decides.
-const CHAT_COMPLAINT_WORDS = ["complaint", "reklamo", "wrong item", "maling item", "damaged", "sira", "defective", "nasira"];
+const CHAT_COMPLAINT_WORDS = ["complaint", "reklamo", "wrong item", "maling item", "damaged", "sira", "defective", "nasira", "rude", "bastos"];
 
 // Built-in answers for the questions customers ask most (no AI call).
 function chatFaqAnswers() {
@@ -98,7 +104,16 @@ function chatNormalize(text) {
 // Whole words only ("tao" is not "taon").
 function chatWantsStaff(text) {
   const t = chatNormalize(text);
-  return CHAT_HANDOFF_WORDS.some((w) => t.includes(` ${w} `));
+  return CHAT_HANDOFF_PHRASES.some((w) => t.includes(` ${w} `)) || CHAT_HANDOFF_ALONE.includes(t.trim());
+}
+
+// Someone else's details ("the address of the last customer", "your staff's
+// emails"): never shared. Not when it's about the customer's own ("my").
+function chatAsksOthersData(text) {
+  const t = chatNormalize(text);
+  const who = / (customer|customers|someone|somebody|other people|another person|other person|staff|staffs|employee|employees|cashier|cashiers|admin|owner|ibang tao|ibang customer|nila|nina) /;
+  const what = / (address|addresses|email|emails|phone|phones|number|numbers|orders|order|details|info|information|password|passwords|account|accounts) /;
+  return who.test(t) && what.test(t) && !/ (my|mine|ko|akin|namin) /.test(t);
 }
 
 function chatHasComplaint(text) {
@@ -444,10 +459,10 @@ function chatSystemInstruction() {
     "Medicines within 6 months of expiry are not sold online. Wholesale buyers are served directly by the branch.",
     "Never give medical advice, dosages, diagnoses, drug interactions or prescription validation; tell the customer to ask a pharmacist or doctor.",
     "Only mention products, prices and stock from the product list given with the question (it covers the question and the customer's recent messages, so a follow-up like \"can I order that\" still has the product). To order, the customer adds the product to the cart in the shop. If a product isn't listed, say you couldn't find it and suggest searching the shop or asking staff. Never invent prices.",
-    "Never ask for passwords, payment details or personal information.",
+    "Never ask for passwords, payment details or personal information. Never share or guess other customers' or staff members' names, orders, addresses, emails or phone numbers - say you can only help with the customer's own orders and account.",
     "Only when the customer clearly asks to talk to a person or staff, end your reply with the exact text [[STAFF]]. If you can't answer something, or it needs staff (a problem with a specific order, payment or item), say so briefly and suggest tapping \"Talk to staff\" - don't add [[STAFF]] for that.",
     "If the customer describes symptoms or a health condition, or asks what medicine to take or buy for one, reply with only the exact text [[HEALTH]] and nothing else.",
-    "If the customer asks about their own order (where it is, its status, tracking, the rider, what they bought), reply with only the exact text [[ORDERS]] and nothing else.",
+    "If the customer asks about their OWN order (where it is, its status, tracking, the rider, what they bought), reply with only the exact text [[ORDERS]] and nothing else. If they ask about someone else's orders, don't use [[ORDERS]] - say you can only show their own orders.",
   ].join(" ");
 }
 
@@ -1143,6 +1158,16 @@ function chatOrderCardHtml(card, myOrders) {
 
     if (chatWantsStaff(text)) {
       await handOffToStaff("customer_asked");
+      return;
+    }
+
+    if (chatAsksOthersData(text)) {
+      await addMessage(
+        "assistant",
+        chatLooksFilipino(text)
+          ? "Pasensya na po, hindi namin maibabahagi ang personal na impormasyon ng ibang customer o ng aming staff. Kung tungkol sa sarili ninyong order o account, ikalulugod kong tumulong."
+          : "Sorry, I can't share other customers' or staff members' personal information. I'm happy to help with your own orders or account."
+      );
       return;
     }
 
