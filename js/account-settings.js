@@ -372,7 +372,7 @@ function renderTrustedDevices(devices) {
     list.innerHTML = '<li class="text-muted">No devices yet.</li>';
     return;
   }
-  const thisId = typeof getDeviceId === "function" ? getDeviceId() : null;
+  const thisId = typeof getOrCreateDeviceId === "function" ? getOrCreateDeviceId() : null;
   list.innerHTML = devices
     .map((d) => `<li class="py-1 border-bottom"><i class="bi bi-laptop me-2"></i>${escapeHtml(d.label || "Device")}${d.id === thisId ? ' <span class="badge rounded-pill text-bg-success ms-1">This device</span>' : ""}<span class="text-muted ms-2" style="font-size:0.78rem;">added ${d.addedAt ? formatDateMDY(d.addedAt) : ""}</span></li>`)
     .join("");

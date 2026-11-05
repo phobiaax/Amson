@@ -95,7 +95,7 @@ document.addEventListener("admin:ready", loadWholesaleAccounts);
 // releaseStatus and count as released.
 let pendingReleaseByAccount = {};
 let pendingReleaseOrders = [];
-async function loadPendingReleaseCounts() {
+async function loadPendingReleases() {
   pendingReleaseByAccount = {};
   pendingReleaseOrders = [];
   try {
@@ -145,7 +145,7 @@ async function loadWholesaleAccounts() {
     await loadCatalogCache();
     const snapshot = await db.collection("wholesaleAccounts").get();
     allWholesaleAccounts = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    await loadPendingReleaseCounts();
+    await loadPendingReleases();
     renderPendingReleasePanel();
     renderWholesaleGrid();
     // From the bell's "waiting to be picked up or delivered": show the list.

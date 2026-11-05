@@ -19,7 +19,8 @@ const REQUIRE_DEVICE_CODE = false;
 const DEVICE_ID_KEY = "amsonDeviceId";
 const DEVICE_PENDING_KEY = "amsonDeviceCheckPending";
 
-function getDeviceId() {
+// This browser's random device ID, made and saved the first time.
+function getOrCreateDeviceId() {
   let id = null;
   try {
     id = localStorage.getItem(DEVICE_ID_KEY);
@@ -42,7 +43,7 @@ function isDeviceTrusted(userData) {
   try {
     if (sessionStorage.getItem(DEVICE_PENDING_KEY)) return false;
   } catch (error) {}
-  return (userData.trustedDevices || []).some((d) => d && d.id === getDeviceId());
+  return (userData.trustedDevices || []).some((d) => d && d.id === getOrCreateDeviceId());
 }
 
 // A short readable label for the device list, e.g. "Chrome on Windows".
@@ -55,7 +56,7 @@ function deviceLabel() {
 
 async function trustThisDevice(uid) {
   await db.collection("users").doc(uid).update({
-    trustedDevices: firebase.firestore.FieldValue.arrayUnion({ id: getDeviceId(), label: deviceLabel(), addedAt: new Date().toISOString() }),
+    trustedDevices: firebase.firestore.FieldValue.arrayUnion({ id: getOrCreateDeviceId(), label: deviceLabel(), addedAt: new Date().toISOString() }),
   });
   try {
     sessionStorage.removeItem(DEVICE_PENDING_KEY);
@@ -64,7 +65,7 @@ async function trustThisDevice(uid) {
 
 // Account Settings: forget every device except this one.
 async function forgetOtherDevices(uid, userData) {
-  const keep = (userData.trustedDevices || []).filter((d) => d && d.id === getDeviceId());
+  const keep = (userData.trustedDevices || []).filter((d) => d && d.id === getOrCreateDeviceId());
   await db.collection("users").doc(uid).update({ trustedDevices: keep });
   return keep;
 }

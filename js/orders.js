@@ -301,12 +301,9 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
   return order;
 }
 
+// MM/DD/YYYY - the same format as formatDateMDY, which does the work.
 function formatOrderDate(timestamp) {
-  if (!timestamp) return "";
-  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${month}/${day}/${date.getFullYear()}`;
+  return formatDateMDY(timestamp);
 }
 
 function formatOrderDateTime(timestamp) {
