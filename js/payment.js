@@ -98,7 +98,7 @@ function updateSubmitButtonState() {
   submitOrderBtn.addEventListener("click", submitOrder);
 })();
 
-// ---- 1. whats being ordered and the total ----
+// ---- whats being ordered and the total ----
 function showOrderSummary() {
   requiresPrescription = pendingOrder.cart.some((item) => {
     const product = getProductById(item.id);
@@ -125,7 +125,7 @@ function cartTotalNow() {
   return total;
 }
 
-// ---- 2. payment screenshot, prescription photo and reference no. ----
+// ---- payment screenshot, prescription photo and reference no. ----
 function setUpUploads() {
   referenceNumberInput.addEventListener("input", () => {
     referenceNumberErrorText.classList.add("d-none");
@@ -196,7 +196,7 @@ async function submitOrder() {
   await placeOrder(file, prescriptionFile, referenceNumber);
 }
 
-// ---- 3. anything missing? ----
+// ---- anything missing? ----
 // true when the form is complete
 function checkPaymentForm(file, prescriptionFile, referenceNumber) {
   const problems = [];
@@ -222,7 +222,7 @@ function checkPaymentForm(file, prescriptionFile, referenceNumber) {
   return true;
 }
 
-// ---- 4. last stock and price check ----
+// ---- last stock and price check ----
 async function stockAndPricesStillOk(prescriptionFile) {
   clearCatalogCache();
   await loadCatalogCache();
@@ -270,7 +270,7 @@ async function stockAndPricesStillOk(prescriptionFile) {
   return true;
 }
 
-// ---- 5. place the order ----
+// ---- place the order ----
 async function placeOrder(file, prescriptionFile, referenceNumber) {
   try {
     const user = auth.currentUser;
