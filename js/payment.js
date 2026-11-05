@@ -188,12 +188,21 @@ async function submitOrder() {
   uploadErrorText.classList.add("d-none");
   rxUploadErrorText.classList.add("d-none");
   referenceNumberErrorText.classList.add("d-none");
+  submitOrderErrorAlert.classList.add("d-none");
   submitOrderBtn.disabled = true;
   submitOrderBtn.textContent = "Checking stock...";
   if (!(await stockAndPricesStillOk(prescriptionFile))) return;
 
   submitOrderBtn.textContent = "Submitting...";
   await placeOrder(file, prescriptionFile, referenceNumber);
+}
+
+// shows a problem right above the submit button and gives the button back
+function showSubmitProblem(message) {
+  showFormAlert(submitOrderErrorAlert, message);
+  submitOrderErrorAlert.scrollIntoView({ block: "center", behavior: "smooth" });
+  submitOrderBtn.disabled = false;
+  submitOrderBtn.textContent = "Submit Order";
 }
 
 // ---- anything missing? ----
@@ -224,8 +233,19 @@ function checkPaymentForm(file, prescriptionFile, referenceNumber) {
 
 // ---- last stock and price check ----
 async function stockAndPricesStillOk(prescriptionFile) {
+  // no connection: say so instead of calling the items unavailable
+  const connectionProblem = () => {
+    showSubmitProblem("We couldn't reach the store to check stock. Check your internet connection, then tap Submit Order again.");
+    return false;
+  };
+  if (navigator.onLine === false) return connectionProblem();
   clearCatalogCache();
-  await loadCatalogCache();
+  try {
+    await loadCatalogCache();
+  } catch (error) {
+    return connectionProblem();
+  }
+  if (!CATALOG_PRODUCTS.length) return connectionProblem();
 
   // products pulled from the online store count as unavailable
   const onlineProduct = (id) => storefrontCatalog().find((p) => p.id === id) || null;
@@ -238,10 +258,7 @@ async function stockAndPricesStillOk(prescriptionFile) {
         product ? `${product.name} (only ${product.totalStock} left, ${item.qty} in your cart)` : "an item that's no longer available online"
       )
       .join("; ");
-    uploadErrorText.textContent = `Some items in your cart exceed what's currently in stock: ${details}. Please go back to your cart and adjust the quantity.`;
-    uploadErrorText.classList.remove("d-none");
-    submitOrderBtn.disabled = false;
-    submitOrderBtn.textContent = "Submit Order";
+    showSubmitProblem(`Some items in your cart exceed what's currently in stock: ${details}. Please go back to your cart and adjust the quantity.`);
     return false;
   }
 
@@ -250,10 +267,7 @@ async function stockAndPricesStillOk(prescriptionFile) {
   if (Math.abs(freshTotal - cartSubtotal) > 0.001) {
     cartSubtotal = freshTotal;
     renderCreditPreview();
-    uploadErrorText.textContent = `Some prices changed since you opened this page. Your new total is ${formatPeso(cartSubtotal)}. Please check it and tap Submit Order again.`;
-    uploadErrorText.classList.remove("d-none");
-    submitOrderBtn.textContent = "Submit Order";
-    updateSubmitButtonState();
+    showSubmitProblem(`Some prices changed since you opened this page. Your new total is ${formatPeso(cartSubtotal)}. Please check it and tap Submit Order again.`);
     return false;
   }
 
@@ -337,8 +351,8 @@ async function placeOrder(file, prescriptionFile, referenceNumber) {
     paymentContent.classList.add("d-none");
     orderConfirmation.classList.remove("d-none");
   } catch (error) {
-    uploadErrorText.textContent = error.message || "Something went wrong submitting your order. Please try again.";
-    uploadErrorText.classList.remove("d-none");
+    showFormAlert(submitOrderErrorAlert, error.message || "Something went wrong submitting your order. Please try again.");
+    submitOrderErrorAlert.scrollIntoView({ block: "center", behavior: "smooth" });
     submitOrderBtn.disabled = false;
     submitOrderBtn.textContent = "Submit Order";
   }
