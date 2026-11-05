@@ -1269,6 +1269,12 @@ function formatDateMDY(value, withTime = false) {
   return withTime ? `${mdy} ${date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}` : mdy;
 }
 
+// a typed quantity as a whole number, NaN for things like 2.5, -3 or 1e2
+function wholeQty(value) {
+  const text = String(value ?? "").trim();
+  return /^\d+$/.test(text) ? Number(text) : NaN;
+}
+
 function formatPeso(amount) {
   return `₱${(amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -1537,7 +1543,7 @@ function readVoidDialog(items) {
     if (!check.checked) return;
     const idx = Number(check.dataset.idx);
     const qtyInput = document.querySelector(`.void-line-qty[data-idx="${idx}"]`);
-    const qty = parseInt(qtyInput.value, 10);
+    const qty = wholeQty(qtyInput.value);
     if (!qty || qty < 1 || qty > items[idx].qty) invalidQty = true;
     else lines.push({ index: idx, qty });
   });
@@ -2276,9 +2282,9 @@ function readExchangeDialog(sale, processedBy) {
   return {
     saleId: sale.id,
     lineIndex: Number(document.getElementById("wxLine").value),
-    returnQty: parseInt(document.getElementById("wxQty").value, 10),
+    returnQty: wholeQty(document.getElementById("wxQty").value),
     restock: document.getElementById("wxRestockYes").checked,
-    replacement: { productId: document.getElementById("wxProduct").value, qty: parseInt(document.getElementById("wxRepQty").value, 10) },
+    replacement: { productId: document.getElementById("wxProduct").value, qty: wholeQty(document.getElementById("wxRepQty").value) },
     reason: document.getElementById("wxReason").value,
     customerName: document.getElementById("wxCustomer").value,
     processedBy,
