@@ -213,8 +213,8 @@ loadOpeningStockBtn.addEventListener("click", async () => {
   const ops = plan.newLines.map((line) => ({ line })).concat(plan.topUps.map((t) => ({ topUp: t })));
   let saved = 0;
   let failedError = null;
-  for (let start = 0; start < ops.length; start += 400) {
-    const chunk = ops.slice(start, start + 400);
+  for (let start = 0; start < ops.length; start += FIRESTORE_BATCH_LIMIT) {
+    const chunk = ops.slice(start, start + FIRESTORE_BATCH_LIMIT);
     const subPlan = { newLines: chunk.filter((o) => o.line).map((o) => o.line), topUps: chunk.filter((o) => o.topUp).map((o) => o.topUp) };
     updateTaskProgress(saved, ops.length);
     try {

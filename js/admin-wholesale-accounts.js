@@ -72,7 +72,7 @@ function documentValidity(dateStr) {
   const end = new Date(`${dateStr}T23:59:59`);
   const now = new Date();
   if (end < now) return "expired";
-  if (end - now < 30 * 24 * 60 * 60 * 1000) return "expiring";
+  if (end - now < DOCUMENT_EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000) return "expiring";
   return "valid";
 }
 

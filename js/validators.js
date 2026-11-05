@@ -90,9 +90,11 @@ function addressProblems(address) {
 // the receipt ("Ref No. 1234 5678", "GC-2026-001", "Ref#: 99887766"...).
 // Only letters, numbers, spaces and - . # : are allowed - other symbols
 // never appear in a payment reference.
+const REFERENCE_MAX_LENGTH = 40;
+const REFERENCE_MIN_CHARS = 4;
 function isValidReferenceNumber(value) {
   const v = String(value || "").trim();
-  return v.length <= 40 && /^[A-Za-z0-9 .#:-]+$/.test(v) && (v.match(/[A-Za-z0-9]/g) || []).length >= 4;
+  return v.length <= REFERENCE_MAX_LENGTH && /^[A-Za-z0-9 .#:-]+$/.test(v) && (v.match(/[A-Za-z0-9]/g) || []).length >= REFERENCE_MIN_CHARS;
 }
 const REFERENCE_NUMBER_HINT = "Reference number: at least 4 letters or numbers (up to 40 characters), as shown on your proof of payment. Only letters, numbers, spaces and - . # : are allowed.";
 

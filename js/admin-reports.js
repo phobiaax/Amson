@@ -422,7 +422,7 @@ function categorySheets(lines) {
       .sort((a, b) => productName(a.productId).localeCompare(productName(b.productId)) || String(a.expirationDate).localeCompare(String(b.expirationDate)));
     if (!catLines.length) return;
     sheets.push({
-      name: catName.toUpperCase().slice(0, 31),
+      name: catName.toUpperCase().slice(0, EXCEL_SHEET_NAME_MAX),
       sections: [
         {
           heading: catName.toUpperCase(),
@@ -883,7 +883,7 @@ function downloadReportExcel(report) {
     });
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws["!cols"] = Array.from({ length: maxCols }, (_, i) => ({ wch: i === 0 ? 34 : 16 }));
-    let name = (sheet.name || "Report").replace(/[\\/?*[\]:]/g, " ").slice(0, 31);
+    let name = (sheet.name || "Report").replace(/[\\/?*[\]:]/g, " ").slice(0, EXCEL_SHEET_NAME_MAX);
     while (used.has(name)) name = `${name.slice(0, 28)}_${used.size}`;
     used.add(name);
     XLSX.utils.book_append_sheet(wb, ws, name);

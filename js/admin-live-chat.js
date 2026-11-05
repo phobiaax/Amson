@@ -4,6 +4,9 @@
  * Threads and messages update live.
  */
 
+// The longest reply staff can send in one message.
+const STAFF_REPLY_MAX_LENGTH = 1000;
+
 const CHAT_STATUS_LABELS = {
   waiting_staff: "Needs staff",
   staff: "With staff",
@@ -174,7 +177,7 @@ function openThread(id) {
 
 chatReplyForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  const text = chatReplyInput.value.trim().slice(0, 1000);
+  const text = chatReplyInput.value.trim().slice(0, STAFF_REPLY_MAX_LENGTH);
   if (!text || !selectedThreadId) return;
   chatReplyBtn.disabled = true;
   const ref = db.collection("chatThreads").doc(selectedThreadId);
@@ -190,7 +193,7 @@ chatReplyForm.addEventListener("submit", async (e) => {
       status: "staff",
       assignedStaff: staffName,
       unreadByStaff: false,
-      lastMessage: text.slice(0, 120),
+      lastMessage: text.slice(0, CHAT_PREVIEW_LENGTH),
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     chatReplyInput.value = "";

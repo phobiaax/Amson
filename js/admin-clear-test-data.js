@@ -151,9 +151,9 @@ clearConfirmInput.addEventListener("input", () => {
 
 // Deletes refs in batches (Firestore allows up to 500 writes per batch).
 async function deleteRefs(refs) {
-  for (let i = 0; i < refs.length; i += 400) {
+  for (let i = 0; i < refs.length; i += FIRESTORE_BATCH_LIMIT) {
     const batch = db.batch();
-    refs.slice(i, i + 400).forEach((ref) => batch.delete(ref));
+    refs.slice(i, i + FIRESTORE_BATCH_LIMIT).forEach((ref) => batch.delete(ref));
     await batch.commit();
   }
 }

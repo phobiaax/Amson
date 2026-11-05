@@ -2,6 +2,9 @@
  * Shared OTP helpers.
  */
 
+// How long an emailed 6-digit code works.
+const OTP_CODE_TTL_MS = 10 * 60 * 1000;
+
 function generateOtpCode() {
   return String(Math.floor(100000 + Math.random() * 900000));
 }

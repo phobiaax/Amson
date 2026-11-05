@@ -208,7 +208,7 @@ async function createCustomerAccount() {
   );
 
   const otpCode = generateOtpCode();
-  const otpExpiresAt = Date.now() + 10 * 60 * 1000;
+  const otpExpiresAt = Date.now() + OTP_CODE_TTL_MS;
 
   await db.collection("users").doc(credential.user.uid).set({
     firstName: firstNameInput.value.trim(),

@@ -141,7 +141,7 @@ resendCodeLink.addEventListener("click", async (e) => {
   }
 
   const code = generateOtpCode();
-  const expiresAt = Date.now() + 10 * 60 * 1000;
+  const expiresAt = Date.now() + OTP_CODE_TTL_MS;
 
   try {
     const userDocRef = db.collection("users").doc(user.uid);
