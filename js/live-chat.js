@@ -776,7 +776,7 @@ function chatOrderCardHtml(card, myOrders) {
   const entries = document.querySelectorAll("[data-chat-entry]");
   if (!entries.length || typeof db === "undefined") return;
 
-  // ---- 1. chat box and what it remembers ----
+  // ---- chat box and what it remembers ----
   let threadId = null;
   let threadRef = null;
   let thread = null; // latest thread data, null until the first message
@@ -813,7 +813,7 @@ function chatOrderCardHtml(card, myOrders) {
     resolved: "Assistant",
   };
 
-  // ---- 2. who is chatting and loading the chat ----
+  // ---- who is chatting and loading the chat ----
   function guestThreadId() {
     let id = null;
     try {
@@ -886,7 +886,7 @@ function chatOrderCardHtml(card, myOrders) {
       );
   }
 
-  // ---- 3. drawing the messages ----
+  // ---- drawing the messages ----
   function renderMessages() {
     const welcome = `<div class="chat-msg chat-msg-assistant">Hi! I'm the Amson Pharmaceuticals assistant. Ask me about products, ordering, payment, delivery or prescription orders. Type "talk to staff" anytime to reach our team.</div>`;
     const last = messages[messages.length - 1];
@@ -956,7 +956,7 @@ function chatOrderCardHtml(card, myOrders) {
     return myOrdersReady;
   }
 
-  // ---- 4. answering questions ----
+  // ---- answering questions ----
   messagesEl.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-chat-q]");
     if (btn) send(btn.dataset.chatQ);
@@ -1038,7 +1038,7 @@ function chatOrderCardHtml(card, myOrders) {
       } catch (error) {}
     }
 
-    // 1. built-in symptom list, no ai
+    // built-in symptom list, no ai
     let names = [];
     let labelWords = [];
     const known = chatSymptomsIn(text);
@@ -1046,7 +1046,7 @@ function chatOrderCardHtml(card, myOrders) {
       names = known.map((sx) => (lang === "fil" ? sx.fil : sx.name));
       labelWords = known.flatMap((sx) => sx.label);
     } else {
-      // 2. ai maps the question onto label words
+      // ai maps the question onto label words
       const vocabulary = chatLabelVocabulary();
       const read = vocabulary.length ? await chatAiReadHealth(text, vocabulary) : null;
       if (!read || read.limitReached) return reply("none");
@@ -1071,7 +1071,7 @@ function chatOrderCardHtml(card, myOrders) {
     return true;
   }
 
-  // ---- 5. saving the chat and handing over to staff ----
+  // ---- saving the chat and handing over to staff ----
   async function touchThread(text) {
     const base = {
       lastMessage: text.slice(0, CHAT_PREVIEW_LENGTH),
@@ -1113,7 +1113,7 @@ function chatOrderCardHtml(card, myOrders) {
     await addMessage("system", note || "I've passed your chat to our staff. A staff member will reply here as soon as they can during store hours.");
   }
 
-  // ---- 6. picking the answer: staff, orders, health, faq, then ai ----
+  // ---- picking the answer: staff, orders, health, faq, then ai ----
   async function respond(text) {
     const status = thread ? thread.status : "ai";
     if (status === "staff" || status === "waiting_staff") return; // staff will answer
@@ -1232,7 +1232,7 @@ function chatOrderCardHtml(card, myOrders) {
     );
   }
 
-  // ---- 7. sending, opening, closing and buttons ----
+  // ---- sending, opening, closing and buttons ----
   async function send(text) {
     text = String(text || "").trim().slice(0, CHAT_MAX_LENGTH);
     if (!text || sending) return;
