@@ -392,6 +392,20 @@ saveWholesaleBtn.addEventListener("click", async () => {
     showFormAlert(wholesaleModalAlert, ONE_LINE_ADDRESS_HINT);
     return;
   }
+  const contactProblem = contactDetailsProblem(wholesalePhoneInput.value.trim(), wholesaleEmailInput.value.trim());
+  const sameName = allWholesaleAccounts.find((a) => a.id !== editingWholesaleId && sameCompanyName(a.name, name));
+  if (contactProblem || sameName) {
+    showFormAlert(wholesaleModalAlert, contactProblem || `"${sameName.name}" already has a wholesale account. Edit that one instead.`);
+    return;
+  }
+  // an expired document date is allowed, but staff should know orders stay blocked
+  const expiredDocs = [
+    [wholesaleLtoExpiryInput.value, "LTO"],
+    [wholesalePermitExpiryInput.value, "Business Permit"],
+  ].filter(([date]) => date && date < localISODate(new Date())).map(([, label]) => label);
+  if (expiredDocs.length && !(await showAppConfirm(`The ${expiredDocs.join(" and ")} date has already passed, so orders for this buyer stay blocked until it's renewed. Save anyway?`, { confirmLabel: "Save anyway" }))) {
+    return;
+  }
 
   saveWholesaleBtn.disabled = true;
   wholesaleModalAlert.classList.add("d-none");
