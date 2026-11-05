@@ -877,7 +877,7 @@ async function markWholesaleOrderReleased(order, account, btn, { reopenHistory =
     await db.collection("wholesaleOrders").doc(order.id).update({
       releaseStatus: "released",
       releasedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      releasedBy: wholesaleStaffName,
+      releasedBy: currentStaffName,
     });
     await logAuditEvent({ action: "Wholesale Order Released", details: `SI ${order.invoiceNo || order.id} - ${account.name}` });
     await loadWholesaleAccounts();
@@ -889,10 +889,10 @@ async function markWholesaleOrderReleased(order, account, btn, { reopenHistory =
 }
 
 /* ---------- Wholesale exchange (REQ090, Fig 2.15) ---------- */
-let wholesaleStaffName = "Staff";
+let currentStaffName = "Staff";
 document.addEventListener("admin:ready", (e) => {
   const admin = e.detail.admin;
-  wholesaleStaffName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
+  currentStaffName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
 });
 
 async function openExchangeDialog(order, account) {
@@ -1020,7 +1020,7 @@ function readWholesaleExchangeDialog(order) {
       unitPrice: parseFloat(document.getElementById("exReplacementPrice").value) || 0,
     },
     reason: document.getElementById("exReason").value,
-    processedBy: wholesaleStaffName,
+    processedBy: currentStaffName,
   };
 }
 

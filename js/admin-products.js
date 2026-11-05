@@ -86,11 +86,11 @@ async function ensureDefaultCategories() {
   const snapshot = await db.collection("categories").get();
   if (!snapshot.empty) return;
 
-  const batch = db.batch();
+  const writeBatch = db.batch();
   Object.entries(DEFAULT_CATEGORIES).forEach(([id, name]) => {
-    batch.set(db.collection("categories").doc(id), { name });
+    writeBatch.set(db.collection("categories").doc(id), { name });
   });
-  await batch.commit();
+  await writeBatch.commit();
 }
 
 async function loadProducts() {
@@ -498,13 +498,13 @@ saveProductBtn.addEventListener("click", async () => {
       // Costing and wholesale prices go to the staff-only record; the public
       // product keeps only the retail price (and loses any older copies).
       const privatePrices = splitPrivatePrices(productData);
-      const batch = db.batch();
+      const writeBatch = db.batch();
       if (canEditPrices()) {
         PRIVATE_PRICE_FIELDS.forEach((field) => (productData[field] = firebase.firestore.FieldValue.delete()));
-        setPrivatePrices(batch, editingProductId, privatePrices);
+        setPrivatePrices(writeBatch, editingProductId, privatePrices);
       }
-      batch.update(db.collection("products").doc(editingProductId), productData);
-      await batch.commit();
+      writeBatch.update(db.collection("products").doc(editingProductId), productData);
+      await writeBatch.commit();
 
       if (priceChanges.length > 0) {
         await logAuditEvent({
@@ -521,10 +521,10 @@ saveProductBtn.addEventListener("click", async () => {
       productData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       const privatePrices = splitPrivatePrices(productData);
       const ref = db.collection("products").doc();
-      const batch = db.batch();
-      batch.set(ref, productData);
-      if (canEditPrices()) setPrivatePrices(batch, ref.id, privatePrices);
-      await batch.commit();
+      const writeBatch = db.batch();
+      writeBatch.set(ref, productData);
+      if (canEditPrices()) setPrivatePrices(writeBatch, ref.id, privatePrices);
+      await writeBatch.commit();
     }
 
     catalogLoadPromise = null; // force a fresh read next time any page loads the cache
@@ -803,10 +803,10 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
       // Same price rule as the form: only a Branch Manager's import sets prices.
       const pricesAllowed = canEditPrices();
       const ref = db.collection("products").doc();
-      const batch = db.batch();
+      const writeBatch = db.batch();
       // Costing and wholesale prices are saved staff-only (setPrivatePrices).
-      if (pricesAllowed) setPrivatePrices(batch, ref.id, { costingPrice: row.costingPrice, wholesalePrice: row.wholesalePrice });
-      batch.set(ref, {
+      if (pricesAllowed) setPrivatePrices(writeBatch, ref.id, { costingPrice: row.costingPrice, wholesalePrice: row.wholesalePrice });
+      writeBatch.set(ref, {
         sku,
         name: row.name,
         genericName: row.genericName,
@@ -823,7 +823,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
         status: pricesAllowed ? row.status : "inactive",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
-      await batch.commit();
+      await writeBatch.commit();
       imported += 1;
       row.tr.remove(); // saved - only failed rows stay in the review table
     } catch (error) {
@@ -996,9 +996,9 @@ async function deleteCategory(id) {
   try {
     // Firestore batches cap at 500 writes.
     for (let i = 0; i < productsInCategory.length; i += FIRESTORE_BATCH_LIMIT) {
-      const batch = db.batch();
-      productsInCategory.slice(i, i + FIRESTORE_BATCH_LIMIT).forEach((p) => batch.update(db.collection("products").doc(p.id), { category: moveTo }));
-      await batch.commit();
+      const writeBatch = db.batch();
+      productsInCategory.slice(i, i + FIRESTORE_BATCH_LIMIT).forEach((p) => writeBatch.update(db.collection("products").doc(p.id), { category: moveTo }));
+      await writeBatch.commit();
     }
     await db.collection("categories").doc(id).delete();
     if (productsInCategory.length > 0) {
@@ -1029,9 +1029,9 @@ document.getElementById("addBranchCategoriesBtn").addEventListener("click", asyn
     return;
   }
   try {
-    const batch = db.batch();
-    missing.forEach(([id, name]) => batch.set(db.collection("categories").doc(id), { name }));
-    await batch.commit();
+    const writeBatch = db.batch();
+    missing.forEach(([id, name]) => writeBatch.set(db.collection("categories").doc(id), { name }));
+    await writeBatch.commit();
     missing.forEach(([id, name]) => (CATEGORY_LABELS[id] = name));
     catalogLoadPromise = null;
     renderCategoriesList();

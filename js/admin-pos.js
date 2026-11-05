@@ -1,6 +1,6 @@
 let posCart = [];
 let posProductChoices = null;
-let currentCashierName = "Staff";
+let currentStaffName = "Staff";
 let currentStaffRole = null;
 
 const posProductSelect = document.getElementById("posProductSelect");
@@ -47,7 +47,7 @@ posQtyIncrementBtn.addEventListener("click", () => {
 
 document.addEventListener("admin:ready", async (e) => {
   const admin = e.detail.admin;
-  currentCashierName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
+  currentStaffName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
   currentStaffRole = admin.role;
   // Returns / exchanges: Branch Manager and Technical Staff (as voids).
   document.getElementById("posReturnExchangeBtn").classList.toggle("d-none", !roleCanVoidSales(currentStaffRole));
@@ -295,7 +295,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
     paymentMethod,
     amountPaid: isCash ? cash : total,
     change: cash - total,
-    cashier: currentCashierName,
+    cashier: currentStaffName,
     branch: POS_BRANCH_NAME,
     completedAt: new Date(),
     customerName,
@@ -322,7 +322,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
                 referenceNo: referenceNo || null,
                 cashReceived: isCash ? cash : paymentMethod === "credit" ? 0 : total,
                 change: isCash ? cash - total : 0,
-                cashier: currentCashierName,
+                cashier: currentStaffName,
                 branch: POS_BRANCH_NAME,
                 rxVerified: rxIncluded,
                 rxNotes: rxIncluded ? rxNotes : "",
@@ -348,7 +348,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
           paymentMethod,
           amountPaid: isCash ? cash : total,
           change: isCash ? cash - total : 0,
-          cashier: currentCashierName,
+          cashier: currentStaffName,
           branch: POS_BRANCH_NAME,
           completedAt: new Date(),
           customerName,
@@ -451,7 +451,7 @@ function listenToTodaySales() {
 // sales are refreshed (the returned and replacement items changed stock).
 async function exchangeWalkinSale(sale, afterExchange) {
   const stockVersion = liveVersion("stockBatches");
-  const exchange = await openWalkinExchangeDialog(sale, currentCashierName);
+  const exchange = await openWalkinExchangeDialog(sale, currentStaffName);
   if (!exchange) return;
   catalogLoadPromise = null;
   await loadCatalogCache({ afterStockChange: stockVersion });
@@ -485,7 +485,7 @@ function openPosSaleReceipt(sale, afterVoid) {
             if (!details) return;
             try {
               const stockVersion = liveVersion("stockBatches");
-              const result = await voidPosSale(sale, details, currentCashierName);
+              const result = await voidPosSale(sale, details, currentStaffName);
               catalogLoadPromise = null;
               await loadCatalogCache({ afterStockChange: stockVersion });
               populatePosProductSelect();

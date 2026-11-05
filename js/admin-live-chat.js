@@ -41,11 +41,11 @@ let chatThreads = [];
 let chatFilter = "open";
 let selectedThreadId = null;
 let unsubscribeConv = null;
-let staffName = "Staff";
+let currentStaffName = "Staff";
 
 document.addEventListener("admin:ready", (e) => {
   const admin = e.detail.admin;
-  staffName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
+  currentStaffName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
   listenToThreads();
   loadChatUsage();
 });
@@ -185,13 +185,13 @@ chatReplyForm.addEventListener("submit", async (e) => {
     // Replying takes the chat over from the assistant.
     await ref.collection("messages").add({
       sender: "staff",
-      staffName,
+      staffName: currentStaffName,
       text,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     await ref.update({
       status: "staff",
-      assignedStaff: staffName,
+      assignedStaff: currentStaffName,
       unreadByStaff: false,
       lastMessage: text.slice(0, CHAT_PREVIEW_LENGTH),
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -227,7 +227,7 @@ chatResolveBtn.addEventListener("click", async () => {
     await ref.update({
       status: "resolved",
       unreadByStaff: false,
-      resolvedBy: staffName,
+      resolvedBy: currentStaffName,
       resolvedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     await ref.collection("messages").add({
