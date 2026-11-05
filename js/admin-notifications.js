@@ -73,21 +73,21 @@ function renderNotifications(allNotifications, readMap) {
   if (markAllNotifsReadBtn) markAllNotifsReadBtn.classList.remove("d-none");
 
   notificationsList.innerHTML = notifications
-    .map((n) => {
-      const isRead = isStaffNotifRead(readMap, n);
-      const severityColor = SEVERITY_COLORS[n.severity] || SEVERITY_COLORS.info;
-      const when = notifTimeLabel(n.at);
+    .map((notification) => {
+      const isRead = isStaffNotifRead(readMap, notification);
+      const severityColor = SEVERITY_COLORS[notification.severity] || SEVERITY_COLORS.info;
+      const when = notifTimeLabel(notification.at);
       return `
-        <a href="${n.link}" class="d-flex justify-content-between align-items-center gap-3 p-3 admin-notif-row" data-key="${n.key}" data-signature="${n.signature}" style="text-decoration:none; color:inherit; border:1px solid var(--amson-border); border-left:4px solid ${severityColor}; background-color:#fff; border-radius:10px; ${isRead ? "opacity:0.6;" : ""}">
+        <a href="${notification.link}" class="d-flex justify-content-between align-items-center gap-3 p-3 admin-notif-row" data-key="${notification.key}" data-signature="${notification.signature}" style="text-decoration:none; color:inherit; border:1px solid var(--amson-border); border-left:4px solid ${severityColor}; background-color:#fff; border-radius:10px; ${isRead ? "opacity:0.6;" : ""}">
           <div class="d-flex align-items-center gap-3">
             ${isRead ? "" : '<span class="rounded-circle bg-primary flex-shrink-0" style="width:8px; height:8px; display:inline-block;"></span>'}
-            <i class="bi ${n.icon}" style="font-size:1.2rem; color:${severityColor};"></i>
+            <i class="bi ${notification.icon}" style="font-size:1.2rem; color:${severityColor};"></i>
             <div>
-              <div style="${isRead ? "" : "font-weight:600;"}">${escapeHtml(n.message)}</div>
-              <div class="text-muted" style="font-size:0.78rem;">${escapeHtml(STAFF_NOTIF_CATEGORY_LABELS[n.category] || "")}${when ? ` · ${escapeHtml(when)}` : ""}</div>
+              <div style="${isRead ? "" : "font-weight:600;"}">${escapeHtml(notification.message)}</div>
+              <div class="text-muted" style="font-size:0.78rem;">${escapeHtml(STAFF_NOTIF_CATEGORY_LABELS[notification.category] || "")}${when ? ` · ${escapeHtml(when)}` : ""}</div>
             </div>
           </div>
-          <span class="badge rounded-pill ${SEVERITY_CLASS[n.severity]}">${n.severity === "danger" ? "Urgent" : n.severity === "warning" ? "Warning" : "Info"}</span>
+          <span class="badge rounded-pill ${SEVERITY_CLASS[notification.severity]}">${notification.severity === "danger" ? "Urgent" : notification.severity === "warning" ? "Warning" : "Info"}</span>
         </a>
       `;
     })

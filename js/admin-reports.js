@@ -73,33 +73,33 @@ async function loadSalesInRange(start, end) {
 
   const sales = [];
   posSnap.docs.forEach((doc) => {
-    const s = doc.data();
-    if (s.voided) return;
+    const sale = doc.data();
+    if (sale.voided) return;
     sales.push({
       channel: "retail",
-      date: tsToDate(s.createdAt),
-      invoiceNo: s.invoiceNo || "",
-      customer: s.customerName || "Walk-in",
-      paymentMethod: s.paymentMethod || "cash",
-      total: s.total || 0,
-      lines: (s.items || [])
+      date: tsToDate(sale.createdAt),
+      invoiceNo: sale.invoiceNo || "",
+      customer: sale.customerName || "Walk-in",
+      paymentMethod: sale.paymentMethod || "cash",
+      total: sale.total || 0,
+      lines: (sale.items || [])
         .filter((i) => i.qty > 0)
         .map((i) => ({ productId: i.productId, name: i.name, qty: i.qty, price: i.price || 0, amount: (i.price || 0) * i.qty, batches: i.batches, batchNo: i.batchNo, expirationDate: i.expirationDate })),
     });
   });
   orderSnap.docs.forEach((doc) => {
-    const o = doc.data();
-    if (!o.invoiceNo || o.status === "closed_unresolved") return;
+    const order = doc.data();
+    if (!order.invoiceNo || order.status === "closed_unresolved") return;
     sales.push({
       channel: "retail",
-      date: tsToDate(o.statusTimestamps && o.statusTimestamps.payment_confirmed),
-      invoiceNo: o.invoiceNo,
-      customer: o.contact ? `${o.contact.firstName || ""} ${o.contact.lastName || ""}`.trim() : "Online customer",
+      date: tsToDate(order.statusTimestamps && order.statusTimestamps.payment_confirmed),
+      invoiceNo: order.invoiceNo,
+      customer: order.contact ? `${order.contact.firstName || ""} ${order.contact.lastName || ""}`.trim() : "Online customer",
       paymentMethod: "gcash",
       // What the customer paid for the goods: store credit applied is
       // still part of the sale's value.
-      total: (o.total || 0) + (o.creditApplied || 0),
-      lines: (o.items || []).map((i) => ({ productId: i.id, name: i.name, qty: i.qty, price: i.price || 0, amount: (i.price || 0) * i.qty, batches: i.batches, batchNo: i.batchNo, expirationDate: i.expirationDate })),
+      total: (order.total || 0) + (order.creditApplied || 0),
+      lines: (order.items || []).map((i) => ({ productId: i.id, name: i.name, qty: i.qty, price: i.price || 0, amount: (i.price || 0) * i.qty, batches: i.batches, batchNo: i.batchNo, expirationDate: i.expirationDate })),
     });
   });
   wholesaleSnap.docs.forEach((doc) => {
@@ -186,45 +186,45 @@ function tallyDailySales(sales, findBatch, supplierNames) {
   };
   const items = new Map();
 
-  sales.forEach((s) => {
-    const day = ensureDay(reportDateKey(s.date));
-    const qty = s.lines.reduce((n, l) => n + l.qty, 0);
-    if (!s.isExchange) day.orders += 1;
-    day.total += s.total;
-    if (s.channel === "wholesale") {
+  sales.forEach((sale) => {
+    const day = ensureDay(reportDateKey(sale.date));
+    const qty = sale.lines.reduce((n, l) => n + l.qty, 0);
+    if (!sale.isExchange) day.orders += 1;
+    day.total += sale.total;
+    if (sale.channel === "wholesale") {
       day.wholesaleItems += qty;
-      day.wholesaleTotal += s.total;
+      day.wholesaleTotal += sale.total;
     } else {
       day.retailItems += qty;
-      day.retailTotal += s.total;
+      day.retailTotal += sale.total;
     }
-    const m = day.methods.get(s.paymentMethod) || { orders: 0, amount: 0 };
-    m.orders += s.isExchange ? 0 : 1;
-    m.amount += s.total;
-    day.methods.set(s.paymentMethod, m);
-    s.lines.forEach((l) => {
-      const key = l.productId || l.name;
-      const it = items.get(key) || { name: productName(l.productId, l.name), qty: 0, amount: 0 };
-      it.qty += l.qty;
-      it.amount += l.amount;
+    const methodTotals = day.methods.get(sale.paymentMethod) || { orders: 0, amount: 0 };
+    methodTotals.orders += sale.isExchange ? 0 : 1;
+    methodTotals.amount += sale.total;
+    day.methods.set(sale.paymentMethod, methodTotals);
+    sale.lines.forEach((line) => {
+      const key = line.productId || line.name;
+      const it = items.get(key) || { name: productName(line.productId, line.name), qty: 0, amount: 0 };
+      it.qty += line.qty;
+      it.amount += line.amount;
       items.set(key, it);
 
       // Batch, expiry, date received and supplier per item sold.
-      const parts = l.batches && l.batches.length ? l.batches.filter((b) => b.qty !== 0) : [{ batchNo: l.batchNo, expirationDate: l.expirationDate, qty: l.qty }];
-      parts.forEach((b) => {
-        const batch = findBatch(l.productId, b);
-        const bKey = `${key}|${batch ? batch.id : b.batchNo || ""}`;
+      const parts = line.batches && line.batches.length ? line.batches.filter((b) => b.qty !== 0) : [{ batchNo: line.batchNo, expirationDate: line.expirationDate, qty: line.qty }];
+      parts.forEach((batchPart) => {
+        const batch = findBatch(line.productId, batchPart);
+        const bKey = `${key}|${batch ? batch.id : batchPart.batchNo || ""}`;
         const row = byBatch.get(bKey) || {
-          name: productName(l.productId, l.name),
-          batchNo: b.batchNo || (batch && batch.batchNo) || "",
-          expirationDate: b.expirationDate || (batch && batch.expirationDate) || "",
+          name: productName(line.productId, line.name),
+          batchNo: batchPart.batchNo || (batch && batch.batchNo) || "",
+          expirationDate: batchPart.expirationDate || (batch && batch.expirationDate) || "",
           dateReceived: (batch && batch.dateReceived) || "",
           supplier: (batch && batch.supplierId && supplierNames.get(batch.supplierId)) || "",
           qty: 0,
           amount: 0,
         };
-        row.qty += b.qty;
-        row.amount += l.price * b.qty;
+        row.qty += batchPart.qty;
+        row.amount += line.price * batchPart.qty;
         byBatch.set(bKey, row);
       });
     });
@@ -319,25 +319,25 @@ async function buildCustomerFileReport(start, end) {
     .forEach((customer) => {
       let custQty = 0;
       let custTotal = 0;
-      byCustomer.get(customer).forEach((s) => {
-        s.lines.forEach((l) => {
+      byCustomer.get(customer).forEach((sale) => {
+        sale.lines.forEach((line) => {
           // One row per batch the line came from, like the branch's file.
-          const parts = l.batches && l.batches.length ? l.batches.filter((b) => b.qty !== 0) : [{ batchNo: l.batchNo, expirationDate: l.expirationDate, qty: l.qty }];
-          parts.forEach((b) => {
+          const parts = line.batches && line.batches.length ? line.batches.filter((b) => b.qty !== 0) : [{ batchNo: line.batchNo, expirationDate: line.expirationDate, qty: line.qty }];
+          parts.forEach((batchPart) => {
             rows.push([
-              s.customer,
-              formatDateMDY(s.date, true),
-              s.invoiceNo,
-              b.batchNo || "",
-              b.expirationDate ? formatDateMDY(b.expirationDate) : "",
-              reportNumber(b.qty, 0),
-              productName(l.productId, l.name),
-              reportNumber(l.price),
-              reportNumber(l.price * b.qty),
-              REPORT_PAYMENT_LABELS[s.paymentMethod] || s.paymentMethod,
+              sale.customer,
+              formatDateMDY(sale.date, true),
+              sale.invoiceNo,
+              batchPart.batchNo || "",
+              batchPart.expirationDate ? formatDateMDY(batchPart.expirationDate) : "",
+              reportNumber(batchPart.qty, 0),
+              productName(line.productId, line.name),
+              reportNumber(line.price),
+              reportNumber(line.price * batchPart.qty),
+              REPORT_PAYMENT_LABELS[sale.paymentMethod] || sale.paymentMethod,
             ]);
-            custQty += b.qty;
-            custTotal += l.price * b.qty;
+            custQty += batchPart.qty;
+            custTotal += line.price * batchPart.qty;
           });
         });
       });
@@ -531,19 +531,19 @@ async function buildSupplierPurchasesReport(year, month) {
     let grand = 0;
     Array.from(bySupplier.keys())
       .sort()
-      .forEach((s) => {
+      .forEach((supplier) => {
         let subtotal = 0;
         bySupplier
-          .get(s)
+          .get(supplier)
           .sort((a, b) => a.when - b.when)
           .forEach((b) => {
             const p = getProductById(b.productId) || {};
             const qty = b.initialQuantity != null ? b.initialQuantity : b.quantity || 0;
             const amount = (b.unitCost || 0) * qty;
             subtotal += amount;
-            rows.push([s, formatDateMDY(b.when), b.supplierReceiptNo || "", p.name || "", p.brand || "", b.batchNo || "", b.expirationDate ? formatDateMDY(b.expirationDate) : "", reportNumber(qty, 0), b.unitCost != null ? reportNumber(b.unitCost) : "", reportNumber(amount)]);
+            rows.push([supplier, formatDateMDY(b.when), b.supplierReceiptNo || "", p.name || "", p.brand || "", b.batchNo || "", b.expirationDate ? formatDateMDY(b.expirationDate) : "", reportNumber(qty, 0), b.unitCost != null ? reportNumber(b.unitCost) : "", reportNumber(amount)]);
           });
-        rows.push({ total: true, cells: [`TOTAL - ${s}`, "", "", "", "", "", "", "", "", reportNumber(subtotal)] });
+        rows.push({ total: true, cells: [`TOTAL - ${supplier}`, "", "", "", "", "", "", "", "", reportNumber(subtotal)] });
         grand += subtotal;
       });
     return { name, sections: [{ heading: name, columns, rows, totals: [["GRAND TOTAL", "", "", "", "", "", "", "", "", reportNumber(grand)]] }] };
@@ -616,26 +616,26 @@ async function buildReturnsExchangeReport(start, end) {
     .map((d) => d.data())
     .sort((a, b) => (tsToDate(a.createdAt) || 0) - (tsToDate(b.createdAt) || 0))
     .forEach((ex) => {
-      const r = ex.returned || {};
-      const parts = r.batches && r.batches.length ? r.batches : [{ batchNo: "", expirationDate: "", qty: r.qty }];
-      parts.forEach((b, i) => {
+      const returned = ex.returned || {};
+      const parts = returned.batches && returned.batches.length ? returned.batches : [{ batchNo: "", expirationDate: "", qty: returned.qty }];
+      parts.forEach((batchPart, i) => {
         rows.push([
-          r.productName || "",
-          b.batchNo || "",
-          b.expirationDate ? formatDateMDY(b.expirationDate) : "",
+          returned.productName || "",
+          batchPart.batchNo || "",
+          batchPart.expirationDate ? formatDateMDY(batchPart.expirationDate) : "",
           ex.buyerName || "",
           ex.invoiceNo ? `SI ${ex.invoiceNo}` : "",
           formatDateMDY(ex.purchasedAt),
           formatDateMDY(ex.createdAt),
-          reportNumber(b.qty, 0),
-          reportNumber(r.unitPrice),
-          reportNumber((b.qty || 0) * (r.unitPrice || 0)),
+          reportNumber(batchPart.qty, 0),
+          reportNumber(returned.unitPrice),
+          reportNumber((batchPart.qty || 0) * (returned.unitPrice || 0)),
           i === 0 ? `${(ex.replacement || {}).productName || ""} x${(ex.replacement || {}).qty || 0}` : "",
           i === 0 ? reportNumber(ex.priceDifference) : "",
           i === 0 ? `${ex.exchangeNo || ""}: ${ex.reason || ""}` : "",
         ]);
       });
-      totalReturned += r.value || 0;
+      totalReturned += returned.value || 0;
       totalDiff += ex.priceDifference || 0;
     });
   return {

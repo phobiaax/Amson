@@ -429,8 +429,8 @@ function chatTrackingLink(o) {
 }
 
 // What happens next / what the customer should do, in plain words.
-function chatOrderNextStep(o, view) {
-  const { pickup } = chatOrderSteps(o, view.status);
+function chatOrderNextStep(order, view) {
+  const { pickup } = chatOrderSteps(order, view.status);
   if (view.issue) {
     const by = view.issue.holdUntil && view.issue.holdUntil.toDate ? ` by ${formatDateMDY(view.issue.holdUntil)}` : " within 7 days";
     return view.issue.type === "prescription_rejected"
@@ -439,15 +439,15 @@ function chatOrderNextStep(o, view) {
   }
   switch (view.status) {
     case "placed":
-      return o.requiresPrescription
+      return order.requiresPrescription
         ? "Our pharmacist is checking your prescription and staff are verifying your payment. We'll notify you once it's confirmed."
         : "Staff are verifying your payment. We'll notify you once it's confirmed.";
     case "payment_confirmed":
       return pickup
         ? "Your order is being prepared. We'll tell you here when it's ready for pick-up."
-        : `Your order is being prepared for delivery (${chatDeliverySchedule(o.deliverySchedule)}). The rider tracking link appears here once it's on the way.`;
+        : `Your order is being prepared for delivery (${chatDeliverySchedule(order.deliverySchedule)}). The rider tracking link appears here once it's on the way.`;
     case "dispatched":
-      return chatTrackingLink(o)
+      return chatTrackingLink(order)
         ? "Tap Track rider to follow it on Lalamove. Pay the delivery fee to the rider when it arrives."
         : "It's with the rider. The tracking link will show here as soon as staff add it. Pay the delivery fee to the rider.";
     case "delivered":
@@ -487,7 +487,7 @@ let chatModelPromise = null;
 // The chat's own Firebase app (modular SDK), with App Check on it too when
 // APP_CHECK_SITE_KEY is set, so only this site can use the Gemini quota.
 let chatAppPromise = null;
-function getChatFirebaseApp(appMod, v) {
+function getChatFirebaseApp(appMod, sdkVersion) {
   if (!chatAppPromise) {
     chatAppPromise = (async () => {
       const existing = appMod.getApps().find((a) => a.name === "amson-chat");
@@ -497,7 +497,7 @@ function getChatFirebaseApp(appMod, v) {
       const siteKey = CHAT_CONFIG.appCheckSiteKey;
       if (siteKey) {
         if (["localhost", "127.0.0.1"].includes(location.hostname)) self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-        const checkMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-app-check.js`);
+        const checkMod = await import(`https://www.gstatic.com/firebasejs/${sdkVersion}/firebase-app-check.js`);
         checkMod.initializeAppCheck(app, { provider: new checkMod.ReCaptchaEnterpriseProvider(siteKey), isTokenAutoRefreshEnabled: true });
       }
       return app;
@@ -746,25 +746,25 @@ function chatProductCardHtml(card) {
 // One of the customer's orders: a short card when several are listed,
 // or the full card (items, status steps, next step) for one order.
 function chatOrderCardHtml(card, myOrders) {
-  const o = (myOrders || []).find((x) => x.id === card.id);
-  if (!o) return myOrders === null ? `<div class="chat-card text-muted" style="font-size:0.78rem;">Loading order...</div>` : "";
-  const view = chatOrderView(o);
+  const order = (myOrders || []).find((x) => x.id === card.id);
+  if (!order) return myOrders === null ? `<div class="chat-card text-muted" style="font-size:0.78rem;">Loading order...</div>` : "";
+  const view = chatOrderView(order);
   const { issue, status: liveStatus, label: status } = view;
-  const items = o.items || [];
+  const items = order.items || [];
   const itemCount = items.reduce((n, i) => n + (i.qty || 0), 0);
-  const link = chatTrackingLink(o);
+  const link = chatTrackingLink(order);
   const tracking = link && ["dispatched", "delivered", "received"].includes(liveStatus)
     ? `<a class="chat-card-btn" href="${escapeHtml(safeUrl(link))}" target="_blank" rel="noopener"><i class="bi bi-geo-alt"></i> Track rider</a>`
     : "";
-  const orderLink = `<a class="chat-card-btn" href="${chatShopPath(`order-details.html?id=${encodeURIComponent(o.id)}`)}">${issue ? "Fix this order" : "View order"}</a>`;
+  const orderLink = `<a class="chat-card-btn" href="${chatShopPath(`order-details.html?id=${encodeURIComponent(order.id)}`)}">${issue ? "Fix this order" : "View order"}</a>`;
   const thumb = (item) => {
     const imageUrl = item.imageUrl || (getProductById(item.id) || {}).imageUrl;
     const url = safeUrl(imageUrl) === "#" ? "" : imageUrl;
     return `<span class="chat-order-thumb" style="${escapeHtml(cartItemImageCss(url))}"></span>`;
   };
   const head = `
-      <div class="d-flex justify-content-between gap-2"><span class="fw-bold">${escapeHtml(o.orderNumber || "")}</span><span style="font-size:0.78rem;">${formatPeso(o.total || 0)}</span></div>
-      <div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(o.createdAt)} - ${itemCount} item${itemCount === 1 ? "" : "s"}</div>`;
+      <div class="d-flex justify-content-between gap-2"><span class="fw-bold">${escapeHtml(order.orderNumber || "")}</span><span style="font-size:0.78rem;">${formatPeso(order.total || 0)}</span></div>
+      <div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(order.createdAt)} - ${itemCount} item${itemCount === 1 ? "" : "s"}</div>`;
 
   // Several orders: a short card each, with a button for the details.
   if (!card.detail) {
@@ -774,14 +774,14 @@ function chatOrderCardHtml(card, myOrders) {
       <div class="chat-order-thumbs mt-1">${items.slice(0, 4).map(thumb).join("")}${items.length > 4 ? `<span class="text-muted" style="font-size:0.72rem;">+${items.length - 4}</span>` : ""}</div>
       <div class="mt-1 ${issue ? "text-danger" : ""}" style="font-size:0.8rem; font-weight:600;">${escapeHtml(status)}</div>
       <div class="d-flex gap-1 flex-wrap mt-2">
-        <button type="button" class="chat-card-btn" data-chat-q="${escapeHtml(`Track order ${o.orderNumber || ""}`)}">Show details</button>
+        <button type="button" class="chat-card-btn" data-chat-q="${escapeHtml(`Track order ${order.orderNumber || ""}`)}">Show details</button>
         ${tracking}
       </div>
     </div>`;
   }
 
-  const { pickup, steps, current } = chatOrderSteps(o, liveStatus);
-  const stamps = o.statusTimestamps || {};
+  const { pickup, steps, current } = chatOrderSteps(order, liveStatus);
+  const stamps = order.statusTimestamps || {};
   const stepper = issue || liveStatus === "closed_unresolved"
     ? ""
     : `<div class="chat-order-steps mt-2">${steps
@@ -807,9 +807,9 @@ function chatOrderCardHtml(card, myOrders) {
       </div>
       <div class="mt-2 ${issue ? "text-danger" : ""}" style="font-size:0.82rem; font-weight:700;">${escapeHtml(status)}</div>
       ${stepper}
-      <div class="text-muted mt-1" style="font-size:0.75rem;">${pickup ? "Pick-up at the Amson Pharmaceuticals store" : `Delivery by Lalamove to ${escapeHtml([o.shipping.city, o.shipping.province].filter(Boolean).join(", "))}`}</div>
+      <div class="text-muted mt-1" style="font-size:0.75rem;">${pickup ? "Pick-up at the Amson Pharmaceuticals store" : `Delivery by Lalamove to ${escapeHtml([order.shipping.city, order.shipping.province].filter(Boolean).join(", "))}`}</div>
       ${issue && issue.note ? `<div class="mt-1" style="font-size:0.75rem;">Staff note: ${escapeHtml(issue.note)}</div>` : ""}
-      <div class="chat-order-next mt-2">${escapeHtml(chatOrderNextStep(o, view))}</div>
+      <div class="chat-order-next mt-2">${escapeHtml(chatOrderNextStep(order, view))}</div>
       <div class="d-flex gap-1 flex-wrap mt-2">
         ${orderLink}
         ${tracking}
@@ -1054,9 +1054,9 @@ function chatOrderCardHtml(card, myOrders) {
     }
 
     // One order: the full card, plus follow-ups that fit where it is.
-    const o = picked[0];
-    const view = chatOrderView(o);
-    const { pickup } = chatOrderSteps(o, view.status);
+    const order = picked[0];
+    const view = chatOrderView(order);
+    const { pickup } = chatOrderSteps(order, view.status);
     const followUps = [];
     if (!view.issue && !pickup && ["payment_confirmed", "dispatched"].includes(view.status)) {
       followUps.push({ type: "button", label: "Delivery fee?", q: "How much is the delivery fee?" });
@@ -1069,8 +1069,8 @@ function chatOrderCardHtml(card, myOrders) {
     await addMessage(
       "assistant",
       // The card shows the live status; this line stays true as it changes.
-      `Here's order ${o.orderNumber}. The card below updates as your order moves.`,
-      [{ type: "order", id: o.id, detail: true }].concat(followUps)
+      `Here's order ${order.orderNumber}. The card below updates as your order moves.`,
+      [{ type: "order", id: order.id, detail: true }].concat(followUps)
     );
   }
 
@@ -1115,10 +1115,10 @@ function chatOrderCardHtml(card, myOrders) {
     }
     const products = labelWords.length ? chatProductsForLabelWords(labelWords) : [];
     if (!products.length) return reply("none");
-    const t = CHAT_HEALTH_TEXT[lang];
+    const healthText = CHAT_HEALTH_TEXT[lang];
     await addMessage(
       "assistant",
-      `${t.intro([...new Set(names)].join(t.and), products.map((p) => p.name).join(", "))}\n\n${t.warn}`,
+      `${healthText.intro([...new Set(names)].join(healthText.and), products.map((p) => p.name).join(", "))}\n\n${healthText.warn}`,
       products.map((p) => ({ type: "product", id: p.id })).concat([pharmacistButton])
     );
     return true;

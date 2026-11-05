@@ -13,10 +13,10 @@ document.addEventListener("admin:ready", async (e) => {
   try {
     const doc = await storeBannerRef.get();
     if (doc.exists) {
-      const b = doc.data();
-      document.getElementById("storeBannerActive").checked = !!b.active;
-      document.getElementById("storeBannerKind").value = b.kind || "announcement";
-      document.getElementById("storeBannerMessage").value = b.message || "";
+      const banner = doc.data();
+      document.getElementById("storeBannerActive").checked = !!banner.active;
+      document.getElementById("storeBannerKind").value = banner.kind || "announcement";
+      document.getElementById("storeBannerMessage").value = banner.message || "";
     }
   } catch (error) {
     console.warn("Couldn't load the store announcement:", error);

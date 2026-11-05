@@ -227,9 +227,9 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
     const orderRef = db.collection("orders").doc(orderId);
     const closed = await db.runTransaction(async (transaction) => {
       const fresh = await transaction.get(orderRef);
-      const f = fresh.exists ? fresh.data() : null;
-      if (!f || !f.paymentIssue || !f.paymentIssue.holdUntil || f.paymentIssue.holdUntil.toMillis() >= Date.now()) return false;
-      unappliedCredit = computeUnappliedCredit(f);
+      const freshOrder = fresh.exists ? fresh.data() : null;
+      if (!freshOrder || !freshOrder.paymentIssue || !freshOrder.paymentIssue.holdUntil || freshOrder.paymentIssue.holdUntil.toMillis() >= Date.now()) return false;
+      unappliedCredit = computeUnappliedCredit(freshOrder);
       transaction.update(orderRef, {
         status: "closed_unresolved",
         "statusTimestamps.closed_unresolved": firebase.firestore.FieldValue.serverTimestamp(),
@@ -237,8 +237,8 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
         closedReason,
         unappliedCredit,
       });
-      if (unappliedCredit > 0 && f.customerId) {
-        transaction.update(db.collection("users").doc(f.customerId), {
+      if (unappliedCredit > 0 && freshOrder.customerId) {
+        transaction.update(db.collection("users").doc(freshOrder.customerId), {
           creditBalance: firebase.firestore.FieldValue.increment(unappliedCredit),
         });
       }

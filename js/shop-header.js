@@ -255,16 +255,16 @@ function renderCustomerNotifications(uid, notifications) {
   const severityIcons = { danger: "bi-exclamation-octagon", warning: "bi-exclamation-triangle", info: "bi-info-circle", success: "bi-check-circle" };
   notifDropdownList.innerHTML =
     notifications
-      .map((n, idx) => {
-        const severityColor = SEVERITY_COLORS[n.severity] || SEVERITY_COLORS.info;
-        const icon = n.icon || severityIcons[n.severity] || severityIcons.info;
+      .map((notification, idx) => {
+        const severityColor = SEVERITY_COLORS[notification.severity] || SEVERITY_COLORS.info;
+        const icon = notification.icon || severityIcons[notification.severity] || severityIcons.info;
         return `
           <li>
-            <a class="dropdown-item d-flex align-items-start gap-2 py-2 customer-notif-item" href="${n.link}" data-idx="${idx}" style="white-space:normal; border-left:3px solid ${severityColor}; ${n.isRead ? "opacity:0.6;" : "font-weight:600;"}">
+            <a class="dropdown-item d-flex align-items-start gap-2 py-2 customer-notif-item" href="${notification.link}" data-idx="${idx}" style="white-space:normal; border-left:3px solid ${severityColor}; ${notification.isRead ? "opacity:0.6;" : "font-weight:600;"}">
               <i class="bi ${icon} mt-1" style="color:${severityColor};"></i>
               <span class="flex-grow-1" style="font-size:0.85rem;">
-                ${escapeHtml(n.title || "")}
-                <span class="d-block text-muted" style="font-size:0.78rem; font-weight:400;">${escapeHtml(n.detail || "")}</span>
+                ${escapeHtml(notification.title || "")}
+                <span class="d-block text-muted" style="font-size:0.78rem; font-weight:400;">${escapeHtml(notification.detail || "")}</span>
               </span>
             </a>
           </li>

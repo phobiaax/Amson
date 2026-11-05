@@ -165,8 +165,8 @@ function openThread(id) {
           })
           .join("");
         chatConvMessages.scrollTop = chatConvMessages.scrollHeight;
-        const t = selectedThread();
-        if (t && t.unreadByStaff && t.id === id) ref.update({ unreadByStaff: false }).catch(() => {});
+        const thread = selectedThread();
+        if (thread && thread.unreadByStaff && thread.id === id) ref.update({ unreadByStaff: false }).catch(() => {});
       },
       (error) => console.error("Failed to load messages:", error)
     );
