@@ -227,7 +227,7 @@ async function sendEmailChangeCode() {
 
     pendingNewEmail = newEmail;
     pendingEmailOtpCode = generateOtpCode();
-    pendingEmailOtpExpiresAt = Date.now() + 10 * 60 * 1000;
+    pendingEmailOtpExpiresAt = Date.now() + OTP_CODE_TTL_MS;
     await sendOtpEmail(newEmail, pendingEmailOtpCode, firstNameInput.value.trim());
 
     changeEmailTargetDisplay.textContent = newEmail;
@@ -251,7 +251,7 @@ sendEmailChangeCodeBtn.addEventListener("click", sendEmailChangeCode);
 resendEmailChangeCodeBtn.addEventListener("click", async () => {
   if (!pendingNewEmail) return;
   pendingEmailOtpCode = generateOtpCode();
-  pendingEmailOtpExpiresAt = Date.now() + 10 * 60 * 1000;
+  pendingEmailOtpExpiresAt = Date.now() + OTP_CODE_TTL_MS;
   await sendOtpEmail(pendingNewEmail, pendingEmailOtpCode, firstNameInput.value.trim());
   changeEmailStep2Success.textContent = "A new code has been sent.";
   changeEmailStep2Success.classList.remove("d-none");

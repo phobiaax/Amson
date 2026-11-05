@@ -16,6 +16,14 @@
 
 const CHAT_GUEST_KEY = "amsonChatGuestThread";
 const CHAT_MAX_LENGTH = 500;
+// At most one message per 1.5 seconds (a simple flood guard).
+const CHAT_MIN_GAP_MS = 1500;
+// When the AI says it's busy (rate limit), wait this long and try once more.
+const AI_RETRY_WAIT_MS = 5000;
+// Built-in answers are only matched for short questions.
+const FAQ_MAX_WORDS = 14;
+// The last message shown in the staff chat list is cut to this length.
+const CHAT_PREVIEW_LENGTH = 120;
 
 // An AI reply that gives a dose or a schedule ("take 2 tablets", "every 4
 // hours", "3 times a day") is never shown - the pharmacist message is,
@@ -141,7 +149,7 @@ function chatHasComplaint(text) {
 // product-specific messages go to the AI.
 function chatMatchFaq(text) {
   const t = chatNormalize(text);
-  if (t.trim().split(" ").length > 14) return null;
+  if (t.trim().split(" ").length > FAQ_MAX_WORDS) return null;
   let best = null;
   let bestHits = 0;
   chatFaqAnswers().forEach((faq) => {
@@ -655,7 +663,7 @@ async function chatAiReply(history, question) {
       result = await model.generateContent({ contents });
     } catch (error) {
       if (!isRateLimited(error)) throw error;
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await new Promise((resolve) => setTimeout(resolve, AI_RETRY_WAIT_MS));
       result = await model.generateContent({ contents });
     }
     let text = (result.response.text() || "").trim();
@@ -1128,7 +1136,7 @@ function chatOrderCardHtml(card, myOrders) {
   // Creates the thread on the first message, reopens a resolved one.
   async function touchThread(text) {
     const base = {
-      lastMessage: text.slice(0, 120),
+      lastMessage: text.slice(0, CHAT_PREVIEW_LENGTH),
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
       customerName: displayName,
     };
@@ -1294,7 +1302,7 @@ function chatOrderCardHtml(card, myOrders) {
   async function send(text) {
     text = String(text || "").trim().slice(0, CHAT_MAX_LENGTH);
     if (!text || sending) return;
-    if (Date.now() - lastSentAt < 1500) return; // simple flood guard
+    if (Date.now() - lastSentAt < CHAT_MIN_GAP_MS) return;
     sending = true;
     lastSentAt = Date.now();
     sendBtn.disabled = true;

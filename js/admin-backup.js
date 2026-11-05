@@ -60,7 +60,7 @@ function backupCell(value) {
   if (value == null) return "";
   if (typeof value === "object") {
     const text = JSON.stringify(value);
-    return text.length > 32000 ? `${text.slice(0, 32000)}... (cut - see the JSON file)` : text;
+    return text.length > EXCEL_CELL_MAX_CHARS ? `${text.slice(0, EXCEL_CELL_MAX_CHARS)}... (cut - see the JSON file)` : text;
   }
   return value;
 }
@@ -96,7 +96,7 @@ if (backupBtn) {
         rows.forEach((row) => Object.keys(row).forEach((k) => headers.includes(k) || headers.push(k)));
         const sheetRows = rows.map((row) => headers.map((h) => backupCell(row[h])));
         const ws = XLSX.utils.aoa_to_sheet([headers, ...sheetRows]);
-        XLSX.utils.book_append_sheet(wb, ws, label.slice(0, 31));
+        XLSX.utils.book_append_sheet(wb, ws, label.slice(0, EXCEL_SHEET_NAME_MAX));
       });
       XLSX.writeFile(wb, `amson-backup-${stamp}.xlsx`);
 

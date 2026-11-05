@@ -911,8 +911,8 @@ async function saveReceiptInGroups(plan) {
   const ops = plan.newLines.map((line) => ({ line })).concat(plan.topUps.map((t) => ({ topUp: t })));
   let imported = 0;
   let failed = 0;
-  for (let start = 0; start < ops.length; start += 400) {
-    const chunk = ops.slice(start, start + 400);
+  for (let start = 0; start < ops.length; start += FIRESTORE_BATCH_LIMIT) {
+    const chunk = ops.slice(start, start + FIRESTORE_BATCH_LIMIT);
     const subPlan = { newLines: chunk.filter((o) => o.line).map((o) => o.line), topUps: chunk.filter((o) => o.topUp).map((o) => o.topUp) };
     try {
       await db.runTransaction(async (transaction) => {

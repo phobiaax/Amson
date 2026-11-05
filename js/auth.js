@@ -57,6 +57,9 @@ function mapAuthError(error) {
 
 const LOGIN_LOCKOUT_THRESHOLD = 5;
 const LOGIN_LOCKOUT_MS = 2 * 60 * 1000;
+// A saved lock may end up to this much later than a normal one (clock
+// differences); anything longer wasn't written by this page.
+const LOGIN_LOCK_GRACE_MS = 60 * 1000;
 
 function loginAttemptsDocId(email) {
   return email.trim().toLowerCase();
@@ -71,7 +74,7 @@ async function getActiveLoginLock(email) {
   const lockedUntil = doc.data().lockedUntil;
   // A lock longer than a normal one (or not a time at all) wasn't written
   // by this page - ignore it and clear it below.
-  const valid = typeof lockedUntil === "number" && lockedUntil <= Date.now() + LOGIN_LOCKOUT_MS + 60 * 1000;
+  const valid = typeof lockedUntil === "number" && lockedUntil <= Date.now() + LOGIN_LOCKOUT_MS + LOGIN_LOCK_GRACE_MS;
   if (valid && lockedUntil > Date.now()) return lockedUntil;
   if (lockedUntil) {
     // Lockout period has passed - clear it so the next attempt gets a
@@ -210,8 +213,10 @@ auth.onAuthStateChanged(async (user) => {
 });
 
 // ---- New-device code (REQ005, REQ044) ----
-const DEVICE_OTP_TTL_MS = 10 * 60 * 1000;
+const DEVICE_OTP_TTL_MS = OTP_CODE_TTL_MS;
 const DEVICE_OTP_MAX_TRIES = 5;
+// A new device code can be requested once a minute.
+const DEVICE_OTP_RESEND_MS = 60 * 1000;
 const deviceOtpPanel = document.getElementById("deviceOtpPanel");
 const deviceOtpInput = document.getElementById("deviceOtpInput");
 const deviceOtpVerifyBtn = document.getElementById("deviceOtpVerifyBtn");
@@ -292,7 +297,7 @@ deviceOtpInput.addEventListener("keydown", (e) => {
 deviceOtpResendBtn.addEventListener("click", async () => {
   if (!deviceOtp) return;
   hideAlert();
-  if (Date.now() - deviceOtp.lastSentAt < 60 * 1000) {
+  if (Date.now() - deviceOtp.lastSentAt < DEVICE_OTP_RESEND_MS) {
     showAlert("Please wait a minute before requesting another code.");
     return;
   }

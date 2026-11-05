@@ -198,6 +198,20 @@ function hideModalAndWait(el) {
 }
 
 // =====================================================================
+// ---- shared limits ----
+// Firestore allows 500 writes in one batch; groups of 400 leave room.
+const FIRESTORE_BATCH_LIMIT = 400;
+// A wholesale buyer's LTO / Business Permit counts as "expiring" this many
+// days before its end date (REQ086).
+const DOCUMENT_EXPIRY_WARNING_DAYS = 30;
+// Excel's own limits: a sheet name of 31 characters, 32,767 per cell (the
+// backup cuts cells a little earlier).
+const EXCEL_SHEET_NAME_MAX = 31;
+const EXCEL_CELL_MAX_CHARS = 32000;
+// A live listener that hasn't heard from the server by then answers from a
+// plain read instead.
+const LIVE_QUERY_OFFLINE_MS = 10000;
+
 // ---- catalog ----
 // The shared product list (SAMPLE_PRODUCTS) and looking products up in it.
 
@@ -672,7 +686,7 @@ async function wholesaleDocumentAlerts() {
   // within 30 days (REQ086).
   try {
     const accounts = await db.collection("wholesaleAccounts").get();
-    const soon = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    const soon = Date.now() + DOCUMENT_EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000;
     const flagged = accounts.docs.filter((d) => {
       const a = d.data();
       if (a.status === "inactive") return false;
@@ -685,7 +699,7 @@ async function wholesaleDocumentAlerts() {
         // 30 days before the soonest document runs out
         at: Math.min(
           ...flagged.map((d) => Math.min(...[d.data().ltoValidUntil, d.data().permitValidUntil].filter(Boolean).map((v) => staffNotifMillis(`${v}T00:00:00`))))
-        ) - 30 * 24 * 60 * 60 * 1000,
+        ) - DOCUMENT_EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000,
         signature: flagged.map((d) => `${d.id}:${d.data().ltoValidUntil}:${d.data().permitValidUntil}`).sort().join(","),
         severity: "warning",
         icon: "bi-file-earmark-text",
@@ -923,7 +937,7 @@ function liveQuery(key, query) {
           },
           () => {}
         );
-      }, 10000);
+      }, LIVE_QUERY_OFFLINE_MS);
       // Opened only after the sign-in check (authGate, firebase-config.js):
       // a listener open while that check signs someone out never answered.
       authGate.then(() => query.onSnapshot(
@@ -1913,7 +1927,7 @@ async function exportTable({ title, subtitle = "", filenamePrefix, columns, rows
     }
     const sheet = XLSX.utils.aoa_to_sheet([columns.map((c) => c.label), ...cells]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, sheet, title.slice(0, 31));
+    XLSX.utils.book_append_sheet(wb, sheet, title.slice(0, EXCEL_SHEET_NAME_MAX));
     XLSX.writeFile(wb, `${filenamePrefix}-${stamp}.xlsx`);
     return;
   }

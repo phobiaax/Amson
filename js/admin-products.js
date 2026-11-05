@@ -995,9 +995,9 @@ async function deleteCategory(id) {
 
   try {
     // Firestore batches cap at 500 writes.
-    for (let i = 0; i < productsInCategory.length; i += 400) {
+    for (let i = 0; i < productsInCategory.length; i += FIRESTORE_BATCH_LIMIT) {
       const batch = db.batch();
-      productsInCategory.slice(i, i + 400).forEach((p) => batch.update(db.collection("products").doc(p.id), { category: moveTo }));
+      productsInCategory.slice(i, i + FIRESTORE_BATCH_LIMIT).forEach((p) => batch.update(db.collection("products").doc(p.id), { category: moveTo }));
       await batch.commit();
     }
     await db.collection("categories").doc(id).delete();
