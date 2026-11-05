@@ -530,31 +530,31 @@ function stockLevelAlerts(batchSnapshot) {
   // Low / out of stock per product, on its physical stock across all
   // batches - the same rule as the Inventory and Dashboard tiles.
   const physicalStockByProduct = sumPhysicalStockByProduct(batchSnapshot.docs.map((doc) => doc.data()));
-  SAMPLE_PRODUCTS.filter((p) => p.status === "active").forEach((p) => {
-    const stock = physicalStockByProduct[p.id] || 0;
+  SAMPLE_PRODUCTS.filter((p) => p.status === "active").forEach((product) => {
+    const stock = physicalStockByProduct[product.id] || 0;
     // A product that has never had a batch (just added, stock not received
     // yet) isn't "out of stock" - only one that had stock and ran out.
-    if (stock === 0 && !(p.id in lastStockChange)) return;
+    if (stock === 0 && !(product.id in lastStockChange)) return;
     if (stock === 0) {
       notifications.push({
-        key: `out_of_stock:${p.id}`,
+        key: `out_of_stock:${product.id}`,
         category: "stock",
-        at: lastStockChange[p.id] || staffNotifMillis(p.createdAt),
+        at: lastStockChange[product.id] || staffNotifMillis(product.createdAt),
         signature: "0",
         severity: "danger",
         icon: "bi-box-seam",
-        message: `${p.name} is out of stock.`,
+        message: `${product.name} is out of stock.`,
         link: "inventory.html",
       });
-    } else if (stock <= (p.reorderPoint || DEFAULT_REORDER_POINT)) {
+    } else if (stock <= (product.reorderPoint || DEFAULT_REORDER_POINT)) {
       notifications.push({
-        key: `low_stock:${p.id}`,
+        key: `low_stock:${product.id}`,
         category: "stock",
-        at: lastStockChange[p.id] || 0,
+        at: lastStockChange[product.id] || 0,
         signature: `${stock}`,
         severity: "warning",
         icon: "bi-box-seam",
-        message: `${p.name} is low on stock - ${stock} left.`,
+        message: `${product.name} is low on stock - ${stock} left.`,
         link: "inventory.html",
       });
     }
@@ -566,38 +566,38 @@ function stockLevelAlerts(batchSnapshot) {
 function expiryAlerts(batchSnapshot) {
   const notifications = [];
   batchSnapshot.docs.forEach((doc) => {
-    const b = { id: doc.id, ...doc.data() };
+    const batch = { id: doc.id, ...doc.data() };
     // An empty lot isn't an expiry concern any more.
-    if (b.status !== "active" || !(b.quantity > 0)) return;
-    const product = getProductById(b.productId);
+    if (batch.status !== "active" || !(batch.quantity > 0)) return;
+    const product = getProductById(batch.productId);
     const productName = product ? product.name : "Unknown product";
 
-    const expiryStatus = getExpiryStatus(b);
+    const expiryStatus = getExpiryStatus(batch);
     if (expiryStatus === "expired") {
       notifications.push({
-        key: `expired:${b.id}`,
+        key: `expired:${batch.id}`,
         category: "stock",
-        at: staffNotifMillis(`${b.expirationDate}T00:00:00`),
-        signature: `${b.quantity}`,
+        at: staffNotifMillis(`${batch.expirationDate}T00:00:00`),
+        signature: `${batch.quantity}`,
         severity: "danger",
         icon: "bi-calendar-x",
-        message: `${productName} (Batch ${b.batchNo}) has expired - ${b.expirationDate}.`,
+        message: `${productName} (Batch ${batch.batchNo}) has expired - ${batch.expirationDate}.`,
         link: "inventory.html",
       });
     } else if (expiryStatus === "near_expiry") {
       notifications.push({
-        key: `near_expiry:${b.id}`,
+        key: `near_expiry:${batch.id}`,
         category: "stock",
         // the day it came within NEAR_EXPIRY_MONTHS of expiring
         at: (() => {
-          const d = new Date(`${b.expirationDate}T00:00:00`);
+          const d = new Date(`${batch.expirationDate}T00:00:00`);
           d.setMonth(d.getMonth() - NEAR_EXPIRY_MONTHS);
           return d.getTime() || 0;
         })(),
-        signature: `${b.quantity}:${b.expirationDate}`,
+        signature: `${batch.quantity}:${batch.expirationDate}`,
         severity: "warning",
         icon: "bi-hourglass-split",
-        message: `${productName} (Batch ${b.batchNo}) is near expiry - ${b.expirationDate}.`,
+        message: `${productName} (Batch ${batch.batchNo}) is near expiry - ${batch.expirationDate}.`,
         link: "inventory.html",
       });
     }
@@ -826,27 +826,27 @@ async function markBatchBadOrder(batchId) {
   await db.runTransaction(async (tx) => {
     const doc = await tx.get(ref);
     if (!doc.exists) return;
-    const b = doc.data();
+    const batch = doc.data();
     // Another staff page may have done it a moment ago.
-    if (b.status === "bad_order" || (b.quantity || 0) <= 0) return;
-    const reason = `Bad Order - within ${BAD_ORDER_MONTHS} months of expiry (${formatDateMDY(b.expirationDate)}), deducted automatically`;
+    if (batch.status === "bad_order" || (batch.quantity || 0) <= 0) return;
+    const reason = `Bad Order - within ${BAD_ORDER_MONTHS} months of expiry (${formatDateMDY(batch.expirationDate)}), deducted automatically`;
     tx.update(ref, {
       status: "bad_order",
       quantity: 0,
-      badOrderQty: b.quantity,
+      badOrderQty: batch.quantity,
       badOrderAt: firebase.firestore.FieldValue.serverTimestamp(),
       lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     tx.set(writeOffRef, {
       batchId,
-      productId: b.productId,
-      batchNo: b.batchNo || "",
-      quantity: b.quantity,
+      productId: batch.productId,
+      batchNo: batch.batchNo || "",
+      quantity: batch.quantity,
       reason,
       automatic: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
-    result = { productId: b.productId, batchNo: b.batchNo, quantity: b.quantity, reason };
+    result = { productId: batch.productId, batchNo: batch.batchNo, quantity: batch.quantity, reason };
   });
   if (result) {
     const product = getProductById(result.productId);
@@ -2045,10 +2045,10 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, re
     }
 
     const returnDocs = [];
-    for (const r of returns) {
-      const doc = await transaction.get(db.collection("stockBatches").doc(r.batchId));
+    for (const returnLine of returns) {
+      const doc = await transaction.get(db.collection("stockBatches").doc(returnLine.batchId));
       if (!doc.exists) throw new Error("The batch the item came from no longer exists; it can't be returned to stock automatically.");
-      returnDocs.push({ doc, qty: r.qty });
+      returnDocs.push({ doc, qty: returnLine.qty });
     }
     const extraDocs = [];
     for (const ref of extraReads) extraDocs.push(await transaction.get(ref));
@@ -2583,8 +2583,8 @@ async function logAuditEvent({ action, details, actor, record, before, after, re
     if (!actorName && auth.currentUser) {
       const userDoc = await db.collection("users").doc(auth.currentUser.uid).get();
       if (userDoc.exists) {
-        const u = userDoc.data();
-        actorName = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email || "Unknown";
+        const userData = userDoc.data();
+        actorName = `${userData.firstName || ""} ${userData.lastName || ""}`.trim() || userData.email || "Unknown";
       }
     }
 

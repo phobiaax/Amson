@@ -596,16 +596,16 @@ async function applyStockReceipt(transaction, plan) {
       transaction.set(ref, record);
       transaction.set(db.collection("batchCosts").doc(ref.id), { unitCost: costOrNull(line.unitCost) });
     });
-    plan.topUps.forEach((t, i) => {
-      if (!docs[i].exists) throw new Error(`Batch ${t.line.batchNo} no longer exists. Refresh the page and try again.`);
-      const b = docs[i].data();
-      const c = costDocs[i].exists ? costDocs[i].data() : {};
-      const firstQty = b.initialQuantity != null ? b.initialQuantity : b.quantity || 0;
+    plan.topUps.forEach((topUp, i) => {
+      if (!docs[i].exists) throw new Error(`Batch ${topUp.line.batchNo} no longer exists. Refresh the page and try again.`);
+      const batchData = docs[i].data();
+      const costData = costDocs[i].exists ? costDocs[i].data() : {};
+      const firstQty = batchData.initialQuantity != null ? batchData.initialQuantity : batchData.quantity || 0;
       // Older records may still carry costs on the batch itself.
-      const firstCost = c.unitCost != null ? c.unitCost : costOrNull(b.unitCost);
-      const earlier = b.deliveries && b.deliveries.length ? b.deliveries : [{ ...deliveryRecord(b, firstQty), unitCost: firstCost }];
+      const firstCost = costData.unitCost != null ? costData.unitCost : costOrNull(batchData.unitCost);
+      const earlier = batchData.deliveries && batchData.deliveries.length ? batchData.deliveries : [{ ...deliveryRecord(batchData, firstQty), unitCost: firstCost }];
       const earlierCosts = earlier.map((d, idx) =>
-        Array.isArray(c.deliveryCosts) && c.deliveryCosts[idx] != null ? c.deliveryCosts[idx] : costOrNull(d.unitCost)
+        Array.isArray(costData.deliveryCosts) && costData.deliveryCosts[idx] != null ? costData.deliveryCosts[idx] : costOrNull(d.unitCost)
       );
       const deliveries = earlier
         .map((d) => {
@@ -613,15 +613,15 @@ async function applyStockReceipt(transaction, plan) {
           delete rest.unitCost;
           return rest;
         })
-        .concat([deliveryRecord(t.line, t.line.qty)]);
+        .concat([deliveryRecord(topUp.line, topUp.line.qty)]);
       transaction.update(refs[i], {
-        quantity: (b.quantity || 0) + t.line.qty,
-        initialQuantity: firstQty + t.line.qty,
+        quantity: (batchData.quantity || 0) + topUp.line.qty,
+        initialQuantity: firstQty + topUp.line.qty,
         deliveries,
         unitCost: firebase.firestore.FieldValue.delete(),
         lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
-      transaction.set(costRefs[i], { unitCost: firstCost, deliveryCosts: earlierCosts.concat([costOrNull(t.line.unitCost)]) });
+      transaction.set(costRefs[i], { unitCost: firstCost, deliveryCosts: earlierCosts.concat([costOrNull(topUp.line.unitCost)]) });
     });
   };
 }

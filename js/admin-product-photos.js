@@ -237,7 +237,7 @@ function renderPhotoRows() {
   const shown = photoRows.filter((r) => photoFilter === "all" || (photoFilter === "needs") === !!states.get(r).needs);
   photosReviewList.innerHTML = shown
     .map((row) => {
-      const p = row.productId ? getProductById(row.productId) : null;
+      const product = row.productId ? getProductById(row.productId) : null;
       const st = states.get(row);
       return `
         <div class="photo-review-row ${st.needs ? "needs" : ""}" data-row="${row.id}">
@@ -248,10 +248,10 @@ function renderPhotoRows() {
             <div class="photo-review-status ${st.cls}">${escapeHtml(st.text)}</div>
           </div>
           <div class="photo-picker">
-            <div class="current-thumb" title="${p && p.imageUrl ? "Current photo" : "No photo yet"}" style="${p ? photoThumbStyle(p.imageUrl, 80) : ""}"></div>
+            <div class="current-thumb" title="${product && product.imageUrl ? "Current photo" : "No photo yet"}" style="${product ? photoThumbStyle(product.imageUrl, 80) : ""}"></div>
             <div class="picker-input-wrap">
-              <input type="text" class="form-control form-control-sm photo-row-product" autocomplete="off" placeholder="Search product name, brand or code" value="${p ? escapeHtml(p.name) : ""}" aria-label="Product for this photo">
-              ${p ? `<button type="button" class="picker-clear" title="Clear" aria-label="Clear product"><i class="bi bi-x-lg"></i></button>` : ""}
+              <input type="text" class="form-control form-control-sm photo-row-product" autocomplete="off" placeholder="Search product name, brand or code" value="${product ? escapeHtml(product.name) : ""}" aria-label="Product for this photo">
+              ${product ? `<button type="button" class="picker-clear" title="Clear" aria-label="Clear product"><i class="bi bi-x-lg"></i></button>` : ""}
             </div>
           </div>
         </div>`;
@@ -503,17 +503,17 @@ photosSaveBtn.addEventListener("click", async () => {
   const worker = async () => {
     while (next < rows.length) {
       const row = rows[next++];
-      const p = getProductById(row.productId);
+      const product = getProductById(row.productId);
       try {
         const imageUrl = await uploadToCloudinary(row.file, { kind: "product" });
         await db.collection("products").doc(row.productId).update({ imageUrl });
-        if (p) p.imageUrl = imageUrl;
+        if (product) product.imageUrl = imageUrl;
         done.push(row);
       } catch (error) {
         console.error("Photo upload failed:", row.file.name, error);
         failed.push(row);
       }
-      updateTaskProgress(done.length + failed.length, rows.length, p ? p.name : "");
+      updateTaskProgress(done.length + failed.length, rows.length, product ? product.name : "");
     }
   };
   // Three at a time: quick on good Wi-Fi without choking mobile data.

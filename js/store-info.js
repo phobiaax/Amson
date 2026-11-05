@@ -79,15 +79,15 @@ document.querySelectorAll(".site-header .search-input").forEach((input) => {
   try {
     const doc = await db.collection("storeSettings").doc("homeBanner").get();
     if (!doc.exists) return;
-    const b = doc.data();
-    if (!b.active || !b.message) return;
+    const banner = doc.data();
+    if (!banner.active || !banner.message) return;
     const bar = document.createElement("div");
-    bar.className = `store-banner store-banner-${b.kind === "promotion" ? "promotion" : "announcement"}`;
+    bar.className = `store-banner store-banner-${banner.kind === "promotion" ? "promotion" : "announcement"}`;
     bar.setAttribute("role", "status");
     const icon = document.createElement("i");
-    icon.className = `bi ${b.kind === "promotion" ? "bi-tag-fill" : "bi-megaphone-fill"} me-2`;
+    icon.className = `bi ${banner.kind === "promotion" ? "bi-tag-fill" : "bi-megaphone-fill"} me-2`;
     bar.appendChild(icon);
-    bar.appendChild(document.createTextNode(b.message));
+    bar.appendChild(document.createTextNode(banner.message));
     header.insertAdjacentElement("afterend", bar);
   } catch (error) {
     console.warn("Store announcement unavailable:", error);

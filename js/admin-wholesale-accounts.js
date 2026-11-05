@@ -833,21 +833,21 @@ async function openHistoryModal(account) {
   }
   body.innerHTML = historyOrders
     .map(
-      (o) => `<tr>
-        <td class="fw-medium">${escapeHtml(o.invoiceNo || "-")}</td>
-        <td>${formatDateMDY(o.createdAt)}</td>
-        <td>${(o.items || []).map((it) => `${escapeHtml(it.productName)} x${it.qty}${it.free ? ` <span class="text-success">(free)</span>` : ""}${it.returnedQty ? ` <span class="text-danger">(${it.returnedQty} exchanged)</span>` : ""}`).join(", ")}</td>
-        <td>${formatPeso(o.total || 0)}</td>
-        <td>${o.freeOfCost ? "Free of cost" : escapeHtml(SALE_RECEIPT_PAYMENT_METHOD_LABELS[o.paymentMethod] || o.paymentMethod || "-")}</td>
+      (order) => `<tr>
+        <td class="fw-medium">${escapeHtml(order.invoiceNo || "-")}</td>
+        <td>${formatDateMDY(order.createdAt)}</td>
+        <td>${(order.items || []).map((it) => `${escapeHtml(it.productName)} x${it.qty}${it.free ? ` <span class="text-success">(free)</span>` : ""}${it.returnedQty ? ` <span class="text-danger">(${it.returnedQty} exchanged)</span>` : ""}`).join(", ")}</td>
+        <td>${formatPeso(order.total || 0)}</td>
+        <td>${order.freeOfCost ? "Free of cost" : escapeHtml(SALE_RECEIPT_PAYMENT_METHOD_LABELS[order.paymentMethod] || order.paymentMethod || "-")}</td>
         <td>${
-          o.releaseStatus === "pending"
+          order.releaseStatus === "pending"
             ? '<span class="badge text-bg-warning">Pending</span>'
-            : `<span class="badge text-bg-success">Released</span>${o.releasedAt ? `<div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(o.releasedAt)}${o.releasedBy ? ` - ${escapeHtml(o.releasedBy)}` : ""}</div>` : ""}`
+            : `<span class="badge text-bg-success">Released</span>${order.releasedAt ? `<div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(order.releasedAt)}${order.releasedBy ? ` - ${escapeHtml(order.releasedBy)}` : ""}</div>` : ""}`
         }</td>
         <td class="text-nowrap">
-          ${o.releaseStatus === "pending" ? `<button type="button" class="btn btn-amson btn-sm wholesale-release-btn" data-id="${o.id}">Mark Released</button>` : ""}
-          <button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-invoice-btn" data-id="${o.id}"><i class="bi bi-printer me-1"></i>Print Invoice</button>
-          <button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-exchange-btn" data-id="${o.id}">Exchange</button>
+          ${order.releaseStatus === "pending" ? `<button type="button" class="btn btn-amson btn-sm wholesale-release-btn" data-id="${order.id}">Mark Released</button>` : ""}
+          <button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-invoice-btn" data-id="${order.id}"><i class="bi bi-printer me-1"></i>Print Invoice</button>
+          <button type="button" class="btn btn-outline-dark-amson btn-sm wholesale-exchange-btn" data-id="${order.id}">Exchange</button>
         </td>
       </tr>`
     )
