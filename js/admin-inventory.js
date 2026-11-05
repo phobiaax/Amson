@@ -1590,6 +1590,17 @@ submitCountBtn.addEventListener("click", async () => {
     await showAppAlert(`Enter a count for every batch (${blank} left blank). Type 0 if none are on hand.`, { title: "Count Incomplete" });
     return;
   }
+  // counts are whole numbers, 0 or more
+  const badCount = rows.filter((row) => !/^\d+$/.test(row.querySelector(".reconciliation-counted-input").value.trim())).length;
+  if (badCount > 0) {
+    rows.forEach((row) => {
+      const input = row.querySelector(".reconciliation-counted-input");
+      input.classList.toggle("is-invalid", !/^\d+$/.test(input.value.trim()));
+    });
+    await showAppAlert(`${badCount} count${badCount === 1 ? " isn't" : "s aren't"} a whole number of 0 or more. Fix the highlighted ${badCount === 1 ? "box" : "boxes"} and submit again.`, { title: "Check the Count" });
+    return;
+  }
+  rows.forEach((row) => row.querySelector(".reconciliation-counted-input").classList.remove("is-invalid"));
   const updatedItems = readCountedItems(activeSession, rows);
 
   // only branch manager finalizes, others save it for review
