@@ -308,7 +308,12 @@ service cloud.firestore {
     match /counters/{counterId} {
       allow read: if isSignedIn();
       // no deleting counters or numbering restarts
-      allow create, update: if isStaff();
+      allow create, update: if isStaff() && counterId != "salesInvoices";
+      // invoice numbers only ever go up by one
+      allow create: if isStaff() && counterId == "salesInvoices" &&
+        request.resource.data.count == 1;
+      allow update: if isStaff() && counterId == "salesInvoices" &&
+        request.resource.data.count == resource.data.count + 1;
       // order number counter only goes up by one
       allow create: if isSignedIn() && counterId.matches("orders-[0-9]{4}") &&
         request.resource.data.count == 1;
@@ -337,6 +342,8 @@ service cloud.firestore {
         !(resource.data.get("role", "") in ["admin", "branch_manager"]);
     }
     match /counters/{counterId} {
+      // the go-live start number for invoices
+      allow create, update: if canClearTestData() && counterId == "salesInvoices";
       allow delete: if canClearTestData() &&
         (counterId.matches("(orders|purchaseOrders|reconciliations)-[0-9]{4}") || counterId in ["wholesaleExchanges", "products"]);
     }
