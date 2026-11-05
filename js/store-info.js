@@ -21,9 +21,9 @@ function renderSiteFooter() {
   // Pages under /shop/ and /admin/ link up one level to the legal page.
   const inSubfolder = /\/(shop|admin)\//.test(window.location.pathname);
   const legalHref = `${inSubfolder ? "../" : ""}legal.html`;
-  const esc = (text) =>
+  const escapeText = (text) =>
     String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-  const line = (label, value) => (value ? `<p class="mb-1">${label}${esc(value)}</p>` : "");
+  const line = (label, value) => (value ? `<p class="mb-1">${label}${escapeText(value)}</p>` : "");
 
   const contactLines =
     line("Hotline: ", STORE_INFO.hotline) +
@@ -35,8 +35,8 @@ function renderSiteFooter() {
     <div class="container">
       <div class="row gy-4">
         <div class="col-md-5">
-          <h6>About ${esc(STORE_INFO.name)}</h6>
-          <p>${esc(STORE_INFO.about)}</p>
+          <h6>About ${escapeText(STORE_INFO.name)}</h6>
+          <p>${escapeText(STORE_INFO.about)}</p>
         </div>
         <div class="col-md-3">
           <h6>Information</h6>
@@ -47,7 +47,7 @@ function renderSiteFooter() {
       </div>
     </div>
     <div class="footer-bottom text-center py-3 mt-4">
-      &copy; ${new Date().getFullYear()} ${esc(STORE_INFO.name)}. All rights reserved.${STORE_INFO.fdaLtoNo ? ` FDA LTO No. ${esc(STORE_INFO.fdaLtoNo)}` : ""}
+      &copy; ${new Date().getFullYear()} ${escapeText(STORE_INFO.name)}. All rights reserved.${STORE_INFO.fdaLtoNo ? ` FDA LTO No. ${escapeText(STORE_INFO.fdaLtoNo)}` : ""}
     </div>
   `;
 }
