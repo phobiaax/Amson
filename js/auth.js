@@ -162,7 +162,8 @@ async function performLogin(email, password) {
     redirectByRole(userData);
   } catch (error) {
     if (["auth/wrong-password", "auth/user-not-found", "auth/invalid-credential"].includes(error.code)) {
-      const newLockedUntil = await recordFailedLogin(email);
+      // a refused attempt record (e.g. the device clock is off) still shows the normal message
+      const newLockedUntil = await recordFailedLogin(email).catch(() => null);
       if (newLockedUntil) {
         showAlert("Too many failed attempts. Your account is locked for 2 minutes.");
       } else {
