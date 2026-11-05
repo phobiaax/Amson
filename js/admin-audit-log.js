@@ -1,6 +1,4 @@
-/**
- * Audit Log admin page.
- */
+// audit log page
 
 const AUDIT_PAGE_SIZE = 10;
 
@@ -21,7 +19,7 @@ const exportAuditLogBtn = document.getElementById("exportAuditLogBtn");
 
 document.addEventListener("admin:ready", loadAuditLog);
 
-/* ---------- Load ---------- */
+// ---------- load ----------
 async function loadAuditLog() {
   try {
     const snapshot = await db.collection("auditLog").orderBy("createdAt", "desc").get();
@@ -32,7 +30,7 @@ async function loadAuditLog() {
   }
 }
 
-/* ---------- Table ---------- */
+// ---------- table ----------
 function filteredAuditEntries() {
   let filtered = allAuditEntries.slice();
 
@@ -45,7 +43,7 @@ function filteredAuditEntries() {
   }
 
   if (auditDateFrom) {
-    const from = new Date(`${auditDateFrom}T00:00:00`); // local midnight, not UTC
+    const from = new Date(`${auditDateFrom}T00:00:00`); // local midnight not utc
     filtered = filtered.filter((e) => e.createdAt && e.createdAt.toDate() >= from);
   }
 
@@ -82,8 +80,7 @@ function renderAuditTable() {
   renderAuditPagination(totalPages);
 }
 
-// Record / Before / After / Reason are only on entries that changed
-// something (REQ122); older entries and plain events show "-".
+// older entries and plain events just show a dash
 function renderAuditRow(entry) {
   const change =
     entry.before || entry.after
@@ -156,7 +153,7 @@ auditClearFiltersBtn.addEventListener("click", () => {
   renderAuditTable();
 });
 
-/* ---------- Export ---------- */
+// ---------- export ----------
 exportAuditLogBtn.addEventListener("click", () => {
   exportTable({
     title: "Audit Log",

@@ -1,6 +1,4 @@
-/**
- * Firebase project configuration.
- */
+// firebase project config
 const firebaseConfig = {
   apiKey: "AIzaSyDeVSO2EbDPqKDOyDiQ8t2HnLKIMpAXH4w",
   authDomain: "amson-web-app.firebaseapp.com",
@@ -12,12 +10,7 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 
-// Firebase App Check (reCAPTCHA v3): Google checks that requests to the
-// database and the chat assistant come from this site, not a script.
-// Empty = off. The site key is public; the secret key stays in the
-// Firebase console (App Check > Apps). On the local server (localhost) a
-// debug token is printed in the browser console instead - add it under
-// App Check > Apps > Manage debug tokens before enforcement is turned on.
+// app check for the database, empty means off
 const APP_CHECK_SITE_KEY = "";
 const APP_CHECK_LOCAL = ["localhost", "127.0.0.1"].includes(location.hostname);
 if (APP_CHECK_SITE_KEY && typeof firebase.appCheck === "function") {
@@ -28,8 +21,7 @@ if (APP_CHECK_SITE_KEY && typeof firebase.appCheck === "function") {
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Every sign-out also forgets the name the shop header shows while a page
-// loads (js/shop-header.js), so it can't flash after logging out.
+// also clears the saved header name so it doesnt flash after logout
 const firebaseSignOut = auth.signOut.bind(auth);
 auth.signOut = () => {
   try {
@@ -38,11 +30,7 @@ auth.signOut = () => {
   return firebaseSignOut();
 };
 
-// "Remember me" off: signed in in every tab until the browser is closed.
-// The login is kept like a remembered one (so new tabs share it), plus a
-// cookie with no expiry date, which the browser deletes when it closes. A
-// page that finds the login without the cookie signs out before any of the
-// page's own sign-in checks run (they wait for authGate).
+// remember me off: cookie gets deleted when the browser closes
 const BROWSER_SESSION_COOKIE = "amsonBrowserSession";
 const REMEMBER_ME_KEY = "amsonRememberMe";
 
@@ -61,11 +49,7 @@ function browserSessionEnded() {
   return remembered === "0" && !document.cookie.split("; ").includes(`${BROWSER_SESSION_COOKIE}=1`);
 }
 
-// Logins from before the shared login were kept per tab. Two tabs signed in
-// as different people (or one signed in, one a guest) stall the shared
-// browser copy of the data (LIVE_READS) - product lists never load - so a
-// per-tab login is moved to the shared one, ending when the browser closes.
-// Firebase's own listener: pages get a wrapped one that waits for authGate.
+// clears old per-tab logins so live reads dont get stuck
 const firebaseOnAuthStateChanged = auth.onAuthStateChanged.bind(auth);
 
 let legacyTabLogin = false;
@@ -101,7 +85,5 @@ auth.onAuthStateChanged = function (...args) {
   };
 };
 
-// Live reads (see liveQuery in products-data.js): pages keep listening for
-// changes, so they stay up to date without a refresh. Set to false to go
-// back to plain one-time reads.
+// live reads keep pages updated without refreshing, false for one-time reads
 const LIVE_READS = true;

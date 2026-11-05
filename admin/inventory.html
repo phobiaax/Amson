@@ -5,25 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inventory Management | Amson Pharmaceuticals</title>
 
-<!-- Fonts -->
+<!-- fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
 
-<!-- Bootstrap 5 -->
+<!-- bootstrap 5 -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<!-- Bootstrap Icons -->
+<!-- bootstrap icons -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
-<!-- Choices.js (searchable select dropdowns) -->
+<!-- choices.js for searchable dropdowns -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/styles/choices.min.css">
 
-<!-- Custom styles -->
+<!-- custom styles -->
 <link rel="icon" type="image/png" href="../assets/logo-transp.png">
 <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
 
 <div class="admin-body">
-  <!-- ===== Sidebar ===== -->
+  <!-- ===== sidebar ===== -->
   <aside class="admin-sidebar">
     <div class="admin-sidebar-brand">
       <h1>Amson Pharmaceuticals</h1>
@@ -47,7 +47,7 @@
   </aside>
   <div class="admin-sidebar-backdrop" id="sidebarBackdrop"></div>
 
-  <!-- ===== Main ===== -->
+  <!-- ===== main ===== -->
   <main class="admin-main">
     <div class="admin-topbar">
       <button type="button" class="admin-sidebar-toggle" id="sidebarToggleBtn" aria-label="Open menu">
@@ -94,7 +94,7 @@
         </button>
       </div>
 
-      <!-- ===== Stock tab ===== -->
+      <!-- ===== stock tab ===== -->
       <div id="stockPanel">
         <div class="row g-3 mb-4">
           <div class="col-sm-6 col-lg-2">
@@ -178,7 +178,7 @@
         </div>
       </div>
 
-      <!-- ===== Purchase Orders tab ===== -->
+      <!-- ===== purchase orders tab ===== -->
       <div id="purchaseOrdersPanel" class="d-none">
         <div class="d-flex justify-content-end mb-3">
           <button type="button" class="btn btn-amson" id="createPoBtn">
@@ -219,9 +219,9 @@
         </div>
       </div>
 
-      <!-- ===== Stock Count tab (stored as "reconciliations") ===== -->
+      <!-- ===== stock count tab ===== -->
       <div id="reconciliationPanel" class="d-none">
-        <!-- Active session view -->
+        <!-- active session view -->
         <div id="reconciliationActiveView" class="checkout-card p-4 mb-4 d-none">
           <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
             <div>
@@ -253,7 +253,7 @@
           <div id="reconciliationAlert" class="alert alert-danger auth-alert d-none mt-3" role="alert"></div>
         </div>
 
-        <!-- Empty state (no active session) -->
+        <!-- empty state when no count is running -->
         <div id="reconciliationEmptyState" class="text-center py-5 mb-4" style="border:2px dashed var(--amson-border); border-radius:12px;">
           <i class="bi bi-paperclip" style="font-size:2rem; color: var(--amson-text-muted);"></i>
           <p class="text-muted mt-2 mb-3">No stock count in progress</p>
@@ -270,7 +270,7 @@
   </main>
 </div>
 
-<!-- Opening stock: download a count sheet, count the shelves, upload it -->
+<!-- opening stock: download sheet, count, upload -->
 <div class="modal fade" id="openingStockModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" style="max-width:720px;">
     <div class="modal-content">
@@ -317,7 +317,7 @@
   </div>
 </div>
 
-<!-- View a past stock count -->
+<!-- view a past stock count -->
 <div class="modal fade" id="stockCountViewModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-fullscreen-lg-down" style="max-width:1000px;">
     <div class="modal-content">
@@ -366,7 +366,7 @@
   </div>
 </div>
 
-<!-- Start Stock Count modal -->
+<!-- start stock count modal -->
 <div class="modal fade" id="openReconciliationModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content p-4">
@@ -390,7 +390,7 @@
   </div>
 </div>
 
-<!-- Receive Stock modal -->
+<!-- receive stock modal -->
 <div class="modal fade" id="receiveStockModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content p-4">
@@ -440,7 +440,7 @@
   </div>
 </div>
 
-<!-- Receive Stock batch upload review modal - parsed rows land here for review/edits before anything is written -->
+<!-- receive stock upload review modal, nothing saves until reviewed -->
 <div class="modal fade" id="receiveBatchReviewModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
   <div class="modal-dialog modal-dialog-centered modal-fullscreen-lg-down" style="max-width:1000px;">
     <div class="modal-content p-4">
@@ -478,7 +478,7 @@
   </div>
 </div>
 
-<!-- Quick Add Supplier modal (launched from within Receive Stock) -->
+<!-- quick add supplier modal (from receive stock) -->
 <div class="modal fade" id="quickAddSupplierModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content p-4">
@@ -504,7 +504,7 @@
   </div>
 </div>
 
-<!-- Quick Add Product modal (launched from within Receive Stock) -->
+<!-- quick add product modal (from receive stock) -->
 <div class="modal fade" id="quickAddProductModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content p-4">
@@ -530,7 +530,7 @@
   </div>
 </div>
 
-<!-- Write Off Stock modal -->
+<!-- write off stock modal -->
 <div class="modal fade" id="writeOffModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content p-4">
@@ -560,7 +560,7 @@
   </div>
 </div>
 
-<!-- Create Purchase Order modal -->
+<!-- create purchase order modal -->
 <div class="modal fade" id="createPoModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content p-4">
@@ -602,7 +602,7 @@
   </div>
 </div>
 
-<!-- View / Receive Purchase Order modal -->
+<!-- view / receive purchase order modal -->
 <div class="modal fade" id="viewPoModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-xl">
     <div class="modal-content p-4">
@@ -624,19 +624,19 @@
   </div>
 </div>
 
-<!-- Bootstrap JS -->
+<!-- bootstrap js -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- Choices.js -->
+<!-- choices.js -->
 <script src="https://cdn.jsdelivr.net/npm/choices.js@10.2.0/public/assets/scripts/choices.min.js"></script>
 
-<!-- Firebase (compat SDK) -->
+<!-- firebase compat sdk -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
 
-<!-- App scripts -->
+<!-- app scripts -->
 <script src="../js/firebase-config.js"></script>
 <script src="../js/shop-sections.js"></script>
 <script src="../js/products-data.js"></script>
@@ -647,8 +647,7 @@
 <script src="../js/device-trust.js"></script>
 <script src="../js/admin-header.js"></script>
 
-<!-- PDF / Excel export libraries: loaded last, since they're only used
-     when someone exports or prints, so the page doesn't wait for them. -->
+<!-- pdf / excel libraries load last since theyre only for exports -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </body>

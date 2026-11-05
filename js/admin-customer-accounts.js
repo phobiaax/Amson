@@ -1,6 +1,4 @@
-/**
- * Customer Accounts admin page.
- */
+// customer accounts page
 
 const CUSTOMERS_PAGE_SIZE = 8;
 
@@ -27,7 +25,7 @@ document.addEventListener("admin:ready", loadCustomers);
 
 let ordersByCustomer = {};
 
-/* ---------- Load ---------- */
+// load
 async function loadCustomers() {
   try {
     const [usersSnapshot, ordersSnapshot] = await Promise.all([
@@ -56,7 +54,7 @@ async function loadCustomers() {
   }
 }
 
-/* ---------- Table ---------- */
+// table
 function computedStatus(customer) {
   return customer.accountStatus === "deactivated" ? "deactivated" : "active";
 }
@@ -180,7 +178,7 @@ customersSortBtn.addEventListener("click", () => {
   renderCustomersTable();
 });
 
-/* ---------- View modal ---------- */
+// view modal
 
 function openViewModal(customer) {
   if (!customer) return;
@@ -194,7 +192,7 @@ function openViewModal(customer) {
   document.getElementById("viewCustomerTotalOrders").textContent = customer.totalOrders;
   document.getElementById("viewCustomerEmailVerified").textContent = customer.emailVerified ? "Yes" : "No";
 
-  // Order history (REQ116), newest first.
+  // order history, newest first
   const orders = (ordersByCustomer[customer.id] || [])
     .slice()
     .sort((a, b) => (b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0) - (a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0));

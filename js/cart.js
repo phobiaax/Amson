@@ -1,15 +1,8 @@
-/**
- * Client-side shopping cart.
- */
+// shopping cart
 
 const CART_STORAGE_KEY = "amsonCart";
 
-// A signed-in customer's cart belongs to the account (REQ014): it's saved on
-// users/{uid}.cart so it follows them to any device, with a per-account
-// local copy for speed. Guests keep a browser-only cart, which is merged
-// into the account cart when they sign in.
-// The last signed-in customer is remembered so pages read the right cart
-// immediately, before Firebase Auth finishes restoring the session.
+// logged in carts are saved to the account so they follow you, guests keep a local one
 const CART_OWNER_KEY = "amsonCartOwner";
 let cartOwnerUid = null;
 try {
@@ -33,9 +26,7 @@ function getCart() {
   return readCartKey(cartStorageKey());
 }
 
-// Each copy of the cart carries when it last changed, so the newer one
-// wins when a page loads - otherwise an item added just before leaving a
-// page (before the account copy was saved) was lost on the next page.
+// newer copy wins on load so a last second add isnt lost
 let pendingCartSync = null;
 
 function saveCart(cart) {
@@ -44,7 +35,7 @@ function saveCart(cart) {
     localStorage.setItem(cartStorageKey(), JSON.stringify(cart));
     localStorage.setItem(`${cartStorageKey()}:at`, String(updatedAt));
   } catch (error) {
-    // Storage blocked (private mode) - the account copy below still saves.
+    // storage blocked, account copy still saves
   }
   updateCartBadge();
   if (cartOwnerUid) {
@@ -54,7 +45,7 @@ function saveCart(cart) {
   }
 }
 
-// Saves a waiting cart change to the account now (e.g. before leaving the page).
+// saves a pending cart change right now
 function flushCartSync() {
   clearTimeout(cartSyncTimer);
   if (!pendingCartSync) return Promise.resolve();
@@ -99,7 +90,7 @@ auth.onAuthStateChanged(async (user) => {
     try {
       localStorage.setItem(CART_OWNER_KEY, user.uid);
     } catch (error) {}
-    // This browser's copy if it changed more recently than the account's.
+    // local copy if its newer than the account one
     const localCart = getCart();
     let localAt = 0;
     try {
@@ -116,8 +107,7 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
-// Both return { qty, capped } - capped is true if the requested quantity
-// had to be reduced to stay within the product's real available stock.
+// capped means the qty was cut down to the stock
 function addToCart(productId, qty = 1) {
   const cart = getCart();
   const existing = cart.find((item) => item.id === productId);
@@ -160,10 +150,7 @@ function removeFromCart(productId) {
   saveCart(getCart().filter((i) => i.id !== productId));
 }
 
-// Removes just the given products from the cart - used after an order is
-// placed for only a selected subset of the cart, so items the customer left
-// unchecked stay put instead of getting wiped along with the ones they
-// actually bought.
+// removes only the ordered items, unchecked ones stay
 function removeItemsFromCart(productIds) {
   const idSet = new Set(productIds);
   saveCart(getCart().filter((i) => !idSet.has(i.id)));
@@ -198,8 +185,7 @@ function updateCartBadge() {
   badge.classList.toggle("d-none", count === 0);
 }
 
-// Centered, self-dismissing modal instead of a corner toast that's easy
-// to miss - no confirm button, it just shows briefly and closes itself.
+// small popup that closes itself
 let cartToastTimer = null;
 
 function ensureCartToastModal() {
@@ -245,7 +231,7 @@ function showCartToast(message, type = "success") {
   cartToastTimer = setTimeout(() => modal.hide(), 1400);
 }
 
-// ---- Add to Cart ----
+// ---- add to cart ----
 document.addEventListener("click", (e) => {
   const btn = e.target.closest(".btn-add-cart");
   if (!btn) return;
@@ -259,19 +245,15 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// ---- Buy Now - adds the item then takes the customer straight to the
-// cart, instead of them having to add it and then go find the cart icon
-// themselves ----
-// Buy Now: adds the item to the cart (alongside anything already there)
-// and opens the cart page.
+// ---- buy now ----
+// adds the item then goes straight to the cart
 async function buyNow(productId, qty = 1) {
   const result = addToCart(productId, qty);
   if (result.capped && result.qty === 0) {
     showCartToast("Sorry, that item is out of stock.", "warning");
     return;
   }
-  // Save the cart to the account before leaving (at most 2 seconds), so the
-  // cart page doesn't load the older copy without this item.
+  // saves to the account first (max 2s) so the cart page isnt behind
   await Promise.race([flushCartSync(), new Promise((resolve) => setTimeout(resolve, 2000))]);
   window.location.href = "cart.html";
 }

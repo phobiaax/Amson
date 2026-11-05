@@ -22,7 +22,7 @@ const posCustomerNameInput = document.getElementById("posCustomerNameInput");
 const posReferenceFields = document.getElementById("posReferenceFields");
 const posReferenceNoInput = document.getElementById("posReferenceNoInput");
 
-// Payment methods that come with a transaction reference number.
+// payment methods that need a reference number
 const POS_REFERENCE_METHODS = ["gcash", "bank_transfer", "terminal"];
 
 function posPaymentMethod() {
@@ -49,7 +49,7 @@ document.addEventListener("admin:ready", async (e) => {
   const admin = e.detail.admin;
   currentStaffName = `${admin.firstName || ""} ${admin.lastName || ""}`.trim() || "Staff";
   currentStaffRole = admin.role;
-  // Returns / exchanges: Branch Manager and Technical Staff (as voids).
+  // only branch manager and technical staff can do returns
   document.getElementById("posReturnExchangeBtn").classList.toggle("d-none", !roleCanVoidSales(currentStaffRole));
   loadTodaySales();
   listenToTodaySales();
@@ -58,7 +58,7 @@ document.addEventListener("admin:ready", async (e) => {
   populatePosProductSelect();
 });
 
-// Return / Exchange starts from the original receipt's SI No. (any date).
+// return / exchange starts from the receipt si no.
 document.getElementById("posReturnExchangeBtn").addEventListener("click", async () => {
   const entered = await showAppPrompt("Enter the SI No. on the customer's receipt.", {
     title: "Return / Exchange",
@@ -75,8 +75,7 @@ document.getElementById("posReturnExchangeBtn").addEventListener("click", async 
       return;
     }
     const doc = snap.docs[0];
-    // Straight to the Return / Exchange form (it says so if the sale was
-    // voided or everything on it was already returned).
+    // goes straight to the return / exchange form
     exchangeWalkinSale({ id: doc.id, ...doc.data() }, loadTodaySales);
   } catch (error) {
     await showAppAlert("Couldn't look up that sale. Please try again.");
@@ -92,21 +91,18 @@ function populatePosProductSelect() {
     value: p.id,
     label: `${p.name} - ${formatPeso(p.price)} (${p.totalStock} in stock)`,
   }));
-  // Destroy first: Choices puts the select's original options back when it's
-  // destroyed, which overwrote the new stock numbers after every sale.
+  // destroy first or choices puts the old stock numbers back
   if (posProductChoices) {
     posProductChoices.destroy();
   }
-  // Starts empty so the box reads as a search bar, not a chosen product.
+  // starts empty so it looks like a search bar
   posProductSelect.innerHTML =
     '<option value="" placeholder>Search for a product...</option>' +
     options.map((o) => `<option value="${o.value}">${escapeHtml(o.label)}</option>`).join("");
   posProductChoices = makeSearchableSelect(posProductSelect);
 }
 
-// How much of a product is still available to add, given what's already
-// sitting in this same sale's cart - so staff can't ring up more than is
-// actually on the shelf across multiple "Add" clicks for the same item.
+// stock left after whats already in this cart
 function posAvailableQty(productId) {
   const product = getProductById(productId);
   if (!product) return 0;
@@ -206,8 +202,7 @@ function renderPosCart() {
   updateRxBlock();
 }
 
-// RX items need the cashier to confirm they physically checked the
-// prescription (REQ084, Fig 2.14) - no upload for walk-ins.
+// rx items need the cashier to confirm they checked the prescription
 const posRxBlock = document.getElementById("posRxBlock");
 const posRxVerifiedCheck = document.getElementById("posRxVerifiedCheck");
 const posRxNotesInput = document.getElementById("posRxNotesInput");
@@ -282,13 +277,10 @@ posCompleteSaleBtn.addEventListener("click", () => {
   const rxNotes = posRxNotesInput.value.trim();
 
   const items = posCart.map((item) => ({ productId: item.productId, name: item.name, price: item.price, qty: item.qty }));
-  // Walk-in buyers stay generic unless the cashier types a name (the
-  // branch's Customer File groups sales by name, e.g. regulars, EMPLOYEE).
+  // walk-in name stays generic unless the cashier types one
   const customerName = posCustomerNameInput.value.trim() || "Walk-in";
 
-  // Nothing is committed yet - this is a preview. Stock only gets deducted
-  // and the sale only gets written once the cashier hits Confirm below, so
-  // Edit Transaction has nothing to undo: the cart's exactly as they left it.
+  // just a preview, nothing is saved until confirm
   showSaleReceipt({
     items,
     total,
@@ -303,8 +295,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
     title: "Review Transaction",
     onConfirm: async () => {
       try {
-        // Stock deduction, the SI# and the sale record are one transaction:
-        // a sale can't be saved without its stock leaving, or vice versa.
+        // stock, si no. and the sale save together or not at all
         const saleRef = db.collection("posSales").doc();
         const stockVersion = liveVersion("stockBatches");
         const { invoiceNo } = await deductStockFEFOMultiple(
@@ -341,7 +332,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
         await loadCatalogCache({ afterStockChange: stockVersion });
         populatePosProductSelect();
 
-        // Show the finished receipt (with its SI No.) so it can be printed.
+        // shows the final receipt so it can be printed
         showSaleReceipt({
           items,
           total,
@@ -373,7 +364,7 @@ posCompleteSaleBtn.addEventListener("click", () => {
   });
 });
 
-/* ---------- Today's Sales (walk-in history inside the POS) ---------- */
+// ---------- todays sales ----------
 const posTodaySalesBody = document.getElementById("posTodaySalesBody");
 const posTodaySalesEmpty = document.getElementById("posTodaySalesEmpty");
 let todaySales = [];
@@ -422,7 +413,7 @@ function renderTodaySales() {
 
 document.getElementById("posTodayRefreshBtn").addEventListener("click", loadTodaySales);
 
-// Live (REQNF005): sales rung up on another counter appear here too.
+// live so sales from other counters show up too
 let unsubscribeTodaySales = null;
 function listenToTodaySales() {
   if (unsubscribeTodaySales) return;
@@ -446,9 +437,7 @@ function listenToTodaySales() {
     );
 }
 
-// View/print a past sale, and void it if this staff member's role allows.
-// Return / Exchange on a walk-in sale, then the product list and today's
-// sales are refreshed (the returned and replacement items changed stock).
+// view, print, void or return a past sale
 async function exchangeWalkinSale(sale, afterExchange) {
   const stockVersion = liveVersion("stockBatches");
   const exchange = await openWalkinExchangeDialog(sale, currentStaffName);
@@ -480,7 +469,7 @@ function openPosSaleReceipt(sale, afterVoid) {
     onVoid:
       !sale.voided && roleCanVoidSales(currentStaffRole)
         ? async () => {
-            // Technical Staff need a Branch Manager to approve (client rule).
+            // technical staff need a branch manager to approve
             const details = await promptVoidDetails(sale, { requireApproval: currentStaffRole === "technical_staff" });
             if (!details) return;
             try {

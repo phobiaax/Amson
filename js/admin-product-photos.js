@@ -1,13 +1,4 @@
-/**
- * Products > Upload Photos: add photos to many products at once.
- *
- * Step 1: staff choose (or drop) any number of photos named after their
- * products, e.g. "losaar 50.jpg". Step 2: each file name has been matched to
- * a product on this computer (no extra database reads); staff check or
- * change every match with a searchable product picker. Saving shrinks,
- * uploads (Cloudinary) and attaches the ticked photos together - only each
- * product's photo changes - with a progress and result pop-up.
- */
+// upload photos: matches photo file names to products, then staff review before saving
 
 const uploadPhotosBtn = document.getElementById("uploadPhotosBtn");
 const photosModalEl = document.getElementById("photosModal");
@@ -26,8 +17,7 @@ const photosBackBtn = document.getElementById("photosBackBtn");
 const photosNextBtn = document.getElementById("photosNextBtn");
 const photosSaveBtn = document.getElementById("photosSaveBtn");
 
-// Words that say nothing about which product a photo is. (Forms like
-// "syrup" or "tablet" are kept: they tell Lagundi syrup from Lagundi tablet.)
+// words that dont help match a product
 const PHOTO_STOP_WORDS = new Set([
   "JPG", "JPEG", "PNG", "WEBP", "HEIC", "IMG", "IMAGE", "PHOTO", "PIC", "COPY", "FINAL", "NEW",
   "MG", "ML", "MCG", "G", "S", "PC", "PCS", "AND", "WITH", "THE", "OF", "FOR",
@@ -44,28 +34,24 @@ document.addEventListener("admin:ready", (e) => {
   if (!roleCanEditProducts(role)) uploadPhotosBtn.classList.add("d-none");
 });
 
-// Short forms people use in file names, spelled out as products name them.
+// short forms in file names spelled out
 const PHOTO_SYNONYMS = { BP: "BLOOD PRESSURE", TAB: "TABLET", TABS: "TABLET", CAP: "CAPSULE", CAPS: "CAPSULE", SYR: "SYRUP", SUSP: "SUSPENSION" };
 
 function photoTokens(text) {
   return String(text || "")
     .toUpperCase()
     .replace(/\.[A-Z0-9]{2,5}$/, "")
-    // "10MG" -> "10 MG", so a strength typed either way still matches.
+    // 10mg becomes 10 mg so both match
     .replace(/(\d)([A-Z])/g, "$1 $2")
     .replace(/([A-Z])(\d)/g, "$1 $2")
     .replace(/[^A-Z0-9]+/g, " ")
     .split(" ")
     .flatMap((t) => (PHOTO_SYNONYMS[t] ? PHOTO_SYNONYMS[t].split(" ") : [t]))
-    // Single letters ("w" for with, "s") say nothing; numbers are kept.
+    // drop single letters, keep numbers
     .filter((t) => t && !PHOTO_STOP_WORDS.has(t) && (t.length > 1 || /\d/.test(t)));
 }
 
-// Scores every product against one file name. Rare words (brand names,
-// strengths) count for more than common ones (PARACETAMOL appears on many
-// products); words no product has at all (a model number, "charger") are
-// ignored, so a long descriptive file name can still match. A clear winner
-// is needed, otherwise staff choose.
+// rare words like brand names count more than common ones
 function buildPhotoMatcher(products) {
   const docs = products.map((p) => ({ p, tokens: new Set(photoTokens(`${p.name} ${p.genericName || ""} ${p.brand || ""}`)) }));
   const df = new Map();
@@ -74,8 +60,7 @@ function buildPhotoMatcher(products) {
 
   const known = (t) => df.has(t) || (t.length >= 4 && [...df.keys()].some((w) => w.length >= 4 && (w.startsWith(t) || t.startsWith(w))));
 
-  // Every product's score for this file name, best first (also used to
-  // suggest products in the picker when nothing matched clearly).
+  // every products score for the file name, best first
   function scores(fileName) {
     const tokens = [...new Set(photoTokens(fileName))].filter(known);
     if (!tokens.length) return [];
@@ -85,7 +70,7 @@ function buildPhotoMatcher(products) {
         let got = 0;
         tokens.forEach((t) => {
           if (d.tokens.has(t)) got += weight(t);
-          // "PARA" for PARACETAMOL, "LOSAAR50" for LOSAAR 50 and the like.
+          // partial words like para for paracetamol
           else if (t.length >= 4 && [...d.tokens].some((w) => w.length >= 4 && (w.startsWith(t) || t.startsWith(w)))) got += weight(t) / 2;
         });
         return { p: d.p, score: got / total };
@@ -109,7 +94,7 @@ function buildPhotoMatcher(products) {
   return match;
 }
 
-/* ---------- Opening and the two steps ---------- */
+// ---------- opening and the two steps ----------
 function openPhotosModal() {
   pickedPhotoFiles = [];
   clearPhotoRows();
@@ -179,7 +164,7 @@ photosNextBtn.addEventListener("click", async () => {
   photoProducts = CATALOG_PRODUCTS.slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const match = buildPhotoMatcher(photoProducts);
   photoMatcher = match;
-  // Keep matches already made (or fixed) for files carried over from Back.
+  // keeps matches for files carried over from back
   const previous = new Map(photoRows.map((r) => [r.file, r]));
   clearPhotoRows(previous);
   photoRows = pickedPhotoFiles.map((file, i) => {
@@ -189,7 +174,7 @@ photosNextBtn.addEventListener("click", async () => {
     return { id: i, file, url: URL.createObjectURL(file), productId: p ? p.id : null, auto: !!p, checked: !!p };
   });
   photoRows.forEach((r, i) => (r.id = i));
-  // Rows that need a product first.
+  // rows needing a product go first
   photoRows.sort((a, b) => (a.productId ? 1 : 0) - (b.productId ? 1 : 0));
   photoFilter = photoRows.some((r) => !r.productId) ? "needs" : "all";
   showPhotoStep("review");
@@ -212,7 +197,7 @@ photosModalEl.addEventListener("hidden.bs.modal", () => {
   photosReviewList.innerHTML = "";
 });
 
-/* ---------- Step 2: the review list ---------- */
+// ---------- step 2: review list ----------
 function photoRowState(row) {
   if (!row.productId) return { text: "No matches found. Please choose product", cls: "text-danger", needs: true };
   const p = getProductById(row.productId);
@@ -282,7 +267,7 @@ photosReviewList.addEventListener("change", (e) => {
   renderPhotoRows();
 });
 
-/* ---------- Zoom: see a photo full size ---------- */
+// ---------- zoom ----------
 const photoZoom = document.createElement("div");
 photoZoom.className = "photo-zoom d-none";
 photoZoom.innerHTML = '<img alt=""><div class="photo-zoom-name"></div><button type="button" class="photo-zoom-close" aria-label="Close"><i class="bi bi-x-lg"></i></button>';
@@ -298,7 +283,7 @@ function closePhotoZoom() {
   photoZoom.querySelector("img").removeAttribute("src");
 }
 photoZoom.addEventListener("click", closePhotoZoom);
-// Capture: Escape closes the zoomed photo, not the whole Upload Photos window.
+// escape closes the zoom, not the whole window
 document.addEventListener(
   "keydown",
   (e) => {
@@ -331,8 +316,8 @@ photosReviewList.addEventListener("click", (e) => {
   }
 });
 
-/* ---------- Searchable product picker ---------- */
-// One floating list, shown under whichever row's box is being typed in.
+// ---------- searchable product picker ----------
+// one floating list under the row being typed in
 const pickerMenu = document.createElement("div");
 pickerMenu.className = "product-picker-menu d-none";
 pickerMenu.setAttribute("role", "listbox");
@@ -342,13 +327,11 @@ let pickerResults = [];
 let pickerActive = 0;
 
 const PICKER_LIMIT = 50;
-// Products still needing a photo come first: ones with a photo, or already
-// set to another photo in this batch, go after them.
+// products still without a photo come first
 const photoTaken = (p) => (p.imageUrl ? 1 : 0) + (photoRows.some((r) => r.checked && r.productId === p.id) ? 1 : 0);
 const withoutPhotoFirst = (a, b) => photoTaken(a) - photoTaken(b);
 
-// Empty box: the products closest to this photo's file name first, then the
-// rest - products still without a photo ahead of ones that have one.
+// empty box shows the closest matches first
 function suggestProducts(row) {
   const ranked = photoMatcher && row ? photoMatcher.scores(row.file.name).map((x) => x.p) : [];
   const seen = new Set(ranked.map((p) => p.id));
@@ -458,13 +441,13 @@ photosReviewList.addEventListener("keydown", (e) => {
     choosePickerProduct(pickerActive);
   } else if (e.key === "Escape") {
     e.preventDefault();
-    e.stopPropagation(); // close the list, not the whole modal
+    e.stopPropagation(); // close the list, not the modal
     closeProductPicker();
   }
 });
 photosReviewList.addEventListener("focusout", (e) => {
   if (!e.target.classList.contains("photo-row-product")) return;
-  // Leaving the box without picking puts back what was chosen.
+  // leaving without picking keeps the old choice
   setTimeout(() => {
     if (pickerInput === e.target && document.activeElement !== e.target) {
       closeProductPicker();
@@ -472,7 +455,7 @@ photosReviewList.addEventListener("focusout", (e) => {
     }
   }, 150);
 });
-// mousedown (not click) so the box keeps focus until the choice is made.
+// mousedown so the box keeps focus
 pickerMenu.addEventListener("mousedown", (e) => {
   const item = e.target.closest(".product-picker-item");
   if (!item) return;
@@ -482,7 +465,7 @@ pickerMenu.addEventListener("mousedown", (e) => {
 photosStepReview.addEventListener("scroll", closeProductPicker, { passive: true });
 window.addEventListener("resize", closeProductPicker);
 
-/* ---------- Saving ---------- */
+// ---------- saving ----------
 photosSaveBtn.addEventListener("click", async () => {
   const rows = photoRows.filter((r) => r.checked && r.productId);
   if (!rows.length) return;
@@ -516,7 +499,7 @@ photosSaveBtn.addEventListener("click", async () => {
       updateTaskProgress(done.length + failed.length, rows.length, product ? product.name : "");
     }
   };
-  // Three at a time: quick on good Wi-Fi without choking mobile data.
+  // three at a time so mobile data doesnt choke
   await Promise.all([worker(), worker(), worker()]);
   photosSaveBtn.dataset.saving = "";
 
@@ -526,7 +509,7 @@ photosSaveBtn.addEventListener("click", async () => {
       details: `${done.length} photo${done.length === 1 ? "" : "s"}: ${done.map((r) => (getProductById(r.productId) || {}).name || r.productId).join("; ")}`.slice(0, 1500),
     });
   }
-  // Saved photos leave the list; failed and skipped ones stay for a retry.
+  // saved photos leave the list, failed ones stay
   done.forEach((r) => URL.revokeObjectURL(r.url));
   photoRows = photoRows.filter((r) => !done.includes(r));
   pickedPhotoFiles = photoRows.map((r) => r.file);

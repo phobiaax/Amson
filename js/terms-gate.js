@@ -1,6 +1,4 @@
-/**
- * Terms and Conditions / Privacy Policy scroll-to-accept gate.
- */
+// user has to scroll to the bottom before they can accept
 
 document.querySelectorAll(".legal-modal").forEach((modal) => {
   const body = modal.querySelector(".legal-modal-body");

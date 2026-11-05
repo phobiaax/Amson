@@ -1,6 +1,4 @@
-/**
- * Cart page.
- */
+// cart page
 
 const cartHeading = document.getElementById("cartHeading");
 const cartItemsContainer = document.getElementById("cartItemsContainer");
@@ -12,10 +10,8 @@ const selectAllCartCheckbox = document.getElementById("selectAllCartCheckbox");
 const selectedCountText = document.getElementById("selectedCountText");
 const noSelectionNotice = document.getElementById("noSelectionNotice");
 
-// ---- Item selection (checkout only what's checked, not the whole cart) ----
-// Tracked in memory for this page load only - every item defaults to
-// selected, same as "Proceed to Checkout" used to behave before this
-// existed, so a customer who never touches a checkbox sees no change.
+// ---- item selection, only checked items go to checkout ----
+// all items start selected on each page load
 let selectedIds = new Set();
 let knownIds = new Set();
 
@@ -37,8 +33,7 @@ function syncSelection(cart) {
   });
 }
 
-// "You May Also Like": in-stock products not already in the cart, from the
-// same categories as the cart's items first.
+// suggestions from the same categories as the cart first
 function renderCartSuggestions(cart) {
   const section = document.getElementById("cartSuggestionsSection");
   const grid = document.getElementById("cartSuggestionsGrid");
@@ -88,7 +83,7 @@ function showEmptyCart() {
   clearCartLink.classList.add("d-none");
 }
 
-// One cart line: tick box, photo, name, quantity -/+ and Remove, price.
+// one cart row
 function cartRowHtml(item) {
   const product = getProductById(item.id);
   if (!product) return "";
@@ -115,7 +110,7 @@ function cartRowHtml(item) {
   `;
 }
 
-// The tick box, - / + buttons, quantity box and Remove link of one line.
+// wires the tick box, buttons and remove link of one row
 function wireCartRow(row) {
   const productId = row.dataset.id;
 
@@ -143,8 +138,7 @@ function wireCartRow(row) {
     renderCartPage();
   });
 
-  // Typing a quantity: saved when the box is left or Enter is pressed, and
-  // kept between 1 and the stock available, like the - / + buttons.
+  // typed quantity saves on blur or enter and stays within stock
   const qtyInput = row.querySelector(".cart-qty-input");
   qtyInput.addEventListener("input", () => {
     qtyInput.value = qtyInput.value.replace(/[^0-9]/g, "");
@@ -207,8 +201,7 @@ checkoutBtn.addEventListener("click", (e) => {
   window.location.href = "checkout.html";
 });
 
-// Adding a suggested product shows it in the cart straight away (the add
-// itself is done by cart.js's Add to Cart handler, which runs first).
+// shows the added suggestion in the cart right away
 document.addEventListener("click", (e) => {
   if (e.target.closest("#cartSuggestionsGrid .btn-add-cart")) setTimeout(renderCartPage, 0);
 });

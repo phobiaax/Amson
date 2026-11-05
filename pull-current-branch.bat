@@ -1,7 +1,6 @@
 @echo off
 cd /d "%~dp0"
-REM Pulls the newest code for whichever branch this folder is on
-REM (webapp, cleanup, ...), so testing a branch never mixes in another one.
+REM pulls the newest code for whatever branch this folder is on
 
 for /f "delims=" %%b in ('git rev-parse --abbrev-ref HEAD') do set BRANCH=%%b
 if "%BRANCH%"=="" (

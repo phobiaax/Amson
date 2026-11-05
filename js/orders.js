@@ -1,12 +1,8 @@
-/**
- * Shared order helpers.
- */
+// shared order helpers
 
 const ORDER_STATUS_STEPS = ["placed", "payment_confirmed", "dispatched", "delivered", "received"];
 
-// Prescription orders are pick-up only - there's no courier "dispatched"
-// leg, so approving payment goes straight to "delivered" (reused here as
-// the "ready for pick-up" state) and skips "dispatched" entirely.
+// prescription orders are pickup so they skip dispatched
 const PICKUP_ORDER_STATUS_STEPS = ["placed", "payment_confirmed", "delivered", "received"];
 
 const ORDER_STATUS_STEP_LABELS = {
@@ -41,17 +37,7 @@ const PICKUP_ORDER_STATUS_BADGE_LABELS = {
   closed_unresolved: "Closed (Unresolved)",
 };
 
-// No order is ever refunded - a hold that never gets resolved just closes,
-// and whatever payment was genuinely verified is kept as credit toward a
-// future purchase instead. What counts as "verified" depends on why the
-// hold existed: an underpayment's partial amount was real, a screenshot
-// that was never confirmed valid has nothing to carry over, and stock
-// simply running out doesn't call the original payment into question at
-// all - the whole amount carries over. Either way, order.creditApplied
-// (store credit already spent redeeming this order at checkout) always
-// gets added back in - it's real value the customer already handed over
-// on top of whatever they paid via QR, and closing the order unresolved
-// can't be allowed to make it vanish.
+// no refunds, verified payments become store credit
 const HOLD_REASON_LABELS = {
   invalid_payment: "Payment Issue - Invalid Payment",
   underpayment: "Payment Issue - Underpayment",
@@ -66,20 +52,17 @@ function computeUnappliedCredit(order) {
   const creditApplied = order.creditApplied || 0;
   if (issue.type === "underpayment") return (issue.amountReceived || 0) + creditApplied;
   if (issue.type === "out_of_stock") return (order.total || 0) + creditApplied;
-  // A rejected prescription only carries the payment over if staff
-  // confirmed the payment itself was received in full.
+  // rejected prescription only carries over a fully confirmed payment
   if (issue.type === "prescription_rejected") return (issue.paymentVerified ? order.total || 0 : 0) + creditApplied;
-  // Invalid / not-received payment: nothing paid by QR carries over, but
-  // store credit redeemed on this order does.
+  // bad payment: only redeemed credit carries over
   return creditApplied;
 }
 
-// The item rows of an order, on My Orders and on Order Details.
+// item rows for my orders and order details
 function orderItemRowsHtml(items) {
   return items
     .map((item) => {
-      // Older orders placed before item photos were stored on the order
-      // itself fall back to whatever the product's current image is.
+      // older orders use the products current photo
       const imageUrl = item.imageUrl || (getProductById(item.id) || {}).imageUrl;
       return `
         <div class="cart-item-row">
@@ -117,9 +100,7 @@ function orderStepLabels(order) {
   return order.requiresPrescription ? PICKUP_ORDER_STATUS_STEP_LABELS : ORDER_STATUS_STEP_LABELS;
 }
 
-// What the customer sees while an order is on hold and waiting on them.
-// An out-of-stock hold isn't shown to customers: the order keeps its normal
-// status while staff wait for a restock.
+// what the customer sees while a hold waits on them
 const CUSTOMER_HOLD_BADGE_LABELS = {
   invalid_payment: "Payment Rejected - Re-upload Needed",
   payment_not_received: "Payment Rejected - Re-upload Needed",
@@ -141,12 +122,7 @@ function orderStatusIndex(status, steps = ORDER_STATUS_STEPS) {
   return idx === -1 ? 0 : idx;
 }
 
-// Persisted, per-customer notifications (payment issue holds, credit
-// grants) - written only from staff-authenticated actions or the
-// hold-expiry sweep, never by the customer themselves (see
-// firestore.rules). shop-header.js reads these directly instead of trying
-// to re-derive "did something happen" from live order state on every
-// page load.
+// saved customer notifications, only written by staff actions
 async function notifyCustomer(customerId, title, detail, link, severity = "info", kind = null) {
   if (!customerId) return;
   try {
@@ -167,10 +143,7 @@ async function notifyCustomer(customerId, title, detail, link, severity = "info"
   }
 }
 
-// Email copy of a customer notification (REQ039), through EmailJS. Skipped
-// when EmailJS or the order template isn't set up on this page, or when the
-// customer turned email updates off in Account Settings (REQ042). Never
-// blocks or fails the action that triggered it.
+// email copy through emailjs, skipped if not set up or turned off
 async function sendOrderEmail(customerId, title, detail, link) {
   try {
     const emailNotSetUp =
@@ -184,7 +157,7 @@ async function sendOrderEmail(customerId, title, detail, link) {
     if (!doc.exists) return;
     const user = doc.data();
     if (!user.email || user.emailNotifications === false) return;
-    // Links are relative to the shop folder; make them absolute for email.
+    // email needs absolute links
     const url = new URL(`${/\/shop\//.test(window.location.pathname) ? "" : "../shop/"}${link || "orders.html"}`, window.location.href).href;
     await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_ORDER_TEMPLATE_ID, {
       to_email: user.email,
@@ -198,14 +171,7 @@ async function sendOrderEmail(customerId, title, detail, link) {
   }
 }
 
-// ---- Deadline enforcement (lazy, checked on page load) ----
-//
-// `grantCreditToBalance` is only ever passed true from staff-authenticated
-// pages (Online Orders). The store-credit ledger lives on users/{uid} and,
-// by design, only staff/admin can increase it (see firestore.rules) - a
-// customer viewing their own order can still close it out of its hold, but
-// the ledger write itself has to wait for a staff page load to happen. That
-// keeps a customer from ever being able to write their own credit balance.
+// ---- deadline check, runs on page load ----
 async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = false } = {}) {
   const now = Date.now();
 
@@ -213,9 +179,7 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
     let unappliedCredit = computeUnappliedCredit(order);
     const closedReason = `${HOLD_REASON_LABELS[order.paymentIssue.type] || "This order"} was not resolved within 7 days.`;
 
-    // Only staff pages close the order and credit the balance, in one
-    // transaction, so the credit is never lost or added twice. Customer
-    // pages just show it as closed until then.
+    // only staff pages close the order and add the credit
     if (!grantCreditToBalance) {
       order.status = "closed_unresolved";
       order.closedReason = closedReason;
@@ -228,7 +192,7 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
     const closed = await db.runTransaction(async (transaction) => {
       const fresh = await transaction.get(orderRef);
       const freshOrder = fresh.exists ? fresh.data() : null;
-      // No order, no hold, or a hold that hasn't run out yet.
+      // nothing to close yet
       const nothingToClose = !freshOrder || !freshOrder.paymentIssue || !freshOrder.paymentIssue.holdUntil || freshOrder.paymentIssue.holdUntil.toMillis() >= Date.now();
       if (nothingToClose) return false;
       unappliedCredit = computeUnappliedCredit(freshOrder);
@@ -247,7 +211,7 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
       return true;
     });
     if (!closed) {
-      // Someone else already handled it (or the hold was extended).
+      // someone already handled it
       const fresh = await orderRef.get();
       if (fresh.exists) {
         const data = fresh.data();
@@ -283,8 +247,7 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
   if (order.status === "dispatched" && order.statusTimestamps && order.statusTimestamps.dispatched) {
     const dispatchedAt = order.statusTimestamps.dispatched.toMillis();
     if (now - dispatchedAt > DISPATCH_AUTO_DELIVER_MS) {
-      // Never let this break the page: if the write is refused (e.g. the
-      // device clock is ahead), the order just stays Dispatched for now.
+      // if the write fails the order just stays dispatched for now
       try {
         await db.collection("orders").doc(orderId).update({
           status: "delivered",
@@ -303,7 +266,7 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
   return order;
 }
 
-// MM/DD/YYYY - the same format as formatDateMDY, which does the work.
+// mm/dd/yyyy, formatDateMDY does the work
 function formatOrderDate(timestamp) {
   return formatDateMDY(timestamp);
 }
@@ -313,13 +276,7 @@ function formatOrderDateTime(timestamp) {
   return formatDateMDY(timestamp, true);
 }
 
-// Redeems as much of the customer's store credit balance as the order
-// total allows (never more, never cash back) and creates the order with
-// the discounted total in one atomic transaction - the read-then-decrement
-// of users/{uid}.creditBalance and the order creation can't be split apart,
-// or two orders placed back-to-back could both spend the same credit.
-// expectFullCredit: the customer was told credit covers the whole order
-// (so no payment proof was asked for); stop if that's no longer true.
+// uses as much store credit as the total allows, never cash back
 async function createOrderWithCreditRedemption(orderData, { expectFullCredit = false } = {}) {
   const orderRef = db.collection("orders").doc();
   const userRef = orderData.customerId ? db.collection("users").doc(orderData.customerId) : null;
@@ -341,7 +298,7 @@ async function createOrderWithCreditRedemption(orderData, { expectFullCredit = f
 
     transaction.set(orderRef, orderPayload);
     if (appliedCredit > 0) {
-      // lastCreditOrderId: the rules check the deduction belongs to this order.
+      // rules check the credit belongs to this order
       transaction.update(userRef, {
         creditBalance: firebase.firestore.FieldValue.increment(-appliedCredit),
         lastCreditOrderId: orderRef.id,
@@ -357,7 +314,7 @@ async function generateOrderNumber() {
   const year = new Date().getFullYear();
   const counterRef = db.collection("counters").doc(`orders-${year}`);
 
-  // In a transaction so two checkouts at the same moment never share a number.
+  // transaction so two checkouts never get the same number
   const nextCount = await db.runTransaction(async (transaction) => {
     const counterDoc = await transaction.get(counterRef);
     const next = (counterDoc.exists ? counterDoc.data().count || 0 : 0) + 1;

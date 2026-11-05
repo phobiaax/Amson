@@ -1,6 +1,4 @@
-/**
- * Inventory Management admin page.
- */
+// inventory management page
 
 const INVENTORY_PAGE_SIZE = 8;
 const PO_PAGE_SIZE = 8;
@@ -132,25 +130,18 @@ document.addEventListener("admin:ready", (e) => {
   loadInventory();
 });
 
-// Today on the branch's calendar (the UTC date is still yesterday until
-// 8 AM in the Philippines).
+// todays date here, utc is still yesterday before 8am
 function todayISO() {
   return localISODate(new Date());
 }
 
-/* ---------- Load ---------- */
+// ---------- load ----------
 async function loadInventory() {
   try {
-    // loadInventory() is this page's "refresh everything" entry point -
-    // called after every mutation (receive stock, write-off, reconciliation,
-    // PO receiving), none of which used to invalidate the cached product
-    // totals. That meant the just-received batch's unit never showed up in
-    // a product's totalStock until a full page reload, so a product that
-    // had just gone low/out of stock didn't get flagged until then.
+    // refreshes everything after any change
     catalogLoadPromise = null;
     await loadCatalogCache();
-    // The live listener's first snapshot doubles as this page's batch read
-    // (a separate get() as well would read every batch twice).
+    // listeners first snapshot is the batch read so we dont read twice
     const [, supplierSnapshot, writeOffSnapshot, poSnapshot, reconciliationSnapshot] = await Promise.all([
       listenToBatches(),
       db.collection("suppliers").get(),
@@ -159,18 +150,14 @@ async function loadInventory() {
       db.collection("reconciliations").get(),
     ]);
 
-    // Wholesale Only / Bad Order moves, on every refresh, from the batches
-    // already in hand; the listener redraws the page with any changes.
+    // applies wholesale only / bad order moves on every refresh
     await enforceExpiryStatus(allBatches);
     allSuppliers = supplierSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allWriteOffs = writeOffSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allPurchaseOrders = poSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     allReconciliations = reconciliationSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-    // Product-level counts (not per-batch - see computeInventoryAlertCounts)
-    // only need recomputing when the underlying data changes, not on every
-    // filter/search/page click, so this stays separate from the table
-    // re-render below.
+    // product counts only redo when the data changes
     const alertCounts = await computeInventoryAlertCounts(allBatches);
     document.getElementById("lowStockCount").textContent = alertCounts.lowStock;
     document.getElementById("outOfStockCount").textContent = alertCounts.outOfStock;
@@ -185,14 +172,12 @@ async function loadInventory() {
   }
 }
 
-// Live stock (REQNF005): a sale, receipt or write-off anywhere updates this
-// table and the tiles without a refresh.
+// live stock so sales and receipts update the table
 let unsubscribeBatches = null;
 let batchRefreshTimer = null;
 let batchesReady = null;
 
-// Resolves once allBatches holds the first snapshot; later snapshots keep
-// it current and redraw the table and tiles.
+// first snapshot resolves, later ones redraw
 function listenToBatches() {
   if (batchesReady) return batchesReady;
   let first = true;
@@ -221,11 +206,11 @@ function listenToBatches() {
       },
       (error) => {
         console.warn("Live inventory unavailable:", error);
-        // The next refresh (loadInventory) starts a new listener.
+        // next refresh starts a new listener
         batchesReady = null;
         unsubscribeBatches = null;
         if (first) {
-          // Without the listener, read once so the page still works.
+          // no listener so read once
           db.collection("stockBatches").get().then((snap) => {
             allBatches = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
             resolve(allBatches);
@@ -237,7 +222,7 @@ function listenToBatches() {
   return batchesReady;
 }
 
-/* ---------- Tabs ---------- */
+// ---------- tabs ----------
 function setActiveInventoryTab(tab) {
   tabStockBtn.classList.toggle("active", tab === "stock");
   tabPurchaseOrdersBtn.classList.toggle("active", tab === "po");
@@ -251,7 +236,7 @@ tabStockBtn.addEventListener("click", () => setActiveInventoryTab("stock"));
 tabPurchaseOrdersBtn.addEventListener("click", () => setActiveInventoryTab("po"));
 tabReconciliationBtn.addEventListener("click", () => setActiveInventoryTab("reconciliation"));
 
-/* ---------- PO number generation (same pattern as order numbers) ---------- */
+// ---------- po numbers ----------
 async function generatePoNumber() {
   const year = new Date().getFullYear();
   const counterRef = db.collection("counters").doc(`purchaseOrders-${year}`);
@@ -261,7 +246,7 @@ async function generatePoNumber() {
   return `PO-${year}-${String(nextCount).padStart(4, "0")}`;
 }
 
-/* ---------- Reconciliation number generation (2-digit) ---------- */
+// ---------- stock count numbers ----------
 async function generateRcnNumber() {
   const year = new Date().getFullYear();
   const counterRef = db.collection("counters").doc(`reconciliations-${year}`);
@@ -271,7 +256,7 @@ async function generateRcnNumber() {
   return `SC-${year}-${String(nextCount).padStart(2, "0")}`;
 }
 
-/* ---------- Formatting ---------- */
+// ---------- formatting ----------
 function formatExpiryLabel(isoDate) {
   if (!isoDate) return "-";
   return formatDateMDY(isoDate);
@@ -295,11 +280,9 @@ function inventorySortMillis(batch) {
   return new Date(batch.expirationDate).getTime();
 }
 
-/* ---------- Table ---------- */
+// ---------- table ----------
 function filteredBatches() {
-  // Real total physical stock per product (every batch, any status) - not
-  // CATALOG_PRODUCTS.totalStock, which is deliberately active-only for the
-  // storefront's sake. A wholesale_only batch's units still exist.
+  // real physical stock per product, any status
   const physicalStockByProduct = sumPhysicalStockByProduct(allBatches);
   let filtered = allBatches
     .map((b) => ({
@@ -358,7 +341,7 @@ function renderInventoryTable() {
   renderInventoryPagination(totalPages);
 }
 
-// Staff confirm a Bad Order batch was physically pulled out and disposed of.
+// staff confirm a bad order batch was disposed of
 async function markBatchDisposed(batchId) {
   const batch = allBatches.find((b) => b.id === batchId);
   if (!batch) return;
@@ -395,7 +378,7 @@ async function deleteOrphanBatch(batchId) {
   }
 }
 
-// Supplier name plus the receipt/DR no. it came in on (REQ049).
+// supplier name plus the receipt no.
 function batchSupplierCell(batch) {
   const supplier = allSuppliers.find((s) => s.id === batch.supplierId);
   if (!supplier && !batch.supplierReceiptNo) return "-";
@@ -481,14 +464,13 @@ inventorySortFieldSelect.addEventListener("change", () => {
   renderInventoryTable();
 });
 
-/* ---------- Shared repeater helpers ---------- */
+// ---------- shared row helpers ----------
 function populateProductSelect(selectEl) {
   selectEl.innerHTML = productsByName().map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
   selectEl._choices = makeSearchableSelect(selectEl);
 }
 
-// Every delivery and purchase order needs a supplier - the first option is
-// only a prompt and can't be saved.
+// supplier is required, first option is just a prompt
 function populateSupplierSelect(selectEl) {
   const options = ['<option value="">Choose a supplier</option>'].concat(
     allSuppliers.map((s) => `<option value="${s.id}">${escapeHtml(s.name)}</option>`)
@@ -497,19 +479,8 @@ function populateSupplierSelect(selectEl) {
   selectEl._choices = makeSearchableSelect(selectEl);
 }
 
-// ---- Batch numbers ----
-// The manufacturer prints a batch number and its expiry date on the box,
-// and one product's batch always has one expiry date. So when stock comes
-// in (Receive Stock form, Excel upload, PO delivery):
-//   - same product + batch no. + expiry as a batch already in stock: the
-//     units are added to that batch (each delivery is kept in its
-//     `deliveries` list for the Supplier Purchases report);
-//   - same product + batch no. with a different expiry: refused, it's a
-//     typing mistake;
-//   - a different product with the same batch no.: a separate batch
-//     (manufacturers can use the same codes).
-// lines: [{ productId, batchNo, expirationDate, qty, supplierId,
-// supplierReceiptNo, unitCost, dateReceived, poId? }]
+// ---- batch numbers ----
+// one batch no. always has one expiry, so they go together
 function batchKey(productId, batchNo) {
   return `${productId}|${String(batchNo || "").trim().toLowerCase()}`;
 }
@@ -546,8 +517,7 @@ function planStockReceipt(lines) {
   return { errors, newLines, topUps };
 }
 
-// One delivery on a topped-up batch. Its unit cost is kept staff-only, in
-// batchCosts (deliveryCosts, same order as deliveries).
+// one delivery on a topped-up batch, cost kept staff-only
 function deliveryRecord(src, qty) {
   return {
     qty,
@@ -563,9 +533,7 @@ function costOrNull(value) {
   return value == null || isNaN(value) ? null : value;
 }
 
-// Inside a transaction. Reads first (Firestore needs every read before any
-// write), then adds new batches and tops up existing ones. Unit costs go to
-// the staff-only batchCosts records, never on the public stock record.
+// reads first then writes, firestore needs reads before writes
 async function applyStockReceipt(transaction, plan) {
   const refs = plan.topUps.map((t) => db.collection("stockBatches").doc(t.batchId));
   const costRefs = plan.topUps.map((t) => db.collection("batchCosts").doc(t.batchId));
@@ -590,8 +558,7 @@ async function applyStockReceipt(transaction, plan) {
         lastAdjustedAt: firebase.firestore.FieldValue.serverTimestamp(),
       };
       if (line.poId) record.poId = line.poId;
-      // "opening_stock": counted on the shelf when the branch started using
-      // the system - not a purchase, so Supplier Purchases leaves it out.
+      // opening stock isnt a purchase
       if (line.source) record.source = line.source;
       transaction.set(ref, record);
       transaction.set(db.collection("batchCosts").doc(ref.id), { unitCost: costOrNull(line.unitCost) });
@@ -601,7 +568,7 @@ async function applyStockReceipt(transaction, plan) {
       const batchData = docs[i].data();
       const costData = costDocs[i].exists ? costDocs[i].data() : {};
       const firstQty = batchData.initialQuantity != null ? batchData.initialQuantity : batchData.quantity || 0;
-      // Older records may still carry costs on the batch itself.
+      // older records may have the cost on the batch
       const firstCost = costData.unitCost != null ? costData.unitCost : costOrNull(batchData.unitCost);
       const earlier = batchData.deliveries && batchData.deliveries.length ? batchData.deliveries : [{ ...deliveryRecord(batchData, firstQty), unitCost: firstCost }];
       const earlierCosts = earlier.map((d, idx) =>
@@ -634,7 +601,7 @@ function receiptSummary(plan) {
     .join("; ");
 }
 
-// One entry per received line, for the result pop-up.
+// one line per received item for the popup
 function receiptLineNames(plan) {
   const name = (id) => (getProductById(id) || {}).name || id;
   return plan.newLines
@@ -642,7 +609,7 @@ function receiptLineNames(plan) {
     .concat(plan.topUps.map((t) => `${name(t.line.productId)} x${t.line.qty} (Batch ${t.line.batchNo}, topped up)`));
 }
 
-/* ---------- Receive Stock ---------- */
+// ---------- receive stock ----------
 function addReceiveItemRow() {
   receiveItemCount += 1;
   const row = document.createElement("div");
@@ -742,7 +709,7 @@ saveReceiveStockBtn.addEventListener("click", async () => {
   receiveModalAlert.classList.add("d-none");
 
   try {
-    // All lines or none, so a retry after an error can't add stock twice.
+    // all or nothing so a retry cant add stock twice
     await db.runTransaction(async (transaction) => {
       const write = await applyStockReceipt(transaction, plan);
       write();
@@ -769,7 +736,7 @@ saveReceiveStockBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Receive Stock: batch upload (Excel .xlsx/.xls or .csv, via SheetJS) ---------- */
+// ---------- receive stock: batch upload ----------
 const RECEIVE_BATCH_TEMPLATE_HEADERS = ["sku", "batchNo", "expiryDate", "qtyReceived", "unitCost", "supplierName", "receiptNo", "dateReceived"];
 
 receiveUploadBatchBtn.addEventListener("click", () => receiveBatchFileInput.click());
@@ -867,8 +834,7 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
   await showReceiveResult(plan, imported, failed);
 });
 
-// Reads the rows of the upload review table into receiving lines. A row
-// with a missing or unrecognized value is highlighted red.
+// reads the review table, bad rows turn red
 function readReceiveReviewRows(rowEls) {
   let hasInvalid = false;
   rowEls.forEach((tr) => tr.classList.remove("table-danger"));
@@ -904,9 +870,7 @@ function readReceiveReviewRows(rowEls) {
   return { lines, hasInvalid };
 }
 
-// Saved in groups of up to 400 lines, each group all-or-nothing, so a
-// failed group can be retried without duplicating the ones before it.
-// Returns how many lines were saved and how many weren't.
+// saves in groups so a failed group can be retried
 async function saveReceiptInGroups(plan) {
   const ops = plan.newLines.map((line) => ({ line })).concat(plan.topUps.map((t) => ({ topUp: t })));
   let imported = 0;
@@ -928,7 +892,7 @@ async function saveReceiptInGroups(plan) {
   return { imported, failed };
 }
 
-// The result pop-up after an upload: success, or what didn't save.
+// result popup after an upload
 async function showReceiveResult(plan, imported, failed) {
   const lineCount = (n) => `${n} line${n === 1 ? "" : "s"}`;
   const topUpNote = plan.topUps.length ? `\n${lineCount(plan.topUps.length)} added to batches already in stock.` : "";
@@ -949,10 +913,7 @@ async function showReceiveResult(plan, imported, failed) {
   );
 }
 
-// SheetJS reads both real Excel workbooks and plain CSV through the same
-// API. cellDates converts an actual Excel date cell into a JS Date
-// instead of a serial number, which gets normalized to YYYY-MM-DD below
-// for the review table's <input type="date"> fields.
+// sheetjs reads excel and csv, celldates turns excel dates into js dates
 receiveBatchFileInput.addEventListener("change", async () => {
   const file = receiveBatchFileInput.files[0];
   if (!file) return;
@@ -987,7 +948,7 @@ receiveBatchFileInput.addEventListener("change", async () => {
   openReceiveBatchReviewModal(rows);
 });
 
-/* ---------- Quick Add Supplier / Product (launched from within Receive Stock) ---------- */
+// ---------- quick add supplier / product ----------
 quickAddSupplierModalEl.addEventListener("hidden.bs.modal", () => {
   bootstrap.Modal.getOrCreateInstance(receiveStockModalEl).show();
 });
@@ -1098,8 +1059,7 @@ quickAddSupplierSaveBtn.addEventListener("click", async () => {
 quickAddProductSaveBtn.addEventListener("click", async () => {
   const name = quickProductNameInput.value.trim();
   const category = quickProductCategorySelect.value;
-  // Only a Branch Manager sets prices (REQ071); anyone else's quick-add
-  // product is saved Inactive with prices pending.
+  // only branch manager sets prices, others save it inactive
   const pricesAllowed = currentAdminRole === "admin" || currentAdminRole === "branch_manager";
   const retailPrice = pricesAllowed ? parseFloat(quickProductPriceInput.value) : 0;
 
@@ -1131,7 +1091,7 @@ quickAddProductSaveBtn.addEventListener("click", async () => {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
 
-    catalogLoadPromise = null; // force a fresh read so the new product shows up everywhere
+    catalogLoadPromise = null; // fresh read so the new product shows everywhere
     await loadCatalogCache();
     refreshProductSelects(docRef.id);
 
@@ -1143,7 +1103,7 @@ quickAddProductSaveBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Write Off Stock ---------- */
+// ---------- write off stock ----------
 function populateBatchSelectForProduct(batchSelectEl, productId) {
   const batches = allBatches.filter((b) => b.productId === productId && b.quantity > 0);
   const choicesData = batches.length
@@ -1243,7 +1203,7 @@ saveWriteOffBtn.addEventListener("click", async () => {
   }
 });
 
-// The write-off rows: batch, product, quantity and reason.
+// write-off rows
 function readWriteOffForm() {
   const rows = Array.from(writeOffItemsContainer.querySelectorAll(".repeater-item"));
   return rows.map((row) => ({
@@ -1254,8 +1214,7 @@ function readWriteOffForm() {
   }));
 }
 
-// What's wrong with the write-off, or null. Every row needs a batch, a
-// quantity and a reason, and can't take out more than the batch holds.
+// whats wrong with the write-off, or null
 function writeOffProblem(items) {
   const invalid = items.some((it) => !it.batchId || !it.qty || it.qty <= 0 || !it.reason);
   if (invalid || items.length === 0) return "Every item needs a batch, a quantity, and a reason.";
@@ -1267,16 +1226,7 @@ function writeOffProblem(items) {
   return null;
 }
 
-// Saves the write-off in one transaction.
-// Deducting each row against the page's cached allBatches snapshot (as
-// this used to) has two ways to go wrong: another change to the same
-// batch elsewhere (a sale, another write-off) between page load and
-// this click gets silently overwritten instead of compounded, and two
-// rows here writing off the same batch would each validate against
-// that same stale number instead of each other's deduction, letting
-// more be written off in one submission than the batch actually holds.
-// A single transaction that re-reads each distinct batch fresh and
-// validates the combined quantity against it closes both.
+// saves the write-off in one transaction with fresh stock
 async function saveWriteOff(items) {
   const qtyByBatch = {};
   for (const item of items) {
@@ -1304,8 +1254,7 @@ async function saveWriteOff(items) {
       });
     });
 
-    // The write-off records go in the same transaction, so a retry can't
-    // deduct the stock a second time.
+    // same transaction so a retry cant deduct twice
     for (const item of items) {
       const batch = allBatches.find((b) => b.id === item.batchId);
       transaction.set(db.collection("writeOffs").doc(), {
@@ -1321,7 +1270,7 @@ async function saveWriteOff(items) {
   });
 }
 
-// One audit log entry per written-off row.
+// one audit log entry per row
 async function logWriteOffs(items) {
   for (const item of items) {
     const batch = allBatches.find((b) => b.id === item.batchId);
@@ -1337,7 +1286,7 @@ async function logWriteOffs(items) {
   }
 }
 
-/* ---------- Stock Count (stored in "reconciliations") ---------- */
+// ---------- stock count ----------
 function findActiveSession() {
   return allReconciliations.find((r) => r.status === "in_progress") || null;
 }
@@ -1397,8 +1346,7 @@ function renderReconciliationItemsBody(session) {
   });
 }
 
-// Differences on a finished count (stored on finalize; worked out for older
-// or saved-but-unfinished counts).
+// differences on a finished count
 function stockCountLines(session) {
   return (session.items || []).map((item) => {
     const counted = item.countedQty == null ? null : Number(item.countedQty);
@@ -1452,7 +1400,7 @@ function renderPastSessions() {
     .join("");
 }
 
-/* ---------- View a past stock count ---------- */
+// ---------- view a past stock count ----------
 const stockCountViewModalEl = document.getElementById("stockCountViewModal");
 let viewedStockCount = null;
 let scViewFilter = "all";
@@ -1606,7 +1554,7 @@ submitCountBtn.addEventListener("click", async () => {
   const activeSession = findActiveSession();
   if (!activeSession) return;
   const rows = Array.from(reconciliationItemsBody.querySelectorAll("tr"));
-  // A batch left blank would otherwise be saved as 0 on hand.
+  // blank batches would save as 0
   const blank = rows.filter((row) => row.querySelector(".reconciliation-counted-input").value.trim() === "").length;
   if (blank > 0) {
     await showAppAlert(`Enter a count for every batch (${blank} left blank). Type 0 if none are on hand.`, { title: "Count Incomplete" });
@@ -1614,8 +1562,7 @@ submitCountBtn.addEventListener("click", async () => {
   }
   const updatedItems = readCountedItems(activeSession, rows);
 
-  // Only the Branch Manager finalizes (REQ061). Anyone else's count is saved
-  // on the session for the Branch Manager to review and submit.
+  // only branch manager finalizes, others save it for review
   const canFinalize = currentAdminRole === "admin" || currentAdminRole === "branch_manager";
   if (!canFinalize) {
     await saveCountForManager(activeSession, updatedItems);
@@ -1637,7 +1584,7 @@ submitCountBtn.addEventListener("click", async () => {
   }
 });
 
-// Each counted batch with its difference from the system quantity.
+// each counted batch with its difference
 function readCountedItems(activeSession, rows) {
   return rows.map((row) => {
     const idx = Number(row.dataset.idx);
@@ -1647,8 +1594,7 @@ function readCountedItems(activeSession, rows) {
   });
 }
 
-// Staff (not the Branch Manager): the count is saved on the session for the
-// Branch Manager to review and finalize.
+// staff save the count for the branch manager
 async function saveCountForManager(activeSession, updatedItems) {
   try {
     await db.collection("reconciliations").doc(activeSession.id).update({
@@ -1663,9 +1609,7 @@ async function saveCountForManager(activeSession, updatedItems) {
   }
 }
 
-// The reason for any difference between the count and the system (asked
-// only when there is one), or "" when they match and the user confirms.
-// Returns null when cancelled.
+// reason for a difference, empty if they match
 async function askVarianceReason(updatedItems) {
   const variances = updatedItems.filter((i) => i.variance !== 0);
   let varianceReason = "";
@@ -1686,13 +1630,10 @@ async function askVarianceReason(updatedItems) {
   return varianceReason;
 }
 
-// Finalizes the count: stock moves by each batch's difference, the session
-// is closed, and the audit log records what changed.
+// finalizes the count and logs the changes
 async function finalizeCount(activeSession, updatedItems, varianceReason) {
   const variances = updatedItems.filter((i) => i.variance !== 0);
-  // Apply each batch's variance to its current quantity in one
-  // transaction, so a sale made while counting isn't wiped out (with no
-  // sales in between, this is exactly the counted quantity).
+  // applies differences to current stock so sales during the count arent lost
   const changed = updatedItems.filter((i) => i.variance !== 0);
   await db.runTransaction(async (transaction) => {
     const refs = changed.map((i) => db.collection("stockBatches").doc(i.batchId));
@@ -1732,10 +1673,10 @@ async function finalizeCount(activeSession, updatedItems, varianceReason) {
   });
 }
 
-/* ---------- Export Report ---------- */
+// ---------- export ----------
 exportInventoryBtn.addEventListener("click", async () => {
   const supplierName = (id) => ((allSuppliers.find((s) => s.id === id) || {}).name || "");
-  // Unit costs are staff-only (batchCosts), added back for the export.
+  // adds back staff-only costs for the export
   const rows = await attachBatchCosts(filteredBatches());
   exportTable({
     title: "Inventory",
@@ -1758,7 +1699,7 @@ exportInventoryBtn.addEventListener("click", async () => {
   });
 });
 
-/* ================= Purchase Orders ================= */
+// ================= purchase orders =================
 
 function filteredPos() {
   let filtered = allPurchaseOrders.slice();
@@ -1866,7 +1807,7 @@ poSearchInput.addEventListener("input", () => {
   renderPoTable();
 });
 
-/* ---------- Create Purchase Order ---------- */
+// ---------- create purchase order ----------
 function addPoItemRow() {
   poItemCount += 1;
   const row = document.createElement("div");
@@ -1899,9 +1840,7 @@ function addPoItemRow() {
 
 poAddItemBtn.addEventListener("click", addPoItemRow);
 
-/* ---------- Create Purchase Order: batch upload (Excel .xlsx/.xls or .csv) ----------
-   The file fills the form's item rows (and the supplier / expected date when
-   the file has them), so everything is checked in the form before saving. */
+// ---------- create purchase order: batch upload ----------
 const PO_BATCH_TEMPLATE_HEADERS = ["sku", "expectedQty", "supplierName", "expectedDeliveryDate"];
 const poUploadBatchBtn = document.getElementById("poUploadBatchBtn");
 const poDownloadTemplateBtn = document.getElementById("poDownloadTemplateBtn");
@@ -1954,7 +1893,7 @@ poBatchFileInput.addEventListener("change", async () => {
     return;
   }
 
-  // Replace the item rows with the file's rows.
+  // replaces the item rows with the files rows
   destroyChoicesIn(poItemsContainer);
   poItemsContainer.innerHTML = "";
   poItemCount = 0;
@@ -2051,7 +1990,7 @@ savePoBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- View / Receive Purchase Order ---------- */
+// ---------- view / receive purchase order ----------
 function openViewPoModal(po) {
   const supplier = allSuppliers.find((s) => s.id === po.supplierId);
 
@@ -2173,8 +2112,7 @@ async function submitPoReceiving(po) {
       }));
     const newStatus = discrepancies.length > 0 ? "discrepancy" : "received";
 
-    // Stock and PO status together, and only once: if someone else already
-    // recorded this delivery, nothing is added.
+    // stock and po status save together, only once
     const poRef = db.collection("purchaseOrders").doc(po.id);
     await db.runTransaction(async (transaction) => {
       const fresh = await transaction.get(poRef);

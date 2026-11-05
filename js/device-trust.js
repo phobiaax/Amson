@@ -1,25 +1,12 @@
-/**
- * Recognized devices (REQ005 customers, REQ044 staff).
- *
- * Each browser gets a random device ID kept in localStorage. After a login
- * from a browser that isn't in the account's trustedDevices list, the
- * login page emails a one-time code (EmailJS, the same template as the
- * sign-up code) and only adds the device once the code is entered.
- *
- * Staff and customer pages check this too, so going around the login page
- * signs the person out. Like the rest of this browser-only app, the check
- * runs in the browser: it stops someone with a stolen password from using
- * the site normally, but isn't enforced by the database itself.
- */
+// remembers which browsers an account has logged in from
 
-// New-device login codes (REQ005, REQ044). Turned off 2026-10-25 (team
-// decision) - set back to true to require a code from unrecognized devices.
+// turned off by team decision, set to true to ask for a code on new devices
 const REQUIRE_DEVICE_CODE = false;
 
 const DEVICE_ID_KEY = "amsonDeviceId";
 const DEVICE_PENDING_KEY = "amsonDeviceCheckPending";
 
-// This browser's random device ID, made and saved the first time.
+// random id for this browser, saved the first time
 function getOrCreateDeviceId() {
   let id = null;
   try {
@@ -46,7 +33,7 @@ function isDeviceTrusted(userData) {
   return (userData.trustedDevices || []).some((d) => d && d.id === getOrCreateDeviceId());
 }
 
-// A short readable label for the device list, e.g. "Chrome on Windows".
+// short label like chrome on windows
 function deviceLabel() {
   const ua = navigator.userAgent || "";
   const browser = /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "Browser";
@@ -63,15 +50,14 @@ async function trustThisDevice(uid) {
   } catch (error) {}
 }
 
-// Account Settings: forget every device except this one.
+// forgets every device except this one
 async function forgetOtherDevices(uid, userData) {
   const keep = (userData.trustedDevices || []).filter((d) => d && d.id === getOrCreateDeviceId());
   await db.collection("users").doc(uid).update({ trustedDevices: keep });
   return keep;
 }
 
-// Pages other than the login page: send an unrecognized device back to log
-// in properly. Resolves true when the page may continue.
+// sends unknown devices back to login, true means the page can continue
 async function enforceRecognizedDevice(userData) {
   if (isDeviceTrusted(userData)) return true;
   try {

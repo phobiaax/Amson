@@ -1,6 +1,4 @@
-/**
- * Product catalog page.
- */
+// product catalog page
 
 const PAGE_SIZE = 16;
 let currentPage = 1;
@@ -11,8 +9,7 @@ const pagination = document.getElementById("pagination");
 const paginationSummary = document.getElementById("paginationSummary");
 const catAll = document.getElementById("catAll");
 const categoryFilterList = document.getElementById("categoryFilterList");
-// Filled from the categories collection once the catalog loads (see
-// renderCategoryFilters), so it always matches Manage Categories.
+// filled from the categories collection once the catalog loads
 let categoryFilters = [];
 const sortBy = document.getElementById("sortBy");
 const applyFiltersBtn = document.getElementById("applyFiltersBtn");
@@ -23,8 +20,7 @@ const sectionFilterSelect = document.getElementById("sectionFilterSelect");
 const productsHeading = document.getElementById("productsHeading");
 const searchSummary = document.getElementById("searchSummary");
 
-// Keyword from the header search box (?q=). Matches name, generic name,
-// brand and description, ignoring case and extra spaces.
+// search keyword from the header (?q=), ignores case and extra spaces
 const searchTerm = (new URLSearchParams(window.location.search).get("q") || "").trim();
 
 function matchesSearch(product) {
@@ -81,9 +77,7 @@ function applyFilters() {
   );
 
   filtered.sort((a, b) => {
-    // Out-of-stock items sink to the bottom no matter what sort is
-    // chosen - they're still browsable, just not what anyone's shopping
-    // for right now.
+    // out of stock items always go to the bottom
     if (a.inStock !== b.inStock) return a.inStock ? -1 : 1;
 
     switch (sortBy.value) {
@@ -154,7 +148,7 @@ applyFiltersBtn.addEventListener("click", applyFilters);
 (async function init() {
   await loadCatalogCache();
   renderCategoryFilters();
-  // Only sections that have products in the store.
+  // only sections that have products
   sectionFilterSelect.innerHTML =
     '<option value="">All sections</option>' +
     SHOP_SECTIONS.map((sec) => `<option value="${escapeHtml(sec.id)}">${escapeHtml(sec.label)}</option>`).join("");
@@ -166,7 +160,7 @@ applyFiltersBtn.addEventListener("click", applyFilters);
     searchSummary.classList.remove("d-none");
   }
 
-  // ---- Pre-select category from query param ----
+  // ---- preselect category from the url ----
   const initialCategory = new URLSearchParams(window.location.search).get("category");
   if (initialCategory && CATEGORY_LABELS[initialCategory]) {
     catAll.checked = false;
@@ -174,7 +168,7 @@ applyFiltersBtn.addEventListener("click", applyFilters);
     if (match) match.checked = true;
   }
 
-  // ---- Pre-select shop section from query param ----
+  // ---- preselect shop section from the url ----
   const initialSection = new URLSearchParams(window.location.search).get("section");
   if (initialSection && SHOP_SECTION_LABELS[initialSection]) {
     sectionFilterSelect.value = initialSection;

@@ -1,10 +1,4 @@
-/**
- * Shop sections: how customers browse the online store, by need. Separate
- * from the branch categories (Generics, Branded, ...), which drive the
- * month-end reports. Shared by every page that shows the store menu, and by
- * the admin product form and batch import. A product has at most one;
- * products without one still show under All Products.
- */
+// shop sections for browsing, separate from the report categories
 const SHOP_SECTIONS = [
   { id: "pain-fever", label: "Pain & Fever", icon: "bi-thermometer-half" },
   { id: "cough-colds", label: "Cough, Colds & Allergy", icon: "bi-wind" },
@@ -17,8 +11,7 @@ const SHOP_SECTIONS = [
 ];
 const SHOP_SECTION_LABELS = Object.fromEntries(SHOP_SECTIONS.map((s) => [s.id, s.label]));
 
-// The first list had 12 sections; their ids and names still work (saved
-// products, import files) and land in the section they were merged into.
+// old section ids still work and map to the merged ones
 const SHOP_SECTION_ALIASES = {
   allergy: "cough-colds",
   "cough-and-colds": "cough-colds",
@@ -31,9 +24,7 @@ const SHOP_SECTION_ALIASES = {
   "first-aid-and-medical-supplies": "first-aid",
 };
 
-// A section id from a saved value or what someone typed in an import file:
-// its id or its name (current or old), ignoring case, spaces and "&"/"and".
-// Unknown text -> "" (none).
+// finds a section from an id or a typed name
 function resolveShopSection(text) {
   const key = (v) => String(v || "").toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   const k = key(text);
@@ -44,8 +35,7 @@ function resolveShopSection(text) {
   return hit ? hit.id : "";
 }
 
-// The store menu under the header: All Products + the 8 sections, the same
-// on every page.
+// store menu under the header
 function renderShopSectionNav() {
   const nav = document.querySelector(".category-nav .nav");
   if (!nav) return;
@@ -57,8 +47,7 @@ function renderShopSectionNav() {
 }
 renderShopSectionNav();
 
-// When the store menu is wider than the screen (phones), a fade on the edge
-// that still has hidden items shows that the bar scrolls sideways.
+// fade on the edge when the menu scrolls sideways on phones
 function updateCategoryNavFade() {
   const bar = document.querySelector(".category-nav");
   const nav = bar && bar.querySelector(".nav");

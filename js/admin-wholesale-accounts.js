@@ -1,6 +1,4 @@
-/**
- * Wholesale Accounts admin page.
- */
+// wholesale accounts page
 
 const WHOLESALE_PAGE_SIZE = 6;
 const BUSINESS_TYPE_LABELS = {
@@ -65,8 +63,7 @@ const wholesalePermitExpiryInput = document.getElementById("wholesalePermitExpir
 const processOrderFreeCheck = document.getElementById("processOrderFreeCheck");
 const processOrderFreeReasonInput = document.getElementById("processOrderFreeReasonInput");
 
-// LTO / Business Permit validity (REQ086): "expired", "expiring" (within
-// 30 days), "valid", or "missing" when no date is on file.
+// lto / business permit status, expiring means within 30 days
 function documentValidity(dateStr) {
   if (!dateStr) return "missing";
   const end = new Date(`${dateStr}T23:59:59`);
@@ -89,10 +86,8 @@ function documentBadges(account) {
 
 document.addEventListener("admin:ready", loadWholesaleAccounts);
 
-/* ---------- Load ---------- */
-// Orders recorded but not yet picked up / delivered: listed at the top of
-// the page and counted per buyer. Orders saved before this existed have no
-// releaseStatus and count as released.
+// ---------- load ----------
+// orders not picked up or delivered yet, counted per buyer
 let pendingReleaseByAccount = {};
 let pendingReleaseOrders = [];
 async function loadPendingReleases() {
@@ -110,8 +105,7 @@ async function loadPendingReleases() {
   }
 }
 
-// "Waiting for release": every pending order, the longest-waiting first,
-// each with its own Mark Released button.
+// waiting for release list, oldest first
 function renderPendingReleasePanel() {
   const card = document.getElementById("pendingReleaseCard");
   const body = document.getElementById("pendingReleaseBody");
@@ -148,13 +142,12 @@ async function loadWholesaleAccounts() {
     await loadPendingReleases();
     renderPendingReleasePanel();
     renderWholesaleGrid();
-    // From the bell's "waiting to be picked up or delivered": show the list.
+    // from the bell, show the list
     if (window.location.hash === "#pendingReleaseCard" && pendingReleaseOrders.length && !scrolledToPendingRelease) {
       scrolledToPendingRelease = true;
       document.getElementById("pendingReleaseCard").scrollIntoView({ block: "start" });
     }
-    // Opened from the Dashboard's "Find a sale by SI No.": show that
-    // buyer's purchase history once.
+    // from find a sale, show that buyers history once
     const historyFor = new URLSearchParams(window.location.search).get("history");
     if (historyFor && !openedLinkedHistory) {
       openedLinkedHistory = true;
@@ -168,7 +161,7 @@ async function loadWholesaleAccounts() {
 let openedLinkedHistory = false;
 let scrolledToPendingRelease = false;
 
-/* ---------- Grid ---------- */
+// ---------- grid ----------
 function filteredWholesaleAccounts() {
   let filtered = allWholesaleAccounts.slice();
 
@@ -283,16 +276,15 @@ wholesaleSearchInput.addEventListener("input", () => {
   renderWholesaleGrid();
 });
 
-/* ---------- Add / Edit modal ---------- */
+// ---------- add / edit modal ----------
 wireSegmentedToggle(wholesaleStatusToggle);
 
-// Agreed prices (REQ085) are set from Process Order; here they can be
-// reviewed and removed.
+// agreed prices are set from process order, here you can only remove them
 let editingAgreedPrices = {};
 
 function renderAgreedPrices() {
   const el = document.getElementById("wholesaleAgreedPrices");
-  // The list isn't shown in the form any more; prices still prefill orders.
+  // list isnt shown anymore but prices still prefill orders
   if (!el) return;
   const entries = Object.entries(editingAgreedPrices);
   if (!entries.length) {
@@ -465,9 +457,9 @@ async function deleteWholesaleAccount(id) {
   }
 }
 
-/* ---------- Process Wholesale Order ---------- */
+// ---------- process wholesale order ----------
 function populateOrderProductSelect(selectEl) {
-  // Only products that can be sold: active and already priced.
+  // only active products with a price
   selectEl.innerHTML = productsByName(CATALOG_PRODUCTS.filter((p) => p.status === "active" && !p.pricePending))
     .map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
     .join("");
@@ -520,16 +512,14 @@ function addProcessOrderItemRow() {
   priceNote.className = "text-muted mb-0 mt-1";
   priceNote.style.fontSize = "0.75rem";
   priceInput.insertAdjacentElement("afterend", priceNote);
-  // This buyer's agreed price (REQ085) when there is one, else the
-  // product's standard wholesale price.
+  // buyers agreed price first, else the standard wholesale price
   const setDefaultPrice = () => {
     const product = getProductById(productSelect.value);
     const account = allWholesaleAccounts.find((w) => w.id === processingAccountId);
     const agreed = account && account.agreedPrices ? account.agreedPrices[productSelect.value] : undefined;
-    // No wholesale price on the product: left empty (the order can't be
-    // saved until a price is typed), never a silent 0.
+    // no wholesale price means empty, never a silent 0
     const standard = product && product.wholesalePrice > 0 ? product.wholesalePrice : null;
-    // Free: the whole order (free-of-cost distribution) or just this item.
+    // free can be the whole order or one item
     const free = processOrderFreeCheck.checked || freeCheck.checked;
     priceInput.disabled = free;
     freeCheck.disabled = processOrderFreeCheck.checked;
@@ -556,7 +546,7 @@ function addProcessOrderItemRow() {
 
 processOrderAddItemBtn.addEventListener("click", addProcessOrderItemRow);
 
-// One reason covers a free-of-cost order or any items given free in it.
+// one reason covers all free items
 function updateFreeReasonVisibility() {
   const anyFreeItem = !!processOrderItemsContainer.querySelector(".order-free-check:checked");
   processOrderFreeReasonInput.classList.toggle("d-none", !(processOrderFreeCheck.checked || anyFreeItem));
@@ -617,9 +607,8 @@ processOrderPoDocInput.addEventListener("change", () => {
   selectedPoDocFile = processOrderPoDocInput.files[0] || null;
 });
 
-// ---- Process Wholesale Order: Confirm ----
-// Read the form -> check it -> save the order (stock, SI No.) -> audit log ->
-// remember agreed prices -> offer to print the sales invoice.
+// ---- process order: confirm ----
+// read, check, save, audit log, remember prices
 confirmProcessOrderBtn.addEventListener("click", async () => {
   if (!processingAccountId) return;
   const account = allWholesaleAccounts.find((w) => w.id === processingAccountId);
@@ -652,8 +641,7 @@ confirmProcessOrderBtn.addEventListener("click", async () => {
   }
 });
 
-// Reads the order form: the items, and whether it's free of cost. Free items
-// (or every item, for a free-of-cost order) are priced at 0.
+// reads the order form, free items are priced 0
 function readProcessOrderForm() {
   const rows = Array.from(processOrderItemsContainer.querySelectorAll(".repeater-item"));
   const items = rows.map((row) => ({
@@ -671,9 +659,7 @@ function readProcessOrderForm() {
   return { items, freeOfCost, freeReason, freeItems: items.filter((it) => it.free) };
 }
 
-// The buyer's documents must be valid, a free order or free items need a
-// reason, and every item needs a product, quantity and price. Shows the
-// first problem found and returns false, or returns true.
+// checks documents, free reasons and every item
 function checkProcessOrder(account, { items, freeOfCost, freeReason, freeItems }) {
   const documentsExpired = account && (documentValidity(account.ltoValidUntil) === "expired" || documentValidity(account.permitValidUntil) === "expired");
   if (documentsExpired) {
@@ -695,9 +681,7 @@ function checkProcessOrder(account, { items, freeOfCost, freeReason, freeItems }
   return true;
 }
 
-// Saves the order: the buyer's PO file is uploaded first (a failed upload
-// shouldn't leave stock already deducted), then the stock deduction, SI No.
-// and the order record happen in one transaction.
+// uploads the po file first so stock isnt deducted on a failed upload
 async function saveWholesaleOrder(account, { items, freeOfCost, freeReason, freeItems }) {
   const buyerName = account ? account.name : "";
   let poDocumentUrl = null;
@@ -742,7 +726,7 @@ async function saveWholesaleOrder(account, { items, freeOfCost, freeReason, free
         poRefNumber: processOrderPoRefInput.value.trim(),
         poDocumentUrl,
         notes: processOrderNotesInput.value.trim(),
-        // Pending until the client picks it up or it's delivered.
+        // pending until picked up or delivered
         releaseStatus: "pending",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       }),
@@ -751,8 +735,7 @@ async function saveWholesaleOrder(account, { items, freeOfCost, freeReason, free
   return { orderRef, invoiceNo, orderItems, total, paymentMethod, buyerName };
 }
 
-// Audit log: a free-of-cost distribution or a normal wholesale order, plus
-// a separate entry for any items given free.
+// audit log entry, free items get their own entry
 async function logWholesaleOrder({ invoiceNo, orderItems, total, paymentMethod, buyerName }, { freeOfCost, freeReason, freeItems }) {
   await logAuditEvent(
     freeOfCost
@@ -780,8 +763,7 @@ async function logWholesaleOrder({ invoiceNo, orderItems, total, paymentMethod, 
   }
 }
 
-// Remembers the prices used as this buyer's agreed prices (REQ085). A free
-// item's 0 is a one-off, not the buyer's price.
+// remembers prices as the buyers agreed prices, free 0s dont count
 async function saveAgreedPrices(account, items) {
   const agreedPrices = { ...(account.agreedPrices || {}) };
   items.filter((it) => !it.free).forEach((it) => (agreedPrices[it.productId] = it.unitPrice));
@@ -798,14 +780,13 @@ async function saveAgreedPrices(account, items) {
 }
 
 processOrderFreeCheck.addEventListener("change", () => {
-  // Each row sets its own price: 0 while the whole order is free, back to
-  // its usual price (unless that item is ticked free) when unticked.
+  // each row goes to 0 while the whole order is free
   processOrderItemsContainer.querySelectorAll(".repeater-item").forEach((row) => row._setDefaultPrice && row._setDefaultPrice());
   updateFreeReasonVisibility();
   recalcProcessOrderTotal();
 });
 
-/* ---------- Purchase history (REQ089) ---------- */
+// ---------- purchase history ----------
 let historyOrders = [];
 
 async function openHistoryModal(account) {
@@ -864,8 +845,7 @@ async function openHistoryModal(account) {
   });
 }
 
-// The client has picked up the order, or it has been delivered. From the
-// purchase history, that history reopens with the order updated.
+// marks the order as picked up or delivered
 async function markWholesaleOrderReleased(order, account, btn, { reopenHistory = true } = {}) {
   if (!order) return;
   const ok = await showAppConfirm(`Mark SI ${order.invoiceNo || ""} as released to ${account.name} (picked up or delivered)?`, {
@@ -889,7 +869,7 @@ async function markWholesaleOrderReleased(order, account, btn, { reopenHistory =
   }
 }
 
-/* ---------- Wholesale exchange (REQ090, Fig 2.15) ---------- */
+// ---------- wholesale exchange ----------
 let currentStaffName = "Staff";
 document.addEventListener("admin:ready", (e) => {
   const admin = e.detail.admin;
@@ -910,8 +890,7 @@ async function openExchangeDialog(order, account) {
     confirmLabel: "Process Exchange",
     fieldHtml: wholesaleExchangeDialogHtml(lines),
     onRender: () => wireWholesaleExchangeDialog(order, account),
-    // Saved right here, so a problem shows inside the dialog, which stays
-    // open to fix it.
+    // saves here so errors show in the dialog
     validate: async () => {
       try {
         exchange = await processWholesaleExchange(readWholesaleExchangeDialog(order));
@@ -937,8 +916,7 @@ async function openExchangeDialog(order, account) {
   }
 }
 
-// The form inside the wholesale exchange dialog: the item coming back, the
-// replacement and its price, and the reason.
+// exchange dialog form
 function wholesaleExchangeDialogHtml(lines) {
   const productOptions = CATALOG_PRODUCTS.filter((p) => p.status === "active")
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -969,8 +947,7 @@ function wholesaleExchangeDialogHtml(lines) {
   `;
 }
 
-// Keeps the replacement price and the "Buyer pays" line up to date while
-// staff fill in the wholesale exchange dialog.
+// keeps the price and buyer pays line updated
 function wireWholesaleExchangeDialog(order, account) {
   const lineSel = document.getElementById("exReturnLine");
   const retQty = document.getElementById("exReturnQty");
@@ -978,7 +955,7 @@ function wireWholesaleExchangeDialog(order, account) {
   const repQty = document.getElementById("exReplacementQty");
   const repPrice = document.getElementById("exReplacementPrice");
   const diffText = document.getElementById("exDifferenceText");
-  // Searchable, like the other product pickers on this page.
+  // searchable like the other pickers
   const prodChoices = makeSearchableSelect(prodSel);
   const line = () => order.items[Number(lineSel.value)];
   const update = () => {
@@ -992,7 +969,7 @@ function wireWholesaleExchangeDialog(order, account) {
   const setDefaults = () => {
     prodChoices.setChoiceByValue(line().productId);
     const p = getProductById(prodSel.value);
-    // Same product: the price this buyer actually paid on the order.
+    // same product uses the price the buyer paid
     repPrice.value = line().unitPrice || (p ? p.wholesalePrice || 0 : 0);
     retQty.max = String(order.items[Number(lineSel.value)].qty - (order.items[Number(lineSel.value)].returnedQty || 0));
     update();
@@ -1009,7 +986,7 @@ function wireWholesaleExchangeDialog(order, account) {
   setDefaults();
 }
 
-// What staff entered in the wholesale exchange dialog.
+// what staff entered in the exchange dialog
 function readWholesaleExchangeDialog(order) {
   return {
     orderId: order.id,
@@ -1025,9 +1002,7 @@ function readWholesaleExchangeDialog(order) {
   };
 }
 
-// The heading of the wholesale PDFs (exchange document and sales invoice):
-// store name, document title, and its number at the top right. Returns the
-// y position of the title line, where the rest of the document carries on.
+// shared heading for the wholesale pdfs
 function startWholesalePdf(doc, title, number) {
   let y = 18;
   doc.setFontSize(15);
@@ -1084,13 +1059,13 @@ function downloadExchangeDocument(ex) {
   doc.save(`Amson-${ex.exchangeNo || "exchange"}.pdf`);
 }
 
-// Plain numbers for PDFs (the PDF font has no peso sign).
+// plain numbers since the pdf font has no peso sign
 function reportSafeNumber(n) {
   return Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/* ---------- Wholesale sales invoice (REQ092) ---------- */
-// The branch's own copy with buyer details, batch and expiry per line.
+// ---------- wholesale sales invoice ----------
+// branch copy with buyer details, batch and expiry
 function downloadWholesaleInvoice(order, { print = false } = {}) {
   if (!order) return;
   if (typeof window.jspdf === "undefined") {
@@ -1134,7 +1109,7 @@ function downloadWholesaleInvoice(order, { print = false } = {}) {
     doc.text(doc.splitTextToSize(String(it.batchNo || "-"), 28)[0], cols[1], y);
     doc.text(it.expirationDate ? formatDateMDY(it.expirationDate) : "-", cols[2], y);
     doc.text(String(it.qty), cols[3], y);
-    // jsPDF's built-in font has no peso sign.
+    // no peso sign in the pdf font
     doc.text(it.free ? "FREE" : reportSafeNumber(it.unitPrice), cols[4], y);
     doc.text(reportSafeNumber(it.subtotal), 196, y, { align: "right" });
   });

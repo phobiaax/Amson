@@ -1,10 +1,5 @@
-/**
- * Live Chat Management (REQ108-110): staff see every conversation, reply,
- * take over from the assistant, hand back, and mark threads resolved.
- * Threads and messages update live.
- */
+// staff side of the live chat
 
-// The longest reply staff can send in one message.
 const STAFF_REPLY_MAX_LENGTH = 1000;
 
 const CHAT_STATUS_LABELS = {
@@ -182,7 +177,7 @@ chatReplyForm.addEventListener("submit", async (e) => {
   chatReplyBtn.disabled = true;
   const ref = db.collection("chatThreads").doc(selectedThreadId);
   try {
-    // Replying takes the chat over from the assistant.
+    // replying takes the chat over from the assistant
     await ref.collection("messages").add({
       sender: "staff",
       staffName: currentStaffName,
@@ -251,8 +246,7 @@ chatFilterButtons.forEach((btn) => {
 
 document.getElementById("chatUsageRefreshBtn").addEventListener("click", loadChatUsage);
 
-// Checks the Gemini connection and shows the real error if it fails (not
-// counted against the daily limit).
+// test ai button, shows the real error if gemini fails
 document.getElementById("chatTestAiBtn").addEventListener("click", async (e) => {
   const btn = e.currentTarget;
   btn.disabled = true;

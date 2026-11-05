@@ -1,6 +1,4 @@
-/**
- * Customer Account Settings page.
- */
+// customer account settings page
 
 let signedInUid = null;
 
@@ -27,7 +25,7 @@ const saveAddressBtn = document.getElementById("saveAddressBtn");
 const storeCreditCard = document.getElementById("storeCreditCard");
 const storeCreditAmount = document.getElementById("storeCreditAmount");
 
-// ---- Password visibility toggles ----
+// ---- show/hide password ----
 wirePasswordToggles();
 
 auth.onAuthStateChanged(async (user) => {
@@ -161,7 +159,7 @@ saveAddressBtn.addEventListener("click", async () => {
 
 setupChangePasswordForm();
 
-// ---- Change Email ----
+// ---- change email ----
 const openChangeEmailBtn = document.getElementById("openChangeEmailBtn");
 const changeEmailModalEl = document.getElementById("changeEmailModal");
 const changeEmailStep1 = document.getElementById("changeEmailStep1");
@@ -305,7 +303,7 @@ confirmEmailChangeBtn.addEventListener("click", async () => {
   }
 });
 
-// ---- Profile picture (REQ040) ----
+// ---- profile picture ----
 const profilePhotoPreview = document.getElementById("profilePhotoPreview");
 const profilePhotoPlaceholder = document.getElementById("profilePhotoPlaceholder");
 const profilePhotoInput = document.getElementById("profilePhotoInput");
@@ -344,7 +342,7 @@ profilePhotoInput.addEventListener("change", async () => {
   }
 });
 
-// ---- Email notifications on/off (REQ042) ----
+// ---- email notifications on/off ----
 document.getElementById("emailNotificationsToggle").addEventListener("change", async (e) => {
   const toggle = e.currentTarget;
   const status = document.getElementById("emailNotificationsStatus");
@@ -363,7 +361,7 @@ document.getElementById("emailNotificationsToggle").addEventListener("change", a
   }
 });
 
-// ---- Recognized devices (REQ005) ----
+// ---- recognized devices ----
 let currentUserData = null;
 
 function renderTrustedDevices(devices) {

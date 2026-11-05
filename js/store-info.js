@@ -1,8 +1,4 @@
-/**
- * Store details shown in every page footer - edit them here, once.
- * Leave a value empty ("") to hide that line rather than show a guess.
- * The client still has to send the email address.
- */
+// store details for the footer, empty values are hidden
 const STORE_INFO = {
   name: "Amson Pharmaceuticals",
   about:
@@ -18,7 +14,7 @@ function renderSiteFooter() {
   const footer = document.querySelector("footer.site-footer");
   if (!footer) return;
 
-  // Pages under /shop/ and /admin/ link up one level to the legal page.
+  // shop and admin pages are one folder down
   const inSubfolder = /\/(shop|admin)\//.test(window.location.pathname);
   const legalHref = `${inSubfolder ? "../" : ""}legal.html`;
   const escapeText = (text) =>
@@ -54,8 +50,7 @@ function renderSiteFooter() {
 
 renderSiteFooter();
 
-// ---- Header search (every customer-facing page) ----
-// Sends the term to the catalog page, which does the actual matching.
+// header search goes to the catalog page
 document.querySelectorAll(".site-header .search-input").forEach((input) => {
   const catalogPage = /\/shop\//.test(window.location.pathname) ? "products.html" : "shop/products.html";
   const go = () => {
@@ -71,8 +66,7 @@ document.querySelectorAll(".site-header .search-input").forEach((input) => {
   if (current) input.value = current;
 });
 
-// ---- Store announcement / promotion banner (REQ008) ----
-// Set by staff in Admin -> Settings. Shown under the header on shop pages.
+// shop banner set in admin settings
 (async function renderStoreBanner() {
   const header = document.querySelector(".site-header");
   if (!header || typeof db === "undefined") return;

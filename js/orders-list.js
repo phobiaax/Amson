@@ -1,6 +1,4 @@
-/**
- * My Orders list page.
- */
+// my orders page
 
 const ordersSignedOutNotice = document.getElementById("ordersSignedOutNotice");
 const ordersEmptyNotice = document.getElementById("ordersEmptyNotice");
@@ -91,7 +89,7 @@ async function loadOrders(uid) {
   }
 }
 
-// Live status (REQNF005): the list refreshes when staff update an order.
+// list updates live when staff change an order
 let unsubscribeMyOrders = null;
 function listenToMyOrders(uid) {
   if (unsubscribeMyOrders) unsubscribeMyOrders();

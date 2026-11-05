@@ -1,33 +1,17 @@
-/**
- * Customer live chat (REQ035-038) - the "Chat with us" buttons on shop pages.
- *
- * Every message is answered in this order:
- *   1. Staff already in the chat (or asked for) -> no automatic reply.
- *   2. Asking for a person -> handed to staff.
- *   3. A common question -> built-in answer (no AI used).
- *   4. Anything else -> Gemini (CHAT_CONFIG), within the daily AI limit.
- *   5. AI unavailable or over the limit -> matching products if any, else
- *      handed to staff.
- *
- * Threads live in chatThreads/{id} with a messages subcollection. Signed-in
- * customers use "cust_<uid>"; guests get a random "guest_..." id kept in
- * this browser. Staff answer from admin/live-chat.html.
- */
+// customer live chat: staff, orders, health, faq, then the ai
 
 const CHAT_GUEST_KEY = "amsonChatGuestThread";
 const CHAT_MAX_LENGTH = 500;
-// At most one message per 1.5 seconds (a simple flood guard).
+// one message per 1.5s so nobody floods it
 const CHAT_MIN_GAP_MS = 1500;
-// When the AI says it's busy (rate limit), wait this long and try once more.
+// ai busy so wait and try once more
 const AI_RETRY_WAIT_MS = 5000;
-// Built-in answers are only matched for short questions.
+// faq only matches short questions
 const FAQ_MAX_WORDS = 14;
-// The last message shown in the staff chat list is cut to this length.
+// preview length in the staff chat list
 const CHAT_PREVIEW_LENGTH = 120;
 
-// An AI reply that gives a dose or a schedule ("take 2 tablets", "every 4
-// hours", "3 times a day") is never shown - the pharmacist message is,
-// however the question was worded. Product names ("500mg") don't count.
+// ai replies with a dose or schedule never get shown
 const CHAT_DOSAGE_PATTERNS = [
   /\b(take|give|inumin|uminom|painumin)\s+(\d+|one|two|three|four|half|isa|isang|dalawa|dalawang|tatlo|tatlong|kalahati)\b/i,
   /\b(every|tuwing|kada)\s+\d+(\s*(-|to)\s*\d+)?\s*(hours?|hrs?|oras)\b/i,
@@ -41,24 +25,22 @@ function chatLooksLikeDosage(text) {
   return CHAT_DOSAGE_PATTERNS.some((pattern) => pattern.test(text));
 }
 
-// The "Talk to staff" button under an assistant reply.
+// talk to staff button under a reply
 const CHAT_STAFF_BUTTON = { type: "button", label: "Talk to staff", q: "I want to talk to staff" };
 
-// Asking for a person: the chat goes to staff straight away. Phrases, not
-// single words - "the staff told me..." isn't asking for staff.
+// asking for a person sends it to staff right away
 const CHAT_HANDOFF_PHRASES = [
   "talk to staff", "talk to a staff", "talk to your staff", "talk to the staff", "speak to staff", "speak to a staff",
   "contact staff", "staff please", "real person", "talk to someone", "talk to a person", "talk to a human", "speak to a human",
   "human agent", "live agent", "customer service", "ask the pharmacist", "ask a pharmacist", "ask your pharmacist",
   "talk to the pharmacist", "talk to a pharmacist", "kausap", "makausap", "gusto ko ng tao", "may tao ba",
 ];
-// ...or a message that is just one of these words.
+// or a message thats just one of these words
 const CHAT_HANDOFF_ALONE = ["staff", "human", "agent", "person", "pharmacist", "tao"];
-// A problem with an order (wrong or damaged item): the assistant says sorry
-// and offers a "Talk to staff" button - the customer decides.
+// order problems get a sorry and a staff button
 const CHAT_COMPLAINT_WORDS = ["complaint", "reklamo", "wrong item", "maling item", "damaged", "sira", "defective", "nasira", "rude", "bastos"];
 
-// Built-in answers for the questions customers ask most (no AI call).
+// built-in answers for common questions, no ai call
 function chatFaqAnswers() {
   const info = typeof STORE_INFO !== "undefined" ? STORE_INFO : {};
   const contact = [info.hotline && `call ${info.hotline}`, info.email && `email ${info.email}`]
@@ -125,14 +107,13 @@ function chatNormalize(text) {
   return ` ${String(text).toLowerCase().replace(/[^a-z0-9ñ ]+/g, " ").replace(/\s+/g, " ")} `;
 }
 
-// Whole words only ("tao" is not "taon").
+// whole words only
 function chatWantsStaff(text) {
   const t = chatNormalize(text);
   return CHAT_HANDOFF_PHRASES.some((w) => t.includes(` ${w} `)) || CHAT_HANDOFF_ALONE.includes(t.trim());
 }
 
-// Someone else's details ("the address of the last customer", "your staff's
-// emails"): never shared. Not when it's about the customer's own ("my").
+// never share other peoples details
 function chatAsksOthersData(text) {
   const t = chatNormalize(text);
   const who = / (customer|customers|someone|somebody|other people|another person|other person|staff|staffs|employee|employees|cashier|cashiers|admin|owner|ibang tao|ibang customer|nila|nina) /;
@@ -145,8 +126,7 @@ function chatHasComplaint(text) {
   return CHAT_COMPLAINT_WORDS.some((w) => t.includes(` ${w} `));
 }
 
-// A built-in answer only for short, clearly-matching questions; longer or
-// product-specific messages go to the AI.
+// faq only for short clear matches, the rest goes to the ai
 function chatMatchFaq(text) {
   const t = chatNormalize(text);
   if (t.trim().split(" ").length > FAQ_MAX_WORDS) return null;
@@ -162,8 +142,7 @@ function chatMatchFaq(text) {
   return best ? best.answer : null;
 }
 
-// Questions about symptoms, dosage or what to take get a fixed, safe
-// answer: only a pharmacist or doctor may recommend medicine.
+// health questions get a fixed safe answer
 const CHAT_HEALTH_PATTERNS = [
   "good for", "medicine for", "gamot sa", "gamot para", "what to take", "what should i take", "pwede bang inumin",
   "pwede ba inumin", "safe to take", "dose", "dosage", "how many tablets", "ilang beses", "ilan ang iinumin",
@@ -184,11 +163,7 @@ const CHAT_STOPWORDS = new Set([
   "meron", "mayroon", "kayo", "ninyo", "nyo", "ang", "mga", "magkano", "ilan", "para", "sana", "pwede", "paano", "yung",
 ]);
 
-// Catalog lines for products the message names (public info only). Words
-// match whole product words (or their start), so "for" never matches
-// "Forte".
-// Products whose name, generic name or brand matches words in the text,
-// best matches first.
+// products the message names, public info only
 function chatFindProducts(text, limit = 8) {
   const words = chatNormalize(text)
     .trim()
@@ -207,18 +182,15 @@ function chatFindProducts(text, limit = 8) {
     .map(({ p }) => p);
 }
 
-// One product as a line of the list the AI is given.
+// one product line for the ai
 function chatProductLine(p) {
   return `${p.name}${p.genericName ? ` (${p.genericName})` : ""} - ${formatPeso(p.price)} - ${p.inStock ? `${p.totalStock} in stock` : "out of stock"}${p.rxRequired ? " - prescription required, pick-up only" : ""}`;
 }
 
-// A message that refers back to something said before ("can I order
-// that?", "magkano yan?").
+// follow-ups like can i order that
 const CHAT_FOLLOWUP = / (that|it|this|these|those|them|yan|iyan|ito|yun|iyon|yon) /;
 
-// The products a question is about: the ones it names, or - for a
-// follow-up that names none - the ones from the customer's last few
-// messages (newest first).
+// products the question is about, or from recent messages for follow-ups
 function chatProductsInContext(question, recentCustomerTexts, limit = 8) {
   const named = chatFindProducts(question, limit);
   if (named.length || !CHAT_FOLLOWUP.test(chatNormalize(question))) return named;
@@ -229,8 +201,7 @@ function chatProductsInContext(question, recentCustomerTexts, limit = 8) {
   return [];
 }
 
-// The products (from `products`) that a reply mentions by a distinctive
-// word of their name, e.g. "Lozemed" - for cards under the reply.
+// products a reply mentions, for the cards
 function chatProductsMentioned(replyText, products, limit = 3) {
   const said = chatNormalize(replyText);
   return products
@@ -243,13 +214,8 @@ function chatProductsMentioned(replyText, products, limit = 3) {
     .slice(0, limit);
 }
 
-// ---- "What we carry for this" (health questions) ----
-// The assistant never picks a medicine for anyone. For a recognized
-// symptom it lists the store's non-prescription products whose own label
-// text (description and Dosage / Usage notes, written by the pharmacy)
-// mentions it - like a shelf sign - with a see-a-doctor warning and a
-// button to ask the pharmacist. No AI is used, and nothing about the
-// customer's health is sent anywhere.
+// ---- what we carry for this ----
+// never picks a medicine for anyone, just shows matching products
 const CHAT_SYMPTOMS = [
   { name: "fever", fil: "lagnat", say: ["fever", "lagnat", "nilalagnat", "sinat", "temperature"], label: ["fever", "pyrexia", "antipyretic"] },
   { name: "headache", fil: "sakit ng ulo", say: ["headache", "sakit ng ulo", "masakit ang ulo", "migraine"], label: ["headache", "migraine"] },
@@ -267,8 +233,7 @@ const CHAT_SYMPTOMS = [
   { name: "constipation", fil: "tibi", say: ["constipation", "constipated", "tibi", "hindi makadumi"], label: ["constipation", "laxative"] },
 ];
 
-// Questions about doses, children, pregnancy, other medicines or long-term
-// conditions always go to the pharmacist - no product list at all.
+// doses, kids, pregnancy and conditions always go to the pharmacist
 const CHAT_HEALTH_CAUTION = [
   "dose", "dosage", "how many", "how much should", "ilang", "ilan ang", "gaano", "safe for", "safe ba", "pwede ba sa",
   "baby", "sanggol", "infant", "child", "children", "kid", "kids", "bata", "anak", "pregnant", "buntis",
@@ -283,7 +248,7 @@ function chatSymptomsIn(text) {
 
 function chatHasHealthCaution(text) {
   const t = chatNormalize(text);
-  // Whole words only ("heart" must not catch "heartburn").
+  // whole words only so heart doesnt catch heartburn
   return CHAT_HEALTH_CAUTION.some((w) => t.includes(` ${w} `));
 }
 
@@ -291,8 +256,7 @@ function chatOtcProducts() {
   return CATALOG_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false && !p.rxRequired);
 }
 
-// Over-the-counter products sold online whose label text mentions any of
-// the given label words.
+// otc products whose label has these words
 function chatProductsForLabelWords(keys, limit = 4) {
   return chatOtcProducts()
     .filter((p) => {
@@ -303,8 +267,7 @@ function chatProductsForLabelWords(keys, limit = 4) {
     .slice(0, limit);
 }
 
-// The words the pharmacy uses on its over-the-counter labels - what Gemini
-// may map a customer's description onto (it can't add words of its own).
+// words from the otc labels the ai can map onto
 const CHAT_LABEL_STOPWORDS = new Set([
   "relief", "relieves", "relieve", "tablet", "tablets", "capsule", "capsules", "syrup", "mild", "moderate", "severe", "such",
   "used", "uses", "take", "taken", "each", "every", "hours", "daily", "with", "from", "this", "that", "used", "temporary",
@@ -312,8 +275,7 @@ const CHAT_LABEL_STOPWORDS = new Set([
   "older", "water", "food", "after", "before", "meals", "dose", "doses", "dosage", "label", "read", "only", "also", "help",
   "helps", "provides", "fast", "acting", "effective", "brand", "generic", "pack", "pieces", "piece", "box", "bottle",
 ]);
-// Common over-the-counter medicine names, kept out of the label words even
-// when a product's Generic Name field is empty.
+// common medicine names kept out of the label words
 const CHAT_MEDICINE_WORDS = new Set([
   "paracetamol", "acetaminophen", "ibuprofen", "mefenamic", "naproxen", "aspirin", "diclofenac", "loratadine", "cetirizine",
   "diphenhydramine", "chlorphenamine", "chlorpheniramine", "phenylephrine", "pseudoephedrine", "ambroxol", "carbocisteine",
@@ -323,8 +285,7 @@ const CHAT_MEDICINE_WORDS = new Set([
 ]);
 
 function chatLabelVocabulary(max = 300) {
-  // Medicine, generic and brand names are left out, so Gemini can only ever
-  // return what the customer describes - never a medicine.
+  // leaves out medicine names so the ai only returns symptoms
   const productWords = new Set();
   CATALOG_PRODUCTS.forEach((p) =>
     chatNormalize(`${p.name || ""} ${p.genericName || ""} ${p.brand || ""}`).trim().split(" ").forEach((w) => productWords.add(w))
@@ -344,18 +305,17 @@ const CHAT_FILIPINO_WORDS = [
   "para", "yung", "mga", "masakit", "sakit", "nyo", "niyo", "lang", "kumusta", "kamusta", "salamat", "naman", "yan", "iyan",
   "ito", "wala", "magkano", "saan", "nasaan", "paano", "kailan", "hindi", "bili", "bibili", "gusto", "talaga", "sana", "din", "rin",
 ];
-// Two Filipino words, one in a short message ("kumusta po", "magkano?"), or
-// "po" / "opo" anywhere ("what is the price po").
+// rough check if the message is in filipino
 function chatLooksFilipino(text) {
   const t = chatNormalize(text);
   const hits = CHAT_FILIPINO_WORDS.filter((w) => t.includes(` ${w} `)).length;
   return hits >= 2 || (hits === 1 && (t.trim().split(" ").length <= 3 || / (po|opo) /.test(t)));
 }
 
-// Filipino for common label words that aren't a symptom group's name.
+// filipino for some label words
 const CHAT_WORD_FIL = { pain: "pananakit", aches: "pananakit", itch: "pangangati", itching: "pangangati", swelling: "pamamaga", inflammation: "pamamaga", nausea: "pagduduwal", vomiting: "pagsusuka", dizziness: "pagkahilo", wounds: "sugat", burns: "paso" };
 
-// Fixed wording for health replies - the AI never writes these.
+// fixed health reply text, the ai never writes these
 const CHAT_HEALTH_TEXT = {
   en: {
     none: "I'm sorry, I can't recommend medicines or give advice about symptoms or doses. Our pharmacist can help - tap \"Ask our pharmacist\" to ask them here. If your symptoms are severe or don't improve, please see a doctor.",
@@ -371,7 +331,7 @@ const CHAT_HEALTH_TEXT = {
   },
 };
 
-// ---- Order cards ----
+// ---- order cards ----
 function chatWantsOrders(text) {
   const t = chatNormalize(text);
   return (
@@ -397,9 +357,7 @@ const CHAT_HOLD_LABELS = {
   prescription_rejected: "On hold: prescription not accepted",
 };
 
-// The order as the customer should see it now: a hold whose 7 days have run
-// out reads as closed (staff pages record the closure). An out-of-stock hold
-// isn't shown to the customer, so the order reads as its normal status.
+// how the order looks now, expired holds read as closed
 function chatOrderView(o) {
   const holdOver = o.paymentIssue && o.paymentIssue.holdUntil && o.paymentIssue.holdUntil.toMillis && o.paymentIssue.holdUntil.toMillis() < Date.now();
   const shownIssue = o.paymentIssue && o.paymentIssue.type !== "out_of_stock" ? o.paymentIssue : null;
@@ -413,8 +371,7 @@ function chatOrderView(o) {
   return { issue, status, label };
 }
 
-// Progress steps for the order card. Prescription orders are picked up, so
-// "delivered" there means ready at the store.
+// progress steps, pickup orders mean ready at the store
 function chatOrderSteps(o, status) {
   const pickup = !!o.requiresPrescription || !o.shipping;
   const steps = pickup
@@ -432,12 +389,12 @@ function chatDeliverySchedule(schedule) {
   return `${m}/${d}/${y}${schedule.slot ? `, ${CHAT_SLOT_LABELS[schedule.slot] || schedule.slot}` : ""}`;
 }
 
-// Same check as the order page: only a Lalamove share link is shown.
+// only shows real lalamove links
 function chatTrackingLink(o) {
   return o.trackingLink && /^https:\/\/share\.lalamove\.com\/\S+$/i.test(o.trackingLink) ? o.trackingLink : null;
 }
 
-// What happens next / what the customer should do, in plain words.
+// whats next for the customer
 function chatOrderNextStep(order, view) {
   const { pickup } = chatOrderSteps(order, view.status);
   if (view.issue) {
@@ -493,8 +450,7 @@ function chatSystemInstruction() {
 
 let chatModelPromise = null;
 
-// The chat's own Firebase app (modular SDK), with App Check on it too when
-// APP_CHECK_SITE_KEY is set, so only this site can use the Gemini quota.
+// the chats own firebase app
 let chatAppPromise = null;
 function getChatFirebaseApp(appMod, sdkVersion) {
   if (!chatAppPromise) {
@@ -502,7 +458,7 @@ function getChatFirebaseApp(appMod, sdkVersion) {
       const existing = appMod.getApps().find((a) => a.name === "amson-chat");
       if (existing) return existing;
       const app = appMod.initializeApp(firebaseConfig, "amson-chat");
-      // App Check for the AI only (see CHAT_CONFIG.appCheckSiteKey).
+      // app check for the ai only
       const siteKey = CHAT_CONFIG.appCheckSiteKey;
       if (siteKey) {
         if (["localhost", "127.0.0.1"].includes(location.hostname)) self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
@@ -518,10 +474,7 @@ function getChatFirebaseApp(appMod, sdkVersion) {
   return chatAppPromise;
 }
 
-// Loads Firebase AI Logic (modular SDK, separate from the compat SDK the
-// rest of the site uses) only when the AI is first needed, and returns a
-// Gemini model. settings() is called once the SDK has loaded and gives the
-// model's instructions and generation settings.
+// loads the ai only when its first needed
 async function loadGeminiModel(settings) {
   const v = CHAT_CONFIG.firebaseModularSdkVersion;
   const appMod = await import(`https://www.gstatic.com/firebasejs/${v}/firebase-app.js`);
@@ -545,9 +498,7 @@ function getChatModel() {
   return chatModelPromise;
 }
 
-// A second Gemini model used only to READ health questions: it returns
-// JSON (symptom words from the pharmacy's own labels, plus caution flags)
-// and never writes anything the customer sees.
+// second model that only reads health questions
 let chatReaderPromise = null;
 function getChatReaderModel() {
   if (CHAT_CONFIG.aiProvider !== "gemini") return Promise.reject(new Error("AI disabled"));
@@ -570,9 +521,7 @@ function getChatReaderModel() {
   return chatReaderPromise;
 }
 
-// Resolves { health, symptoms, caution, language }, { limitReached: true },
-// or null when the AI isn't available. Only the message itself is sent -
-// no name, account, orders or earlier messages.
+// health read result, null if the ai isnt available
 async function chatAiReadHealth(question, vocabulary) {
   let model;
   try {
@@ -603,7 +552,7 @@ async function chatAiReadHealth(question, vocabulary) {
   }
 }
 
-// Counts one AI reply against today's limit; false once the limit is reached.
+// counts one ai reply against todays limit
 async function claimChatAiQuota() {
   const ref = db.collection("chatUsage").doc(localISODate(new Date()));
   return db.runTransaction(async (tx) => {
@@ -616,7 +565,7 @@ async function claimChatAiQuota() {
   });
 }
 
-// Resolves { text, handoff } or null if the AI couldn't answer.
+// text and handoff, or null if the ai couldnt answer
 async function chatAiReply(history, question) {
   let model;
   try {
@@ -634,8 +583,7 @@ async function chatAiReply(history, question) {
   }
   if (!allowed) return { limitReached: true };
 
-  // A follow-up ("can I order that?") names no product, so the list also
-  // covers the customer's last few messages - this question's matches first.
+  // follow-ups name no product so include recent messages
   const recent = history.filter((m) => m.sender === "customer").slice(-3).reverse().map((m) => m.text);
   const listed = [...new Set([question, ...recent].flatMap((text) => chatFindProducts(text)))].slice(0, 8);
   const products = listed.map(chatProductLine);
@@ -651,12 +599,10 @@ async function chatAiReply(history, question) {
       },
     ],
   });
-  // Gemini expects the conversation to start with the customer.
+  // gemini wants the chat to start with the customer
   while (contents.length && contents[0].role !== "user") contents.shift();
 
-  // The free tier allows about 15 AI requests a minute across the whole
-  // site. If a burst hits that limit, wait a few seconds and try once more
-  // before falling back to products / staff.
+  // free tier limit, wait a bit and retry once
   const isRateLimited = (error) => /429|RESOURCE_EXHAUSTED|quota|rate/i.test(String((error && error.message) || error));
   try {
     let result;
@@ -673,7 +619,7 @@ async function chatAiReply(history, question) {
     const handoff = text.includes("[[STAFF]]");
     text = text.replace(/\[\[STAFF\]\]/g, "").trim();
     if (!text) return handoff ? { text: "", handoff } : null;
-    // Cards for the products the reply talks about.
+    // cards for products the reply mentions
     return { text, handoff, products: chatProductsMentioned(text, listed) };
   } catch (error) {
     console.warn("Chat AI request failed:", error);
@@ -681,8 +627,8 @@ async function chatAiReply(history, question) {
   }
 }
 
-/* ---------- Chat box HTML ---------- */
-// The chat box itself: header, messages, quick questions and the input.
+// ---------- chat box html ----------
+// the chat box itself
 function chatPanelHtml() {
   return `
   <div class="chat-panel-header">
@@ -709,12 +655,12 @@ function chatPanelHtml() {
   `;
 }
 
-// One message in the chat, with any cards and buttons under it.
+// one message with its cards and buttons
 function chatMessageHtml(m, myOrders) {
   if (m.sender === "system") return `<div class="chat-msg chat-msg-system">${escapeHtml(m.text)}</div>`;
   const cls = ["customer", "staff"].includes(m.sender) ? `chat-msg-${m.sender}` : "chat-msg-assistant";
   const who = m.sender === "staff" ? `<span class="chat-msg-who">${escapeHtml(m.staffName || "Staff")}</span>` : "";
-  // Buttons sit side by side under the cards.
+  // buttons sit side by side
   const list = Array.isArray(m.cards) ? m.cards : [];
   const cardHtml = (card) => chatCardHtml(card, myOrders);
   const buttons = list.filter((c) => c.type === "button").map(cardHtml).join("");
@@ -726,7 +672,7 @@ function chatMessageHtml(m, myOrders) {
 
 const chatShopPath = (page) => `${/\/shop\//.test(window.location.pathname) ? "" : "shop/"}${page}`;
 
-// Cards under a message. Product and order cards show live data.
+// cards under a message
 function chatCardHtml(card, myOrders) {
   if (card.type === "button") {
     return `<button type="button" class="chat-card-btn" data-chat-q="${escapeHtml(card.q || card.label)}">${escapeHtml(card.label)}</button>`;
@@ -739,7 +685,7 @@ function chatCardHtml(card, myOrders) {
   return "";
 }
 
-// A product the assistant suggests: name, price, stock and Add to Cart.
+// suggested product card with add to cart
 function chatProductCardHtml(card) {
   const p = getProductById(card.id);
   if (!p) return "";
@@ -752,8 +698,7 @@ function chatProductCardHtml(card) {
     </div>`;
 }
 
-// One of the customer's orders: a short card when several are listed,
-// or the full card (items, status steps, next step) for one order.
+// order card, short for lists, full for one
 function chatOrderCardHtml(card, myOrders) {
   const order = (myOrders || []).find((x) => x.id === card.id);
   if (!order) return myOrders === null ? `<div class="chat-card text-muted" style="font-size:0.78rem;">Loading order...</div>` : "";
@@ -775,7 +720,7 @@ function chatOrderCardHtml(card, myOrders) {
       <div class="d-flex justify-content-between gap-2"><span class="fw-bold">${escapeHtml(order.orderNumber || "")}</span><span style="font-size:0.78rem;">${formatPeso(order.total || 0)}</span></div>
       <div class="text-muted" style="font-size:0.75rem;">${formatDateMDY(order.createdAt)} - ${itemCount} item${itemCount === 1 ? "" : "s"}</div>`;
 
-  // Several orders: a short card each, with a button for the details.
+  // several orders get a short card each
   if (!card.detail) {
     return `
     <div class="chat-card">
@@ -826,15 +771,15 @@ function chatOrderCardHtml(card, myOrders) {
     </div>`;
 }
 
-/* ---------- Widget ---------- */
+// ---------- widget ----------
 (function initLiveChat() {
   const entries = document.querySelectorAll("[data-chat-entry]");
   if (!entries.length || typeof db === "undefined") return;
 
-  // ---- 1. The chat box and what it remembers ----
+  // ---- 1. chat box and what it remembers ----
   let threadId = null;
   let threadRef = null;
-  let thread = null; // latest thread doc data (null until the first message)
+  let thread = null; // latest thread data, null until the first message
   let displayName = "Guest";
   let customerId = null;
   let messages = [];
@@ -842,11 +787,9 @@ function chatOrderCardHtml(card, myOrders) {
   let unsubscribeThread = null;
   let sending = false;
   let lastSentAt = 0;
-  // True while the assistant works on a reply: "typing" dots show under the
-  // customer's message until the answer arrives.
+  // true while the assistant is thinking, shows typing dots
   let thinking = false;
-  // The signed-in customer's orders, for order cards (read live, not copied
-  // into the chat).
+  // customers orders for the cards, read live
   let myOrders = null;
 
   const panel = document.createElement("div");
@@ -870,7 +813,7 @@ function chatOrderCardHtml(card, myOrders) {
     resolved: "Assistant",
   };
 
-  // ---- 2. Who is chatting, and loading their conversation ----
+  // ---- 2. who is chatting and loading the chat ----
   function guestThreadId() {
     let id = null;
     try {
@@ -925,8 +868,7 @@ function chatOrderCardHtml(card, myOrders) {
         thread = doc.exists ? doc.data() : null;
         const status = thread ? thread.status : "ai";
         statusText.textContent = STATUS_TEXT[status] || "Assistant";
-        // While waiting, the customer can change their mind and go back to
-        // the assistant. Once staff have replied, only staff hand it back.
+        // can go back to the assistant until staff reply
         panel.querySelector("#chatBackToAssistantBtn").classList.toggle("d-none", status !== "waiting_staff");
         panel.querySelector("#chatTalkToStaffBtn").classList.toggle("d-none", status === "waiting_staff" || status === "staff");
       },
@@ -944,7 +886,7 @@ function chatOrderCardHtml(card, myOrders) {
       );
   }
 
-  // ---- 3. Drawing the messages ----
+  // ---- 3. drawing the messages ----
   function renderMessages() {
     const welcome = `<div class="chat-msg chat-msg-assistant">Hi! I'm the Amson Pharmaceuticals assistant. Ask me about products, ordering, payment, delivery or prescription orders. Type "talk to staff" anytime to reach our team.</div>`;
     const last = messages[messages.length - 1];
@@ -952,8 +894,7 @@ function chatOrderCardHtml(card, myOrders) {
       thinking && last && last.sender === "customer"
         ? '<div class="chat-msg chat-msg-assistant chat-typing" role="status" aria-label="The assistant is typing"><span></span><span></span><span></span></div>'
         : "";
-    // Messages sent while waiting for staff get no assistant reply: say so
-    // (on screen only, not saved).
+    // waiting for staff note, not saved
     const waiting =
       thread && thread.status === "waiting_staff" && last && last.sender === "customer"
         ? '<div class="chat-msg chat-msg-system">Our staff will reply here as soon as they can during store hours. Tap "Back to assistant" to keep chatting with the assistant meanwhile.</div>'
@@ -964,15 +905,14 @@ function chatOrderCardHtml(card, myOrders) {
       typing +
       waiting;
     messagesEl.scrollTop = messagesEl.scrollHeight;
-    // Order cards need the customer's orders; load them once, then redraw.
+    // loads orders once then redraws
     const needsOrderData = myOrders === null && customerId && messages.some((m) => (m.cards || []).some((c) => c.type === "order"));
     if (needsOrderData) {
       loadMyOrders().then(renderMessages);
     }
   }
 
-  // Listened to live, so an order card's status moves on its own when staff
-  // confirm, dispatch or flag the order.
+  // live so the card status updates on its own
   let myOrdersReady = null;
   let myOrdersFor = null;
   let unsubscribeMyOrders = null;
@@ -985,7 +925,7 @@ function chatOrderCardHtml(card, myOrders) {
   }
   function loadMyOrders() {
     if (!customerId) return Promise.resolve([]);
-    // A different account signed in on this page: drop the old listener.
+    // different account signed in so drop the old listener
     if (myOrdersFor && myOrdersFor !== customerId) stopMyOrders();
     if (myOrdersReady) return myOrdersReady;
     myOrdersFor = customerId;
@@ -1006,7 +946,7 @@ function chatOrderCardHtml(card, myOrders) {
         (error) => {
           console.warn("Chat: couldn't load orders:", error);
           const last = myOrders || [];
-          // Not kept: the next order question tries again.
+          // not kept, next order question tries again
           stopMyOrders();
           myOrders = last;
           resolve(last);
@@ -1016,7 +956,7 @@ function chatOrderCardHtml(card, myOrders) {
     return myOrdersReady;
   }
 
-  // ---- 4. Answering questions ----
+  // ---- 4. answering questions ----
   messagesEl.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-chat-q]");
     if (btn) send(btn.dataset.chatQ);
@@ -1043,8 +983,7 @@ function chatOrderCardHtml(card, myOrders) {
       }
     }
     if (!picked || !picked.length) {
-      // Orders still in progress first, then the latest ones.
-      // "Show all my orders" skips that and lists the latest five.
+      // open orders first, then the latest
       const open = orders.filter((o) => !["received", "closed_unresolved"].includes(chatOrderView(o).status));
       picked = /\ball\b|lahat/i.test(text) ? orders.slice(0, 5) : (open.length ? open : orders).slice(0, 3);
     }
@@ -1063,7 +1002,7 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
 
-    // One order: the full card, plus follow-ups that fit where it is.
+    // one order gets the full card
     const order = picked[0];
     const view = chatOrderView(order);
     const { pickup } = chatOrderSteps(order, view.status);
@@ -1078,14 +1017,13 @@ function chatOrderCardHtml(card, myOrders) {
     followUps.push(staffButton);
     await addMessage(
       "assistant",
-      // The card shows the live status; this line stays true as it changes.
+      // card has the live status
       `Here's order ${order.orderNumber}. The card below updates as your order moves.`,
       [{ type: "order", id: order.id, detail: true }].concat(followUps)
     );
   }
 
-  // Health questions (see "What we carry for this" above). Returns true
-  // when it answered; false when it wasn't a health question after all.
+  // health questions, true if it answered
   async function answerHealth(text, { viaAi = false } = {}) {
     const pharmacistButton = { type: "button", label: "Ask our pharmacist", q: "I want to ask the pharmacist" };
     let lang = chatLooksFilipino(text) ? "fil" : "en";
@@ -1100,7 +1038,7 @@ function chatOrderCardHtml(card, myOrders) {
       } catch (error) {}
     }
 
-    // 1. The built-in symptom list (free, no AI).
+    // 1. built-in symptom list, no ai
     let names = [];
     let labelWords = [];
     const known = chatSymptomsIn(text);
@@ -1108,8 +1046,7 @@ function chatOrderCardHtml(card, myOrders) {
       names = known.map((sx) => (lang === "fil" ? sx.fil : sx.name));
       labelWords = known.flatMap((sx) => sx.label);
     } else {
-      // 2. Gemini only reads the question and maps it onto the words on
-      // the pharmacy's labels; products still come from those labels.
+      // 2. ai maps the question onto label words
       const vocabulary = chatLabelVocabulary();
       const read = vocabulary.length ? await chatAiReadHealth(text, vocabulary) : null;
       if (!read || read.limitReached) return reply("none");
@@ -1134,8 +1071,7 @@ function chatOrderCardHtml(card, myOrders) {
     return true;
   }
 
-  // ---- 5. Saving the conversation and handing over to staff ----
-  // Creates the thread on the first message, reopens a resolved one.
+  // ---- 5. saving the chat and handing over to staff ----
   async function touchThread(text) {
     const base = {
       lastMessage: text.slice(0, CHAT_PREVIEW_LENGTH),
@@ -1143,7 +1079,7 @@ function chatOrderCardHtml(card, myOrders) {
       customerName: displayName,
     };
     if (!thread) {
-      // The listener may not have delivered an existing thread yet.
+      // listener might not have the thread yet
       const existing = await threadRef.get();
       if (existing.exists) thread = existing.data();
     }
@@ -1177,7 +1113,7 @@ function chatOrderCardHtml(card, myOrders) {
     await addMessage("system", note || "I've passed your chat to our staff. A staff member will reply here as soon as they can during store hours.");
   }
 
-  // ---- 6. Choosing the answer: staff, orders, health, FAQ, then the AI ----
+  // ---- 6. picking the answer: staff, orders, health, faq, then ai ----
   async function respond(text) {
     const status = thread ? thread.status : "ai";
     if (status === "staff" || status === "waiting_staff") return; // staff will answer
@@ -1197,7 +1133,7 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
 
-    // Wrong or damaged item: say sorry and offer staff - not a forced handover.
+    // wrong or damaged item gets a sorry and a staff button
     if (chatHasComplaint(text)) {
       await addMessage(
         "assistant",
@@ -1227,8 +1163,7 @@ function chatOrderCardHtml(card, myOrders) {
     await askAssistant(text);
   }
 
-  // Nothing above matched: ask the AI assistant, or fall back to a product
-  // search, or pass the chat to staff.
+  // nothing matched so ask the ai, else search products or go to staff
   async function askAssistant(text) {
     if (typeof loadCatalogCache === "function") {
       try {
@@ -1236,25 +1171,24 @@ function chatOrderCardHtml(card, myOrders) {
       } catch (error) {}
     }
 
-    // Only what was said since the last handover / "back to the assistant"
-    // (system messages mark those), so an old topic doesn't come back.
+    // only messages since the last handover
     let lastSystem = -1;
     messages.forEach((m, i) => {
       if (m.sender === "system") lastSystem = i;
     });
     const earlier = messages.slice(lastSystem + 1);
-    // The message just sent is passed separately as the question.
+    // the new message is passed as the question
     const last = earlier[earlier.length - 1];
     if (last && last.sender === "customer" && last.text === text) earlier.pop();
     const history = earlier.slice(-CHAT_CONFIG.historyMessages).map((m) => ({ sender: m.sender, text: m.text }));
     const reply = await chatAiReply(history, text);
 
-    // The AI spotted a health question the word lists missed.
+    // ai caught a health question the word lists missed
     if (reply && reply.health) {
       await answerHealth(text, { viaAi: true });
       return;
     }
-    // ...or an order question worded in a way the word list doesn't know.
+    // or an order question the word list missed
     if (reply && reply.orders) {
       await answerOrders(text);
       return;
@@ -1266,7 +1200,7 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
     if (reply && reply.text) {
-      // A reply that suggests staff gets the button for it.
+      // replies that suggest staff get the button
       const cards = (reply.products || []).map((p) => ({ type: "product", id: p.id }));
       if (!reply.handoff && /staff/i.test(reply.text)) cards.push(CHAT_STAFF_BUTTON);
       await addMessage("assistant", reply.text, cards);
@@ -1278,9 +1212,7 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
 
-    // No AI answer (unavailable or over today's limit): show the products
-    // the question is about as cards - including a follow-up like "can I
-    // order that?" about a product named earlier.
+    // no ai answer so show product cards instead
     const recent = history.filter((m) => m.sender === "customer").slice(-3).reverse().map((m) => m.text);
     const products = chatProductsInContext(text, recent, 3);
     if (products.length) {
@@ -1300,7 +1232,7 @@ function chatOrderCardHtml(card, myOrders) {
     );
   }
 
-  // ---- 7. Sending, opening and closing, and the buttons ----
+  // ---- 7. sending, opening, closing and buttons ----
   async function send(text) {
     text = String(text || "").trim().slice(0, CHAT_MAX_LENGTH);
     if (!text || sending) return;
@@ -1313,7 +1245,7 @@ function chatOrderCardHtml(card, myOrders) {
       await identityReady;
       await touchThread(text);
       await addMessage("customer", text);
-      // Staff answer chats they've taken over; otherwise show the dots.
+      // staff answer taken chats, otherwise show the dots
       if (!thread || !["staff", "waiting_staff"].includes(thread.status)) {
         thinking = true;
         renderMessages();

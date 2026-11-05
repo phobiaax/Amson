@@ -1,6 +1,4 @@
-/**
- * Settings admin page.
- */
+// settings page
 
 let currentAdminUid = null;
 
@@ -19,18 +17,18 @@ document.addEventListener("admin:ready", (e) => {
   settingsLastNameInput.value = admin.lastName || "";
   settingsContactNumberInput.value = admin.contactNumber || "";
   settingsEmailInput.value = admin.email || "";
-  // Email Test: Branch Manager and Technical Staff.
+  // email test is for manager and technical staff
   if (["admin", "branch_manager", "technical_staff"].includes(admin.role)) {
     document.getElementById("emailTestCard").classList.remove("d-none");
     document.getElementById("emailTestAddress").value = admin.email || "";
   }
-  // Temporary go-live tool (see js/admin-clear-test-data.js).
+  // temporary clear test data link
   if (["admin", "branch_manager"].includes(admin.role) && new Date() < CLEAR_TEST_DATA_UNTIL) {
     document.getElementById("clearTestDataCard").classList.remove("d-none");
   }
 });
 
-// ---- Email Test: sends one sample order email and shows EmailJS's reply ----
+// sends one sample order email
 document.getElementById("emailTestBtn").addEventListener("click", async () => {
   const btn = document.getElementById("emailTestBtn");
   const alertEl = document.getElementById("emailTestAlert");

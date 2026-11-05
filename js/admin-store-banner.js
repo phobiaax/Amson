@@ -1,7 +1,4 @@
-/**
- * Store announcement / promotion banner (REQ008), edited in Settings by the
- * Branch Manager and Technical Staff, shown on every shop page.
- */
+// shop banner that staff edit in settings
 
 const storeBannerCard = document.getElementById("storeBannerCard");
 const storeBannerRef = db.collection("storeSettings").doc("homeBanner");

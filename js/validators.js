@@ -1,41 +1,23 @@
-/**
- * Shared input-format validators - used anywhere a name, email, PH mobile
- * number, or password gets entered or changed, so the same rules apply
- * whether it's at registration or edited later from Account/Staff Settings.
- */
+// shared format checks so every form uses the same rules
 
-// 6+ characters, at least one letter, one digit, and one special character.
+// 6+ chars with a letter, a digit and a special char
 const PASSWORD_PATTERN = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
 
-// Letter-groups (including accented characters) separated by one space,
-// hyphen or period; a period may be followed by a space and may end the
-// name. "Juan Dela Cruz", "Ma. Clara", "Juan P. Cruz", "Jr." and
-// "Anne-Marie" pass; digits, other symbols, a leading or trailing hyphen,
-// and doubled separators ("John--Doe", " Juan") don't.
+// letters with single spaces, hyphens or periods, like ma. clara
 const NAME_PATTERN = /^[A-Za-zÀ-ÖØ-öø-ÿ]+(?:(?:\.\s?|[\s-])[A-Za-zÀ-ÖØ-öø-ÿ]+)*\.?$/;
 
-// Same shape browsers use for <input type="email"> (WHATWG HTML living
-// standard), tightened further so the local part can't lead, trail, or
-// double up on dots ("a@b..com", "a@.com", ".a@example.com", "a.@example.com")
-// - while still accepting real-world addresses (Gmail's "+" tagging,
-// sub-domains, etc.) regardless of provider or country.
+// same as the browser email check but stricter on dots
 const EMAIL_PATTERN =
   /^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
-// Philippine mobile number, either +639171234567 or 09171234567.
+// ph mobile, +639171234567 or 09171234567
 const PH_PHONE_PATTERN = /^(\+63|0)9\d{9}$/;
 
 function normalizePhPhone(value) {
   return value.trim().replace(/[\s-]/g, "");
 }
 
-// Known disposable/temp-mail domains - real customers (whatever provider or
-// country they're in) don't use these; they exist so someone can dodge the
-// one-account-per-customer rules or spam sign-ups with a throwaway inbox.
-// Not exhaustive - new ones appear constantly - but this blocklist approach
-// only rejects known-fake addresses, unlike an allowlist of "approved"
-// providers, which would also reject real work/school/other legitimate
-// emails that were never on the list.
+// throwaway email domains we dont accept
 const DISPOSABLE_EMAIL_DOMAINS = new Set([
   "mailinator.com", "tempmail.com", "temp-mail.org", "guerrillamail.com",
   "guerrillamail.info", "guerrillamail.biz", "guerrillamail.de", "guerrillamail.net",
@@ -53,24 +35,19 @@ function isDisposableEmail(email) {
   return DISPOSABLE_EMAIL_DOMAINS.has(domain);
 }
 
-// ---- Addresses (Philippines) ----
-// Kept loose so a real address is never refused: any normal characters,
-// with at least one letter. Only < and > are refused (no HTML/code).
-// Street, house no., barangay: 5-150 characters.
+// ---- ph addresses ----
+// kept loose so real addresses never get refused, only < and > are blocked
 const STREET_ADDRESS_PATTERN = /^(?=.*[A-Za-zÀ-ÖØ-öø-ÿ])[^<>]{5,150}$/;
-// City / municipality and province: 2-60 characters.
+// city and province, 2-60 chars
 const PLACE_NAME_PATTERN = /^(?=.*[A-Za-zÀ-ÖØ-öø-ÿ])[^<>]{2,60}$/;
-// Philippine ZIP codes are 4 digits.
+// ph zip codes are 4 digits
 const PH_ZIP_PATTERN = /^\d{4}$/;
 
-// A one-line address ("Street, City") on the staff forms (suppliers,
-// wholesale buyers): optional, but when given, 5-200 characters with at
-// least one letter, same characters as a street address.
+// optional one line address on staff forms
 const ONE_LINE_ADDRESS_PATTERN = /^(?=.*[A-Za-zÀ-ÖØ-öø-ÿ])[^<>]{5,200}$/;
 const ONE_LINE_ADDRESS_HINT = "Address: 5-200 characters, without < or > (or leave it blank).";
 
-// What's wrong with a shipping address ({ streetAddress, city, province,
-// zipCode }, already trimmed), as [{ field, message }]; empty when it's fine.
+// list of whats wrong with an address, empty if fine
 function addressProblems(address) {
   const problems = [];
   if (!address.streetAddress) problems.push({ field: "streetAddress", message: "Enter your street address." });
@@ -85,11 +62,8 @@ function addressProblems(address) {
   return problems;
 }
 
-// ---- Payment reference numbers (G-Cash, QR Ph, bank, card terminal) ----
-// Up to 40 characters with at least 4 letters or numbers, as copied from
-// the receipt ("Ref No. 1234 5678", "GC-2026-001", "Ref#: 99887766"...).
-// Only letters, numbers, spaces and - . # : are allowed - other symbols
-// never appear in a payment reference.
+// ---- payment reference numbers ----
+// up to 40 chars with at least 4 letters or numbers
 const REFERENCE_MAX_LENGTH = 40;
 const REFERENCE_MIN_CHARS = 4;
 function isValidReferenceNumber(value) {
@@ -98,7 +72,7 @@ function isValidReferenceNumber(value) {
 }
 const REFERENCE_NUMBER_HINT = "Reference number: at least 4 letters or numbers (up to 40 characters), as shown on your proof of payment. Only letters, numbers, spaces and - . # : are allowed.";
 
-// ---- Show/hide password (eye) buttons: Register and Account Settings ----
+// ---- show/hide password buttons ----
 function wirePasswordToggles() {
   document.querySelectorAll(".toggle-password").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -112,8 +86,8 @@ function wirePasswordToggles() {
   });
 }
 
-// ---- Change Password form (customer Account Settings and staff Settings) ----
-// Both pages use the same element ids.
+// ---- change password form ----
+// both pages use the same ids
 function setupChangePasswordForm() {
   const currentPasswordInput = document.getElementById("currentPasswordInput");
   const newPasswordInput = document.getElementById("newPasswordInput");

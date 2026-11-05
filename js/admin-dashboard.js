@@ -1,6 +1,4 @@
-/**
- * Admin dashboard.
- */
+// admin dashboard
 
 let lastLoadedStats = null;
 
@@ -9,9 +7,7 @@ document.addEventListener("admin:ready", (e) => {
   loadDashboardStats().then(watchOrderTilesLive);
 });
 
-// The two order tiles change all day (new orders, verifications,
-// dispatches), so they follow only the orders still in progress live.
-// Sales totals and stock tiles refresh when the page is opened.
+// only the order tiles update live, the rest load once
 let orderTilesWatched = false;
 function watchOrderTilesLive() {
   if (orderTilesWatched) return;
@@ -47,9 +43,7 @@ tabTodayWalkinBtn.addEventListener("click", () => {
   todayOnlinePanel.classList.add("d-none");
 });
 
-// Local-calendar-day match (not UTC) - a POS sale at 11pm Manila time
-// shouldn't get counted as "yesterday" just because UTC has already
-// rolled over.
+// local day not utc so late night sales count for today
 function isToday(date) {
   const now = new Date();
   return (
@@ -59,16 +53,13 @@ function isToday(date) {
   );
 }
 
-// ---- Analytics period filter (Today / Week / Month / Year) ----
-// All local-calendar-based, not rolling 24h/UTC windows, so "Today"
-// matches the same definition as the Today's Total Sales tiles above.
+// ---- period filter (today / week / month / year) ----
+// local calendar, not rolling windows
 let dashboardPeriod = "month";
 let lastLoadedOrders = [];
 let lastLoadedPosSales = [];
 
-// The period shown is the day / week (Monday to Sunday) / month / year
-// that contains dashboardAnchor. It starts as today; the picker and the
-// previous/next buttons move it.
+// period that contains this date, starts as today
 let dashboardAnchor = new Date();
 
 function periodRange(period, anchor = dashboardAnchor) {
@@ -76,25 +67,21 @@ function periodRange(period, anchor = dashboardAnchor) {
   if (period === "today") return { start: a, end: new Date(a.getFullYear(), a.getMonth(), a.getDate() + 1) };
   if (period === "week") {
     const start = new Date(a);
-    start.setDate(a.getDate() - ((a.getDay() + 6) % 7)); // back to Monday
+    start.setDate(a.getDate() - ((a.getDay() + 6) % 7)); // back to monday
     return { start, end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7) };
   }
   if (period === "year") return { start: new Date(a.getFullYear(), 0, 1), end: new Date(a.getFullYear() + 1, 0, 1) };
   return { start: new Date(a.getFullYear(), a.getMonth(), 1), end: new Date(a.getFullYear(), a.getMonth() + 1, 1) }; // month
 }
 
-// Charts stop at "now" for the current period instead of drawing empty
-// future hours/days/months.
+// charts stop at now
 function periodChartEnd(period) {
   const { end } = periodRange(period);
   const now = new Date();
   return end > now ? now : new Date(end.getTime() - 1);
 }
 
-// The bucket a given date falls into for the current period's chart -
-// hourly for a day (a single day has nothing to group by otherwise),
-// daily for Week/Month, monthly for Year (365 daily points would be
-// unreadable).
+// which chart point a date falls into
 function dashboardBucketKey(date, period) {
   if (period === "today") return String(date.getHours()).padStart(2, "0");
   if (period === "year") return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -115,9 +102,7 @@ function dashboardBucketLabel(key, period) {
   return `${String(m).padStart(2, "0")}/${String(d).padStart(2, "0")}`;
 }
 
-// Every bucket key that should appear on the chart for this period, in
-// order, even if a given hour/day/month had zero sales - so the x-axis
-// doesn't just skip around based on whichever days happened to have data.
+// every chart point for the period, even zero ones
 function dashboardAllBucketKeys(period) {
   const { start } = periodRange(period);
   const last = periodChartEnd(period);
@@ -144,7 +129,7 @@ function inPeriod(date, period) {
   return date >= start && date < end;
 }
 
-// "10/21/2026", "10/19/2026 - 10/25/2026", "October 2026", "2026".
+// range label shown above the charts
 function dashboardRangeText(period) {
   const { start, end } = periodRange(period);
   if (period === "today") return formatDateMDY(start);
@@ -162,7 +147,7 @@ function renderDashboardRange() {
   dashboardRangeLabel.textContent = dashboardRangeText(dashboardPeriod);
   dashboardRangePicker.value = localISODate(dashboardAnchor);
   dashboardRangePicker.max = localISODate(new Date());
-  // No moving into a period that hasn't started yet.
+  // cant go into a future period
   dashboardRangeNextBtn.disabled = periodRange(dashboardPeriod).end > new Date();
 }
 
@@ -211,14 +196,13 @@ async function loadDashboardStats() {
       liveQuery("posSales", db.collection("posSales")),
     ]);
     const orders = ordersSnapshot.docs.map((doc) => doc.data());
-    // A voided walk-in sale was reversed - it isn't revenue.
+    // voided sales arent revenue
     const posSales = posSalesSnapshot.docs.map((doc) => doc.data()).filter((s) => !s.voided);
 
     const pendingVerification = orders.filter((o) => o.status === "placed").length;
-    // Still being worked on: verified but not yet handed over.
+    // verified but not handed over yet
     const activeOrders = orders.filter((o) => ["payment_confirmed", "dispatched"].includes(o.status)).length;
-    // Apply the expiry rules (Wholesale Only, Bad Order) here too, so they
-    // don't wait for someone to open Inventory.
+    // applies the expiry rules here too
     try {
       await enforceExpiryStatus();
     } catch (error) {
@@ -232,16 +216,13 @@ async function loadDashboardStats() {
     document.getElementById("nearExpiryCount").textContent = nearExpiry;
     document.getElementById("outOfStockCount").textContent = outOfStock;
 
-    // POS-only, intentionally separate from online sales - the walk-in
-    // counter's own daily snapshot, not blended with the web.
+    // pos only, kept apart from online
     const posSalesToday = posSales.filter((s) => s.createdAt && isToday(s.createdAt.toDate()));
     const posTodayTotal = posSalesToday.reduce((sum, s) => sum + (s.total || 0), 0);
     document.getElementById("posTodaySalesValue").textContent = formatPeso(posTodayTotal);
     document.getElementById("posTodayTransactionsValue").textContent = posSalesToday.length;
 
-    // Online, same "confirmed sale" definition used by the charts below -
-    // an order still awaiting verification hasn't actually become
-    // revenue yet, so it shouldn't count as a transaction here either.
+    // online only counts verified orders
     const onlineOrdersToday = orders.filter(
       (o) => isConfirmedSale(o) && o.createdAt && isToday(o.createdAt.toDate ? o.createdAt.toDate() : new Date(o.createdAt))
     );
@@ -259,16 +240,12 @@ async function loadDashboardStats() {
   }
 }
 
-// "Sold" means the payment actually cleared verification - an order
-// still awaiting review (or one that never got resolved and closed
-// unpaid) hasn't actually become revenue yet, so counting it here would
-// overstate real sales.
+// sold means the payment was verified
 function isConfirmedSale(order) {
   return order.status !== "placed" && order.status !== "closed_unresolved";
 }
 
-// Adds up the totals of orders or POS sales per chart point (hour, day or
-// month) of the period. Only points that had a sale get a key.
+// adds up totals per chart point
 function totalsByBucket(records, period) {
   const totals = {};
   records.forEach((record) => {
@@ -357,9 +334,7 @@ function renderCategoryChart(orders, posSales) {
     });
   });
 
-  // Blended with POS - a true per-channel split doesn't translate to a
-  // pie chart the way it does to the line chart above, so walk-in and
-  // online revenue are combined here by category.
+  // pie chart mixes walk-in and online
   (posSales || []).forEach((sale) => {
     if (!sale.createdAt) return;
     const date = sale.createdAt.toDate ? sale.createdAt.toDate() : new Date(sale.createdAt);
@@ -403,7 +378,7 @@ function renderCategoryChart(orders, posSales) {
   });
 }
 
-// ---- Most Bought Items (by quantity, within the selected period) ----
+// ---- most bought items in the period ----
 function renderMostBoughtItems(orders, posSales) {
   const listEl = document.getElementById("mostBoughtList");
   const emptyEl = document.getElementById("mostBoughtEmpty");
@@ -457,8 +432,7 @@ function renderMostBoughtItems(orders, posSales) {
     .join("");
 }
 
-// Dashboard summary - the numbers on the cards right now. (Sales
-// Analytics below has its own, more detailed export.)
+// exports the dashboard cards
 document.getElementById("exportReportBtn").addEventListener("click", () => {
   const card = (id) => (document.getElementById(id) || {}).textContent || "";
   exportTable({
@@ -483,10 +457,8 @@ document.getElementById("exportReportBtn").addEventListener("click", () => {
   });
 });
 
-// ---- Sales Analytics export (PDF / Excel) ----
-// Reuses the exact same bucketing/filtering helpers the on-screen charts use,
-// so the export always matches whatever period is currently selected -
-// never a second, drifting definition of "this period's sales."
+// ---- sales analytics export (pdf / excel) ----
+// uses the same helpers as the charts so it always matches
 function dashboardPeriodLabel(period) {
   const name = { today: "Day", week: "Week", month: "Month", year: "Year" }[period] || period;
   return `${name} - ${dashboardRangeText(period)}`;
@@ -662,9 +634,8 @@ document.getElementById("exportAnalyticsExcelBtn").addEventListener("click", () 
   XLSX.writeFile(wb, `amson-sales-analytics-${period}-${localISODate(periodRange(period).start)}.xlsx`);
 });
 
-// ---- Find a sale by SI No. ----
-// One SI series covers walk-in, online and wholesale sales, so the number is
-// looked up in all three; the result links to where the sale is kept.
+// ---- find a sale by si no. ----
+// looks in walk-in, online and wholesale
 const SI_ORDER_STATUS_LABELS = {
   payment_confirmed: "Payment confirmed",
   dispatched: "Dispatched",

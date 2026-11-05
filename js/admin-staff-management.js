@@ -1,6 +1,4 @@
-/**
- * Staff Management admin page.
- */
+// staff management page
 
 const STAFF_PAGE_SIZE = 8;
 
@@ -31,7 +29,7 @@ const saveStaffBtn = document.getElementById("saveStaffBtn");
 
 document.addEventListener("admin:ready", loadStaff);
 
-/* ---------- Load ---------- */
+// ---------- load ----------
 async function loadStaff() {
   try {
     const snapshot = await db.collection("users").get();
@@ -45,7 +43,7 @@ async function loadStaff() {
   }
 }
 
-/* ---------- Table ---------- */
+// ---------- table ----------
 function computedStaffStatus(staff) {
   return staff.accountStatus === "deactivated" ? "deactivated" : "active";
 }
@@ -155,7 +153,7 @@ staffSearchInput.addEventListener("input", () => {
   renderStaffTable();
 });
 
-/* ---------- Add / Edit modal ---------- */
+// ---------- add / edit modal ----------
 function openAddModal() {
   editingStaffId = null;
   staffModalTitle.textContent = "Add Staff Account";
@@ -182,8 +180,7 @@ function openEditModal(id) {
   staffCredentialFields.classList.add("d-none");
   staffFirstNameInput.value = staff.firstName || "";
   staffLastNameInput.value = staff.lastName || "";
-  // The Administrator account keeps its role - the dropdown has no Admin
-  // option, so editing it used to silently demote it to Branch Manager.
+  // keeps the admin as admin since the dropdown has no admin option
   editingStaffIsAdmin = staff.role === "admin";
   staffRoleInput.value = editingStaffIsAdmin ? "branch_manager" : staff.role;
   staffRoleInput.disabled = editingStaffIsAdmin;
@@ -264,7 +261,7 @@ saveStaffBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Deactivate / Reactivate ---------- */
+// ---------- deactivate / reactivate ----------
 async function toggleStaffStatus(id) {
   const staff = allStaff.find((s) => s.id === id);
   if (!staff) return;

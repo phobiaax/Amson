@@ -1,9 +1,4 @@
-/**
- * Terms and Conditions + Privacy Policy - one source for the registration
- * pop-up (.legal-modal-body) and the public legal page (#legalPageBody).
- * Written to the branch's actual policies from the client interviews;
- * the client should review it before go-live.
- */
+// terms and privacy text, used by the sign up popup and the legal page
 
 const LEGAL_TERMS_HTML = `
   <h6>Part 1: Terms and Conditions</h6>

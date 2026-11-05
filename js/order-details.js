@@ -1,6 +1,4 @@
-/**
- * Order tracking page.
- */
+// order tracking page
 
 const orderNotFoundNotice = document.getElementById("orderNotFoundNotice");
 const orderLoading = document.getElementById("orderLoading");
@@ -26,8 +24,7 @@ const issueActionsContainer = document.getElementById("issueActionsContainer");
 const issueUploadPrompt = document.getElementById("issueUploadPrompt");
 const issueReferenceGroup = document.getElementById("issueReferenceGroup");
 
-// A rejected prescription asks for a new prescription photo instead of a
-// payment screenshot + reference number.
+// rejected prescription asks for a new photo instead of payment proof
 function isPrescriptionIssue(order) {
   return !!(order && order.paymentIssue && order.paymentIssue.type === "prescription_rejected");
 }
@@ -96,9 +93,7 @@ function renderPaymentIssue(order) {
   updateResubmitButtonState();
 
   const issue = order.paymentIssue;
-  // Once the customer has resubmitted, the order is back with staff for
-  // re-review - nothing more for the customer to do until it's resolved.
-  // An out-of-stock hold isn't shown to the customer (staff handle it).
+  // after resubmitting its back with staff, out of stock holds arent shown to the customer
   if (!issue || issue.resolvedByCustomerAt || issue.type === "out_of_stock") {
     paymentIssueSection.classList.add("d-none");
     return;
@@ -135,8 +130,7 @@ function renderPaymentIssue(order) {
     : "";
 }
 
-// Resubmit stays clickable: pressing it with something missing says what's
-// still needed. Any change to the form clears that message.
+// button stays clickable and says whats still missing
 function updateResubmitButtonState() {
   issueResubmitBtn.disabled = false;
   issueResubmitError.classList.add("d-none");
@@ -231,8 +225,7 @@ function renderOrder(order) {
   if (order.status === "closed_unresolved") {
     timelineEl.classList.add("d-none");
     const reason = order.closedReason || "This order was closed.";
-    // No order is ever refunded - if any payment was verified before this
-    // closed, it's kept as credit toward a future purchase instead.
+    // no refunds, verified payments become store credit
     const creditNote =
       order.unappliedCredit > 0
         ? ` ${formatPeso(order.unappliedCredit)} of your payment has been retained as credit - it'll be applied automatically to your next order.`
@@ -256,9 +249,7 @@ function renderOrder(order) {
     overpaymentNotice.classList.add("d-none");
   }
 
-  // Staff paste the Lalamove share link when they mark the order
-  // Dispatched (validated as https://share.lalamove.com/... there). Only
-  // render it if it still matches that shape.
+  // only shows the lalamove link if it still looks like one
   const trackingCard = document.getElementById("detailTrackingCard");
   const showTracking =
     !!order.trackingLink &&
@@ -304,14 +295,12 @@ function renderOrder(order) {
   document.getElementById("detailTotal").textContent = formatPeso(order.total);
   updateMarkReceivedButton(order);
 
-  // The receipt exists once staff verify the payment and assign an SI No.
+  // receipt only exists once staff assign an si no.
   downloadReceiptBtn.disabled = !order.invoiceNo;
   downloadReceiptBtn.title = order.invoiceNo ? "" : "Available once your payment is verified";
 }
 
-// Live status (REQNF005): staff confirming, dispatching or flagging the
-// order shows here without a refresh. Skipped while the customer is in the
-// middle of resubmitting, so their picked file isn't cleared.
+// live status updates, paused while the customer is resubmitting
 let unsubscribeOrder = null;
 function listenToOrder(docRef) {
   if (unsubscribeOrder) return;
@@ -364,7 +353,7 @@ async function loadOrder(uid) {
     orderDetailContent.classList.remove("d-none");
     listenToOrder(docRef);
   } catch (error) {
-    // The database refuses other people's orders outright.
+    // database blocks other peoples orders
     if (error && error.code === "permission-denied") showOrderNotYours();
     else orderNotFoundNotice.classList.remove("d-none");
   } finally {
@@ -400,7 +389,7 @@ markReceivedBtn.addEventListener("click", async () => {
 
 auth.onAuthStateChanged((user) => {
   if (!user) {
-    // Opened from an email link while signed out: log in, then come back here.
+    // opened from an email while logged out so log in first
     window.location.href = `../login.html?next=${encodeURIComponent(`shop/order-details.html${window.location.search}`)}`;
     return;
   }

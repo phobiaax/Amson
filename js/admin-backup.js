@@ -1,12 +1,6 @@
-/**
- * Settings > Back Up All Data (Branch Manager).
- * The free Firebase plan keeps no backups, so the branch downloads one
- * regularly: an Excel workbook (one sheet per record type, to read) and a
- * JSON file (an exact copy, to restore from if ever needed).
- */
+// back up all data button in settings, the free plan has no backups
 
-// Record types in the backup, in sheet order. Chat messages are left out
-// (the conversations' last messages are in chatThreads).
+// collections that go in the backup, chat messages skipped
 const BACKUP_COLLECTIONS = [
   ["products", "Products"],
   ["productPrices", "Product Prices"],
@@ -41,7 +35,7 @@ document.addEventListener("admin:ready", (e) => {
   if (backupCard && ["admin", "branch_manager"].includes(role)) backupCard.classList.remove("d-none");
 });
 
-// Firestore values -> plain JSON (timestamps as ISO date strings).
+// turns firestore values into plain json
 function backupPlain(value) {
   if (value == null) return value;
   if (typeof value.toDate === "function") return value.toDate().toISOString();
@@ -54,8 +48,7 @@ function backupPlain(value) {
   return value;
 }
 
-// One spreadsheet cell: lists and nested details as JSON text (Excel cells
-// hold at most 32,767 characters).
+// one excel cell, lists become json text
 function backupCell(value) {
   if (value == null) return "";
   if (typeof value === "object") {

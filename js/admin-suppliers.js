@@ -1,6 +1,4 @@
-/**
- * Supplier Management admin page.
- */
+// supplier management page
 
 const SUPPLIERS_PAGE_SIZE = 6;
 
@@ -33,7 +31,7 @@ const viewSupplierModalEl = document.getElementById("viewSupplierModal");
 
 document.addEventListener("admin:ready", loadSuppliers);
 
-/* ---------- Load ---------- */
+// ---------- load ----------
 async function loadSuppliers() {
   try {
     await loadCatalogCache();
@@ -46,8 +44,7 @@ async function loadSuppliers() {
   }
 }
 
-// The product checklist was taken off the form (suppliers are linked to
-// products through the stock they deliver), so this does nothing now.
+// product checklist was removed from the form so this does nothing now
 function renderProductChecklist(checkedIds = []) {
   if (!supplierProductChecklist) return;
   if (CATALOG_PRODUCTS.length === 0) {
@@ -65,7 +62,7 @@ function renderProductChecklist(checkedIds = []) {
   ).join("");
 }
 
-/* ---------- Grid ---------- */
+// ---------- grid ----------
 function filteredSuppliers() {
   let filtered = allSuppliers.slice();
 
@@ -170,7 +167,7 @@ suppliersSearchInput.addEventListener("input", () => {
   renderSuppliersGrid();
 });
 
-/* ---------- View modal ---------- */
+// ---------- view modal ----------
 function openViewModal(supplier) {
   if (!supplier) return;
 
@@ -187,7 +184,7 @@ function openViewModal(supplier) {
   bootstrap.Modal.getOrCreateInstance(viewSupplierModalEl).show();
 }
 
-/* ---------- Add / Edit modal ---------- */
+// ---------- add / edit modal ----------
 wireSegmentedToggle(supplierStatusToggle);
 
 function resetSupplierForm() {
@@ -297,7 +294,7 @@ async function deleteSupplier(id) {
   }
 }
 
-/* ---------- Export ---------- */
+// ---------- export ----------
 exportSuppliersBtn.addEventListener("click", () => {
   exportTable({
     title: "Suppliers",

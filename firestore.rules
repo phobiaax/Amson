@@ -15,58 +15,47 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(myUid())).data.role;
     }
 
-    // A deactivated staff account loses access at once, even if it is
-    // still signed in somewhere.
+    // deactivated staff lose access right away
     function isStaff() {
       return isSignedIn() &&
         myRole() in ["admin", "branch_manager", "technical_staff", "sales_staff"] &&
         get(/databases/$(database)/documents/users/$(myUid())).data.get("accountStatus", "active") != "deactivated";
     }
 
-    // Branch Manager (or the legacy admin role), still active.
+    // branch manager or old admin role, still active
     function isManager() {
       return isStaff() && myRole() in ["admin", "branch_manager"];
     }
 
-    // Staff other than Sales Staff, who only use the POS and view the
-    // catalog (REQ121) - so nothing else is open to them in the database
-    // either, not only in the page menus.
+    // staff except sales staff, who only use pos and the catalog
     function isOpsStaff() {
       return isStaff() && myRole() != "sales_staff";
     }
 
     // ---- users ----
     match /users/{uid} {
-      // Reading your own doc, or any doc if you're staff.
+      // your own doc, or any doc if staff
       allow read: if isSignedIn() && myUid() == uid;
       allow read: if isOpsStaff();
 
-      // Self-registration as a customer.
-      // A new account starts with no store credit.
+      // customer sign-up starts with no store credit
       allow create: if isSignedIn() && myUid() == uid &&
         request.resource.data.role == "customer" &&
         request.resource.data.get("creditBalance", 0) == 0;
 
-      // Branch Manager (or the legacy admin role) creating a staff account.
+      // branch manager making a staff account
       allow create: if isManager() &&
         request.resource.data.role in ["admin", "branch_manager", "technical_staff", "sales_staff"];
 
-      // Updating your own doc, as long as role/accountStatus don't change,
-      // and store credit (REQ098/100) never goes UP from a customer write -
-      // only staff/admin (below) or the checkout redemption transaction
-      // (which only ever decreases it to pay for the customer's own order)
-      // may increase it. .get(key, default) avoids erroring when a field
-      // isn't set at all - a brand-new customer doc has none of these yet.
+      // own doc updates cant change role or status or raise store credit
       allow update: if isSignedIn() && myUid() == uid &&
         request.resource.data.get("role", null) == resource.data.get("role", null) &&
         request.resource.data.get("accountStatus", null) == resource.data.get("accountStatus", null) &&
         request.resource.data.get("creditBalance", 0) <= resource.data.get("creditBalance", 0);
 
-      // Staff Management (roles, deactivation): Branch Manager only.
+      // staff management is branch manager only
       allow update: if isManager();
-      // Other staff only touch customer accounts (Customer Accounts status,
-      // store credit from Payment Verification) and can't make anyone staff -
-      // so nobody can raise their own role.
+      // other staff only touch customer accounts so nobody can raise their own role
       allow update: if isOpsStaff() &&
         resource.data.get("role", "") == "customer" &&
         request.resource.data.get("role", "") == "customer";
@@ -75,16 +64,12 @@ service cloud.firestore {
     }
 
     // ---- catalog ----
-    // Prices (and the price lock / pending flags) are Branch Manager-only
-    // (REQ071, REQ120). Other staff may create a product only without
-    // prices, saved Inactive with pricePending, and may edit products as
-    // long as no price field changes and a price-pending product isn't
-    // made Active.
+    // only branch manager sets prices, others add products without prices
     function isPriceManager() {
       return isManager();
     }
 
-    // Sales Staff only view the catalog (REQ121).
+    // sales staff can only view the catalog
     function isProductEditor() {
       return isStaff() && myRole() != "sales_staff";
     }
@@ -116,9 +101,7 @@ service cloud.firestore {
       allow delete: if isProductEditor();
     }
 
-    // Costing and wholesale prices, kept out of the public product records so
-    // they can't be read through the online store. Staff read them; only
-    // the Branch Manager sets them (REQ071, REQ120).
+    // cost and wholesale prices kept out of the public product docs
     match /productPrices/{productId} {
       allow read: if isStaff();
       allow create, update: if isPriceManager() &&
@@ -126,11 +109,10 @@ service cloud.firestore {
       allow delete: if isProductEditor();
     }
 
-    // Shop announcement banner (Settings) - public read, set by the Branch
-    // Manager or Technical Staff.
+    // store banner, public read, set by branch manager or technical staff
     match /storeSettings/{settingId} {
       allow read: if true;
-      // Saved, never deleted (turn the banner off instead).
+      // never deleted, just turned off
       allow create, update: if isStaff() && myRole() in ["admin", "branch_manager", "technical_staff"];
     }
 
@@ -140,10 +122,7 @@ service cloud.firestore {
     }
 
     // ---- retail orders ----
-    // Proof-of-payment and prescription photos are uploaded to the shop's
-    // own Cloudinary account; a link anywhere else is refused, so staff
-    // never review an image the customer didn't upload through the site.
-    // Empty (null) is fine: no file, e.g. an order paid by store credit.
+    // photos must be from our own cloudinary, empty is fine
     function photoLinkOk(data, field) {
       return !(field in data) || data[field] == null ||
         (data[field] is string && data[field].matches("https://res[.]cloudinary[.]com/wb6wxped/.+"));
@@ -153,14 +132,7 @@ service cloud.firestore {
       allow read: if isSignedIn() && resource.data.customerId == myUid();
       allow read: if isOpsStaff();
 
-      // creditApplied (checkout redemption - orders.js's
-      // createOrderWithCreditRedemption) can never exceed the balance the
-      // customer had going into this write, so a crafted order can't claim
-      // more discount than they actually have.
-      // A new order is always "placed" with nothing staff-only on it, and
-      // any credit applied must come off the balance in the same write.
-      // The user doc must also name this order as the one the credit went
-      // to, so two orders in one write can't both claim the same deduction.
+      // credit used cant be more than the balance and must come off in the same write
       allow create: if isSignedIn() &&
         request.resource.data.customerId == myUid() &&
         request.resource.data.status == "placed" &&
@@ -174,19 +146,7 @@ service cloud.firestore {
           getAfter(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) ==
             get(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) - request.resource.data.creditApplied));
 
-      // A signed-in customer may only ever move their own order through
-      // three specific transitions - never edit items/total/status freely:
-      //   1. Confirming receipt (delivered -> received) - the only
-      //      customer-initiated step in the normal lifecycle.
-      //   2. The 3-day auto-deliver of a dispatched order (enforceOrderDeadline
-      //      in orders.js), checked against the server's clock.
-      //      (Expired holds are closed from staff pages only, together
-      //      with the store credit.)
-      //   3. Resubmitting a corrected proof of payment/reference number on
-      //      an active hold (order-details.js's issueResubmitBtn handler) -
-      //      (or a new prescription photo after a rejected prescription) -
-      //      only ever touches those fields plus marking the hold
-      //      resolvedByCustomerAt, never the order total or status.
+      // customers can only confirm receipt, auto-deliver after 3 days, or resubmit a hold fix
       allow update: if isSignedIn() && resource.data.customerId == myUid() && (
         (resource.data.status == "delivered" &&
          request.resource.data.status == "received" &&
@@ -201,13 +161,12 @@ service cloud.firestore {
          request.resource.data.get("paymentIssue", null) != null &&
          request.resource.data.diff(resource.data).affectedKeys()
            .hasOnly(["proofOfPaymentUrl", "paymentReferenceNumber", "paymentIssue", "prescriptionPhotoUrl"]) &&
-         // Only the photo being replaced is checked.
+         // only the replaced photo is checked
          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["proofOfPaymentUrl"]) ||
           photoLinkOk(request.resource.data, "proofOfPaymentUrl")) &&
          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(["prescriptionPhotoUrl"]) ||
           photoLinkOk(request.resource.data, "prescriptionPhotoUrl")) &&
-         // Within the hold record the customer may only mark it resolved
-         // (and clear its deadline) - never change its type or amounts.
+         // customer can only mark the hold resolved
          request.resource.data.paymentIssue.diff(resource.data.paymentIssue).affectedKeys()
            .hasOnly(["resolvedByCustomerAt", "holdUntil"]) &&
          (!("holdUntil" in request.resource.data.paymentIssue) ||
@@ -219,8 +178,7 @@ service cloud.firestore {
     }
 
     // ---- prescription pre-orders ----
-    // Nothing in the app writes here any more (prescription items go
-    // through ordinary orders). Kept readable for old records only.
+    // not used anymore, kept for old records
     match /prescriptionOrders/{orderId} {
       allow read: if isSignedIn() && resource.data.customerId == myUid();
       allow read: if isOpsStaff();
@@ -229,17 +187,14 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ---- customer-facing notifications (payment issue holds, credit
-    // grants, restock flags) ----
-    // Written only by staff-authenticated actions (Payment Verification)
-    // or the hold-expiry sweep, never by the customer - a customer can
-    // read their own and toggle `read`, nothing else.
+    // ---- customer notifications ----
+    // only staff write these, customers can read theirs and mark read
     match /customerNotifications/{notifId} {
       allow read: if isOpsStaff();
       allow read: if isSignedIn() && resource.data.customerId == myUid();
 
       allow create: if isOpsStaff();
-      // The customer's own "order placed" confirmation, written at checkout.
+      // customers own order placed notice from checkout
       allow create: if isSignedIn() &&
         request.resource.data.customerId == myUid() &&
         request.resource.data.kind == "order_placed" &&
@@ -254,22 +209,13 @@ service cloud.firestore {
     }
 
     // ---- staff-only operational data ----
-    // stockBatches read is public (like products/categories) because the
-    // storefront needs it to compute real available stock per product -
-    // writes stay staff-only (a POS sale takes stock out of batches).
-    // Walk-in sales are the POS's own records, so Sales Staff keep them;
-    // the rest is back-office data Sales Staff never use.
-    // Sales Staff only take stock out (an update) and save new sales; voids
-    // (a sale update) are Branch Manager / Technical Staff only. Sales and
-    // other transaction records are never deleted (only the TEMPORARY
-    // block below, before go-live) - voids and status changes keep history.
+    // stock batches are public read since the shop needs real stock
     match /stockBatches/{batchId} {
       allow read: if true;
       allow update: if isStaff();
       allow create, delete: if isOpsStaff();
     }
-    // Unit cost of each received batch (and each later delivery), kept out
-    // of the public stock records. Written when stock is received.
+    // batch unit costs kept out of the public stock docs
     match /batchCosts/{batchId} {
       allow read, create, update: if isOpsStaff();
     }
@@ -288,11 +234,9 @@ service cloud.firestore {
     // ---- audit log (append-only) ----
     match /auditLog/{entryId} {
       allow read: if isOpsStaff();
-      // Every staff role writes its own actions (Sales Staff: walk-in sales).
+      // each staff role logs its own actions
       allow create: if isStaff();
-      // Customers' own order steps (confirming receipt, the 3-day
-      // auto-deliver) are logged from their order pages - only these two
-      // actions, in the usual shape.
+      // customers only log confirming receipt and auto-deliver
       allow create: if isSignedIn() &&
         request.resource.data.action in ["Order Received by Customer", "Order Auto-Delivered"] &&
         request.resource.data.keys().hasOnly(["action", "details", "user", "ipAddress", "createdAt"]) &&
@@ -304,11 +248,7 @@ service cloud.firestore {
     match /notifications/{notifId} { allow read, write: if isOpsStaff(); }
 
     // ---- live chat ----
-    // Signed-in customers use the thread "cust_<their uid>"; guests use a
-    // random "guest_..." id kept in their browser (unguessable, and threads
-    // can't be listed by anyone but staff). The customer's browser also
-    // writes the assistant's replies, so customers may post as customer,
-    // assistant or system, but never as staff.
+    // customers use cust_<uid>, guests use a random id
     function chatThreadTextOk() {
       return request.resource.data.get("lastMessage", "") is string &&
         request.resource.data.get("lastMessage", "").size() <= 200 &&
@@ -326,15 +266,13 @@ service cloud.firestore {
     match /chatThreads/{threadId} {
       allow get: if isOpsStaff() || chatThreadIsMine(threadId);
       allow list, update: if isOpsStaff();
-      // Only the fields the chat writes, with short strings, so a script
-      // can't fill the database through the public chat.
+      // only the chat fields with short strings so nobody can spam the db
       allow create: if chatThreadIsMine(threadId) &&
         request.resource.data.status == "ai" &&
         (request.resource.data.customerId == null || (isSignedIn() && request.resource.data.customerId == myUid())) &&
         request.resource.data.keys().hasOnly(["lastMessage", "lastMessageAt", "customerName", "kind", "customerId", "status", "unreadByStaff", "createdAt"]) &&
         chatThreadTextOk();
-      // A customer may only move the thread between assistant and waiting
-      // for staff - never take it over as staff or mark it resolved.
+      // customers can only switch between assistant and waiting for staff
       allow update: if chatThreadIsMine(threadId) &&
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(["lastMessage", "lastMessageAt", "customerName", "status", "unreadByStaff", "handoffReason", "handoffAt"]) &&
@@ -356,7 +294,7 @@ service cloud.firestore {
       }
     }
 
-    // One counter per day of AI replies; it can only ever go up by one.
+    // one ai reply counter per day, only goes up by one
     match /chatUsage/{day} {
       allow read: if true;
       allow create: if request.resource.data.count == 1 &&
@@ -366,28 +304,20 @@ service cloud.firestore {
     }
 
     // ---- shared counters ----
-    // Customers only ever bump the yearly order-number counter
-    // (generateOrderNumber at checkout). Everything else - the Sales Invoice
-    // sequence above all - is staff-only, so a customer can't reset or
-    // skip SI numbers.
+    // customers only bump the order number counter, the rest is staff-only
     match /counters/{counterId} {
       allow read: if isSignedIn();
-      // Create/update only: deleting a counter (the SI sequence above all)
-      // would restart its numbering.
+      // no deleting counters or numbering restarts
       allow create, update: if isStaff();
-      // Customers may only move the order-number counter up by one.
+      // order number counter only goes up by one
       allow create: if isSignedIn() && counterId.matches("orders-[0-9]{4}") &&
         request.resource.data.count == 1;
       allow update: if isSignedIn() && counterId.matches("orders-[0-9]{4}") &&
         request.resource.data.count == resource.data.count + 1;
     }
 
-    // ---- TEMPORARY: clearing test data before go-live ----
-    // Lets the Branch Manager (or Administrator) delete what
-    // admin/clear-test-data.html clears - only those records, never another
-    // manager's account, store settings, the SI counter or chat usage.
-    // It switches itself off on the date below (UTC); remove this block (and
-    // that page) once the live data is in.
+    // ---- temporary: clearing test data before go-live ----
+    // branch manager can delete what clear-test-data.html clears, turns off on the date below, remove after go-live
     function canClearTestData() {
       return isStaff() && myRole() in ["admin", "branch_manager"] &&
         request.time < timestamp.date(2026, 11, 15);
@@ -411,17 +341,8 @@ service cloud.firestore {
         (counterId.matches("(orders|purchaseOrders|reconciliations)-[0-9]{4}") || counterId in ["wholesaleExchanges", "products"]);
     }
 
-    // ---- pre-auth login lockout tracking ----
-    // Read and written before sign-in, by the exact address typed. Listing
-    // is staff-only: the document names are email addresses, so a public
-    // list would hand anyone every address that has tried to log in.
-    // Only a count and a lock no longer than a few minutes from now, so
-    // nobody can lock an address (the Branch Manager's, say) for good.
-    // The count only goes up by one per failed try, nothing changes while a
-    // lock is on, and a lock is at most 3 minutes (the page uses 2) - so a
-    // script can't reset the tries, and nobody can lock an address for long.
-    // Cleared by the account's owner once signed in, or by anyone after the
-    // lock has run out.
+    // ---- login lockout tracking ----
+    // used before sign-in, only staff can list since doc names are emails
     function loginLockValid() {
       return !("lockedUntil" in request.resource.data) ||
         (request.resource.data.lockedUntil is number &&
