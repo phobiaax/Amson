@@ -404,6 +404,16 @@ saveProductBtn.addEventListener("click", async () => {
     return;
   }
 
+  // prices must be real amounts, retail above 0
+  if (canEditPrices()) {
+    const priceProblem = productPriceProblem(retailPrice, productCostingInput.value, productWholesalePriceInput.value);
+    if (priceProblem) {
+      productModalAlert.textContent = priceProblem;
+      productModalAlert.classList.remove("d-none");
+      return;
+    }
+  }
+
   const sameName = findProductByName(name, editingProductId);
   if (sameName) {
     productModalAlert.textContent = `"${sameName.name}" (${sameName.sku || "no SKU"}) is already in the catalog. Edit that product instead, or make this name different (for example add the brand or pack size).`;
@@ -532,6 +542,17 @@ saveProductBtn.addEventListener("click", async () => {
     saveProductBtn.disabled = false;
   }
 });
+
+// what's wrong with the prices typed in, or null
+function productPriceProblem(retailPrice, costingText, wholesaleText) {
+  if (!(retailPrice > 0)) return "Retail price must be more than ₱0.00.";
+  const costing = String(costingText ?? "").trim();
+  const wholesale = String(wholesaleText ?? "").trim();
+  if ((costing !== "" && !(parseFloat(costing) >= 0)) || (wholesale !== "" && !(parseFloat(wholesale) >= 0))) {
+    return "Costing and wholesale prices can't be negative.";
+  }
+  return null;
+}
 
 // takes the private prices off the product data
 function splitPrivatePrices(productData) {
@@ -746,7 +767,8 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
     const get = (cls) => tr.querySelector(`.${cls}`);
     const name = get("br-name").value.trim();
     const retailPrice = get("br-retailprice").value;
-    if (!name || (canEditPrices() && retailPrice === "")) {
+    const badPrice = canEditPrices() && productPriceProblem(parseFloat(retailPrice), get("br-costingprice").value, get("br-wholesaleprice").value);
+    if (!name || (canEditPrices() && retailPrice === "") || badPrice) {
       tr.classList.add("table-danger");
       hasInvalid = true;
     }
@@ -771,7 +793,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
 
   if (hasInvalid) {
     batchReviewAlert.textContent = canEditPrices()
-      ? "Every product needs a Name and a Retail Price - fix the highlighted rows, or remove them."
+      ? "Every product needs a Name and a Retail Price above 0, and costing or wholesale prices can't be negative - fix the highlighted rows, or remove them."
       : "Every product needs a Name - fix the highlighted rows, or remove them.";
     batchReviewAlert.classList.remove("d-none");
     return;
