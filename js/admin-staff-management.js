@@ -254,7 +254,13 @@ saveStaffBtn.addEventListener("click", async () => {
     bootstrap.Modal.getInstance(staffModalEl).hide();
     await loadStaff();
   } catch (error) {
-    staffModalAlert.textContent = error.message || "Something went wrong saving this staff account. Please try again.";
+    const authMessages = {
+      "auth/email-already-in-use": "That email already has an account. Use a different email.",
+      "auth/invalid-email": "Please enter a valid email address.",
+      "auth/weak-password": "Password must be at least 6 characters with a letter, a number and a symbol.",
+      "auth/network-request-failed": "Couldn't reach the server. Check your internet connection and try again.",
+    };
+    staffModalAlert.textContent = authMessages[error.code] || (error.code ? "Something went wrong saving this staff account. Please try again." : error.message) || "Something went wrong saving this staff account. Please try again.";
     staffModalAlert.classList.remove("d-none");
   } finally {
     saveStaffBtn.disabled = false;
