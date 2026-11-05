@@ -646,7 +646,7 @@ function readProcessOrderForm() {
   const rows = Array.from(processOrderItemsContainer.querySelectorAll(".repeater-item"));
   const items = rows.map((row) => ({
     productId: row.querySelector(".order-product-select").value,
-    qty: parseInt(row.querySelector(".order-qty-input").value, 10),
+    qty: wholeQty(row.querySelector(".order-qty-input").value),
     unitPrice: parseFloat(row.querySelector(".order-price-input").value),
     free: row.querySelector(".order-free-check").checked,
   }));
@@ -991,10 +991,10 @@ function readWholesaleExchangeDialog(order) {
   return {
     orderId: order.id,
     lineIndex: Number(document.getElementById("exReturnLine").value),
-    returnQty: parseInt(document.getElementById("exReturnQty").value, 10),
+    returnQty: wholeQty(document.getElementById("exReturnQty").value),
     replacement: {
       productId: document.getElementById("exReplacementProduct").value,
-      qty: parseInt(document.getElementById("exReplacementQty").value, 10),
+      qty: wholeQty(document.getElementById("exReplacementQty").value),
       unitPrice: parseFloat(document.getElementById("exReplacementPrice").value) || 0,
     },
     reason: document.getElementById("exReason").value,

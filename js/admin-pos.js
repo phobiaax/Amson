@@ -114,11 +114,11 @@ posAddItemBtn.addEventListener("click", () => {
   posAddItemError.classList.add("d-none");
 
   const productId = posProductSelect.value;
-  const qty = parseInt(posQtyInput.value, 10);
+  const qty = wholeQty(posQtyInput.value);
   const product = getProductById(productId);
 
   if (!product || !qty || qty <= 0) {
-    posAddItemError.textContent = "Search for a product, pick it from the list, and enter a quantity of at least 1.";
+    posAddItemError.textContent = "Search for a product, pick it from the list, and enter a whole-number quantity of at least 1.";
     posAddItemError.classList.remove("d-none");
     return;
   }

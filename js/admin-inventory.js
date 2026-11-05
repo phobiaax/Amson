@@ -702,7 +702,7 @@ saveReceiveStockBtn.addEventListener("click", async () => {
 
   const items = rows.map((row) => ({
     productId: row.querySelector(".receive-product-select").value,
-    qty: parseInt(row.querySelector(".receive-qty-input").value, 10),
+    qty: wholeQty(row.querySelector(".receive-qty-input").value),
     batchNo: row.querySelector(".receive-batchno-input").value.trim(),
     expirationDate: row.querySelector(".receive-expiry-input").value,
     unitCost: parseFloat(row.querySelector(".receive-unitcost-input").value),
@@ -716,7 +716,7 @@ saveReceiveStockBtn.addEventListener("click", async () => {
   }
   const invalid = items.some((it) => !it.productId || !it.qty || it.qty <= 0 || !it.batchNo || !it.expirationDate);
   if (invalid || items.length === 0) {
-    return showReceiveError("Every item needs a product, quantity, batch number, and expiry date. Only the unit cost is optional.");
+    return showReceiveError("Every item needs a product, a whole-number quantity, batch number, and expiry date. Only the unit cost is optional.");
   }
   if (items.some((it) => expiryPassed(it.expirationDate))) {
     return showReceiveError("An expiry date has already passed. Check the date on the box - expired stock can't be received.");
@@ -864,7 +864,7 @@ function readReceiveReviewRows(rowEls) {
     const sku = get("rbr-sku").value.trim();
     const batchNo = get("rbr-batchno").value.trim();
     const expiryDate = get("rbr-expirydate").value;
-    const qty = parseInt(get("rbr-qty").value, 10);
+    const qty = wholeQty(get("rbr-qty").value);
     const product = CATALOG_PRODUCTS.find((p) => (p.sku || "").toLowerCase() === sku.toLowerCase());
 
     const supplierName = get("rbr-supplier").value.trim();
@@ -1233,7 +1233,7 @@ function readWriteOffForm() {
   return rows.map((row) => ({
     batchId: row.querySelector(".writeoff-batch-select").value,
     productId: row.querySelector(".writeoff-product-select").value,
-    qty: parseInt(row.querySelector(".writeoff-qty-input").value, 10),
+    qty: wholeQty(row.querySelector(".writeoff-qty-input").value),
     reason: row.querySelector(".writeoff-reason-input").value.trim(),
   }));
 }
@@ -1987,7 +1987,7 @@ savePoBtn.addEventListener("click", async () => {
 
   const items = rows.map((row) => ({
     productId: row.querySelector(".po-product-select").value,
-    expectedQty: parseInt(row.querySelector(".po-qty-input").value, 10),
+    expectedQty: wholeQty(row.querySelector(".po-qty-input").value),
   }));
 
   const invalid =

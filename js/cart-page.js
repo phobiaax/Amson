@@ -140,14 +140,18 @@ function wireCartRow(row) {
 
   // typed quantity saves on blur or enter and stays within stock
   const qtyInput = row.querySelector(".cart-qty-input");
-  qtyInput.addEventListener("input", () => {
-    qtyInput.value = qtyInput.value.replace(/[^0-9]/g, "");
-  });
   qtyInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") qtyInput.blur();
   });
   qtyInput.addEventListener("change", () => {
-    const result = updateCartItemQty(productId, parseInt(qtyInput.value, 10) || 1);
+    // only whole numbers of 1 or more, anything else puts the old quantity back
+    const typed = wholeQty(qtyInput.value);
+    if (!(typed >= 1)) {
+      renderCartPage();
+      showCartToast("Please enter a whole number of 1 or more.");
+      return;
+    }
+    const result = updateCartItemQty(productId, typed);
     renderCartPage();
     if (result.capped) showCartToast(`Only ${result.qty} in stock - that's the most you can order.`);
   });
