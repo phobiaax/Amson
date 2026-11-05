@@ -1114,7 +1114,10 @@ function populateBatchSelectForProduct(batchSelectEl, productId) {
     : [{ value: "", label: "No stock available" }];
 
   if (batchSelectEl._choices) {
+    // clear the old pick too, setChoices alone keeps the last product's batch selected
+    batchSelectEl._choices.clearStore();
     batchSelectEl._choices.setChoices(choicesData, "value", "label", true);
+    batchSelectEl._choices.setChoiceByValue(choicesData[0].value);
   } else {
     batchSelectEl.innerHTML = choicesData.map((c) => `<option value="${escapeHtml(c.value)}">${escapeHtml(c.label)}</option>`).join("");
     batchSelectEl._choices = makeSearchableSelect(batchSelectEl);
@@ -1223,6 +1226,12 @@ function writeOffProblem(items) {
     return !batch || it.qty > batch.quantity;
   });
   if (overQtyItem) return "You can't write off more than a batch's current quantity.";
+  // batch must belong to the product picked on that row
+  const wrongBatch = items.find((it) => {
+    const batch = allBatches.find((b) => b.id === it.batchId);
+    return batch && batch.productId !== it.productId;
+  });
+  if (wrongBatch) return "A batch doesn't match its product. Pick the batch again for that item.";
   return null;
 }
 
