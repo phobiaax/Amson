@@ -298,7 +298,7 @@ function inventorySortMillis(batch) {
 /* ---------- Table ---------- */
 function filteredBatches() {
   // Real total physical stock per product (every batch, any status) - not
-  // SAMPLE_PRODUCTS.totalStock, which is deliberately active-only for the
+  // CATALOG_PRODUCTS.totalStock, which is deliberately active-only for the
   // storefront's sake. A wholesale_only batch's units still exist.
   const physicalStockByProduct = sumPhysicalStockByProduct(allBatches);
   let filtered = allBatches
@@ -878,7 +878,7 @@ function readReceiveReviewRows(rowEls) {
     const batchNo = get("rbr-batchno").value.trim();
     const expiryDate = get("rbr-expirydate").value;
     const qty = parseInt(get("rbr-qty").value, 10);
-    const product = SAMPLE_PRODUCTS.find((p) => (p.sku || "").toLowerCase() === sku.toLowerCase());
+    const product = CATALOG_PRODUCTS.find((p) => (p.sku || "").toLowerCase() === sku.toLowerCase());
 
     const supplierName = get("rbr-supplier").value.trim();
     const supplier = allSuppliers.find((s) => s.name.toLowerCase() === supplierName.toLowerCase());
@@ -1941,7 +1941,7 @@ poBatchFileInput.addEventListener("change", async () => {
   const unknown = [];
   const items = [];
   rows.forEach((row, i) => {
-    const product = SAMPLE_PRODUCTS.find((p) => (p.sku || "").toLowerCase() === String(row.sku).toLowerCase());
+    const product = CATALOG_PRODUCTS.find((p) => (p.sku || "").toLowerCase() === String(row.sku).toLowerCase());
     if (!product) unknown.push(`Row ${i + 2}: ${row.sku || "(no SKU)"}`);
     else items.push({ productId: product.id, qty: parseInt(row.expectedqty, 10) || "" });
   });

@@ -527,7 +527,7 @@ function selectVerificationItem(id) {
 function orderPriceProblems(order) {
   const problems = [];
   // Skipped if the catalog couldn't load, so it can't flag every item.
-  (SAMPLE_PRODUCTS.length ? order.items || [] : []).forEach((item) => {
+  (CATALOG_PRODUCTS.length ? order.items || [] : []).forEach((item) => {
     const product = getProductById(item.id);
     if (!product) problems.push(`${item.name || item.id} is no longer in the catalog`);
     else if (Math.abs((item.price || 0) - (product.price || 0)) > 0.001) problems.push(`${product.name} is ${formatPeso(item.price || 0)} on this order but ${formatPeso(product.price || 0)} in the catalog`);

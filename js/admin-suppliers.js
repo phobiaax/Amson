@@ -50,12 +50,12 @@ async function loadSuppliers() {
 // products through the stock they deliver), so this does nothing now.
 function renderProductChecklist(checkedIds = []) {
   if (!supplierProductChecklist) return;
-  if (SAMPLE_PRODUCTS.length === 0) {
+  if (CATALOG_PRODUCTS.length === 0) {
     supplierProductChecklist.innerHTML = '<p class="text-muted mb-0" style="font-size:0.85rem;">No products in the catalog yet.</p>';
     return;
   }
 
-  supplierProductChecklist.innerHTML = SAMPLE_PRODUCTS.map(
+  supplierProductChecklist.innerHTML = CATALOG_PRODUCTS.map(
     (p) => `
       <div class="form-check">
         <input class="form-check-input supplier-product-checkbox" type="checkbox" value="${p.id}" id="supplierProduct-${p.id}" ${checkedIds.includes(p.id) ? "checked" : ""}>

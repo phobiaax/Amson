@@ -468,7 +468,7 @@ async function deleteWholesaleAccount(id) {
 /* ---------- Process Wholesale Order ---------- */
 function populateOrderProductSelect(selectEl) {
   // Only products that can be sold: active and already priced.
-  selectEl.innerHTML = productsByName(SAMPLE_PRODUCTS.filter((p) => p.status === "active" && !p.pricePending))
+  selectEl.innerHTML = productsByName(CATALOG_PRODUCTS.filter((p) => p.status === "active" && !p.pricePending))
     .map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
     .join("");
   selectEl._choices = makeSearchableSelect(selectEl);
@@ -940,7 +940,7 @@ async function openExchangeDialog(order, account) {
 // The form inside the wholesale exchange dialog: the item coming back, the
 // replacement and its price, and the reason.
 function wholesaleExchangeDialogHtml(lines) {
-  const productOptions = SAMPLE_PRODUCTS.filter((p) => p.status === "active")
+  const productOptions = CATALOG_PRODUCTS.filter((p) => p.status === "active")
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
     .join("");

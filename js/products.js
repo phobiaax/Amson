@@ -4,7 +4,7 @@
 
 const PAGE_SIZE = 16;
 let currentPage = 1;
-let currentFiltered = SAMPLE_PRODUCTS.slice();
+let currentFiltered = CATALOG_PRODUCTS.slice();
 
 const productsGrid = document.getElementById("productsGrid");
 const pagination = document.getElementById("pagination");

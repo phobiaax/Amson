@@ -402,7 +402,7 @@ function inventoryLines(batchSnap, batchesById, recon, supplierOf) {
       .map((b) => ({ productId: b.productId, batchNo: b.batchNo, expirationDate: b.expirationDate, posQty: b.quantity || 0, physical: "", supplier: supplierOf(b) }));
   }
   const withLines = new Set(lines.map((l) => l.productId));
-  SAMPLE_PRODUCTS.filter((p) => p.status === "active" && !withLines.has(p.id)).forEach((p) =>
+  CATALOG_PRODUCTS.filter((p) => p.status === "active" && !withLines.has(p.id)).forEach((p) =>
     lines.push({ productId: p.id, batchNo: "", expirationDate: "", posQty: 0, physical: recon ? 0 : "" })
   );
   return lines;

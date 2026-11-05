@@ -15,19 +15,25 @@ Bootstrap pop-ups used instead of the browser's alert/confirm/prompt, and stacki
 - Functions: `restackModals()`, `ensureAppDialogModal()`, `showAppAlert()`, `setAppDialogField()`, `showAppConfirm()`, `showAppPrompt()`, `showAppSelect()`, `hideModalAndWait()`
 - Also runs when the page loads: 2 statements (event listeners / start-up)
 
+### shared limits
+
+Fixed limits used across the staff pages: Firestore batch size, the LTO / permit "expiring soon" window, Excel limits, and how long a live listener waits for the server.
+
+- Shared data: `FIRESTORE_BATCH_LIMIT`, `DOCUMENT_EXPIRY_WARNING_DAYS`, `EXCEL_SHEET_NAME_MAX`, `EXCEL_CELL_MAX_CHARS`, `LIVE_QUERY_OFFLINE_MS`
+
 ### catalog
 
 The shared product list every page works from, and finding products in it.
 
 - Functions: `getProductById()`, `storefrontCatalog()`, `productNameKey()`, `findProductByName()`, `generateProductSku()`
-- Shared data: `SAMPLE_PRODUCTS`, `CATEGORY_LABELS`, `catalogLoadPromise`
+- Shared data: `CATALOG_PRODUCTS`, `CATEGORY_LABELS`, `catalogLoadPromise`
 
 ### stock levels and alerts
 
 Low / out-of-stock and expiry rules, and the counts behind the stock alert tiles.
 
 - Functions: `nearExpiryCutoff()`, `isRetailSellableBatch()`, `isWholesaleSellableBatch()`, `getStockLevelStatus()`, `getExpiryStatus()`, `getBatchStatuses()`, `sumPhysicalStockByProduct()`, `computeInventoryAlertCounts()`
-- Shared data: `DEFAULT_REORDER_POINT`, `NEAR_EXPIRY_MONTHS`, `BATCH_STATUS_LABELS`, `SEVERITY_COLORS`, `SEVERITY_BACKGROUNDS`
+- Shared data: `DEFAULT_REORDER_POINT`, `NEAR_EXPIRY_MONTHS`, `BATCH_STATUS_LABELS`, `SEVERITY_COLORS`
 
 ### staff notifications
 
@@ -61,7 +67,7 @@ The progress bar and result pop-up for imports, photo uploads and stock receipts
 
 Small helpers shared by the staff forms (Products, Suppliers, Inventory, Wholesale, POS).
 
-- Functions: `showFormAlert()`, `wireSegmentedToggle()`, `setToggleValue()`, `getToggleValue()`, `makeSearchableSelect()`, `destroyChoicesIn()`, `updateRemoveButtonsVisibility()`, `renumberItems()`
+- Functions: `showFormAlert()`, `wireSegmentedToggle()`, `setToggleValue()`, `getToggleValue()`, `productsByName()`, `makeSearchableSelect()`, `destroyChoicesIn()`, `updateRemoveButtonsVisibility()`, `renumberItems()`
 
 ### storefront: home page category cards
 
@@ -88,7 +94,7 @@ The sale receipt pop-up (POS, Walk-in Orders, online order receipts).
 
 Voiding a walk-in sale (whole or some items), with Branch Manager approval when needed.
 
-- Functions: `roleCanVoidSales()`, `promptVoidDetails()`, `verifyVoidApprover()`, `voidPosSale()` (with `findFallbackBatches()`, `takeVoidedUnits()`, `logVoid()`), `partialVoidSummary()`, `voidSummary()`, `voidByText()`
+- Functions: `roleCanVoidSales()`, `promptVoidDetails()` (with `readVoidDialog()`), `verifyVoidApprover()`, `voidPosSale()` (with `findFallbackBatches()`, `takeVoidedUnits()`, `logVoid()`), `partialVoidSummary()`, `voidSummary()`, `voidByText()`
 
 ### exports
 

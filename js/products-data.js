@@ -212,17 +212,18 @@ const EXCEL_CELL_MAX_CHARS = 32000;
 // plain read instead.
 const LIVE_QUERY_OFFLINE_MS = 10000;
 
+// =====================================================================
 // ---- catalog ----
-// The shared product list (SAMPLE_PRODUCTS) and looking products up in it.
+// The shared product list (CATALOG_PRODUCTS) and looking products up in it.
 
-let SAMPLE_PRODUCTS = [];
+let CATALOG_PRODUCTS = [];
 
 let CATEGORY_LABELS = {};
 
 let catalogLoadPromise = null;
 
 function getProductById(id) {
-  return SAMPLE_PRODUCTS.find((p) => String(p.id) === String(id));
+  return CATALOG_PRODUCTS.find((p) => String(p.id) === String(id));
 }
 
 // A product only appears in the storefront once staff have marked it
@@ -231,7 +232,7 @@ function getProductById(id) {
 // running out of stock doesn't remove it - it stays visible, greyed out
 // and not orderable (see renderProductCard), rather than disappearing.
 function storefrontCatalog() {
-  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore);
+  return CATALOG_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore);
 }
 
 // ---- Duplicate product names ----
@@ -244,7 +245,7 @@ function productNameKey(name) {
 function findProductByName(name, exceptId = null) {
   const key = productNameKey(name);
   if (!key) return null;
-  return SAMPLE_PRODUCTS.find((p) => p.id !== exceptId && productNameKey(p.name) === key) || null;
+  return CATALOG_PRODUCTS.find((p) => p.id !== exceptId && productNameKey(p.name) === key) || null;
 }
 
 /* ---------- SKU generation (same pattern as order numbers) ---------- */
@@ -254,8 +255,8 @@ function findProductByName(name, exceptId = null) {
 // moment don't get the same number.
 async function generateProductSku() {
   const counterRef = db.collection("counters").doc("products");
-  const used = new Set(SAMPLE_PRODUCTS.map((p) => String(p.sku || "").toUpperCase()));
-  const highest = SAMPLE_PRODUCTS.reduce((max, p) => {
+  const used = new Set(CATALOG_PRODUCTS.map((p) => String(p.sku || "").toUpperCase()));
+  const highest = CATALOG_PRODUCTS.reduce((max, p) => {
     const m = String(p.sku || "").match(/^MED-(\d+)$/i);
     return m ? Math.max(max, Number(m[1])) : max;
   }, 0);
@@ -330,7 +331,7 @@ const SEVERITY_COLORS = {
 // totalStockOverride lets a caller that already has every batch in hand
 // (the Inventory table) pass the product's REAL total physical stock
 // (every batch, any status) instead of falling back to
-// SAMPLE_PRODUCTS.totalStock, which is deliberately active-only (that
+// CATALOG_PRODUCTS.totalStock, which is deliberately active-only (that
 // number also drives the storefront's "in stock" check, which must never
 // promise a customer stock that's actually reserved for wholesale). For
 // inventory ALERTING, a wholesale_only batch's units still physically
@@ -369,7 +370,7 @@ function getBatchStatuses(batch, totalStockOverride) {
 // Sums every batch's own quantity per product, regardless of status - a
 // wholesale_only batch still physically exists on a shelf, it's just
 // blocked from RETAIL sale. That's a separate, correct restriction
-// (SAMPLE_PRODUCTS.totalStock stays active-only on purpose, so the
+// (CATALOG_PRODUCTS.totalStock stays active-only on purpose, so the
 // storefront never promises a customer stock that's actually reserved for
 // wholesale). But for INVENTORY alerting - "how much do we physically
 // have, are we running low" - counting only active stock made a product
@@ -406,7 +407,7 @@ async function computeInventoryAlertCounts(batchesOverride = null) {
     if (status === "expired") expired += 1;
   });
 
-  const activeProducts = SAMPLE_PRODUCTS.filter((p) => p.status === "active");
+  const activeProducts = CATALOG_PRODUCTS.filter((p) => p.status === "active");
   const outOfStock = activeProducts.filter((p) => (physicalStockByProduct[p.id] || 0) === 0).length;
   const lowStock = activeProducts.filter((p) => {
     const stock = physicalStockByProduct[p.id] || 0;
@@ -544,7 +545,7 @@ function stockLevelAlerts(batchSnapshot) {
   // Low / out of stock per product, on its physical stock across all
   // batches - the same rule as the Inventory and Dashboard tiles.
   const physicalStockByProduct = sumPhysicalStockByProduct(batchSnapshot.docs.map((doc) => doc.data()));
-  SAMPLE_PRODUCTS.filter((p) => p.status === "active").forEach((product) => {
+  CATALOG_PRODUCTS.filter((p) => p.status === "active").forEach((product) => {
     const stock = physicalStockByProduct[product.id] || 0;
     // A product that has never had a batch (just added, stock not received
     // yet) isn't "out of stock" - only one that had stock and ran out.
@@ -643,7 +644,7 @@ function pricePendingAlerts() {
   const notifications = [];
   // Products other staff added without prices stay Inactive until the
   // Branch Manager prices them - make sure that's visible.
-  const pricePending = SAMPLE_PRODUCTS.filter((p) => p.pricePending);
+  const pricePending = CATALOG_PRODUCTS.filter((p) => p.pricePending);
   if (pricePending.length > 0) {
     notifications.push({
       key: "price_pending",
@@ -1048,7 +1049,7 @@ function writeCatalogBrowserCache() {
     const toJson = (v) => JSON.stringify(v, function (key) {
       return catalogCacheReplacer(key, this[key]);
     });
-    localStorage.setItem(CATALOG_CACHE_KEY, toJson({ savedAt: Date.now(), categories: CATEGORY_LABELS, products: SAMPLE_PRODUCTS }));
+    localStorage.setItem(CATALOG_CACHE_KEY, toJson({ savedAt: Date.now(), categories: CATEGORY_LABELS, products: CATALOG_PRODUCTS }));
   } catch (error) {
     // Storage full or blocked - just read live next time.
   }
@@ -1135,8 +1136,8 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
     const cached = readCatalogBrowserCache();
     if (cached) {
       CATEGORY_LABELS = cached.categories || {};
-      SAMPLE_PRODUCTS = cached.products;
-      return { products: SAMPLE_PRODUCTS, categories: CATEGORY_LABELS };
+      CATALOG_PRODUCTS = cached.products;
+      return { products: CATALOG_PRODUCTS, categories: CATEGORY_LABELS };
     }
 
     await authGate;
@@ -1168,7 +1169,7 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
       stockByProduct[batch.productId] = (stockByProduct[batch.productId] || 0) + (batch.quantity || 0);
     });
 
-    SAMPLE_PRODUCTS = productSnapshot.docs.map((doc) => {
+    CATALOG_PRODUCTS = productSnapshot.docs.map((doc) => {
       const data = doc.data();
       const totalStock = stockByProduct[doc.id] || 0;
       return {
@@ -1183,7 +1184,7 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
     });
 
     writeCatalogBrowserCache();
-    return { products: SAMPLE_PRODUCTS, categories: CATEGORY_LABELS };
+    return { products: CATALOG_PRODUCTS, categories: CATEGORY_LABELS };
   })();
   // A failed load shouldn't stick for the rest of the page's life.
   catalogLoadPromise.catch(() => {
@@ -1316,7 +1317,7 @@ function getToggleValue(container) {
 
 // Products A-Z by name, for product dropdowns (the catalog itself stays in
 // database order).
-function productsByName(products = SAMPLE_PRODUCTS) {
+function productsByName(products = CATALOG_PRODUCTS) {
   return products.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 }
 
@@ -2457,7 +2458,7 @@ async function openWalkinExchangeDialog(sale, processedBy) {
 // The form inside the exchange dialog: which item comes back, whether it can
 // be sold again, the replacement, and the reason.
 function exchangeDialogHtml(sale, lines) {
-  const productOptions = SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInPOS !== false && p.inStock)
+  const productOptions = CATALOG_PRODUCTS.filter((p) => p.status === "active" && p.availableInPOS !== false && p.inStock)
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((p) => `<option value="${p.id}">${escapeHtml(p.name)} - ${formatPeso(p.price || 0)} (${p.totalStock} in stock)</option>`)
     .join("");
