@@ -376,6 +376,7 @@ function openWalkinSaleReceipt(saleId) {
             const fresh = await db.collection("posSales").doc(sale.id).get();
             if (fresh.exists) Object.assign(sale, fresh.data());
             renderWalkinTable();
+            openWalkinSaleReceipt(sale.id);
           }
         : null,
     onVoid:
@@ -396,6 +397,8 @@ function openWalkinSaleReceipt(saleId) {
                   : `${formatPeso(result.voidedAmount)} of SI No. ${sale.invoiceNo || "-"} was voided (${result.voidedLines.map((l) => `${l.name} x${l.qty}`).join(", ")}) and returned to stock.`,
                 { title: result.fullVoid ? "Sale Voided" : "Items Voided" }
               );
+              // redraw the open receipt with the voided items
+              openWalkinSaleReceipt(sale.id);
             } catch (error) {
               await showAppAlert(error.message || "Something went wrong voiding this sale. Please try again.");
             }

@@ -485,6 +485,9 @@ function openPosSaleReceipt(sale, afterVoid) {
                 { title: result.fullVoid ? "Sale Voided" : "Items Voided" }
               );
               if (afterVoid) afterVoid();
+              // redraw the open receipt with the voided items
+              const fresh = await db.collection("posSales").doc(sale.id).get();
+              if (fresh.exists) openPosSaleReceipt({ id: fresh.id, ...fresh.data() }, afterVoid);
             } catch (error) {
               await showAppAlert(error.message || "Something went wrong voiding this sale. Please try again.");
             }
