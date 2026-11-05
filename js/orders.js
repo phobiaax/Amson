@@ -173,11 +173,11 @@ async function notifyCustomer(customerId, title, detail, link, severity = "info"
 // blocks or fails the action that triggered it.
 async function sendOrderEmail(customerId, title, detail, link) {
   try {
-    if (
+    const emailNotSetUp =
       typeof emailjs === "undefined" ||
       typeof EMAILJS_ORDER_TEMPLATE_ID === "undefined" ||
-      EMAILJS_ORDER_TEMPLATE_ID === "YOUR_ORDER_TEMPLATE_ID"
-    ) {
+      EMAILJS_ORDER_TEMPLATE_ID === "YOUR_ORDER_TEMPLATE_ID";
+    if (emailNotSetUp) {
       return;
     }
     const doc = await db.collection("users").doc(customerId).get();
@@ -228,7 +228,9 @@ async function enforceOrderDeadline(orderId, order, { grantCreditToBalance = fal
     const closed = await db.runTransaction(async (transaction) => {
       const fresh = await transaction.get(orderRef);
       const freshOrder = fresh.exists ? fresh.data() : null;
-      if (!freshOrder || !freshOrder.paymentIssue || !freshOrder.paymentIssue.holdUntil || freshOrder.paymentIssue.holdUntil.toMillis() >= Date.now()) return false;
+      // No order, no hold, or a hold that hasn't run out yet.
+      const nothingToClose = !freshOrder || !freshOrder.paymentIssue || !freshOrder.paymentIssue.holdUntil || freshOrder.paymentIssue.holdUntil.toMillis() >= Date.now();
+      if (nothingToClose) return false;
       unappliedCredit = computeUnappliedCredit(freshOrder);
       transaction.update(orderRef, {
         status: "closed_unresolved",
