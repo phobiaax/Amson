@@ -610,6 +610,22 @@ function receiptLineNames(plan) {
 }
 
 // ---------- receive stock ----------
+// true when the expiry date (yyyy-mm-dd) is already in the past
+function expiryPassed(isoDate) {
+  return !!isoDate && isoDate < todayISO();
+}
+
+// lines that would go straight to bad order need a yes from staff first
+async function confirmExpiringSoon(lines) {
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() + BAD_ORDER_MONTHS);
+  const soon = lines.filter((l) => l.expirationDate && new Date(l.expirationDate) <= cutoff);
+  if (!soon.length) return true;
+  return showAppConfirm(
+    `${soon.map((l) => l.batchNo || "A batch").join(", ")} ${soon.length === 1 ? "expires" : "expire"} within ${BAD_ORDER_MONTHS} months, so ${soon.length === 1 ? "it" : "they"} will be written off as Bad Order right away. Receive anyway?`,
+    { title: "Expiring soon", confirmLabel: "Receive anyway" }
+  );
+}
 function addReceiveItemRow() {
   receiveItemCount += 1;
   const row = document.createElement("div");
@@ -702,6 +718,10 @@ saveReceiveStockBtn.addEventListener("click", async () => {
   if (invalid || items.length === 0) {
     return showReceiveError("Every item needs a product, quantity, batch number, and expiry date. Only the unit cost is optional.");
   }
+  if (items.some((it) => expiryPassed(it.expirationDate))) {
+    return showReceiveError("An expiry date has already passed. Check the date on the box - expired stock can't be received.");
+  }
+  if (!(await confirmExpiringSoon(items))) return;
   const plan = planStockReceipt(items.map((it) => ({ ...it, supplierId, supplierReceiptNo, dateReceived })));
   if (plan.errors.length) return showReceiveError(plan.errors.join(" "));
 
@@ -808,9 +828,10 @@ receiveBatchReviewConfirmBtn.addEventListener("click", async () => {
 
   const { lines, hasInvalid } = readReceiveReviewRows(rowEls);
   if (hasInvalid) {
-    showFormAlert(receiveBatchReviewAlert, "Every row needs a recognized SKU, batch number, expiry date, quantity above 0, a supplier name that matches a saved supplier, a receipt / DR no. and a date received (only the unit cost is optional). Fix the highlighted rows, or remove them.");
+    showFormAlert(receiveBatchReviewAlert, "Every row needs a recognized SKU, batch number, an expiry date that hasn't passed, quantity above 0, a supplier name that matches a saved supplier, a receipt / DR no. and a date received (only the unit cost is optional). Fix the highlighted rows, or remove them.");
     return;
   }
+  if (!(await confirmExpiringSoon(lines))) return;
   const plan = planStockReceipt(lines);
   if (plan.errors.length) {
     showFormAlert(receiveBatchReviewAlert, plan.errors.join(" "));
@@ -851,7 +872,7 @@ function readReceiveReviewRows(rowEls) {
     const receiptNo = get("rbr-receiptno").value.trim();
     const dateReceived = get("rbr-datereceived").value;
 
-    if (!product || !batchNo || !expiryDate || !qty || qty <= 0 || !supplier || !receiptNo || !dateReceived) {
+    if (!product || !batchNo || !expiryDate || expiryPassed(expiryDate) || !qty || qty <= 0 || !supplier || !receiptNo || !dateReceived) {
       tr.classList.add("table-danger");
       hasInvalid = true;
     }
