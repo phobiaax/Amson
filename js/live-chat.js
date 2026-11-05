@@ -195,7 +195,7 @@ function chatFindProducts(text, limit = 8) {
     .split(" ")
     .filter((w) => w.length >= 3 && !CHAT_STOPWORDS.has(w));
   if (!words.length) return [];
-  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false)
+  return CATALOG_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false)
     .map((p) => {
       const tokens = chatNormalize(`${p.name} ${p.genericName || ""} ${p.brand || ""}`).trim().split(" ");
       const hit = (w) => tokens.some((t) => t === w || (w.length >= 4 && t.startsWith(w)));
@@ -288,7 +288,7 @@ function chatHasHealthCaution(text) {
 }
 
 function chatOtcProducts() {
-  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false && !p.rxRequired);
+  return CATALOG_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false && !p.rxRequired);
 }
 
 // Over-the-counter products sold online whose label text mentions any of
@@ -326,7 +326,7 @@ function chatLabelVocabulary(max = 300) {
   // Medicine, generic and brand names are left out, so Gemini can only ever
   // return what the customer describes - never a medicine.
   const productWords = new Set();
-  SAMPLE_PRODUCTS.forEach((p) =>
+  CATALOG_PRODUCTS.forEach((p) =>
     chatNormalize(`${p.name || ""} ${p.genericName || ""} ${p.brand || ""}`).trim().split(" ").forEach((w) => productWords.add(w))
   );
   const counts = new Map();

@@ -176,7 +176,7 @@ photosNextBtn.addEventListener("click", async () => {
   if (!pickedPhotoFiles.length) return;
   photosNextBtn.disabled = true;
   await loadCatalogCache();
-  photoProducts = SAMPLE_PRODUCTS.slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  photoProducts = CATALOG_PRODUCTS.slice().sort((a, b) => String(a.name).localeCompare(String(b.name)));
   const match = buildPhotoMatcher(photoProducts);
   photoMatcher = match;
   // Keep matches already made (or fixed) for files carried over from Back.

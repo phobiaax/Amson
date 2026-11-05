@@ -84,7 +84,7 @@ document.getElementById("posReturnExchangeBtn").addEventListener("click", async 
 });
 
 function posEligibleProducts() {
-  return SAMPLE_PRODUCTS.filter((p) => p.status === "active" && p.availableInPOS);
+  return CATALOG_PRODUCTS.filter((p) => p.status === "active" && p.availableInPOS);
 }
 
 function populatePosProductSelect() {

@@ -47,7 +47,7 @@ function showOpeningAlert(message, type = "danger") {
 /* ---------- Count sheet ---------- */
 document.getElementById("downloadCountSheetBtn").addEventListener("click", async () => {
   await loadCatalogCache();
-  const products = SAMPLE_PRODUCTS.slice().sort(
+  const products = CATALOG_PRODUCTS.slice().sort(
     (a, b) => String(CATEGORY_LABELS[a.category] || "").localeCompare(String(CATEGORY_LABELS[b.category] || "")) || String(a.name).localeCompare(String(b.name))
   );
   const rows = products.map((p) => ({
@@ -122,7 +122,7 @@ countSheetFileInput.addEventListener("change", async () => {
   // Fresh numbers: other staff may have received stock since the page opened.
   catalogLoadPromise = null;
   await loadCatalogCache();
-  const bySku = new Map(SAMPLE_PRODUCTS.filter((p) => p.sku).map((p) => [String(p.sku).toUpperCase(), p]));
+  const bySku = new Map(CATALOG_PRODUCTS.filter((p) => p.sku).map((p) => [String(p.sku).toUpperCase(), p]));
   const problems = [];
   const lines = [];
   let skipped = 0;

@@ -97,7 +97,7 @@ async function loadProducts() {
   try {
     await ensureDefaultCategories();
     await loadCatalogCache();
-    allProducts = SAMPLE_PRODUCTS.slice();
+    allProducts = CATALOG_PRODUCTS.slice();
     renderCategorySelect();
     renderProductsTable();
   } catch (error) {
