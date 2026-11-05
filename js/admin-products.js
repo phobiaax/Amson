@@ -483,6 +483,8 @@ saveProductBtn.addEventListener("click", async () => {
       const priceChanges = changedPriceFields.map(
         ([field, label]) => `${label}: ${formatPeso(editingProductOriginal[field])} → ${formatPeso(productData[field])}`
       );
+      // built now, the private price fields get swapped for delete markers before saving
+      const priceAfterText = changedPriceFields.map(([field, label]) => `${label} ${formatPeso(productData[field])}`).join("; ");
 
       let priceChangeReason = "";
       if (priceChanges.length > 0) {
@@ -517,7 +519,7 @@ saveProductBtn.addEventListener("click", async () => {
           details: `${productData.name} (${editingProductOriginal.sku || ""}) - ${priceChanges.join("; ")} - Reason: ${priceChangeReason}`,
           record: `${productData.name} (${editingProductOriginal.sku || ""})`,
           before: changedPriceFields.map(([field, label]) => `${label} ${formatPeso(editingProductOriginal[field])}`).join("; "),
-          after: changedPriceFields.map(([field, label]) => `${label} ${formatPeso(productData[field])}`).join("; "),
+          after: priceAfterText,
           reason: priceChangeReason,
         });
       }
