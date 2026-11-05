@@ -62,7 +62,9 @@ function loginAttemptsDocId(email) {
   return email.trim().toLowerCase();
 }
 
-async function checkLoginLockout(email) {
+// When this address's login lock ends (ms), or null if it isn't locked. A
+// lock that has run out is cleared on the way.
+async function getActiveLoginLock(email) {
   const docRef = db.collection("loginAttempts").doc(loginAttemptsDocId(email));
   const doc = await docRef.get();
   if (!doc.exists) return null;
@@ -127,7 +129,7 @@ async function performLogin(email, password) {
 
   setLoading(true);
   try {
-    const lockedUntil = await checkLoginLockout(email);
+    const lockedUntil = await getActiveLoginLock(email);
     if (lockedUntil) {
       const secondsLeft = Math.ceil((lockedUntil - Date.now()) / 1000);
       showAlert(`Too many failed attempts. Please try again in ${secondsLeft} seconds.`);
