@@ -134,6 +134,8 @@ countSheetFileInput.addEventListener("change", async () => {
     if (!Number.isInteger(qty) || qty < 0) issues.push("quantity must be a whole number");
     if (!batchNo) issues.push("batch no. is missing");
     if (!expiry || !validMonthDay(expiry)) issues.push(String(row.expirydate || "").trim() ? `expiry "${row.expirydate}" isn't a date` : "expiry date is missing");
+    // a month already over (or a full date already gone) means expired stock
+    else if (expiry < todayISO().slice(0, 8) + "01" || (expiry.slice(8) !== "01" && expiry < todayISO())) issues.push(`expiry "${row.expirydate}" has already passed`);
     if (issues.length) {
       problems.push(`Row ${rowNo} - ${label}: ${issues.join("; ")}`);
       return;
@@ -191,6 +193,7 @@ countSheetFileInput.addEventListener("change", async () => {
 loadOpeningStockBtn.addEventListener("click", async () => {
   if (!openingPlan) return;
   const { plan, units, products } = openingPlan;
+  if (!(await confirmExpiringSoon(plan.newLines.concat(plan.topUps.map((t) => t.line))))) return;
   loadOpeningStockBtn.disabled = true;
   await hideModalAndWait(openingStockModalEl);
   showTaskProgress("Loading opening stock", "Keep this page open until it finishes.");
