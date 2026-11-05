@@ -268,6 +268,24 @@ async function toggleStaffStatus(id) {
 
   const currentStatus = computedStaffStatus(staff);
   const nextStatus = currentStatus === "active" ? "deactivated" : "active";
+  // nobody can lock the branch out of staff management
+  if (nextStatus === "deactivated") {
+    const otherActiveManagers = allStaff.filter(
+      (s) => s.id !== staff.id && ["admin", "branch_manager"].includes(s.role) && computedStaffStatus(s) === "active"
+    );
+    const blocked =
+      auth.currentUser && staff.id === auth.currentUser.uid
+        ? "You can't deactivate your own account."
+        : staff.role === "admin"
+        ? "The Administrator account can't be deactivated."
+        : staff.role === "branch_manager" && otherActiveManagers.length === 0
+        ? "This is the last active Branch Manager. Add or reactivate another one first."
+        : null;
+    if (blocked) {
+      await showAppAlert(blocked);
+      return;
+    }
+  }
   const confirmMsg =
     nextStatus === "deactivated"
       ? "Deactivate this staff account? They won't be able to sign in until reactivated."
