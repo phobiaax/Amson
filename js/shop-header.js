@@ -77,7 +77,8 @@ auth.onAuthStateChanged(async (user) => {
     }
     // Verified customers on a device they never confirmed go back to log in
     // (REQ005). Unverified accounts are still finishing sign-up.
-    if (doc.exists && data.role === "customer" && data.emailVerified && typeof enforceRecognizedDevice === "function") {
+    const mustCheckDevice = doc.exists && data.role === "customer" && data.emailVerified && typeof enforceRecognizedDevice === "function";
+    if (mustCheckDevice) {
       if (!(await enforceRecognizedDevice(data))) return;
     }
     // Staff accounts aren't customer accounts: say so instead of showing the

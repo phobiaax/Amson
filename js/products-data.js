@@ -1811,7 +1811,8 @@ async function findFallbackBatches(sale, lines) {
   const fallbackRefs = {};
   for (const { index } of lines) {
     const item = (sale.items || [])[index];
-    if (!item || (item.batches && item.batches.length) || fallbackRefs[item.productId]) continue;
+    const noFallbackNeeded = !item || (item.batches && item.batches.length) || fallbackRefs[item.productId];
+    if (noFallbackNeeded) continue;
     const snap = await db.collection("stockBatches").where("productId", "==", item.productId).where("status", "==", "active").get();
     const latest = snap.docs.sort((a, b) => new Date(b.data().expirationDate) - new Date(a.data().expirationDate))[0];
     if (!latest) throw new Error(`No active batch of ${item.name} to return the stock to. Receive stock first, then void.`);
@@ -2332,7 +2333,8 @@ async function saveWalkinExchange(
     afterWrite: (tx, { allocations, extraDocs }) => {
       const [freshSale, counterDoc] = extraDocs;
       const freshLine = (freshSale.data().items || [])[lineIndex];
-      if (freshSale.data().voided || !freshLine || (freshLine.qty || 0) - (freshLine.returnedQty || 0) < returnQty) {
+      const saleChangedMeanwhile = freshSale.data().voided || !freshLine || (freshLine.qty || 0) - (freshLine.returnedQty || 0) < returnQty;
+      if (saleChangedMeanwhile) {
         throw new Error("This sale was changed by someone else. Reopen it and try again.");
       }
       const next = (counterDoc.exists ? counterDoc.data().count || 0 : 0) + 1;
@@ -2771,7 +2773,9 @@ function wireProductBuyControls(product, ids) {
 document.addEventListener("click", (e) => {
   const trigger = e.target.closest(".product-quickview-trigger");
   if (!trigger) return;
-  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  // A click with a modifier key or another button is left to the browser.
+  const isSpecialClick = e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
+  if (isSpecialClick) return;
 
   const modalEl = document.getElementById("productQuickViewModal");
   if (!modalEl) return;

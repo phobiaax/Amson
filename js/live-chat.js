@@ -332,7 +332,8 @@ function chatLabelVocabulary(max = 300) {
   const counts = new Map();
   chatOtcProducts().forEach((p) => {
     new Set(chatNormalize(`${p.description || ""} ${p.dosageNotes || ""}`).trim().split(" ")).forEach((w) => {
-      if (w.length >= 4 && !/^\d+$/.test(w) && !CHAT_LABEL_STOPWORDS.has(w) && !productWords.has(w) && !CHAT_MEDICINE_WORDS.has(w)) counts.set(w, (counts.get(w) || 0) + 1);
+      const isUsefulLabelWord = w.length >= 4 && !/^\d+$/.test(w) && !CHAT_LABEL_STOPWORDS.has(w) && !productWords.has(w) && !CHAT_MEDICINE_WORDS.has(w);
+      if (isUsefulLabelWord) counts.set(w, (counts.get(w) || 0) + 1);
     });
   });
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, max).map(([w]) => w);
@@ -964,7 +965,8 @@ function chatOrderCardHtml(card, myOrders) {
       waiting;
     messagesEl.scrollTop = messagesEl.scrollHeight;
     // Order cards need the customer's orders; load them once, then redraw.
-    if (myOrders === null && customerId && messages.some((m) => (m.cards || []).some((c) => c.type === "order"))) {
+    const needsOrderData = myOrders === null && customerId && messages.some((m) => (m.cards || []).some((c) => c.type === "order"));
+    if (needsOrderData) {
       loadMyOrders().then(renderMessages);
     }
   }

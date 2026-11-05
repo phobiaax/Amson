@@ -184,7 +184,8 @@ clearTestDataBtn.addEventListener("click", async () => {
     showClearAlert("Enter the last SI number as a whole number (or leave it blank).", "danger");
     return;
   }
-  if (!groups.length && !accounts.length && !restartNumbering && lastSi === null) {
+  const nothingSelected = !groups.length && !accounts.length && !restartNumbering && lastSi === null;
+  if (nothingSelected) {
     showClearAlert("Nothing is selected.", "danger");
     return;
   }

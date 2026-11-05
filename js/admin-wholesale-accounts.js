@@ -675,7 +675,8 @@ function readProcessOrderForm() {
 // reason, and every item needs a product, quantity and price. Shows the
 // first problem found and returns false, or returns true.
 function checkProcessOrder(account, { items, freeOfCost, freeReason, freeItems }) {
-  if (account && (documentValidity(account.ltoValidUntil) === "expired" || documentValidity(account.permitValidUntil) === "expired")) {
+  const documentsExpired = account && (documentValidity(account.ltoValidUntil) === "expired" || documentValidity(account.permitValidUntil) === "expired");
+  if (documentsExpired) {
     showFormAlert(processOrderAlert, "This buyer's LTO or Business Permit has expired. Update the document and its date in Edit first.");
     return false;
   }
