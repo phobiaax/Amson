@@ -787,6 +787,7 @@ function chatOrderCardHtml(card, myOrders) {
   let unsubscribeThread = null;
   let sending = false;
   let lastSentAt = 0;
+  let sendRetryTimer = null;
   // true while the assistant is thinking, shows typing dots
   let thinking = false;
   // customers orders for the cards, read live
@@ -1235,12 +1236,17 @@ function chatOrderCardHtml(card, myOrders) {
   // ---- sending, opening, closing and buttons ----
   async function send(text) {
     text = String(text || "").trim().slice(0, CHAT_MAX_LENGTH);
-    if (!text || sending) return;
-    if (Date.now() - lastSentAt < CHAT_MIN_GAP_MS) return;
+    if (!text) return;
+    // too soon or still sending: wait a moment and send it then, instead of dropping it
+    if (sending || Date.now() - lastSentAt < CHAT_MIN_GAP_MS) {
+      clearTimeout(sendRetryTimer);
+      sendRetryTimer = setTimeout(() => send(text), sending ? 500 : CHAT_MIN_GAP_MS - (Date.now() - lastSentAt));
+      return;
+    }
     sending = true;
     lastSentAt = Date.now();
     sendBtn.disabled = true;
-    input.value = "";
+    if (input.value.trim().slice(0, CHAT_MAX_LENGTH) === text) input.value = "";
     try {
       await identityReady;
       await touchThread(text);
