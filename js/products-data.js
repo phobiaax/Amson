@@ -1,21 +1,11 @@
-/**
- * Shared core used by most pages: the product catalog, stock rules, staff
- * notifications, dialogs, receipts, voids, exports, FEFO stock deduction,
- * exchanges and the audit log. The sections are listed in CODE_MAP.md.
- */
+// shared core for most pages, sections are listed in CODE_MAP.md
 
 // =====================================================================
 // ---- dialogs ----
-// Bootstrap pop-ups used instead of the browser's alert/confirm/prompt.
+// bootstrap popups instead of alert/confirm/prompt
 
-// ---- Stacked modal darkening ----
-// Bootstrap gives every .modal and every .modal-backdrop the same fixed
-// z-index regardless of how many are open, so a second modal's backdrop
-// never actually paints on top of the first modal's box - nothing was
-// ever going to look darker no matter the opacity. This re-numbers both
-// on every open/close so each new modal (and its backdrop) stacks above
-// everything already open, which is what actually makes modal 1 look
-// dimmed once modal 2 is on top of it.
+// ---- stacked modal darkening ----
+// each new modal and backdrop goes above the last one
 function restackModals() {
   document.querySelectorAll(".modal-backdrop").forEach((backdrop, i) => {
     backdrop.style.zIndex = 1050 + i * 20;
@@ -29,9 +19,8 @@ document.addEventListener("shown.bs.modal", restackModals);
 
 document.addEventListener("hidden.bs.modal", restackModals);
 
-// ---- Shared dialog UI (replaces native alert()/confirm()) ----
-// Native browser dialogs aren't acceptable UI here - everything routes
-// through one Bootstrap modal, built once per page and reused.
+// ---- shared dialog ui ----
+// replaces the browsers own alert and confirm boxes
 function ensureAppDialogModal() {
   if (document.getElementById("appDialogModal")) return;
   const wrapper = document.createElement("div");
@@ -54,7 +43,7 @@ function ensureAppDialogModal() {
   document.body.appendChild(wrapper.firstElementChild);
 }
 
-// Replaces window.alert() - resolves once the user dismisses it.
+// replaces alert(), resolves when closed
 function showAppAlert(message, { title = "Notice" } = {}) {
   ensureAppDialogModal();
   return new Promise((resolve) => {
@@ -82,19 +71,14 @@ function showAppAlert(message, { title = "Notice" } = {}) {
   });
 }
 
-// Optional input shown inside the shared dialog (for prompt/select);
-// null hides it.
+// optional input inside the dialog, null hides it
 function setAppDialogField(html) {
   const field = document.getElementById("appDialogField");
   field.innerHTML = html || "";
   field.classList.toggle("d-none", !html);
 }
 
-// Replaces window.confirm() - resolves true/false. Dismissing without
-// clicking Confirm (Esc, or clicking Cancel) resolves false.
-// `validate` (optional) runs when Confirm is clicked: it returns (or
-// resolves) an error message to show inside the dialog, which stays open,
-// or nothing to close it. Both buttons wait while it runs.
+// replaces confirm(), closing without confirm counts as false
 function showAppConfirm(message, { title = "Please Confirm", confirmLabel = "Confirm", cancelLabel = "Cancel", fieldHtml = null, onRender = null, validate = null } = {}) {
   ensureAppDialogModal();
   return new Promise((resolve) => {
@@ -138,7 +122,7 @@ function showAppConfirm(message, { title = "Please Confirm", confirmLabel = "Con
       modal.hide();
     };
     const onCancel = () => modal.hide();
-    // Not closed (Esc) while a check or save is still running.
+    // cant close while a check or save is running
     const onHide = (e) => {
       if (busy) e.preventDefault();
     };
@@ -157,7 +141,7 @@ function showAppConfirm(message, { title = "Please Confirm", confirmLabel = "Con
   });
 }
 
-// Replaces window.prompt() - resolves the entered text, or null if cancelled.
+// replaces prompt(), null if cancelled
 async function showAppPrompt(message, { title = "Enter a value", defaultValue = "", confirmLabel = "Save" } = {}) {
   const ok = await showAppConfirm(message, {
     title,
@@ -167,7 +151,7 @@ async function showAppPrompt(message, { title = "Enter a value", defaultValue = 
   return ok ? document.getElementById("appDialogInput").value : null;
 }
 
-// Pick one of several options - resolves the chosen value, or null.
+// pick one option, null if cancelled
 async function showAppSelect(message, options, { title = "Choose", confirmLabel = "Continue" } = {}) {
   const optionsHtml = options.map((o) => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join("");
   const ok = await showAppConfirm(message, {
@@ -178,13 +162,11 @@ async function showAppSelect(message, options, { title = "Choose", confirmLabel 
   return ok ? document.getElementById("appDialogSelect").value : null;
 }
 
-// Bootstrap can't stack modals: wait until one is fully closed before the
-// next opens.
+// bootstrap cant stack modals so wait for one to close first
 function hideModalAndWait(el) {
   const modal = bootstrap.Modal.getInstance(el);
   if (!modal || !el.classList.contains("show")) return Promise.resolve();
-  // A modal still opening ignores hide(), so keep asking until it's gone
-  // (gives up after 3 s rather than waiting forever).
+  // keeps asking a still-opening modal to hide, gives up after 3s
   return new Promise((resolve) => {
     const started = Date.now();
     const check = () => {
@@ -199,22 +181,18 @@ function hideModalAndWait(el) {
 
 // =====================================================================
 // ---- shared limits ----
-// Firestore allows 500 writes in one batch; groups of 400 leave room.
+// firestore allows 500 writes per batch, 400 leaves room
 const FIRESTORE_BATCH_LIMIT = 400;
-// A wholesale buyer's LTO / Business Permit counts as "expiring" this many
-// days before its end date (REQ086).
+// wholesale documents count as expiring this many days before
 const DOCUMENT_EXPIRY_WARNING_DAYS = 30;
-// Excel's own limits: a sheet name of 31 characters, 32,767 per cell (the
-// backup cuts cells a little earlier).
+// excel limits, the backup cuts cells a bit earlier
 const EXCEL_SHEET_NAME_MAX = 31;
 const EXCEL_CELL_MAX_CHARS = 32000;
-// A live listener that hasn't heard from the server by then answers from a
-// plain read instead.
+// live listener falls back to a plain read after this long offline
 const LIVE_QUERY_OFFLINE_MS = 10000;
 
 // =====================================================================
 // ---- catalog ----
-// The shared product list (CATALOG_PRODUCTS) and looking products up in it.
 
 let CATALOG_PRODUCTS = [];
 
@@ -226,18 +204,13 @@ function getProductById(id) {
   return CATALOG_PRODUCTS.find((p) => String(p.id) === String(id));
 }
 
-// A product only appears in the storefront once staff have marked it
-// available online (and it's active) - staff can create a product ahead
-// of time without it showing to customers yet. Once it has appeared,
-// running out of stock doesn't remove it - it stays visible, greyed out
-// and not orderable (see renderProductCard), rather than disappearing.
+// only active products marked available online show in the shop
 function storefrontCatalog() {
   return CATALOG_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore);
 }
 
-// ---- Duplicate product names ----
-// Two products are the same when their names match ignoring capitals,
-// spaces and punctuation ("Losaar 50 (100's)" = "LOSAAR-50 (100S)").
+// ---- duplicate product names ----
+// same name ignoring caps, spaces and dots
 function productNameKey(name) {
   return String(name || "").toUpperCase().replace(/[^A-Z0-9]+/g, "");
 }
@@ -248,11 +221,8 @@ function findProductByName(name, exceptId = null) {
   return CATALOG_PRODUCTS.find((p) => p.id !== exceptId && productNameKey(p.name) === key) || null;
 }
 
-/* ---------- SKU generation (same pattern as order numbers) ---------- */
-// Never hands out a code that's already taken: it starts past the highest
-// MED- code in the catalog (in case the counter was reset), and the counter
-// is claimed in a transaction so two staff adding products at the same
-// moment don't get the same number.
+// ---------- sku generation ----------
+// never reuses a taken code, starts past the highest med- code
 async function generateProductSku() {
   const counterRef = db.collection("counters").doc("products");
   const used = new Set(CATALOG_PRODUCTS.map((p) => String(p.sku || "").toUpperCase()));
@@ -282,9 +252,7 @@ function nearExpiryCutoff() {
   return cutoff;
 }
 
-// Retail (online + POS) can only ever sell a batch that's active and more
-// than NEAR_EXPIRY_MONTHS from expiring (REQ066). Wholesale may also take
-// near-expiry and wholesale_only stock, but nobody may sell an expired batch.
+// retail only sells active batches not close to expiry
 function isRetailSellableBatch(batch) {
   return batch.status === "active" && (batch.quantity || 0) > 0 && new Date(batch.expirationDate) > nearExpiryCutoff();
 }
@@ -305,13 +273,7 @@ const BATCH_STATUS_LABELS = {
   expired: "Expired",
 };
 
-// Shared severity -> color so the inventory status pills, both
-// notification dropdowns, and the Notifications page all agree on what
-// each urgency level looks like. Backed by research (see conversation):
-// green = good stock, amber = needs attention (low stock or near expiry -
-// same color, told apart by icon/label per WCAG 1.4.1), charcoal = out of
-// stock (neutral/unavailable, not "dangerous"), red = reserved for the
-// genuinely hazardous case - expired medication.
+// severity colors shared by the pills and notifications
 const SEVERITY_COLORS = {
   danger: "#EE3137",
   warning: "#b8860b",
@@ -319,23 +281,7 @@ const SEVERITY_COLORS = {
   success: "#1a9c4b",
 };
 
-// Stock level and expiry are two INDEPENDENT dimensions, not one
-// mutually-exclusive status - a batch can be both low on stock and near
-// expiry at the same time (e.g. 1 unit left, expiring tomorrow), and both
-// need their own flag. These used to be collapsed into a single
-// getBatchStatus() with a fixed priority order (expired > near_expiry >
-// low_stock), so a near-expiry batch that was ALSO low on stock only ever
-// reported "near_expiry" - the low-stock condition was silently masked
-// and never showed up on the pill, in notifications, or in the Low Stock
-// count. Keep each axis separate everywhere it matters.
-// totalStockOverride lets a caller that already has every batch in hand
-// (the Inventory table) pass the product's REAL total physical stock
-// (every batch, any status) instead of falling back to
-// CATALOG_PRODUCTS.totalStock, which is deliberately active-only (that
-// number also drives the storefront's "in stock" check, which must never
-// promise a customer stock that's actually reserved for wholesale). For
-// inventory ALERTING, a wholesale_only batch's units still physically
-// exist and still count - see sumPhysicalStockByProduct.
+// stock level and expiry are separate, a batch can be both
 function getStockLevelStatus(batch, totalStockOverride) {
   const product = getProductById(batch.productId);
   const reorderPoint = (product && product.reorderPoint) || DEFAULT_REORDER_POINT;
@@ -358,24 +304,13 @@ function getExpiryStatus(batch) {
   return "normal";
 }
 
-// Every status that currently applies to this batch - 1 entry normally,
-// 2 when both a stock-level and an expiry condition are both true at
-// once. Used wherever something needs to check or display all of them,
-// not just whichever one used to "win."
+// every status that applies to this batch
 function getBatchStatuses(batch, totalStockOverride) {
   const statuses = [getStockLevelStatus(batch, totalStockOverride), getExpiryStatus(batch)].filter((s) => s !== "normal");
   return statuses.length > 0 ? statuses : ["normal"];
 }
 
-// Sums every batch's own quantity per product, regardless of status - a
-// wholesale_only batch still physically exists on a shelf, it's just
-// blocked from RETAIL sale. That's a separate, correct restriction
-// (CATALOG_PRODUCTS.totalStock stays active-only on purpose, so the
-// storefront never promises a customer stock that's actually reserved for
-// wholesale). But for INVENTORY alerting - "how much do we physically
-// have, are we running low" - counting only active stock made a product
-// whose only batch had gone wholesale_only (because it's near expiry)
-// read as having 0 units, even while that unit still sits on the shelf.
+// physical stock per product, any status
 function sumPhysicalStockByProduct(batches) {
   const map = {};
   batches.forEach((b) => {
@@ -384,15 +319,8 @@ function sumPhysicalStockByProduct(batches) {
   return map;
 }
 
-// ---- Accurate inventory alert counts (Dashboard's Low Stock/Near-Expiry
-// tiles, Inventory's stat tiles) ----
-// Low stock and out of stock are PRODUCT-level facts (judged on a
-// product's combined physical stock across all its batches) - counting
-// every batch that reports them, as the two pages used to do separately,
-// double-counts a product split across several lots. Near-expiry/expired
-// stay per-batch, since each physical lot has its own expiry and needs
-// its own decision - these counts simply mirror whatever the Inventory
-// table itself labels a batch, so the tile and the row never disagree.
+// ---- inventory alert counts ----
+// per product, used by the dashboard and inventory tiles
 async function computeInventoryAlertCounts(batchesOverride = null) {
   await loadCatalogCache();
   const batches = batchesOverride || (await liveStockBatches()).docs.map((doc) => doc.data());
@@ -401,7 +329,7 @@ async function computeInventoryAlertCounts(batchesOverride = null) {
   let nearExpiry = 0;
   let expired = 0;
   batches.forEach((b) => {
-    if (b.quantity === 0) return; // an already-empty lot isn't a live expiry concern
+    if (b.quantity === 0) return; // empty lots dont count for expiry
     const status = getExpiryStatus(b);
     if (status === "near_expiry") nearExpiry += 1;
     if (status === "expired") expired += 1;
@@ -420,20 +348,10 @@ async function computeInventoryAlertCounts(batchesOverride = null) {
 // =====================================================================
 // ---- staff notifications ----
 
-// ---- Staff notifications (bell dropdown, sidebar badge, Notifications
-// page) - computed fresh from live data every time, same as before, so an
-// alert can never go stale or get missed. What's new is read/unread: each
-// notification carries a stable `key` (what it's about) and a `signature`
-// (a snapshot of the part that can change, like quantity). A per-staff
-// "read" map records the signature that was current when they last saw it,
-// so if the same batch goes low, gets read, then drops further, it's
-// unread again - marking read never permanently silences a recurring
-// problem. ----
+// ---- staff notifications ----
+// built fresh from live data each time
 
-// The header bell runs this on every staff page, so getStaffNotificationsCached()
-// reuses the result for two minutes within the tab (the Notifications page
-// always reads fresh). Orders and POs are read only in the one status that
-// raises an alert, not the whole history.
+// bell reuses the result for two minutes
 const STAFF_NOTIF_CACHE_KEY = "amsonStaffNotifs";
 
 const STAFF_NOTIF_CACHE_MS = 2 * 60 * 1000;
@@ -446,11 +364,7 @@ async function getStaffNotificationsCached() {
   return rememberStaffNotifications(await computeStaffNotifications());
 }
 
-// Lets a page that just read the alerts fresh (Notifications) share them
-// with the bell, so the two never disagree.
-// `savedAt` stays the time of the last full read when the bell's live
-// listeners swap in fresh order/chat alerts, so stock alerts still get a
-// full re-read every two minutes on a busy day.
+// lets the notifications page share its fresh list with the bell
 function rememberStaffNotifications(notifications, savedAt = Date.now()) {
   try {
     sessionStorage.setItem(STAFF_NOTIF_CACHE_KEY, JSON.stringify({ savedAt, notifications }));
@@ -467,8 +381,7 @@ function staffNotificationsSavedAt() {
   }
 }
 
-// Order and chat alerts are built the same way here and by the bell's live
-// listeners (admin-header.js), which swap just these in as they change.
+// same order and chat alerts as the bells live listeners
 function staffNotifMillis(v) {
   return v && v.toMillis ? v.toMillis() : v ? new Date(v).getTime() || 0 : 0;
 }
@@ -513,9 +426,7 @@ async function computeStaffNotifications() {
     liveQuery("purchaseOrders:discrepancy", db.collection("purchaseOrders").where("status", "==", "discrepancy")),
   ]);
 
-  // Each notification carries a category (for the Stock / Orders / Live
-  // Chat filters) and `at`, when it happened, so lists show newest first.
-  // The order here is kept so alerts with the same time stay in this order.
+  // each one has a category for the filters and a time
   const notifications = [
     ...stockLevelAlerts(batchSnapshot),
     ...expiryAlerts(batchSnapshot),
@@ -528,12 +439,12 @@ async function computeStaffNotifications() {
     ...(await waitingChatAlerts()),
   ];
 
-  // Newest first; urgency is shown by each row's colour and label instead.
+  // newest first
   notifications.sort((a, b) => (b.at || 0) - (a.at || 0));
   return notifications;
 }
 
-// Low and out-of-stock alerts, one per product.
+// low and out of stock, one per product
 function stockLevelAlerts(batchSnapshot) {
   const notifications = [];
   const lastStockChange = {};
@@ -542,13 +453,11 @@ function stockLevelAlerts(batchSnapshot) {
     lastStockChange[b.productId] = Math.max(lastStockChange[b.productId] || 0, staffNotifMillis(b.lastAdjustedAt || b.createdAt));
   });
 
-  // Low / out of stock per product, on its physical stock across all
-  // batches - the same rule as the Inventory and Dashboard tiles.
+  // based on physical stock across all batches
   const physicalStockByProduct = sumPhysicalStockByProduct(batchSnapshot.docs.map((doc) => doc.data()));
   CATALOG_PRODUCTS.filter((p) => p.status === "active").forEach((product) => {
     const stock = physicalStockByProduct[product.id] || 0;
-    // A product that has never had a batch (just added, stock not received
-    // yet) isn't "out of stock" - only one that had stock and ran out.
+    // products that never had a batch arent out of stock yet
     if (stock === 0 && !(product.id in lastStockChange)) return;
     if (stock === 0) {
       notifications.push({
@@ -577,12 +486,12 @@ function stockLevelAlerts(batchSnapshot) {
   return notifications;
 }
 
-// Expired and near-expiry batches that still hold stock.
+// expired and near expiry batches that still have stock
 function expiryAlerts(batchSnapshot) {
   const notifications = [];
   batchSnapshot.docs.forEach((doc) => {
     const batch = { id: doc.id, ...doc.data() };
-    // An empty lot isn't an expiry concern any more.
+    // empty lots dont count for expiry
     if (batch.status !== "active" || !(batch.quantity > 0)) return;
     const product = getProductById(batch.productId);
     const productName = product ? product.name : "Unknown product";
@@ -603,7 +512,7 @@ function expiryAlerts(batchSnapshot) {
       notifications.push({
         key: `near_expiry:${batch.id}`,
         category: "stock",
-        // the day it came within NEAR_EXPIRY_MONTHS of expiring
+        // the day it got close to expiring
         at: (() => {
           const d = new Date(`${batch.expirationDate}T00:00:00`);
           d.setMonth(d.getMonth() - NEAR_EXPIRY_MONTHS);
@@ -620,7 +529,7 @@ function expiryAlerts(batchSnapshot) {
   return notifications;
 }
 
-// Purchase orders with a delivery discrepancy to acknowledge.
+// pos with a delivery discrepancy to acknowledge
 function poDiscrepancyAlerts(poSnapshot) {
   const notifications = [];
   poSnapshot.docs.forEach((doc) => {
@@ -639,11 +548,10 @@ function poDiscrepancyAlerts(poSnapshot) {
   return notifications;
 }
 
-// Products waiting for a Branch Manager to set prices.
+// products waiting for prices
 function pricePendingAlerts() {
   const notifications = [];
-  // Products other staff added without prices stay Inactive until the
-  // Branch Manager prices them - make sure that's visible.
+  // products added without prices stay inactive until priced
   const pricePending = CATALOG_PRODUCTS.filter((p) => p.pricePending);
   if (pricePending.length > 0) {
     notifications.push({
@@ -660,10 +568,10 @@ function pricePendingAlerts() {
   return notifications;
 }
 
-// Bad Order batches waiting to be disposed of.
+// bad order batches waiting for disposal
 function badOrderAlerts(batchSnapshot) {
   const notifications = [];
-  // Bad Order batches still waiting to be physically disposed of (REQ067).
+  // bad order batches not disposed of yet
   const pending = batchSnapshot.docs.filter((d) => d.data().status === "bad_order" && !d.data().disposedAt);
   if (pending.length) {
     notifications.push({
@@ -680,11 +588,10 @@ function badOrderAlerts(batchSnapshot) {
   return notifications;
 }
 
-// Wholesale buyers with an expired or soon-expiring LTO / Business Permit.
+// wholesale buyers with expired or expiring documents
 async function wholesaleDocumentAlerts() {
   const notifications = [];
-  // Wholesale buyers whose LTO or Business Permit has expired or expires
-  // within 30 days (REQ086).
+  // lto or business permit expired or expiring within 30 days
   try {
     const accounts = await db.collection("wholesaleAccounts").get();
     const soon = Date.now() + DOCUMENT_EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000;
@@ -697,7 +604,7 @@ async function wholesaleDocumentAlerts() {
       notifications.push({
         key: "wholesale_documents",
         category: "orders",
-        // 30 days before the soonest document runs out
+        // 30 days before the first document expires
         at: Math.min(
           ...flagged.map((d) => Math.min(...[d.data().ltoValidUntil, d.data().permitValidUntil].filter(Boolean).map((v) => staffNotifMillis(`${v}T00:00:00`))))
         ) - DOCUMENT_EXPIRY_WARNING_DAYS * 24 * 60 * 60 * 1000,
@@ -714,10 +621,10 @@ async function wholesaleDocumentAlerts() {
   return notifications;
 }
 
-// Wholesale orders not yet picked up or delivered.
+// wholesale orders not picked up or delivered
 async function wholesaleReleaseAlerts() {
   const notifications = [];
-  // Wholesale orders recorded but not yet picked up or delivered.
+  // wholesale orders still waiting for release
   try {
     const pending = await db.collection("wholesaleOrders").where("releaseStatus", "==", "pending").get();
     if (!pending.empty) {
@@ -738,11 +645,10 @@ async function wholesaleReleaseAlerts() {
   return notifications;
 }
 
-// Chats handed over to staff.
+// chats handed to staff
 async function waitingChatAlerts() {
   const notifications = [];
-  // Chats the assistant handed to staff (REQ038). Never blocks the other
-  // alerts if chat isn't set up yet.
+  // chats waiting for staff, never blocks the other alerts
   try {
     const waiting = await db.collection("chatThreads").where("status", "==", "waiting_staff").get();
     notifications.push(...staffChatNotifications(waiting.docs));
@@ -763,11 +669,7 @@ function isStaffNotifRead(readMap, notif) {
   return readMap[notif.key] === notif.signature;
 }
 
-// set(..., {merge:true}) does NOT reliably merge into a nested map via a
-// dotted-string key - only update() does that. update() fails outright if
-// the document doesn't exist yet (true the first time a given staff member
-// ever reads a notification), so ensure it exists first with a harmless
-// empty merge, then do the real nested-field write with update().
+// update() since set with merge doesnt handle dotted keys right
 async function markStaffNotifRead(uid, notif) {
   const ref = db.collection("notifications").doc(uid);
   await ref.set({}, { merge: true });
@@ -788,17 +690,10 @@ async function markAllStaffNotifsRead(uid, notifications) {
 // =====================================================================
 // ---- expiry rules (near-expiry, bad order, write-offs) ----
 
-// ---- Near-expiry and Bad Order auto-handling ----
+// ---- near expiry and bad order auto handling ----
 const BAD_ORDER_MONTHS = 2;
 
-// Expiry rules, run whenever staff open Inventory or the Dashboard:
-//   - within 6 months: Wholesale Only (no retail sale) - REQ066
-//   - within 2 months (or expired): Bad Order - the remaining units are
-//     written off automatically, recorded as a write-off and in the Audit
-//     Log, and staff get a disposal alert until someone marks the batch
-//     disposed - REQ067
-// `batchesOverride`: a page that already holds every batch live (Inventory)
-// passes them in, so the check costs no extra reads.
+// runs when inventory or the dashboard opens: near expiry goes wholesale only, then bad order
 async function enforceExpiryStatus(batchesOverride = null) {
   const batches = batchesOverride
     ? batchesOverride.filter((b) => b.status === "active" || b.status === "wholesale_only")
@@ -842,7 +737,7 @@ async function markBatchBadOrder(batchId) {
     const doc = await tx.get(ref);
     if (!doc.exists) return;
     const batch = doc.data();
-    // Another staff page may have done it a moment ago.
+    // another page may have done it already
     if (batch.status === "bad_order" || (batch.quantity || 0) <= 0) return;
     const reason = `Bad Order - within ${BAD_ORDER_MONTHS} months of expiry (${formatDateMDY(batch.expirationDate)}), deducted automatically`;
     tx.update(ref, {
@@ -877,7 +772,7 @@ async function markBatchBadOrder(batchId) {
   }
 }
 
-// The day a write-off happened: the date staff picked, else when it was saved.
+// write-off date staff picked, else when it was saved
 function writeOffEffectiveDate(w) {
   if (w.writeOffDate) return new Date(`${w.writeOffDate}T12:00:00`);
   return w.createdAt && w.createdAt.toDate ? w.createdAt.toDate() : null;
@@ -886,9 +781,7 @@ function writeOffEffectiveDate(w) {
 // =====================================================================
 // ---- catalog loading (live reads, short browser copy, staff-only prices) ----
 
-// The branch's own groupings (one sheet each in its month-end inventory
-// report). Only used to seed a brand-new project - after that, categories
-// are whatever staff manage under Products > Manage Categories.
+// default categories, only used to seed a new project
 const DEFAULT_CATEGORIES = {
   generics: "Generics",
   branded: "Branded",
@@ -896,12 +789,8 @@ const DEFAULT_CATEGORIES = {
   "medical-supplies": "Medical Supplies",
 };
 
-// ---- Live reads (see LIVE_READS in firebase-config.js) ----
-// liveQuery(key, query) answers like query.get(): it waits for data the
-// server has confirmed, so callers see exactly what a fresh read would show.
-// Underneath it keeps a listener open for the rest of the page's life, so
-// later calls return the latest data instantly.
-// One listener per key: queries that read the same data share a key.
+// ---- live reads ----
+// liveQuery works like get() but keeps listening
 const liveQueries = new Map();
 
 function liveQuery(key, query) {
@@ -920,10 +809,7 @@ function liveQuery(key, query) {
         entry.latest = snapshot;
         resolve();
       };
-      // Offline: after a while, answer from the browser copy rather than wait
-      // forever (a plain read would have failed outright instead). No answer
-      // at all by then (a stalled listener): try a plain read instead, so a
-      // page never waits forever.
+      // offline too long so answer from the browser copy
       const offlineTimer = setTimeout(() => {
         if (entry.latest) {
           answer(entry.latest);
@@ -939,13 +825,11 @@ function liveQuery(key, query) {
           () => {}
         );
       }, LIVE_QUERY_OFFLINE_MS);
-      // Opened only after the sign-in check (authGate, firebase-config.js):
-      // a listener open while that check signs someone out never answered.
+      // opens only after the sign-in check
       authGate.then(() => query.onSnapshot(
         { includeMetadataChanges: true },
         (snapshot) => {
-          // version counts snapshots that changed data (not just metadata),
-          // so liveSnapshotAfter() can wait for a change it caused.
+          // counts real data changes, not just metadata
           if (snapshot.docChanges().length) {
             entry.version += 1;
             const waiters = entry.waiters;
@@ -957,8 +841,7 @@ function liveQuery(key, query) {
           else entry.latest = snapshot;
         },
         () => {
-          // Listener refused or dropped: fall back to a plain read so the page
-          // still loads, and let the next call open a new listener.
+          // listener failed so do a plain read instead
           liveQueries.delete(key);
           if (answered) return;
           answered = true;
@@ -972,19 +855,17 @@ function liveQuery(key, query) {
     });
     entry.firstAnswer.catch(() => liveQueries.delete(key));
   }
-  // After the first server-confirmed answer, always the newest snapshot.
+  // newest snapshot after the first answer
   return entry.firstAnswer.then(() => entry.latest);
 }
 
-// The live data version of a key right now (0 when it has no listener).
+// current data version for a key, 0 if no listener
 function liveVersion(key) {
   const entry = liveQueries.get(key);
   return entry ? entry.version : 0;
 }
 
-// Waits until the listener for key has delivered a change after version
-// (e.g. the stock change of a sale just made). Resolves false if none arrives
-// within timeoutMs, so the caller can fall back to a plain read.
+// waits for a change after the given version
 function liveSnapshotAfter(key, version, timeoutMs = 3000) {
   const entry = liveQueries.get(key);
   if (!entry || !entry.latest) return Promise.resolve(false);
@@ -998,17 +879,12 @@ function liveSnapshotAfter(key, version, timeoutMs = 3000) {
   });
 }
 
-// Every stock batch, live. The catalog, the bell, the dashboard tiles and the
-// expiry rules all read batches, so they share this one listener.
+// every stock batch, live, shared by everything that reads batches
 function liveStockBatches() {
   return liveQuery("stockBatches", db.collection("stockBatches"));
 }
 
-// Shop pages keep a copy of the catalog in the browser for a few minutes, so
-// each page a customer opens doesn't re-read every product and batch
-// (Firestore's free plan allows about 50,000 reads a day). Staff pages always
-// read fresh, and checkout re-checks stock and prices
-// live (clearCatalogCache) before an order is created.
+// shop pages keep the catalog in the browser for a few minutes
 const CATALOG_CACHE_KEY = "amsonCatalogCache";
 
 const CATALOG_CACHE_MS = 5 * 60 * 1000;
@@ -1024,7 +900,7 @@ function clearCatalogCache() {
   } catch (error) {}
 }
 
-// Timestamps are saved as {__ms} and turned back into Timestamps on read.
+// timestamps saved as {__ms} and turned back on read
 function catalogCacheReplacer(key, value) {
   return value && typeof value === "object" && typeof value.toMillis === "function" ? { __ms: value.toMillis() } : value;
 }
@@ -1045,37 +921,28 @@ function readCatalogBrowserCache() {
 function writeCatalogBrowserCache() {
   if (!catalogBrowserCacheAllowed()) return;
   try {
-    // Timestamps are converted by the replacer before JSON.stringify sees them.
+    // replacer converts timestamps before stringify
     const toJson = (v) => JSON.stringify(v, function (key) {
       return catalogCacheReplacer(key, this[key]);
     });
     localStorage.setItem(CATALOG_CACHE_KEY, toJson({ savedAt: Date.now(), categories: CATEGORY_LABELS, products: CATALOG_PRODUCTS }));
   } catch (error) {
-    // Storage full or blocked - just read live next time.
+    // storage full or blocked, read live next time
   }
 }
 
-// The page's first catalog load reads through the live listeners (cheap, and
-// they stay open). A reload forced after this page changed something reads
-// plainly from the server, as before, so it can never show numbers from
-// before that change - except afterStockChange (POS sale/void), which waits
-// for the live listener to deliver that change and only falls back to a
-// plain read if it hasn't arrived within a few seconds.
+// first load uses the live listeners
 let catalogLoadedOnce = false;
 
-// ---- Staff-only prices ----
-// Costing and wholesale prices (productPrices/{productId}) and batch unit
-// costs (batchCosts/{batchId}) are kept out of the public product and stock
-// records, so nobody can read them through the online store. Staff pages
-// merge them back in, so every screen and report works as before.
+// ---- staff-only prices ----
+// cost and wholesale prices live in their own staff-only docs
 const PRIVATE_PRICE_FIELDS = ["costingPrice", "wholesalePrice"];
 
 function isStaffPage() {
   return /\/admin\//.test(window.location.pathname);
 }
 
-// productId -> { costingPrice, wholesalePrice }; empty off staff pages or if
-// this account can't read them.
+// productId -> { costingPrice, wholesalePrice }, empty if not allowed
 async function loadPrivatePrices(useLive) {
   if (!isStaffPage()) return new Map();
   try {
@@ -1097,7 +964,7 @@ async function loadPrivatePrices(useLive) {
   }
 }
 
-// Writes a product's staff-only prices (inside a batch or transaction).
+// writes a products staff-only prices
 function setPrivatePrices(writer, productId, prices) {
   const data = {};
   PRIVATE_PRICE_FIELDS.forEach((field) => {
@@ -1107,8 +974,7 @@ function setPrivatePrices(writer, productId, prices) {
   writer.set(db.collection("productPrices").doc(productId), data, { merge: true });
 }
 
-// Batches with their unit cost (and each delivery's) put back, for the
-// staff exports and reports that show costs. Takes { id, ...data } objects.
+// puts batch costs back for staff exports and reports
 async function attachBatchCosts(batches) {
   let snap;
   try {
@@ -1141,7 +1007,7 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
     }
 
     await authGate;
-    // In parallel: three round trips one after another made every page wait.
+    // in parallel so pages dont wait on three trips
     let useLive = !catalogLoadedOnce;
     if (!useLive && afterStockChange != null) useLive = await liveSnapshotAfter("stockBatches", afterStockChange);
     const [categorySnapshot, productSnapshot, allBatchSnapshot, privatePrices] = await Promise.all(
@@ -1158,10 +1024,7 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
       CATEGORY_LABELS[doc.id] = doc.data().name;
     });
 
-    // Sellable retail stock is judged by expiry date right here, not only by
-    // the wholesale_only flag - that flag is only applied when someone opens
-    // the Inventory page (enforceExpiryStatus), so relying on it alone left
-    // near-expiry batches buyable online and at the POS until then.
+    // retail stock is judged by expiry date right here
     const stockByProduct = {};
     batchSnapshot.docs.forEach((doc) => {
       const batch = doc.data();
@@ -1186,7 +1049,7 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
     writeCatalogBrowserCache();
     return { products: CATALOG_PRODUCTS, categories: CATEGORY_LABELS };
   })();
-  // A failed load shouldn't stick for the rest of the page's life.
+  // a failed load shouldnt stick
   catalogLoadPromise.catch(() => {
     catalogLoadPromise = null;
   });
@@ -1197,8 +1060,8 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
 // =====================================================================
 // ---- progress pop-up for long jobs ----
 
-// ---- Progress / result pop-up for long jobs (imports, photos, stock) ----
-// Built on first use, so any staff page can call it without extra markup.
+// ---- progress / result popup ----
+// built on first use
 let taskModalEl = null;
 
 function ensureTaskModal() {
@@ -1251,7 +1114,7 @@ function updateTaskProgress(done, total, label = "") {
   document.getElementById("taskModalProgressText").textContent = total > 1 || done ? `${done} of ${total}${label ? ` - ${label}` : ""}` : "";
 }
 
-// Resolves with the clicked action's key once the pop-up has closed.
+// resolves with the clicked action after the popup closes
 function showTaskResult({ type = "success", title, message = "", list = [], actions = [{ key: "done", label: "Done", primary: true }] }) {
   ensureTaskModal();
   const icon = document.getElementById("taskModalIcon");
@@ -1284,15 +1147,13 @@ function showTaskResult({ type = "success", title, message = "", list = [], acti
 // =====================================================================
 // ---- staff form helpers (toggles, searchable dropdowns, item lists) ----
 
-// ---- Alert messages on the staff forms ----
-// Shows a message in a form's alert box (the box starts hidden with d-none).
+// ---- form alert messages ----
 function showFormAlert(el, message) {
   el.textContent = message;
   el.classList.remove("d-none");
 }
 
-// ---- On/off (segmented) toggles used by the staff forms ----
-// Products, Suppliers and Wholesale Accounts.
+// ---- on/off toggles on staff forms ----
 function wireSegmentedToggle(container) {
   container.querySelectorAll(".segmented-toggle-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -1312,11 +1173,9 @@ function getToggleValue(container) {
   return container.querySelector(".segmented-toggle-btn.active").dataset.value;
 }
 
-// ---- Searchable dropdowns (Choices.js) and "Item 1, Item 2..." lists ----
-// Inventory, Wholesale Accounts and the POS.
+// ---- searchable dropdowns and item lists ----
 
-// Products A-Z by name, for product dropdowns (the catalog itself stays in
-// database order).
+// products a-z for dropdowns, catalog stays in db order
 function productsByName(products = CATALOG_PRODUCTS) {
   return products.slice().sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 }
@@ -1394,16 +1253,14 @@ if (document.querySelector(".category-nav") || document.getElementById("homeCate
 }
 
 // =====================================================================
-// ---- formatting (dates, money, text, links, PDF) ----
+// ---- formatting (dates, money, text, links, pdf) ----
 
-// A date as YYYY-MM-DD on the branch's own calendar. Built from the local
-// date parts, not toISOString(): that is UTC, which is still yesterday until
-// 8 AM in the Philippines (and an Excel date cell is local midnight).
+// yyyy-mm-dd on the local calendar, not toISOString
 function localISODate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// MM/DD/YYYY (REQNF028) for a Firestore Timestamp, Date, or ISO string.
+// mm/dd/yyyy for a timestamp, date or iso string
 function formatDateMDY(value, withTime = false) {
   if (!value) return "";
   const date = value.toDate ? value.toDate() : new Date(value);
@@ -1420,19 +1277,13 @@ function escapeHtml(text) {
   return String(text == null ? "" : text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
-// ---- Storefront category links ----
-// Built from the categories collection, so a category staff add or rename
-// in Manage Categories shows up in the shop header (and on the home page)
-// without editing every page's HTML.
-// Only http(s) links from uploaded files are used as links; anything else
-// (e.g. a "javascript:" address written straight to the database) isn't.
+// ---- storefront category links ----
+// built from the categories collection
 function safeUrl(url) {
   return typeof url === "string" && /^https?:\/\//i.test(url) ? url : "#";
 }
 
-// jsPDF's built-in fonts can't draw some characters - the peso sign came
-// out as "±" - so every PDF is created through createPdf(), which swaps
-// them for plain text as the PDF is written.
+// jspdf fonts cant draw some characters like the peso sign so swap them
 const PDF_TEXT_SWAPS = [
   [/₱\s?/g, "PHP "],
   [/→/g, "->"],
@@ -1445,8 +1296,7 @@ function pdfSafeText(text) {
   return PDF_TEXT_SWAPS.reduce((t, [pattern, plain]) => t.replace(pattern, plain), text);
 }
 
-// Opens a finished PDF with the browser's print window (Save as PDF is in
-// there too). If the browser blocks the new tab, the file downloads instead.
+// opens the pdf in the print window, downloads if blocked
 function printPdf(doc, filename) {
   doc.autoPrint();
   const win = window.open(doc.output("bloburl"), "_blank");
@@ -1465,12 +1315,8 @@ function createPdf(options) {
 // =====================================================================
 // ---- receipts ----
 
-// ---- Shared walk-in sale receipt - used both right after a POS checkout
-// (admin-pos.js) and when staff reopen a past sale from the Walk-in
-// Orders tab (admin-online-orders.js). Both pages include the same
-// #posReceiptModal markup so this one renderer works for either. ----
-// "card" and "ewallet" are the older POS values, kept so past sales still
-// display correctly.
+// ---- walk-in sale receipt ----
+// used by the pos and when reopening a sale
 const SALE_RECEIPT_PAYMENT_METHOD_LABELS = {
   cash: "Cash",
   gcash: "G-Cash / QR Ph",
@@ -1484,21 +1330,18 @@ const SALE_RECEIPT_PAYMENT_METHOD_LABELS = {
 
 const POS_BRANCH_NAME = "Amson Pharmaceuticals";
 
-// Shows the sale receipt pop-up: fills it in, sets up its buttons, and marks
-// a voided sale. Used by the POS (preview before confirming, and after),
-// Walk-in Orders and online order receipts.
+// shows the receipt popup
 function showSaleReceipt(receipt) {
   const modalEl = document.getElementById("posReceiptModal");
   fillReceipt(receipt);
   setReceiptButtons(modalEl, receipt);
   showVoidBanner(modalEl, receipt);
   bootstrap.Modal.getOrCreateInstance(modalEl).show();
-  // Every finished sale gets a paper copy: the print window opens by itself
-  // once the receipt is on screen (the Print button is there for reprints).
+  // print window opens by itself once the receipt shows
   if (receipt.autoPrint) setTimeout(() => window.print(), 500);
 }
 
-// The receipt's details: store, date, SI No., customer, items and payment.
+// receipt details: store, date, si no., customer, items, payment
 function fillReceipt({
   items,
   total,
@@ -1521,8 +1364,7 @@ function fillReceipt({
     hour: "numeric",
     minute: "2-digit",
   });
-  // The SI# is only assigned when the sale is actually confirmed, so the
-  // pre-confirm review can't show it yet.
+  // si no. only exists after confirm
   document.getElementById("posReceiptRef").textContent = invoiceNo || (onConfirm ? "Assigned on confirm" : "-");
   document.getElementById("posReceiptCustomer").textContent = customerName || "Walk-in";
   document.getElementById("posReceiptCashier").textContent = cashier;
@@ -1560,15 +1402,11 @@ function fillReceipt({
   }
 }
 
-// The buttons under the receipt. Before a POS sale is confirmed: Edit and
-// Confirm. Otherwise: Print, Close, and Void / Return-Exchange for roles
-// allowed to do those.
+// receipt buttons, edit and confirm before the sale is saved
 function setReceiptButtons(modalEl, { onConfirm = null, onEdit = null, onVoid = null, onExchange = null }) {
   const footer = document.getElementById("posReceiptModalFooter");
   if (onConfirm) {
-    // Preview mode (POS, before the sale is actually committed) - give
-    // the cashier a chance to catch a mistake before stock gets deducted
-    // and the sale gets written, rather than after.
+    // preview mode so the cashier can catch mistakes
     footer.innerHTML = `
       <button type="button" class="btn btn-outline-dark-amson flex-fill" id="posReceiptEditBtn">Edit Transaction</button>
       <button type="button" class="btn btn-amson flex-fill" id="posReceiptConfirmBtn">Confirm Transaction</button>
@@ -1581,8 +1419,7 @@ function setReceiptButtons(modalEl, { onConfirm = null, onEdit = null, onVoid = 
       const btn = ev.currentTarget;
       btn.disabled = true;
       try {
-        // onConfirm returns true when it has already replaced this
-        // preview with the finished receipt (which must stay open).
+        // true means the preview was already replaced by the final receipt
         const keepOpen = await onConfirm();
         if (!keepOpen) bootstrap.Modal.getOrCreateInstance(modalEl).hide();
       } finally {
@@ -1590,8 +1427,7 @@ function setReceiptButtons(modalEl, { onConfirm = null, onEdit = null, onVoid = 
       }
     });
   } else {
-    // View mode (Walk-in Orders, Today's Sales, or right after a sale is
-    // confirmed): print it, and - for authorized roles - void it.
+    // view mode: print, plus void or return if allowed
     footer.innerHTML = `
       ${onVoid ? `<button type="button" class="btn btn-outline-danger" id="posReceiptVoidBtn">Void</button>` : ""}
       ${onExchange ? `<button type="button" class="btn btn-outline-dark-amson" id="posReceiptExchangeBtn">Return / Exchange</button>` : ""}
@@ -1614,7 +1450,7 @@ function setReceiptButtons(modalEl, { onConfirm = null, onEdit = null, onVoid = 
   }
 }
 
-// A voided (or partly voided) sale still opens - it's a record - clearly marked.
+// voided sales still open but are marked
 function showVoidBanner(modalEl, { voidInfo = null, partialVoidInfo = null }) {
   let voidBanner = document.getElementById("posReceiptVoidBanner");
   if (!voidBanner) {
@@ -1633,20 +1469,13 @@ function showVoidBanner(modalEl, { voidInfo = null, partialVoidInfo = null }) {
 // =====================================================================
 // ---- voids ----
 
-// ---- Walk-in sale void (REQ083, Fig 2.6/2.14) ----
-// Only roles with void authorization (Branch Manager, Technical Staff)
-// can void - never Sales Staff alone, per the client.
+// ---- walk-in sale void ----
+// only roles allowed to void
 function roleCanVoidSales(role) {
   return ["admin", "branch_manager", "technical_staff"].includes(role);
 }
 
-// Asks which items (and how many of each) to void and the reason
-// (required). Resolves the details or null if cancelled. Leaving every item
-// at its full quantity voids the whole sale. (A customer swapping items uses
-// Return / Exchange instead.)
-// requireApproval: the client's rule that a void is never done by one
-// junior staff member alone - a Branch Manager signs off with their own
-// email and password (checked without signing anyone out).
+// asks which items to void and why, null if cancelled
 async function promptVoidDetails(sale, { requireApproval = false } = {}) {
   const items = sale.items || [];
   const rows = items
@@ -1681,7 +1510,7 @@ async function promptVoidDetails(sale, { requireApproval = false } = {}) {
           : ""
       }
     `,
-    // Problems show inside the dialog, which stays open to fix them.
+    // errors show in the dialog
     validate: async () => {
       const read = readVoidDialog(items);
       if (read.problem) return read.problem;
@@ -1700,7 +1529,7 @@ async function promptVoidDetails(sale, { requireApproval = false } = {}) {
   return ok ? details : null;
 }
 
-// What staff entered in the void dialog: { details } or { problem }.
+// what staff entered in the void dialog
 function readVoidDialog(items) {
   const lines = [];
   let invalidQty = false;
@@ -1719,9 +1548,7 @@ function readVoidDialog(items) {
   return { details: { reason, lines } };
 }
 
-// Checks a Branch Manager's email and password on a separate Firebase app
-// instance, so the signed-in staff member stays signed in. Resolves the
-// approver's name.
+// checks the managers login on a separate app so staff stay signed in
 async function verifyVoidApprover(email, password) {
   if (!email || !password) throw new Error("The Branch Manager's email and password are required to approve this void.");
   const app = firebase.initializeApp(firebaseConfig, `VoidApproval${Date.now()}`);
@@ -1741,12 +1568,7 @@ async function verifyVoidApprover(email, password) {
   }
 }
 
-// Voids the given lines ([{ index, qty }], from promptVoidDetails), all in
-// one transaction. Units go back to the exact batches
-// they were taken from, latest-expiring first. Voiding everything left
-// marks the whole sale voided; anything less is a partial void: the item
-// quantities and the sale total drop by what was voided (so every report
-// counts only what was really sold) and the void is kept in partialVoids.
+// voids the lines in one transaction, units go back to their batches
 async function voidPosSale(sale, { reason, lines, approvedBy }, voidedBy) {
   const saleRef = db.collection("posSales").doc(sale.id);
   const fallbackRefs = await findFallbackBatches(sale, lines);
@@ -1780,8 +1602,7 @@ async function voidPosSale(sale, { reason, lines, approvedBy }, voidedBy) {
     });
 
     if (fullVoid) {
-      // The record keeps the quantities as sold; voided: true takes the
-      // whole sale out of every total.
+      // keeps the sold quantities, voided true removes it from totals
       transaction.update(saleRef, {
         voided: true,
         voidReason: reason,
@@ -1806,8 +1627,7 @@ async function voidPosSale(sale, { reason, lines, approvedBy }, voidedBy) {
   return { fullVoid, voidedAmount, voidedLines };
 }
 
-// Sales made before batches were recorded: the units go back on the
-// product's latest-expiring active batch.
+// old sales without batches go back on the latest expiring batch
 async function findFallbackBatches(sale, lines) {
   const fallbackRefs = {};
   for (const { index } of lines) {
@@ -1822,9 +1642,7 @@ async function findFallbackBatches(sale, lines) {
   return fallbackRefs;
 }
 
-// Takes the voided units off the sale's items (changing them), and works out
-// which batches they go back to and how much is voided. Units go back to the
-// batches they were taken from, latest-expiring first.
+// takes voided units off the items and works out the batches
 function takeVoidedUnits(items, lines, fallbackRefs) {
   const returns = new Map(); // batchId -> units to put back
   const voidedLines = [];
@@ -1856,7 +1674,7 @@ function takeVoidedUnits(items, lines, fallbackRefs) {
   return { returns, voidedLines, voidedAmount };
 }
 
-// The audit log entry for a void.
+// audit log entry for a void
 async function logVoid(sale, { fullVoid, voidedAmount, voidedLines, reason, approvedBy }) {
   await logAuditEvent({
     action: fullVoid ? "Walk-in Sale Voided" : "Walk-in Sale Items Voided",
@@ -1871,7 +1689,7 @@ async function logVoid(sale, { fullVoid, voidedAmount, voidedLines, reason, appr
   });
 }
 
-// Receipt banner text for a voided or partly voided sale, or null.
+// receipt banner text for a void, or null
 function partialVoidSummary(sale) {
   if (!sale.partialVoids || !sale.partialVoids.length) return null;
   return sale.partialVoids
@@ -1889,8 +1707,7 @@ function voidSummary(sale) {
   return (sale.voidReason || "") + voidByText(sale.voidedBy, when, sale.voidApprovedBy);
 }
 
-// Who voided it (and when) and who approved it: " (by Rita, 11/01/2026
-// 9:30 AM), approved by Mara". Parts that are missing are left out.
+// who voided and who approved
 function voidByText(voidedBy, when, approvedBy) {
   let text = "";
   if (voidedBy) text += when ? ` (by ${voidedBy}, ${when})` : ` (by ${voidedBy})`;
@@ -1901,10 +1718,8 @@ function voidByText(voidedBy, when, approvedBy) {
 // =====================================================================
 // ---- exports ----
 
-// ---- Table export (PDF or Excel) ----
-// Exports exactly the rows a page is showing (after its search/filters).
-// columns: [{ label, value: (row) => text, width? }] - width is a share
-// of the PDF page width (defaults to equal shares).
+// ---- table export (pdf or excel) ----
+// exports exactly the rows the page shows
 async function exportTable({ title, subtitle = "", filenamePrefix, columns, rows }) {
   const format = await showAppSelect(
     `${rows.length} row${rows.length === 1 ? "" : "s"} will be exported.`,
@@ -1987,35 +1802,8 @@ async function exportTable({ title, subtitle = "", filenamePrefix, columns, rows
 // =====================================================================
 // ---- stock (fefo) and sales invoice numbers ----
 
-// ---- FEFO stock deduction (first-expiry, first-out), all items at once ----
-// Runs as one Firestore transaction, so two staff approving two orders for
-// the same tightly-stocked product at nearly the same time can't both pass
-// the availability check against stale reads and both succeed - Firestore
-// detects the conflicting read and retries the transaction with fresh data,
-// so the second one correctly re-checks against what the first one left.
-// Every item of an order is read and validated before any is written, so a
-// shortfall on one item aborts the whole thing with nothing changed.
-// (Deducting item by item, each in its own transaction, used to leave the
-// earlier items deducted with no order to account for them.)
-//
-// Returns { allocations, invoiceNo }. allocations lists, per input item
-// (same order), the batches it was actually taken from - [{ batchId,
-// batchNo, expirationDate, qty }] - so every sale can record batch numbers
-// and expiry dates for the daily reports.
-//
-// Pass `record` to write the sale itself in the same transaction:
-// { ref, mode: "set" | "update", build(allocations, invoiceNo) => data,
-//   alsoWrite?(transaction, invoiceNo), check?(doc) }.
-// A record also gets the next Sales Invoice number (SI#), allocated inside
-// the same transaction so a failed sale never burns a number and two sales
-// can never share one.
-// Options beyond the sale record, for exchanges:
-//   returns:    [{ batchId, qty }] units put back on those batches in the
-//               same transaction (a returned item)
-//   extraReads: document refs read inside the transaction; their snapshots
-//               are passed to afterWrite
-//   afterWrite: (transaction, { allocations, invoiceNo, extraDocs }) => more
-//               writes that must succeed or fail together with the stock
+// ---- fefo stock deduction ----
+// oldest expiry gets sold first, all items in one transaction
 async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, record = null, returns = [], extraReads = [], afterWrite = null } = {}) {
   const allowedStatuses = includeWholesaleOnly ? ["active", "wholesale_only"] : ["active"];
   const isSellable = includeWholesaleOnly ? isWholesaleSellableBatch : isRetailSellableBatch;
@@ -2038,9 +1826,7 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, re
   );
 
   return db.runTransaction(async (transaction) => {
-    // Read and validate every item first - nothing is written until all
-    // of them are confirmed available, so a shortfall on any one item
-    // leaves every item untouched.
+    // checks every item before writing anything
     const perItemBatches = [];
     for (const item of itemsWithCandidates) {
       const batches = [];
@@ -2068,11 +1854,10 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, re
     }
     const extraDocs = [];
     for (const ref of extraReads) extraDocs.push(await transaction.get(ref));
-    // record.check(doc) may throw to stop the sale if the record changed
-    // since it was loaded (e.g. another staff member already approved it).
+    // check can throw to stop the sale if the record changed
     if (record && record.check) record.check(await transaction.get(record.ref));
 
-    // Firestore transactions need every read before any write.
+    // firestore needs all reads before writes
     let invoiceNo = null;
     if (record) {
       const counterDoc = await transaction.get(SALES_INVOICE_COUNTER_REF());
@@ -2081,8 +1866,7 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, re
       invoiceNo = formatInvoiceNo(next);
     }
 
-    // New quantity per batch, so a batch both deducted and returned to (or
-    // used by two items) is written once with the right figure.
+    // one write per batch even if used twice
     const newQty = new Map();
     const batchRefs = new Map();
     const allocations = [];
@@ -2118,8 +1902,7 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, re
       const data = record.build(allocations, invoiceNo);
       if (record.mode === "update") transaction.update(record.ref, data);
       else transaction.set(record.ref, data);
-      // Any other writes that must succeed or fail together with the sale
-      // (e.g. crediting an overpayment to the customer's balance).
+      // other writes that must save together with the sale
       if (record.alsoWrite) record.alsoWrite(transaction, invoiceNo);
     }
     if (afterWrite) afterWrite(transaction, { allocations, invoiceNo, extraDocs });
@@ -2127,7 +1910,7 @@ async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, re
   });
 }
 
-// Flattens an allocation list into the line-level fields stored on a sale.
+// flattens the batch list into sale fields
 function batchFieldsFromAllocation(used) {
   return {
     batches: used,
@@ -2136,11 +1919,8 @@ function batchFieldsFromAllocation(used) {
   };
 }
 
-// ---- Sales Invoice numbers ----
-// One running number across walk-in, online and wholesale sales, matching
-// the branch's existing SI# sequence (e.g. 00008247). To continue from the
-// current paper booklet, set counters/salesInvoices.count to the last used
-// number once.
+// ---- sales invoice numbers ----
+// one running number for walk-in, online and wholesale
 function SALES_INVOICE_COUNTER_REF() {
   return db.collection("counters").doc("salesInvoices");
 }
@@ -2152,10 +1932,7 @@ function formatInvoiceNo(n) {
 // =====================================================================
 // ---- returns and exchanges ----
 
-// Exchanges (wholesale and walk-in): which batches the returned units go back
-// to, latest-expiring first, skipping units already returned earlier. Gives
-// the line's batches with returnedQty updated, the units per batch, and how
-// many units (need) no batch record covers.
+// which batches returned units go back to, latest expiry first
 function planBatchReturn(line, returnQty) {
   const batches = (line.batches || []).map((b) => ({ ...b }));
   const returnParts = [];
@@ -2171,12 +1948,8 @@ function planBatchReturn(line, returnQty) {
   return { batches, returnParts, need };
 }
 
-// ---- Wholesale exchange (REQ090, Fig 2.15) ----
-// No refunds: the buyer returns units from a recorded wholesale order and
-// takes a replacement of equal or higher value, paying any difference. In
-// one transaction the returned units go back to the batch they came from
-// (latest-expiring first), the replacement is taken by FEFO, the order line
-// remembers what was returned, and the exchange record is written.
+// ---- wholesale exchange ----
+// no refunds, returned units swap for a replacement
 async function processWholesaleExchange({ orderId, lineIndex, returnQty, replacement, reason, processedBy }) {
   const orderRef = db.collection("wholesaleOrders").doc(orderId);
   const orderSnap = await orderRef.get();
@@ -2195,7 +1968,7 @@ async function processWholesaleExchange({ orderId, lineIndex, returnQty, replace
     throw new Error(`The replacement (${formatPeso(replacementValue)}) must be of equal or higher value than the returned items (${formatPeso(returnedValue)}). Refunds aren't given.`);
   }
 
-  // Which batches the returned units go back to.
+  // batches the returned units go back to
   const { batches, returnParts, need } = planBatchReturn(line, returnQty);
   if (need > 0) throw new Error("This order line has no batch record to return the stock to. Record the return with a write-off/receiving entry instead.");
 
@@ -2262,15 +2035,8 @@ async function processWholesaleExchange({ orderId, lineIndex, returnQty, replace
   return { id: exchangeRef.id, ...saved.data() };
 }
 
-// ---- Walk-in return / exchange ----
-// The client's rule: no refunds. A walk-in customer brings back items from a
-// sale (found by its SI No.) and takes a replacement of equal or higher value,
-// paying any difference. Staff decide each time whether the returned units
-// can be sold again: if so they go back to the batch they were sold from
-// (same batch no. and expiry); if not they're recorded as a pull-out
-// (write-off) so they never reach a shelf. The customer is recorded as where
-// the returned stock came from. Kept with the wholesale exchanges (kind
-// "walkin") so the Return / Exchange report and EX numbers cover both.
+// ---- walk-in return / exchange ----
+// no refunds, customer swaps for something worth the same or more
 async function processWalkinExchange(request) {
   const facts = await checkWalkinExchange(request);
   const { exchangeRef, exchangeNo } = await saveWalkinExchange(request, facts);
@@ -2279,9 +2045,7 @@ async function processWalkinExchange(request) {
   return { id: exchangeRef.id, ...saved.data() };
 }
 
-// Checks a walk-in return / exchange is allowed (the sale, the quantity, a
-// reason, and a replacement worth at least as much) and works out the
-// values. Throws with the reason when it isn't allowed.
+// checks the return is allowed
 async function checkWalkinExchange({ saleId, lineIndex, returnQty, replacement, reason, customerName }) {
   const saleRef = db.collection("posSales").doc(saleId);
   const saleSnap = await saleRef.get();
@@ -2293,7 +2057,7 @@ async function checkWalkinExchange({ saleId, lineIndex, returnQty, replacement, 
   const remaining = (line.qty || 0) - (line.returnedQty || 0);
   if (!(returnQty > 0) || returnQty > remaining) throw new Error(`Only ${remaining} of ${line.name} can still be returned from this sale.`);
   if (!reason || !reason.trim()) throw new Error("A reason for the return is required.");
-  // Optional: a return without a name is recorded as from a walk-in customer.
+  // no name means walk-in customer
   const buyerName = (customerName || "").trim() || "Walk-in";
   if (!replacement || !replacement.productId || !(replacement.qty > 0)) throw new Error("Choose the replacement item and quantity.");
   const replacementProduct = getProductById(replacement.productId);
@@ -2309,14 +2073,12 @@ async function checkWalkinExchange({ saleId, lineIndex, returnQty, replacement, 
   return { saleRef, sale, line, buyerName, replacementProduct, unitPrice, returnedValue, replacementUnit, replacementValue };
 }
 
-// Saves the exchange in one transaction: the returned units go back to their
-// batch (or are recorded as a pull-out), the replacement is taken by FEFO,
-// the sale line remembers what was returned, and the exchange is recorded.
+// saves the exchange in one transaction
 async function saveWalkinExchange(
   { saleId, lineIndex, returnQty, replacement, restock, reason, processedBy },
   { saleRef, sale, line, buyerName, replacementProduct, unitPrice, returnedValue, replacementUnit, replacementValue }
 ) {
-  // Which batches the returned units came from.
+  // batches the returned units came from
   const { batches, returnParts, need } = planBatchReturn(line, returnQty);
   if (need > 0 && restock) {
     throw new Error("This sale has no batch record for that item, so it can't go back to a batch automatically. Choose \"Set aside\" or receive it as new stock.");
@@ -2347,8 +2109,7 @@ async function saveWalkinExchange(
       );
       tx.update(saleRef, { items });
 
-      // Not sellable: a pull-out record, so it shows in the Pull-Out report
-      // (the units already left stock when they were sold).
+      // not sellable so it becomes a pull-out record
       if (!restock) {
         returnParts.forEach((part) =>
           tx.set(db.collection("writeOffs").doc(), {
@@ -2391,7 +2152,7 @@ async function saveWalkinExchange(
   return { exchangeRef, exchangeNo };
 }
 
-// The audit log entry for a walk-in return / exchange.
+// audit log entry for a walk-in return
 async function logWalkinExchange({ returnQty, replacement, restock, reason }, { sale, line, buyerName, replacementProduct, returnedValue, replacementValue }, exchangeNo) {
   await logAuditEvent({
     action: "Walk-in Return / Exchange",
@@ -2406,9 +2167,7 @@ async function logWalkinExchange({ returnQty, replacement, restock, reason }, { 
   });
 }
 
-// The dialog behind "Return / Exchange" on a walk-in sale. Resolves with the
-// saved exchange, or null if cancelled. If saving fails, the reason shows
-// inside the dialog, which stays open.
+// return / exchange dialog, null if cancelled
 async function openWalkinExchangeDialog(sale, processedBy) {
   if (!sale) return null;
   if (sale.voided) {
@@ -2431,8 +2190,7 @@ async function openWalkinExchangeDialog(sale, processedBy) {
       confirmLabel: "Process Exchange",
       fieldHtml: exchangeDialogHtml(sale, lines),
       onRender: () => wireExchangeDialog(sale),
-      // Saved right here, so a problem (cheaper replacement, no reason...)
-      // shows inside the dialog, which stays open to fix it.
+      // saves here so errors show in the dialog
       validate: async () => {
         try {
           exchange = await processWalkinExchange(readExchangeDialog(sale, processedBy));
@@ -2455,8 +2213,7 @@ async function openWalkinExchangeDialog(sale, processedBy) {
   return exchange;
 }
 
-// The form inside the exchange dialog: which item comes back, whether it can
-// be sold again, the replacement, and the reason.
+// exchange dialog form
 function exchangeDialogHtml(sale, lines) {
   const productOptions = CATALOG_PRODUCTS.filter((p) => p.status === "active" && p.availableInPOS !== false && p.inStock)
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -2484,15 +2241,14 @@ function exchangeDialogHtml(sale, lines) {
   `;
 }
 
-// Keeps the "Returned - Replacement - Customer pays" line up to date while
-// staff fill in the exchange dialog.
+// keeps the customer pays line updated
 function wireExchangeDialog(sale) {
   const lineSel = document.getElementById("wxLine");
   const qty = document.getElementById("wxQty");
   const prodSel = document.getElementById("wxProduct");
   const repQty = document.getElementById("wxRepQty");
   const diffEl = document.getElementById("wxDiff");
-  // Searchable, like the POS product picker.
+  // searchable like the pos picker
   const prodChoices = makeSearchableSelect(prodSel);
   const line = () => sale.items[Number(lineSel.value)];
   const update = () => {
@@ -2515,7 +2271,7 @@ function wireExchangeDialog(sale) {
   setDefaults();
 }
 
-// What staff entered in the exchange dialog.
+// what staff entered in the exchange dialog
 function readExchangeDialog(sale, processedBy) {
   return {
     saleId: sale.id,
@@ -2589,11 +2345,8 @@ function printWalkinExchangeSlip(ex) {
 // =====================================================================
 // ---- audit log ----
 
-// ---- Audit log helper ----
-// record / before / after / reason are optional structured fields (REQ122):
-// which record changed, its value before and after, and why. Only set on
-// the events that change something (prices, stock, voids, exchanges,
-// accounts); everything else is described in details alone.
+// ---- audit log helper ----
+// record, before, after and reason are optional
 async function logAuditEvent({ action, details, actor, record, before, after, reason }) {
   try {
     let actorName = actor;
@@ -2625,16 +2378,7 @@ async function logAuditEvent({ action, details, actor, record, before, after, re
 // =====================================================================
 // ---- storefront: product cards and quick view ----
 
-// Shared by every "cart-item-image" thumbnail (cart, checkout, payment
-// summary, order details, My Orders) so they all show the product photo
-// the same way the catalog cards do, instead of an empty placeholder box.
-// Returns bare CSS declarations (no surrounding style="..."), so callers
-// with their own inline sizing can just append this to it.
-// Cloudinary serves a resized, compressed copy when the URL asks for one
-// (f_auto = WebP/AVIF where the browser supports it, q_auto = compression,
-// w_ = width). A shop card then loads ~30 KB instead of the full photo,
-// which keeps the free plan's bandwidth for many more visits. Other URLs
-// are returned unchanged.
+// shared thumbnail url for cart and order images
 function cloudinaryImageUrl(url, width) {
   if (typeof url !== "string" || !/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(url)) return url;
   return url.replace("/image/upload/", `/image/upload/f_auto,q_auto,c_limit,w_${width}/`);
@@ -2644,8 +2388,7 @@ function cartItemImageCss(imageUrl, width = 160) {
   return imageUrl ? `background-image:url('${cloudinaryImageUrl(imageUrl, width)}'); background-size:cover; background-position:center;` : "";
 }
 
-// Small "Rx" tag shown after a prescription product's name everywhere it's
-// listed (shop, cart, checkout, orders). Takes a product or a product id.
+// small rx tag after prescription product names
 function rxTag(productOrId) {
   const product = productOrId && typeof productOrId === "object" ? productOrId : getProductById(productOrId);
   return product && product.rxRequired ? ' <span class="rx-tag" title="Prescription required">Rx</span>' : "";
@@ -2682,7 +2425,7 @@ function renderProductCard(product) {
   `;
 }
 
-// Checkout and Payment: the "Order Summary" list of cart items.
+// order summary list for checkout and payment
 function checkoutSummaryItemsHtml(cart) {
   return cart
     .map((item) => {
@@ -2702,8 +2445,7 @@ function checkoutSummaryItemsHtml(cart) {
     .join("");
 }
 
-// Quantity -/+ buttons, subtotal, and Add to Cart / Buy Now for one product:
-// the product page and the quick-view popup (each passes its own element ids).
+// qty buttons, subtotal, add to cart and buy now
 function wireProductBuyControls(product, ids) {
   const qtyInput = document.getElementById(ids.qty);
   const subtotalText = document.getElementById(ids.subtotal);
@@ -2762,19 +2504,12 @@ function wireProductBuyControls(product, ids) {
   }
 }
 
-// ---- Product quick-view (popup instead of a full page navigation) ----
-// Clicking a product card's image/name used to be a full page load to
-// product-details.html - jarring for just glancing at a product. Cards
-// still carry that href (so middle-click/ctrl-click/right-click "open in
-// new tab" and no-JS access keep working), but a plain left-click is
-// intercepted here and opens this shared modal instead. Pages that don't
-// include #productQuickViewModal (like product-details.html itself) just
-// fall through to the normal link, so that page still works as a direct,
-// shareable, bookmarkable URL.
+// ---- product quick view ----
+// popup instead of opening the product page
 document.addEventListener("click", (e) => {
   const trigger = e.target.closest(".product-quickview-trigger");
   if (!trigger) return;
-  // A click with a modifier key or another button is left to the browser.
+  // special clicks are left to the browser
   const isSpecialClick = e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
   if (isSpecialClick) return;
 

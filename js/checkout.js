@@ -1,6 +1,4 @@
-/**
- * Checkout page.
- */
+// checkout page
 
 const emptyCartNotice = document.getElementById("emptyCartNotice");
 const checkoutContent = document.getElementById("checkoutContent");
@@ -31,10 +29,7 @@ const TIME_SLOT_LABELS = {
 let deliverySchedule = null;
 let requiresPrescription = false;
 
-// Only the items the customer actually checked off on the Cart page should
-// be ordered here - the rest stay in the cart for later. Falls back to the
-// whole cart if there's no selection marker (e.g. a direct/bookmarked visit
-// to this page), so checkout still works the old way in that case.
+// only the checked items get ordered, whole cart if nothing was marked
 function getCheckoutCart() {
   const fullCart = getCart();
   try {
@@ -78,8 +73,8 @@ const cart = getCheckoutCart();
   checkoutTotalText.textContent = formatPeso(cartTotal(cart));
 })();
 
-// ---- Delivery schedule modal ----
-// Local date: the UTC one is still yesterday until 8 AM in the Philippines.
+// ---- delivery schedule modal ----
+// local date since utc is still yesterday before 8am here
 const todayISO = localISODate(new Date());
 deliveryDateInput.min = todayISO;
 
@@ -106,9 +101,8 @@ saveDeliveryScheduleBtn.addEventListener("click", () => {
   deliveryScheduleLabel.textContent = `${date} · ${TIME_SLOT_LABELS[slot]}`;
 });
 
-// ---- Checking the form before going to payment ----
-// Every missing or invalid field is outlined in red and listed above the
-// Proceed to Payment button, so it's clear what still needs fixing.
+// ---- form checks before payment ----
+// bad fields get a red outline and a list above the button
 const checkoutErrorAlert = document.getElementById("checkoutErrorAlert");
 
 function checkoutFormIsValid() {
@@ -141,10 +135,10 @@ function checkoutFormIsValid() {
   return false;
 }
 
-// A field stops being outlined in red as soon as it's changed.
+// removes the red outline once the field changes
 checkoutForm.addEventListener("input", (e) => e.target.classList.remove("is-invalid"));
 
-// ---- Proceed to Payment ----
+// ---- proceed to payment ----
 let signedInUid = null;
 
 proceedToPaymentBtn.addEventListener("click", async () => {
@@ -191,7 +185,7 @@ proceedToPaymentBtn.addEventListener("click", async () => {
   window.location.href = "payment.html";
 });
 
-// ---- Require login to check out; prefill contact info + saved address ----
+// ---- must be logged in, fills in contact info and saved address ----
 try {
   auth.onAuthStateChanged(async (user) => {
     if (!user) {

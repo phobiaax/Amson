@@ -1,6 +1,4 @@
-/**
- * Email verification page.
- */
+// email verification page
 
 const verifyEmailDisplay = document.getElementById("verifyEmailDisplay");
 const verifyForm = document.getElementById("verifyForm");
@@ -33,7 +31,7 @@ function setLoading(isLoading) {
   verifyBtnSpinner.classList.toggle("d-none", !isLoading);
 }
 
-// ---- OTP box behavior: digits only, auto-advance, backspace, paste ----
+// ---- otp boxes: digits only, auto next, backspace, paste ----
 otpInputs.forEach((input, idx) => {
   input.addEventListener("input", () => {
     input.value = input.value.replace(/[^0-9]/g, "").slice(0, 1);
@@ -97,13 +95,13 @@ async function verifyCode(enteredCode) {
     });
 
     sessionStorage.removeItem("amsonPendingVerificationEmail");
-    // The emailed code proves this device too (REQ005).
+    // the emailed code also trusts this device
     try {
       await trustThisDevice(user.uid);
     } catch (error) {
       console.warn("Couldn't save this device:", error);
     }
-    // Just registered: sign out and log in with the new account.
+    // just registered so sign out and log in again
     if (sessionStorage.getItem("amsonFromRegistration")) {
       sessionStorage.removeItem("amsonFromRegistration");
       sessionStorage.setItem("amsonLoginSuccess", "Your account is verified. Please log in to continue.");
@@ -159,7 +157,7 @@ resendCodeLink.addEventListener("click", async (e) => {
   }
 });
 
-// ---- Wrong email: back to registration ----
+// ---- wrong email, back to register ----
 backToRegisterBtn.addEventListener("click", async () => {
   sessionStorage.removeItem("amsonPendingVerificationEmail");
   sessionStorage.removeItem("amsonFromRegistration");
@@ -169,7 +167,7 @@ backToRegisterBtn.addEventListener("click", async () => {
   window.location.href = "register.html";
 });
 
-// Sign-up couldn't send the first code.
+// sign-up couldnt send the first code
 if (sessionStorage.getItem("amsonOtpSendFailed")) {
   sessionStorage.removeItem("amsonOtpSendFailed");
   showAlert("We couldn't send your code. Tap \"Resend\" below to try again.");

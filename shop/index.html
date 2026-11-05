@@ -5,37 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Amson Pharmaceuticals | Mura, Mabisa, at May Kalidad na Gamot</title>
 
-<!-- Fonts -->
+<!-- fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
 
-<!-- Bootstrap 5 -->
+<!-- bootstrap 5 -->
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<!-- Bootstrap Icons -->
+<!-- bootstrap icons -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 
-<!-- Custom styles -->
+<!-- custom styles -->
 <link rel="icon" type="image/png" href="../assets/logo-transp.png">
 <link rel="stylesheet" href="../css/style.css">
-<!-- Signed in on this browser before? Keep the Login / Register spot blank
-     until js/header-user.js shows the name (no flash on refresh). -->
+<!-- keeps login / register hidden for signed-in users so it doesnt flash -->
 <script>try { if (localStorage.getItem("amsonHeaderUser") !== null) document.documentElement.classList.add("header-known-user"); } catch (e) {}</script>
 </head>
 <body>
 
 <div class="top-bar"></div>
 
-<!-- ===== Header ===== -->
+<!-- ===== header ===== -->
 <header class="site-header">
   <div class="container py-2">
     <div class="d-flex align-items-center flex-wrap gap-3 py-2">
-      <!-- Logo / Brand -->
+      <!-- logo -->
       <a href="index.html" class="d-flex align-items-center text-decoration-none flex-shrink-0">
         <img src="../assets/logo.png" alt="Amson Pharmaceuticals" class="brand-logo">
         <span class="brand-name">Amson<span class="brand-name-rest"> Pharmaceuticals</span></span>
       </a>
 
-      <!-- Search -->
+      <!-- search -->
       <div class="flex-grow-1 order-3 order-md-2" style="min-width:220px;">
         <div class="input-group">
           <input type="text" class="form-control search-input" placeholder="Search for medicines, vitamins, supplements...">
@@ -43,20 +42,20 @@
         </div>
       </div>
 
-      <!-- Cart & Auth actions -->
+      <!-- cart and login buttons -->
       <div class="header-actions d-flex align-items-center gap-3 order-2 order-md-3 ms-auto">
         <a href="cart.html" class="cart-icon position-relative">
           <i class="bi bi-cart3"></i>
           <span id="cartBadge" class="cart-badge d-none">0</span>
         </a>
 
-        <!-- Guest state -->
+        <!-- guest state -->
         <div id="guestActions" class="header-guest d-flex align-items-center gap-3">
           <a href="../login.html" class="btn btn-outline-dark-amson btn-sm px-3">Login</a>
           <a href="../register.html" class="btn btn-amson btn-sm px-3">Register</a>
         </div>
 
-        <!-- Signed-in state -->
+        <!-- signed-in state -->
         <div id="accountActions" class="d-flex align-items-center gap-3 d-none">
           <div class="dropdown">
             <a href="#" class="bell-icon position-relative" id="notifBellBtn" data-bs-toggle="dropdown" aria-expanded="false">
@@ -84,7 +83,7 @@
     </div>
   </div>
 
-  <!-- Category nav -->
+  <!-- category nav -->
   <nav class="category-nav">
     <div class="container">
       <ul class="nav flex-nowrap flex-md-wrap justify-content-md-center">
@@ -95,7 +94,7 @@
 </header>
 <script src="../js/header-user.js"></script>
 
-<!-- ===== Hero ===== -->
+<!-- ===== hero ===== -->
 <section class="hero-section">
   <div class="container">
     <h1>Mura, Mabisa, at May Kalidad na Gamot</h1>
@@ -104,7 +103,7 @@
   </div>
 </section>
 
-<!-- ===== Trust bar ===== -->
+<!-- ===== trust bar ===== -->
 <section class="trust-bar">
   <div class="container">
     <div class="trust-bar-inner">
@@ -115,7 +114,7 @@
   </div>
 </section>
 
-<!-- ===== Featured Products ===== -->
+<!-- ===== featured products ===== -->
 <section class="section-block bg-light-gray">
   <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -126,7 +125,7 @@
   </div>
 </section>
 
-<!-- ===== Shop by Category ===== -->
+<!-- ===== shop by category ===== -->
 <section class="section-block">
   <div class="container">
     <h2 class="section-title mb-4">Shop by Category</h2>
@@ -134,9 +133,7 @@
   </div>
 </section>
 <script>
-  // Grey placeholder cards while the catalog loads, so these sections never
-  // sit empty under their headings. Drawn here, before the Firebase scripts
-  // below are downloaded, so they show straight away.
+  // grey placeholder cards so the sections arent empty while loading
   function homeSkeletonCards() {
     const product = `<div class="col"><div class="product-card skeleton-card" aria-hidden="true">
       <div class="product-image skeleton"></div><div class="skeleton skeleton-line w-75"></div>
@@ -150,7 +147,7 @@
   homeSkeletonCards();
 </script>
 
-<!-- ===== Bulk CTA + Footer ===== -->
+<!-- ===== bulk cta and footer ===== -->
 <div class="bulk-cta">
   <div class="container text-center">
     <h2>Looking to Buy in Bulk?</h2>
@@ -163,7 +160,7 @@
 
 <a href="#" class="floating-chat-btn d-none" data-chat-entry><i class="bi bi-chat-square-text-fill"></i>Chat with us</a>
 
-<!-- Product quick-view popup (instead of a full page navigation) -->
+<!-- product quick view popup -->
 <div class="modal fade" id="productQuickViewModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
@@ -175,16 +172,16 @@
   </div>
 </div>
 
-<!-- Bootstrap JS -->
+<!-- bootstrap js -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
-<!-- Firebase (compat SDK) -->
+<!-- firebase compat sdk -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
 
-<!-- App scripts -->
+<!-- app scripts -->
 <script src="../js/firebase-config.js"></script>
 <script src="../js/shop-sections.js"></script>
 <script src="../js/products-data.js"></script>
@@ -193,18 +190,14 @@
 <script src="../js/cart.js"></script>
 <script>
   function renderFeaturedProducts() {
-    // Prefer in-stock items for the homepage spotlight - an out-of-stock
-    // product is still browsable in the full catalog, just not what
-    // should greet a first-time visitor here.
+    // in stock items first on the homepage
     const storefrontProducts = storefrontCatalog().sort((a, b) => (a.inStock === b.inStock ? 0 : a.inStock ? -1 : 1));
     document.getElementById("featuredProductsGrid").innerHTML = storefrontProducts.length
       ? storefrontProducts.slice(0, 5).map(renderProductCard).join("")
       : `<div class="col-12 w-100"><div class="home-load-message">No featured products yet. <a href="products.html" class="link-red fw-medium">Browse all products</a></div></div>`;
   }
 
-  // If the catalog fails to load, or is still loading after 15 seconds,
-  // both sections say so with a Retry button instead of staying blank.
-  // A slow load that does finish later still fills them in.
+  // shows a retry button if loading fails or takes over 15s
   function showHomeLoadError() {
     const message = `<div class="col-12 w-100"><div class="home-load-message">
       <i class="bi bi-wifi-off"></i> Couldn't load products.

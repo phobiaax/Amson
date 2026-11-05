@@ -1,6 +1,4 @@
-/**
- * Shared header behavior for storefront pages.
- */
+// shared header stuff for shop pages
 
 const guestActions = document.getElementById("guestActions");
 const accountActions = document.getElementById("accountActions");
@@ -19,9 +17,7 @@ const SHOP_STAFF_ROLES = {
   sales_staff: "Sales Staff",
 };
 
-// The last signed-in name is shown straight away by js/header-user.js
-// (rememberHeaderUser / forgetHeaderUser live there too); the login check
-// below then confirms or corrects it.
+// header-user.js shows the last name right away, this just confirms it
 
 function showGuestHeader() {
   forgetHeaderUser();
@@ -66,7 +62,7 @@ auth.onAuthStateChanged(async (user) => {
       window.location.href = "../login.html";
       return;
     }
-    // Customers who haven't entered their sign-up code yet finish that first.
+    // customers who skipped the sign-up code finish that first
     if (doc.exists && data.role === "customer" && !data.emailVerified) {
       forgetHeaderUser();
       try {
@@ -75,15 +71,12 @@ auth.onAuthStateChanged(async (user) => {
       window.location.href = "../verify-email.html";
       return;
     }
-    // Verified customers on a device they never confirmed go back to log in
-    // (REQ005). Unverified accounts are still finishing sign-up.
+    // unconfirmed device goes back to login
     const mustCheckDevice = doc.exists && data.role === "customer" && data.emailVerified && typeof enforceRecognizedDevice === "function";
     if (mustCheckDevice) {
       if (!(await enforceRecognizedDevice(data))) return;
     }
-    // Staff accounts aren't customer accounts: say so instead of showing the
-    // shop as if they were a customer (cart, orders and alerts are for
-    // customers, and the database refuses them for staff).
+    // staff accounts get told the shop is for customers
     if (doc.exists && SHOP_STAFF_ROLES[data.role]) {
       showStaffShopBar(data);
       return;
@@ -109,17 +102,7 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
-// A notification is either "persisted" (a real customerNotifications doc -
-// payment issue holds, credit grants - written by notifyCustomer in
-// orders.js, with its own `read` field the customer's allowed to flip) or
-// "derived" (order-status-based - dispatched/delivered/ready-for-pickup -
-// re-computed live each load, so there's no doc to flag read on). Derived
-// ones reuse the same key+signature trick as the staff notification bell:
-// a small read-map on the customer's own user doc records what state was
-// last seen, so marking read doesn't stick once the order moves on.
-//
-// Both lists are listened to live, so a payment hold or a dispatched order
-// shows in the bell straight away, without a refresh.
+// bell mixes saved notifications with ones made from order status
 let customerNotifWatch = null;
 
 function watchCustomerNotifications(uid, readMap) {
@@ -127,7 +110,7 @@ function watchCustomerNotifications(uid, readMap) {
   if (customerNotifWatch) customerNotifWatch.stop();
   const watch = { uid, readMap, notifDocs: null, orderDocs: null };
   const redraw = () => {
-    // Wait for both lists before drawing the bell the first time.
+    // waits for both lists before drawing the bell
     if (watch.notifDocs && watch.orderDocs) {
       renderCustomerNotifications(uid, buildCustomerNotifications(watch.notifDocs, watch.orderDocs, watch.readMap));
     }
@@ -155,8 +138,7 @@ function watchCustomerNotifications(uid, readMap) {
   customerNotifWatch = watch;
 }
 
-// The newest 8 notifications: payment issues and credit first, then orders
-// on their way, ready for pick-up or delivered.
+// newest 8, payment issues and credit first
 function buildCustomerNotifications(notifDocs, orderDocs, readMap) {
   const notifications = notifDocs.map((doc) => {
     const n = doc.data();
@@ -223,9 +205,7 @@ async function markCustomerNotifRead(uid, n) {
   if (n.persisted) {
     await db.collection("customerNotifications").doc(n.docId).update({ read: true });
   } else {
-    // set(..., {merge:true}) does NOT reliably merge into a nested map via a
-    // dotted-string key - only update() does. The user's own doc always
-    // already exists here (they're signed in), so no need to ensure it first.
+    // update() since set with merge doesnt handle dotted keys right
     await db.collection("users").doc(uid).update({ [`notifReadMap.${n.key}`]: n.signature });
     if (customerNotifWatch) customerNotifWatch.readMap = { ...customerNotifWatch.readMap, [n.key]: n.signature };
   }
@@ -251,7 +231,7 @@ function renderCustomerNotifications(uid, notifications) {
 
   if (notifEmptyState) notifEmptyState.remove();
 
-  // Same look as the staff bell: a thin colored edge and a colored icon.
+  // same look as the staff bell
   notifDropdownList.style.minWidth = "320px";
   const severityIcons = { danger: "bi-exclamation-octagon", warning: "bi-exclamation-triangle", info: "bi-info-circle", success: "bi-check-circle" };
   notifDropdownList.innerHTML =
@@ -296,7 +276,7 @@ function renderCustomerNotifications(uid, notifications) {
       markAllBtn.disabled = true;
       try {
         await Promise.all(notifications.filter((n) => !n.isRead).map((n) => markCustomerNotifRead(uid, n)));
-        // Persisted ones redraw through their listener; this covers the rest.
+        // saved ones redraw on their own, this covers the rest
         if (customerNotifWatch) customerNotifWatch.redraw();
       } catch (error) {
         console.error("Failed to mark all notifications read:", error);

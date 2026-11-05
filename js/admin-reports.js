@@ -1,19 +1,4 @@
-/**
- * Reports module (REQ058, REQ111-115, REQNF020): the branch's own report
- * formats, built from the client's sample files.
- *
- *   Daily Sales            - sales, retail, wholesale, payment method, items
- *   Customer File          - every sold line per customer with SI#, batch, expiry
- *   Monthly Inventory      - one sheet per category, POS stock vs physical count
- *   Supplier Purchases     - stock received per supplier
- *   Pull-Out               - write-offs (expired, damaged, unsellable)
- *   PO Discrepancy         - purchase orders received short or over
- *
- * Each builder returns { title, subtitle, filename, sheets: [{ name,
- * sections: [{ heading, columns, rows, totals }] }] }; the same model is
- * shown on screen and exported to PDF and Excel, so the three always match.
- * Columns: { label, align?: "right", width? }. Cells are strings or numbers.
- */
+// reports page, uses the branchs own report formats
 
 const REPORT_TYPES = {
   daily_sales: { label: "Daily Sales Report", range: "dates" },
@@ -57,10 +42,9 @@ function productName(id, fallback) {
   return (p && p.name) || fallback || id || "";
 }
 
-/* ---------- Data loading ---------- */
+// ---------- data loading ----------
 
-// Every sale in [start, end), from the three channels, as one shape:
-// { channel, date, invoiceNo, customer, paymentMethod, total, lines: [{ productId, name, qty, price, amount, batches }] }
+// every sale in the range from all three channels, same shape
 async function loadSalesInRange(start, end) {
   const from = firebase.firestore.Timestamp.fromDate(start);
   const to = firebase.firestore.Timestamp.fromDate(end);
@@ -96,8 +80,7 @@ async function loadSalesInRange(start, end) {
       invoiceNo: order.invoiceNo,
       customer: order.contact ? `${order.contact.firstName || ""} ${order.contact.lastName || ""}`.trim() : "Online customer",
       paymentMethod: "gcash",
-      // What the customer paid for the goods: store credit applied is
-      // still part of the sale's value.
+      // credit used still counts as part of the sale
       total: (order.total || 0) + (order.creditApplied || 0),
       lines: (order.items || []).map((i) => ({ productId: i.id, name: i.name, qty: i.qty, price: i.price || 0, amount: (i.price || 0) * i.qty, batches: i.batches, batchNo: i.batchNo, expirationDate: i.expirationDate })),
     });
@@ -114,9 +97,7 @@ async function loadSalesInRange(start, end) {
       lines: (w.items || []).map((i) => ({ productId: i.productId, name: i.productName, qty: i.qty, price: i.unitPrice || 0, amount: i.subtotal || 0, batches: i.batches, batchNo: i.batchNo, expirationDate: i.expirationDate })),
     });
   });
-  // An exchange (wholesale, or walk-in: kind "walkin") counts on its own day: the returned units come off
-  // (negative), the replacement goes out, and the total is the difference
-  // the buyer paid. The original sale stays as it was on its day.
+  // exchanges count on their own day, returns are negative
   exchangeSnap.docs.forEach((doc) => {
     const ex = doc.data();
     const ret = ex.returned || {};
@@ -139,7 +120,7 @@ async function loadSalesInRange(start, end) {
   return sales.filter((s) => s.date).sort((a, b) => a.date - b.date);
 }
 
-/* ---------- Builders ---------- */
+// ---------- builders ----------
 
 function rangeSubtitle(start, end) {
   const last = new Date(end.getTime() - 1000);
@@ -154,7 +135,7 @@ async function buildDailySalesReport(start, end) {
   ]);
   const batchesById = new Map(batchSnap.docs.map((d) => [d.id, { id: d.id, ...d.data() }]));
   const supplierNames = new Map(supplierSnap.docs.map((d) => [d.id, d.data().name || ""]));
-  // Older sales only kept the batch number, not the batch's ID.
+  // older sales only kept the batch number
   const findBatch = (productId, b) =>
     (b.batchId && batchesById.get(b.batchId)) ||
     Array.from(batchesById.values()).find((x) => x.productId === productId && b.batchNo && x.batchNo === b.batchNo) ||
@@ -175,8 +156,7 @@ async function buildDailySalesReport(start, end) {
   };
 }
 
-// Adds up the sales per day (orders, retail / wholesale, payment methods),
-// per item, and per item and batch.
+// totals per day, per item, and per item and batch
 function tallyDailySales(sales, findBatch, supplierNames) {
   const byBatch = new Map();
   const byDay = new Map();
@@ -209,7 +189,7 @@ function tallyDailySales(sales, findBatch, supplierNames) {
       it.amount += line.amount;
       items.set(key, it);
 
-      // Batch, expiry, date received and supplier per item sold.
+      // batch, expiry, received date and supplier per item
       const parts = line.batches && line.batches.length ? line.batches.filter((b) => b.qty !== 0) : [{ batchNo: line.batchNo, expirationDate: line.expirationDate, qty: line.qty }];
       parts.forEach((batchPart) => {
         const batch = findBatch(line.productId, batchPart);
@@ -233,7 +213,7 @@ function tallyDailySales(sales, findBatch, supplierNames) {
   return { byDay, items, byBatch };
 }
 
-// The sections of the Daily Sales sheet, from the day / item / batch totals.
+// sections of the daily sales sheet
 function dailySalesSections(days, items, byBatch) {
   const sum = (f) => days.reduce((n, [, d]) => n + f(d), 0);
   const money = (n) => reportNumber(n);
@@ -321,7 +301,7 @@ async function buildCustomerFileReport(start, end) {
       let custTotal = 0;
       byCustomer.get(customer).forEach((sale) => {
         sale.lines.forEach((line) => {
-          // One row per batch the line came from, like the branch's file.
+          // one row per batch, like the branchs file
           const parts = line.batches && line.batches.length ? line.batches.filter((b) => b.qty !== 0) : [{ batchNo: line.batchNo, expirationDate: line.expirationDate, qty: line.qty }];
           parts.forEach((batchPart) => {
             rows.push([
@@ -364,7 +344,7 @@ async function buildMonthlyInventoryReport(year, month) {
   supplierSnap.docs.forEach((d) => (suppliers[d.id] = d.data().name || ""));
   const batchesById = {};
   batchSnap.docs.forEach((d) => (batchesById[d.id] = d.data()));
-  // Every supplier a batch came from (a topped-up batch can have several).
+  // every supplier a batch came from
   const supplierOf = (b) => {
     if (!b) return "";
     const ids = b.deliveries && b.deliveries.length ? b.deliveries.map((dl) => dl.supplierId) : [b.supplierId];
@@ -388,10 +368,9 @@ async function buildMonthlyInventoryReport(year, month) {
   };
 }
 
-// One line per batch: from the finalized count for the month when there is
-// one, else today's batches; active products with no batch get an empty line.
+// one line per batch, from the finalized count if there is one
 function inventoryLines(batchSnap, batchesById, recon, supplierOf) {
-  // A finalized count's system qty is the POS stock at count time.
+  // finalized count uses the stock at count time
   let lines;
   if (recon) {
     lines = (recon.items || []).map((i) => ({ productId: i.productId, batchNo: i.batchNo, expirationDate: i.expirationDate, posQty: i.systemQty, physical: i.countedQty, supplier: supplierOf(batchesById[i.batchId]) }));
@@ -408,7 +387,7 @@ function inventoryLines(batchSnap, batchesById, recon, supplierOf) {
   return lines;
 }
 
-// One sheet per category (and one for uncategorized products), one row per batch.
+// one sheet per category
 function categorySheets(lines) {
   const sheets = [];
   const categories = Object.entries(CATEGORY_LABELS).sort((a, b) => a[1].localeCompare(b[1]));
@@ -453,9 +432,7 @@ function categorySheets(lines) {
   return sheets;
 }
 
-// The EXPIRED sheet: batches whose expiry date falls in the month, whatever
-// happened to them (written off as Bad Order beforehand, still on hand, or
-// sold out). None when nothing expired that month.
+// expired sheet: batches expiring that month no matter what
 function expiredSheet(batchSnap, year, month, monthName, supplierOf) {
   const monthStart = new Date(year, month, 1);
   const monthEnd = new Date(year, month + 1, 1);
@@ -498,16 +475,14 @@ async function buildSupplierPurchasesReport(year, month) {
   const suppliers = {};
   supplierSnap.docs.forEach((d) => (suppliers[d.id] = d.data().name));
 
-  // A batch topped up by later deliveries lists each one in `deliveries`;
-  // each delivery is its own row here.
-  // Unit costs are staff-only (batchCosts), added back here.
+  // each delivery of a topped-up batch is its own row
   const received = (await attachBatchCosts(batchSnap.docs.map((d) => ({ id: d.id, ...d.data() }))))
     .flatMap((b) =>
       b.deliveries && b.deliveries.length
         ? b.deliveries.map((dl) => ({ ...b, ...dl, initialQuantity: dl.qty, quantity: dl.qty }))
         : [b]
     )
-    // Opening stock was counted, not bought from a supplier.
+    // opening stock wasnt bought from a supplier
     .filter((b) => b.source !== "opening_stock")
     .map((b) => {
       const when = b.dateReceived ? new Date(`${b.dateReceived}T00:00:00`) : tsToDate(b.createdAt);
@@ -554,15 +529,13 @@ async function buildSupplierPurchasesReport(year, month) {
     title: "AMSON PHARMACEUTICALS - Supplier Purchases",
     subtitle: monthName,
     filename: `supplier-purchases-${localISODate(start).slice(0, 7)}`,
-    // One sheet: the branch sells medicines and medical supplies only (the
-    // old report's separate grocery sheet isn't needed).
+    // one sheet since the branch only sells meds and supplies
     sheets: [sheetFor("SUPPLIER DRUGSTORE", received)],
   };
 }
 
 async function buildPullOutReport(start, end) {
-  // By the write-off date staff picked (which may be earlier than when it
-  // was saved), so every write-off is read and filtered here.
+  // uses the write-off date staff picked
   const [woSnap, batchSnap] = await Promise.all([db.collection("writeOffs").get(), db.collection("stockBatches").get()]);
   const batches = {};
   (await attachBatchCosts(batchSnap.docs.map((d) => ({ id: d.id, ...d.data() })))).forEach((b) => (batches[b.id] = b));
@@ -603,8 +576,7 @@ async function buildPullOutReport(start, end) {
   };
 }
 
-// The branch's "Return to POS" sheet, plus what was given in exchange
-// (REQ114).
+// return to pos sheet plus exchanges
 async function buildReturnsExchangeReport(start, end) {
   const from = firebase.firestore.Timestamp.fromDate(start);
   const to = firebase.firestore.Timestamp.fromDate(end);
@@ -699,7 +671,7 @@ async function buildPoDiscrepancyReport(start, end) {
   };
 }
 
-/* ---------- Output: preview, PDF, Excel ---------- */
+// ---------- output: preview, pdf, excel ----------
 
 function reportRow(row) {
   if (Array.isArray(row)) return { cells: row, total: false, blank: false };
@@ -746,7 +718,7 @@ function downloadReportPdf(report) {
   }
   const doc = createPdf({ orientation: "landscape" });
   const marginX = 10;
-  // What the drawing steps share; y is how far down the page we are.
+  // shared pdf state, y is how far down the page
   const pdf = { doc, marginX, pageWidth: doc.internal.pageSize.getWidth() - marginX * 2, pageHeight: doc.internal.pageSize.getHeight(), lineHeight: 3.8, y: 14 };
 
   drawPdfReportTitle(pdf, report);
@@ -764,7 +736,7 @@ function downloadReportPdf(report) {
   doc.save(`${report.filename}.pdf`);
 }
 
-// Starts a new page when the next thing (this tall) wouldn't fit.
+// new page if the next part wont fit
 function pdfNewPageIfNeeded(pdf, height) {
   if (pdf.y + height > pdf.pageHeight - 12) {
     pdf.doc.addPage();
@@ -774,7 +746,7 @@ function pdfNewPageIfNeeded(pdf, height) {
   return false;
 }
 
-// The report's title and subtitle, centered at the top of the first page.
+// title and subtitle at the top
 function drawPdfReportTitle(pdf, report) {
   const { doc } = pdf;
   doc.setFontSize(13);
@@ -787,8 +759,7 @@ function drawPdfReportTitle(pdf, report) {
   pdf.y += 8;
 }
 
-// One table: its heading (unless it repeats the sheet name), the column
-// labels (repeated on each new page), the rows and the totals.
+// one table with headings, rows and totals
 function drawPdfReportSection(pdf, section, headingIsSheetName) {
   const { doc, marginX, pageWidth, lineHeight } = pdf;
   const totalShare = section.columns.reduce((n, c) => n + (c.width || 1), 0);
@@ -803,7 +774,7 @@ function drawPdfReportSection(pdf, section, headingIsSheetName) {
     }
     let x = marginX;
     wrapped.forEach((lines, i) => {
-      // Right-aligned numbers stop 4mm short of the next column.
+      // right aligned numbers stop 4mm before the next column
       if (section.columns[i] && section.columns[i].align === "right") doc.text(lines, x + widths[i] - 4, pdf.y, { align: "right" });
       else doc.text(lines, x, pdf.y);
       x += widths[i];
@@ -838,7 +809,7 @@ function drawPdfReportSection(pdf, section, headingIsSheetName) {
   pdf.y += 6;
 }
 
-// "Generated <date and time>" under the last table.
+// generated date under the last table
 function drawPdfGeneratedLine(pdf) {
   const { doc, marginX } = pdf;
   doc.setFontSize(7.5);
@@ -848,11 +819,11 @@ function drawPdfGeneratedLine(pdf) {
   doc.text(`Generated ${formatDateMDY(new Date(), true)}`, marginX, pdf.y);
 }
 
-// Numbers go into Excel as numbers so the main office can add them up.
+// numbers stay numbers in excel so they can be added up
 function excelValue(v) {
   if (typeof v === "number") return v;
   if (typeof v === "string" && /^-?[\d,]+(\.\d+)?$/.test(v.trim()) && /\d/.test(v)) {
-    // Keep codes with leading zeros (SI#, batch numbers) as text.
+    // codes with leading zeros stay text
     if (/^0\d/.test(v.trim())) return v;
     return Number(v.replace(/,/g, ""));
   }
@@ -891,7 +862,7 @@ function downloadReportExcel(report) {
   XLSX.writeFile(wb, `${report.filename}.xlsx`);
 }
 
-/* ---------- Page ---------- */
+// ---------- page ----------
 
 const reportTypeSelect = document.getElementById("reportTypeSelect");
 const reportDatesGroup = document.getElementById("reportDatesGroup");
@@ -923,7 +894,7 @@ function setupReportControls() {
   reportYearSelect.innerHTML = Array.from({ length: 6 }, (_, i) => now.getFullYear() - i)
     .map((y) => `<option value="${y}">${y}</option>`)
     .join("");
-  // ?type=... opens a specific report (links from Orders / Inventory).
+  // ?type= opens a specific report
   const requested = new URLSearchParams(window.location.search).get("type");
   if (requested && REPORT_TYPES[requested]) reportTypeSelect.value = requested;
   syncReportControls();

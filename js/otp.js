@@ -1,8 +1,5 @@
-/**
- * Shared OTP helpers.
- */
 
-// How long an emailed 6-digit code works.
+// emailed codes expire after 10 minutes
 const OTP_CODE_TTL_MS = 10 * 60 * 1000;
 
 function generateOtpCode() {

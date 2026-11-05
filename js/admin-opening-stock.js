@@ -1,15 +1,4 @@
-/**
- * Inventory > Opening Stock: load the shelf count when the branch starts
- * using the system.
- *
- * Download a count sheet (every product), fill in batch no., expiry and the
- * quantity counted for each batch on the shelf, upload it. Rows are matched
- * by product code (SKU) or by the exact product name, checked, and saved as
- * batches marked source "opening_stock" - counted stock, not a purchase, so
- * no supplier or receipt is needed and Supplier Purchases leaves them out.
- * Same batch rules as Receive Stock (one expiry per batch; an existing
- * batch is topped up).
- */
+// opening stock: download a count sheet, fill it in, upload it to load the shelf count
 
 const openingStockBtn = document.getElementById("openingStockBtn");
 const openingStockModalEl = document.getElementById("openingStockModal");
@@ -44,7 +33,7 @@ function showOpeningAlert(message, type = "danger") {
   openingStockAlert.className = `alert auth-alert alert-${type} mt-3 mb-0`;
 }
 
-/* ---------- Count sheet ---------- */
+// ---------- count sheet ----------
 document.getElementById("downloadCountSheetBtn").addEventListener("click", async () => {
   await loadCatalogCache();
   const products = CATALOG_PRODUCTS.slice().sort(
@@ -77,12 +66,10 @@ document.getElementById("downloadCountSheetBtn").addEventListener("click", async
   XLSX.writeFile(wb, `amson-count-sheet-${todayISO()}.xlsx`);
 });
 
-/* ---------- Reading the filled sheet ---------- */
+// ---------- reading the filled sheet ----------
 document.getElementById("uploadCountSheetBtn").addEventListener("click", () => countSheetFileInput.click());
 
-// Expiry as typed by people: 2028-06-30, 2028-06, 6/2028, 06/28, 6/30/2028,
-// or an Excel date cell. A month without a day becomes the 1st (the
-// earliest it could expire, so FEFO stays on the safe side).
+// accepts the usual ways people type expiry, no day means the 1st
 function normalizeExpiry(value) {
   if (value instanceof Date && !isNaN(value)) return localISODate(value);
   const v = String(value || "").trim();
@@ -119,7 +106,7 @@ countSheetFileInput.addEventListener("change", async () => {
     return;
   }
 
-  // Fresh numbers: other staff may have received stock since the page opened.
+  // reload since other staff may have received stock meanwhile
   catalogLoadPromise = null;
   await loadCatalogCache();
   const bySku = new Map(CATALOG_PRODUCTS.filter((p) => p.sku).map((p) => [String(p.sku).toUpperCase(), p]));
@@ -129,7 +116,7 @@ countSheetFileInput.addEventListener("change", async () => {
   sheetRows.forEach((raw, i) => {
     const row = {};
     Object.entries(raw).forEach(([k, v]) => (row[k.trim().toLowerCase()] = v));
-    const rowNo = i + 2; // header is row 1 in Excel
+    const rowNo = i + 2; // header is row 1 in excel
     const qtyText = String(row.qtycounted ?? "").trim();
     if (qtyText === "" || Number(qtyText) === 0) {
       skipped += 1;
@@ -200,7 +187,7 @@ countSheetFileInput.addEventListener("change", async () => {
   loadOpeningStockBtn.textContent = `Load ${lines.length} Batch${lines.length === 1 ? "" : "es"}`;
 });
 
-/* ---------- Saving ---------- */
+// ---------- saving ----------
 loadOpeningStockBtn.addEventListener("click", async () => {
   if (!openingPlan) return;
   const { plan, units, products } = openingPlan;
@@ -208,8 +195,7 @@ loadOpeningStockBtn.addEventListener("click", async () => {
   await hideModalAndWait(openingStockModalEl);
   showTaskProgress("Loading opening stock", "Keep this page open until it finishes.");
 
-  // Groups of up to 400 lines, each all-or-nothing, so a failed group can be
-  // retried without doubling the ones before it.
+  // saves in groups so a failed group can be retried without doubling
   const ops = plan.newLines.map((line) => ({ line })).concat(plan.topUps.map((t) => ({ topUp: t })));
   let saved = 0;
   let failedError = null;

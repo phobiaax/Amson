@@ -1,6 +1,4 @@
-/* ==========================================================================
-   Amson Pharmaceuticals - Global Styles
-   ========================================================================== */
+/* amson global styles */
 
 :root {
   --amson-red: #ee3137;
@@ -20,8 +18,7 @@ body {
   flex-direction: column;
 }
 
-/* Sticky footer: main grows to fill leftover space so the footer stays
-   pinned to the bottom of the viewport even on pages with little content. */
+/* sticky footer, main fills the space so the footer stays at the bottom */
 main {
   flex: 1 0 auto;
 }
@@ -30,14 +27,14 @@ a {
   text-decoration: none;
 }
 
-/* ---------- Top accent bar ---------- */
+/* ---------- top accent bar ---------- */
 .top-bar {
   height: 6px;
   background-color: var(--amson-red);
   width: 100%;
 }
 
-/* ---------- Header ---------- */
+/* ---------- header ---------- */
 .site-header {
   border-bottom: 1px solid var(--amson-border);
   background-color: #fff;
@@ -89,8 +86,7 @@ a {
   color: #fff;
 }
 
-/* Void on a sale receipt: same shape and weight as the buttons beside it,
-   in the Amson red. */
+/* void button matches the buttons beside it, in amson red */
 #posReceiptModalFooter .btn-outline-danger {
   --bs-btn-color: var(--amson-red);
   --bs-btn-border-color: var(--amson-red);
@@ -122,7 +118,7 @@ a {
   color: var(--amson-dark);
 }
 
-/* Prescription tag after a product name */
+/* rx tag after a product name */
 .rx-tag {
   display: inline-block;
   margin-left: 0.3rem;
@@ -137,12 +133,12 @@ a {
   letter-spacing: 0.02em;
 }
 
-/* ---------- Category nav ---------- */
+/* ---------- category nav ---------- */
 .category-nav {
   background-color: #fff;
   border-bottom: 1px solid var(--amson-border);
 }
-/* Always one line: centred when it fits (auto margins), scrolls sideways when it doesn't. */
+/* one line, centered if it fits, scrolls if not */
 .category-nav .nav {
   flex-wrap: nowrap !important;
   justify-content: flex-start !important;
@@ -165,7 +161,7 @@ a {
 .category-nav .nav-item:last-child {
   margin-right: auto;
 }
-/* On laptops the bar may use the full screen width so all 9 fit on one line. */
+/* laptops can use the full width so all 9 fit */
 @media (min-width: 1200px) {
   .category-nav .container {
     max-width: none;
@@ -174,8 +170,7 @@ a {
 .category-nav .nav-link:hover {
   color: var(--amson-red);
 }
-/* Edge fades, switched on by shop-sections.js only while there are more
-   items hidden off that side of the bar. */
+/* edge fades, turned on by shop-sections.js when theres more to scroll */
 .category-nav .container {
   position: relative;
 }
@@ -204,7 +199,7 @@ a {
   opacity: 1;
 }
 
-/* ---------- Header responsive ---------- */
+/* ---------- header responsive ---------- */
 @media (max-width: 767.98px) {
   .site-header .search-input,
   .site-header .search-btn {
@@ -215,8 +210,7 @@ a {
   }
 }
 
-/* Phones: keep a short "Amson" next to the logo and tighten the spacing so
-   the logo, cart and Login / Register sit comfortably on one row. */
+/* phones: short name and tighter spacing so the header fits one row */
 @media (max-width: 575.98px) {
   .brand-name-rest {
     display: none;
@@ -232,7 +226,7 @@ a {
   }
 }
 
-/* ---------- Login page ---------- */
+/* ---------- login page ---------- */
 .auth-page {
   background-color: var(--amson-gray-bg);
   min-height: calc(100vh - 200px);
@@ -283,17 +277,13 @@ a {
   border: 1px solid var(--amson-border);
 }
 
-/* A focused field is blue by default (just "you're in this field now"),
-   same as it would be unstyled - red is reserved for a field that's
-   actually wrong (failed its pattern/required check), not every field
-   anyone happens to click into. */
+/* focused fields stay blue, red only means something is wrong */
 .input-icon-group .form-control:focus {
   border-color: #86b7fe;
   box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.15);
 }
 
-/* A field marked invalid by a form's own check (e.g. checkout) is outlined
-   in red like any other field, even though it has an icon. */
+/* invalid fields get a red outline even with an icon */
 .input-icon-group .form-control.is-invalid {
   border-color: var(--bs-form-invalid-border-color);
 }
@@ -304,9 +294,7 @@ a {
   box-shadow: 0 0 0 3px rgba(238, 49, 55, 0.1);
 }
 
-/* Suppress Bootstrap's built-in valid/invalid check icon - it renders in
-   the same corner as our custom field icons (toggle-password, etc.) and
-   visually collides with them. */
+/* hides bootstraps check icon since it overlaps our field icons */
 .input-icon-group .form-control:valid,
 .input-icon-group .form-control:invalid,
 .input-icon-group .form-control.is-valid,
@@ -314,9 +302,7 @@ a {
   background-image: none;
 }
 
-/* Registration form: no green "valid" success styling on any field - a
-   correctly-filled field just goes back to the plain border, not a color
-   that implies something's wrong. */
+/* no green valid style on register fields */
 #registerForm.was-validated .form-control:valid,
 #registerForm .form-control.is-valid {
   border-color: var(--amson-border);
@@ -371,7 +357,7 @@ a {
   border-color: var(--amson-red);
 }
 
-/* ---------- Icon circle (reset / verify pages) ---------- */
+/* ---------- icon circle (reset / verify pages) ---------- */
 .icon-circle {
   width: 72px;
   height: 72px;
@@ -385,7 +371,7 @@ a {
   margin: 0 auto 1.25rem;
 }
 
-/* ---------- OTP inputs (verify email) ---------- */
+/* ---------- otp inputs (verify email) ---------- */
 .otp-inputs {
   display: flex;
   justify-content: center;
@@ -419,7 +405,7 @@ a {
   }
 }
 
-/* ---------- Footer ---------- */
+/* ---------- footer ---------- */
 .site-footer {
   background-color: var(--amson-dark);
   color: #c7c7cf;
@@ -452,13 +438,13 @@ a {
   color: #8a8a92;
 }
 
-/* ---------- Alerts ---------- */
+/* ---------- alerts ---------- */
 .auth-alert {
   font-size: 0.85rem;
   padding: 0.6rem 0.85rem;
 }
 
-/* ---------- Header: account dropdown / notification bell ---------- */
+/* ---------- header: account dropdown / notification bell ---------- */
 .bell-icon {
   font-size: 1.3rem;
   color: var(--amson-dark);
@@ -503,7 +489,7 @@ a {
   color: var(--amson-red) !important;
 }
 
-/* ---------- Hero ---------- */
+/* ---------- hero ---------- */
 .hero-section {
   background-color: var(--amson-red);
   padding: 4rem 0;
@@ -511,8 +497,7 @@ a {
   position: relative;
   overflow: hidden;
 }
-/* Soft pattern of medical crosses on the right half, fading out toward the
-   headline so the text always sits on plain red. Purely decorative. */
+/* faint cross pattern on the right, just decoration */
 .hero-section::before {
   content: "";
   position: absolute;
@@ -560,14 +545,14 @@ a {
   .hero-section h1 {
     font-size: 2rem;
   }
-  /* On a phone the text spans the full width, so the pattern stays faint. */
+  /* pattern stays faint on phones */
   .hero-section::before {
     width: 100%;
     opacity: 0.5;
   }
 }
 
-/* ---------- Trust bar ---------- */
+/* ---------- trust bar ---------- */
 .trust-bar {
   background-color: #fff;
   border-bottom: 1px solid var(--amson-border);
@@ -591,8 +576,7 @@ a {
   color: var(--amson-red);
   font-size: 1.3rem;
 }
-/* Phones: three equal columns, icon above the label, so all three stay on
-   one row instead of wrapping 2 + 1. */
+/* phones: three columns so they stay on one row */
 @media (max-width: 575.98px) {
   .trust-bar {
     padding: 1rem 0;
@@ -611,7 +595,7 @@ a {
   }
 }
 
-/* ---------- Section blocks ---------- */
+/* ---------- section blocks ---------- */
 .section-block {
   padding: 3rem 0;
 }
@@ -623,7 +607,7 @@ a {
   font-size: 1.5rem;
 }
 
-/* ---------- Product card ---------- */
+/* ---------- product card ---------- */
 .product-card {
   background-color: #fff;
   border: 1px solid var(--amson-border);
@@ -641,8 +625,7 @@ a {
   position: relative;
 }
 
-/* Out-of-stock storefront cards stay visible (never hidden from the
-   catalog) but read as unavailable at a glance and can't be ordered. */
+/* out of stock cards stay visible but look unavailable */
 .product-card.out-of-stock .product-image {
   filter: grayscale(85%);
   opacity: 0.55;
@@ -694,7 +677,7 @@ a {
   margin-top: auto;
 }
 
-/* ---------- Category card ---------- */
+/* ---------- category card ---------- */
 .category-card {
   display: block;
   background-color: var(--amson-gray-bg);
@@ -731,7 +714,7 @@ a {
   margin-bottom: 0;
 }
 
-/* ---------- Loading placeholders (shop home) ---------- */
+/* ---------- loading placeholders (shop home) ---------- */
 .skeleton {
   background: linear-gradient(90deg, #ececf0 25%, #f6f6f8 50%, #ececf0 75%);
   background-size: 200% 100%;
@@ -778,7 +761,7 @@ a {
   margin-right: 0.35rem;
 }
 
-/* ---------- Bulk CTA + footer wrapper ---------- */
+/* ---------- bulk cta and footer wrapper ---------- */
 .bulk-cta {
   background-color: var(--amson-dark);
   color: #fff;
@@ -800,7 +783,7 @@ a {
   font-weight: 500;
 }
 
-/* ---------- Floating chat button ---------- */
+/* ---------- floating chat button ---------- */
 .floating-chat-btn {
   position: fixed;
   right: 1.5rem;
@@ -821,7 +804,7 @@ a {
   color: #fff;
 }
 
-/* ---------- Filter sidebar (product catalog) ---------- */
+/* ---------- filter sidebar (product catalog) ---------- */
 .filter-panel {
   background-color: #fff;
   border: 1px solid var(--amson-border);
@@ -847,7 +830,7 @@ a {
   font-size: 0.9rem;
 }
 
-/* ---------- Pagination ---------- */
+/* ---------- pagination ---------- */
 .catalog-pagination {
   display: flex;
   justify-content: center;
@@ -883,7 +866,7 @@ a {
   margin-top: 0.5rem;
 }
 
-/* ---------- Cart icon badge ---------- */
+/* ---------- cart icon badge ---------- */
 .cart-badge {
   position: absolute;
   top: -6px;
@@ -899,7 +882,7 @@ a {
   text-align: center;
 }
 
-/* ---------- Breadcrumb ---------- */
+/* ---------- breadcrumb ---------- */
 .breadcrumb-nav {
   font-size: 0.9rem;
   color: var(--amson-text-muted);
@@ -917,7 +900,7 @@ a {
   color: var(--amson-dark);
 }
 
-/* ---------- Product details page ---------- */
+/* ---------- product details page ---------- */
 .product-detail-card {
   background-color: #fff;
   border: 1px solid var(--amson-border);
@@ -930,12 +913,7 @@ a {
   border-radius: 10px;
   width: 100%;
 }
-/* Bootstrap's .btn-close carries a negative margin sized to cancel out
-   the modal header's own padding so it sits flush in the corner - but
-   #productQuickViewModal's header uses pb-0/border-0 (no bottom padding
-   to cancel against), so that negative margin pulled the button down far
-   enough to visually sit on top of the modal body's content, which (being
-   later in paint order) actually caught the click instead of the button. */
+/* fixes the quick view close button position */
 #productQuickViewModal .modal-header .btn-close {
   position: relative;
   z-index: 2;
@@ -999,7 +977,7 @@ a {
   margin-bottom: 0.75rem;
 }
 
-/* ---------- Cart / Checkout / Payment shared cards ---------- */
+/* ---------- cart / checkout / payment shared cards ---------- */
 .cart-card,
 .summary-card,
 .checkout-card {
@@ -1040,8 +1018,7 @@ a {
   flex-grow: 1;
   min-width: 0;
 }
-/* Phones: quantity + Remove wrap under the name, and the line total gets
-   its own row on the right, so the cart never runs off the screen. */
+/* phones: cart row wraps so it doesnt run off screen */
 @media (max-width: 575.98px) {
   .cart-item-row {
     flex-wrap: wrap;
@@ -1105,7 +1082,7 @@ a {
   margin-bottom: 1rem;
 }
 
-/* ---------- Payment page ---------- */
+/* ---------- payment page ---------- */
 .qr-box {
   background-color: #fff;
   border: 1px solid var(--amson-border);
@@ -1148,7 +1125,7 @@ a {
   gap: 0.5rem;
 }
 
-/* ---------- Legal (Terms/Privacy) modal ---------- */
+/* ---------- legal (terms/privacy) modal ---------- */
 .legal-modal-body {
   max-height: 360px;
   overflow-y: auto;
@@ -1172,7 +1149,7 @@ a {
   margin-top: 0.5rem;
 }
 
-/* ---------- Order list ---------- */
+/* ---------- order list ---------- */
 .order-card {
   background-color: #fff;
   border: 1px solid var(--amson-border);
@@ -1250,7 +1227,7 @@ a {
   gap: 0.75rem;
 }
 
-/* ---------- Order tracking timeline ---------- */
+/* ---------- order tracking timeline ---------- */
 .order-timeline {
   padding-left: 0;
 }
@@ -1318,7 +1295,7 @@ a {
   color: var(--amson-text-muted);
 }
 
-/* ---------- Order detail grid (shipping address, etc.) ---------- */
+/* ---------- order detail grid ---------- */
 .detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1344,7 +1321,7 @@ a {
   }
 }
 
-/* ---------- Admin layout ---------- */
+/* ---------- admin layout ---------- */
 .admin-body {
   display: flex;
   min-height: 100vh;
@@ -1475,7 +1452,7 @@ a {
   padding: 2rem;
 }
 
-/* Stat cards */
+/* stat cards */
 .stat-card {
   background-color: #fff;
   border: 1px solid var(--amson-border);
@@ -1515,7 +1492,7 @@ a {
   color: var(--amson-red);
 }
 
-/* Chart cards */
+/* chart cards */
 .chart-card {
   background-color: #fff;
   border: 1px solid var(--amson-border);
@@ -1534,8 +1511,7 @@ a {
   position: relative;
   height: 260px;
 }
-/* Before a chart has drawn, its canvas is the browser's default 300px wide,
-   which pushed small-laptop screens into sideways scrolling. */
+/* stops the default 300px canvas from causing sideways scroll */
 .chart-canvas-wrap canvas {
   max-width: 100%;
 }
@@ -1547,7 +1523,7 @@ a {
   padding: 3rem 0;
 }
 
-/* Inventory alert boxes */
+/* inventory alert boxes */
 .inventory-alert-box {
   background-color: #fff;
   border: 1px solid var(--amson-border);
@@ -1598,8 +1574,7 @@ a {
   display: none;
 }
 
-/* Below desktop width, the sidebar stays a real sidebar (not a
-   horizontal scrolling bar) - it's just off-canvas until toggled open. */
+/* below desktop the sidebar is off-canvas */
 @media (max-width: 991.98px) {
   .admin-sidebar-toggle {
     display: inline-block;
@@ -1627,7 +1602,7 @@ a {
   }
 }
 
-/* ---------- Admin: Online Orders (tabs, queue, table) ---------- */
+/* ---------- admin: online orders (tabs, queue, table) ---------- */
 .admin-tab-btn {
   background: none;
   border: none;
@@ -1720,14 +1695,12 @@ a {
   white-space: nowrap;
 }
 
-/* Shop header on refresh: a customer who was signed in on this browser sees
-   a blank spot (not Login / Register) until js/header-user.js shows their
-   name. Set by a one-line script in each shop page's <head>. */
+/* hides login / register on refresh for signed-in customers until header-user.js runs */
 .header-known-user #guestActions {
   visibility: hidden;
 }
 
-/* Payment Verification: the items on the order being reviewed. */
+/* items on the order being reviewed */
 .review-items {
   border: 1px solid var(--amson-border);
   border-radius: 8px;
@@ -1762,7 +1735,7 @@ a {
   font-size: 1.05rem;
 }
 
-/* ---------- Segmented toggle (Yes/No, Active/Inactive) ---------- */
+/* ---------- segmented toggle (yes/no, active/inactive) ---------- */
 .segmented-toggle {
   display: inline-flex;
   align-self: flex-start;
@@ -1790,7 +1763,7 @@ a {
   color: #fff;
 }
 
-/* ---------- Product image thumbnail in admin tables/modals ---------- */
+/* ---------- product image thumbnail in admin tables/modals ---------- */
 .product-thumb {
   width: 40px;
   height: 40px;
@@ -1831,7 +1804,7 @@ a {
   color: var(--amson-red-dark);
 }
 
-/* ---------- Supplier cards ---------- */
+/* ---------- supplier cards ---------- */
 .supplier-card {
   background-color: #fff;
   border: 1px solid var(--amson-border);
@@ -1867,8 +1840,8 @@ a {
   flex-shrink: 0;
 }
 
-/* ---------- Inventory: action tiles + stat boxes ---------- */
-/* Red-outlined partner to the solid red Receive Stock tile. */
+/* ---------- inventory: action tiles and stat boxes ---------- */
+/* red outline version of the receive stock tile */
 .btn-outline-amson {
   border: 2px solid var(--amson-red);
   color: var(--amson-red);
@@ -1935,7 +1908,7 @@ a {
   color: #343a40;
 }
 
-/* ---------- Repeater rows (Receive Stock / Write Off items) ---------- */
+/* ---------- repeater rows (receive stock / write off items) ---------- */
 .repeater-item {
   border: 1px solid var(--amson-border);
   border-radius: 8px;
@@ -1995,7 +1968,7 @@ a {
   color: var(--amson-red);
 }
 
-/* ---------- Choices.js (searchable selects for product/supplier/batch pickers) ---------- */
+/* ---------- choices.js searchable selects ---------- */
 .choices {
   margin-bottom: 0;
   font-size: 1rem;
@@ -2020,8 +1993,7 @@ a {
 .choices__list[aria-expanded] {
   border-color: var(--amson-border);
   border-radius: 6px;
-  /* Bootstrap's input-group children (e.g. the POS qty +/- buttons) get
-     their own stacking context and otherwise render on top of this. */
+  /* keeps the dropdown above input group buttons */
   z-index: 50;
 }
 
@@ -2029,9 +2001,7 @@ a {
   border-bottom: 1px solid var(--amson-border);
 }
 
-/* Long product names wrap between words (the library breaks anywhere,
-   mid-word), and use the full width (it keeps 100px free on the right for
-   a "Press to select" hint this site turns off). */
+/* long names wrap between words and use the full width */
 .choices__list--dropdown,
 .choices__list[aria-expanded] {
   word-break: normal;
@@ -2051,9 +2021,7 @@ a {
   padding-right: 1.25rem;
 }
 
-/* Make the single-select pickers read as search bars: a magnifier in the
-   box, and when opened Choices' own search field sits right over the box
-   (instead of inside the dropdown), with the matches listed underneath. */
+/* makes the pickers look like search bars */
 .choices[data-type*="select-one"] .choices__inner {
   padding-left: 2.2rem;
 }
@@ -2093,7 +2061,7 @@ a {
   color: #8a8a8e;
 }
 
-/* ---------- Public legal page (legal.html) ---------- */
+/* ---------- public legal page (legal.html) ---------- */
 .legal-page-body h6 {
   font-weight: 700;
   margin-top: 1.25rem;
@@ -2102,7 +2070,7 @@ a {
   line-height: 1.65;
 }
 
-/* ---------- Printing a sale receipt (58mm thermal paper) ---------- */
+/* ---------- printing a sale receipt (58mm thermal paper) ---------- */
 @media print {
   body * {
     visibility: hidden !important;
@@ -2127,8 +2095,7 @@ a {
     box-shadow: none !important;
     font-size: 9pt;
   }
-  /* The item table fits the 58mm paper: no scroll box, fixed column
-     widths, and long product names wrap instead of widening the table. */
+  /* receipt table fits 58mm paper, names wrap */
   #posReceiptModal .modal-header,
   #posReceiptModal .modal-body {
     padding-left: 2mm !important;
@@ -2168,7 +2135,7 @@ a {
   }
 }
 
-/* ---------- Live chat (customer widget + staff console) ---------- */
+/* ---------- live chat (customer widget and staff console) ---------- */
 .chat-panel {
   position: fixed;
   right: 1.5rem;
@@ -2242,14 +2209,12 @@ a {
   background-color: #fff;
   border: 1px solid var(--amson-border);
 }
-/* The AI's App Check (reCAPTCHA) badge would sit over the chat button; the
-   chat's disclaimer carries the "Protected by reCAPTCHA" notice instead, as
-   Google allows. (The login / register checkbox is a different widget.) */
+/* hides the recaptcha badge, the chat disclaimer shows the notice instead */
 .grecaptcha-badge {
   visibility: hidden;
 }
 
-/* "The assistant is typing": three dots while a reply is on its way. */
+/* typing dots while the assistant replies */
 .chat-typing {
   display: inline-flex;
   align-items: center;
@@ -2342,7 +2307,7 @@ a {
   text-decoration: none;
   align-self: flex-start;
 }
-/* Order card in the chat: items, progress steps, next step */
+/* order card in the chat */
 .chat-order-thumb {
   display: inline-block;
   flex: 0 0 auto;
@@ -2462,7 +2427,7 @@ a {
   }
 }
 
-/* ---------- Reports ---------- */
+/* ---------- reports ---------- */
 .report-table {
   font-size: 0.82rem;
 }
@@ -2478,7 +2443,7 @@ a {
   border: 0;
 }
 
-/* ---------- Store announcement banner ---------- */
+/* ---------- store announcement banner ---------- */
 .store-banner {
   padding: 0.6rem 1rem;
   text-align: center;
@@ -2495,7 +2460,7 @@ a {
   color: #fff;
 }
 
-/* ---- Products > Upload Photos ---- */
+/* ---- products: upload photos ---- */
 .photo-steps {
   display: flex;
   align-items: center;
@@ -2697,7 +2662,7 @@ a {
   }
 }
 
-/* ---- One simple loading ring everywhere: thin, light track, red arc ---- */
+/* ---- loading ring ---- */
 .spinner-border {
   --bs-spinner-border-width: 0.2em;
   border-color: rgba(0, 0, 0, 0.12);
@@ -2713,7 +2678,7 @@ a {
   height: 2.5rem;
 }
 
-/* ---- Progress / result pop-up for long jobs ---- */
+/* ---- progress / result popup ---- */
 .task-modal-icon {
   font-size: 2.6rem;
   line-height: 1;
@@ -2732,7 +2697,7 @@ a {
   min-width: 0;
 }
 
-/* Batch import: rows skipped as duplicates */
+/* rows skipped as duplicates */
 #batchReviewTableBody tr.br-duplicate > td {
   background-color: #fff7e6;
 }
@@ -2754,7 +2719,7 @@ a {
   border-color: var(--amson-red);
 }
 
-/* ---- Inventory > Opening Stock ---- */
+/* ---- inventory: opening stock ---- */
 .opening-step {
   display: flex;
   gap: 0.75rem;
@@ -2775,8 +2740,7 @@ a {
   font-size: 0.85rem;
 }
 
-/* Staff pages: hidden behind a small loader until admin-header.js has
-   checked the signed-in role (see .admin-ready). */
+/* staff pages stay hidden behind a loader until the role check */
 .admin-body:not(.admin-ready) {
   visibility: hidden;
 }
@@ -2800,8 +2764,7 @@ body:has(> .admin-body:not(.admin-ready))::before {
   }
 }
 
-/* Forms flag mistakes in red only: Bootstrap's green "valid" look made
-   fields and checkboxes (e.g. Remember me) turn green after a failed try. */
+/* red only for mistakes, no green valid look */
 .was-validated .form-control:valid,
 .was-validated .form-select:valid {
   border-color: var(--bs-border-color);
@@ -2827,9 +2790,8 @@ body:has(> .admin-body:not(.admin-ready))::before {
   color: inherit;
 }
 
-/* ---------- POS quantity stepper ---------- */
-/* Room for "1", "10" or "100" between the - and + buttons; the browser's
-   own up/down arrows are hidden because the buttons do that job. */
+/* ---------- pos quantity stepper ---------- */
+/* room for up to 100 between the buttons, browser arrows hidden */
 .pos-qty-group #posQtyInput {
   min-width: 3.5rem;
   font-weight: 600;
@@ -2842,7 +2804,7 @@ body:has(> .admin-body:not(.admin-ready))::before {
   margin: 0;
 }
 
-/* ---------- Orders page: loading note and review placeholder ---------- */
+/* ---------- orders page: loading note and review placeholder ---------- */
 .orders-loading-note {
   color: var(--amson-text-muted);
   text-align: center;
@@ -2866,10 +2828,8 @@ body:has(> .admin-body:not(.admin-ready))::before {
   display: none !important;
 }
 
-/* ---------- Collapsible admin sidebar (desktop) ---------- */
-/* Set up by admin-sidebar.js. Expanded is the default; collapsed is an
-   icon rail with tooltips. Below 992px none of this applies - the sidebar
-   is the off-canvas menu instead. */
+/* ---------- collapsible admin sidebar (desktop) ---------- */
+/* set up by admin-sidebar.js, collapsed is an icon rail, not used below 992px */
 .admin-sidebar-logo {
   display: none;
   width: 32px;
@@ -2931,7 +2891,7 @@ body:has(> .admin-body:not(.admin-ready))::before {
   .sidebar-collapsed .admin-sidebar-collapse-btn i {
     transform: rotate(180deg);
   }
-  /* Labels stay in the page for screen readers, just not on screen. */
+  /* labels stay for screen readers but hidden */
   .sidebar-collapsed .admin-nav-label {
     position: absolute;
     width: 1px;
@@ -2940,7 +2900,7 @@ body:has(> .admin-body:not(.admin-ready))::before {
     clip: rect(0 0 0 0);
     white-space: nowrap;
   }
-  /* Unread count becomes a small badge on the icon. */
+  /* unread count as a small badge */
   .sidebar-collapsed .admin-nav-link .badge-count {
     position: absolute;
     top: 0.35rem;
@@ -2949,7 +2909,7 @@ body:has(> .admin-body:not(.admin-ready))::before {
     font-size: 0.6rem;
     padding: 0.05rem 0.3rem;
   }
-  /* Tooltip with the page name on hover / keyboard focus. */
+  /* tooltip with the page name on hover or focus */
   .sidebar-collapsed .admin-nav-link::after,
   .sidebar-collapsed .admin-sidebar-collapse-btn::after {
     content: attr(data-label);

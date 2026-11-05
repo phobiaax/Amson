@@ -1,6 +1,4 @@
-/**
- * Register page logic.
- */
+// register page
 
 const registerForm = document.getElementById("registerForm");
 const registerAlert = document.getElementById("registerAlert");
@@ -22,8 +20,7 @@ const lastNameHint = document.getElementById("lastNameHint");
 const emailHint = document.getElementById("emailHint");
 const contactNumberHint = document.getElementById("contactNumberHint");
 
-// ---- Already signed in (on arrival, not from our own sign-up below) -
-// skip the registration form ----
+// ---- already logged in on arrival, skip the form ----
 let isInitialAuthCheck = true;
 auth.onAuthStateChanged((user) => {
   if (!isInitialAuthCheck) return;
@@ -31,15 +28,12 @@ auth.onAuthStateChanged((user) => {
   if (user) window.location.href = "shop/index.html";
 });
 
-// ---- Password visibility toggles ----
+// ---- show/hide password ----
 wirePasswordToggles();
 
-// PASSWORD_PATTERN, NAME_PATTERN, EMAIL_PATTERN, PH_PHONE_PATTERN, and
-// normalizePhPhone come from validators.js, shared with Account Settings
-// and Staff Settings so the same rules apply everywhere these get entered
-// or changed, not just at sign-up.
+// patterns come from validators.js so every form uses the same rules
 
-// ---- Live name / email / phone feedback ----
+// ---- live name / email / phone hints ----
 function wireLiveHint(input, hint, pattern) {
   input.addEventListener("input", () => {
     const invalid = input.value.trim().length > 0 && !pattern.test(input.value.trim());
@@ -66,7 +60,7 @@ contactNumberInput.addEventListener("input", () => {
   contactNumberHint.classList.toggle("d-none", !invalid);
 });
 
-// ---- Live password length / match feedback ----
+// ---- live password hints ----
 function updatePasswordMatchHint() {
   if (!confirmPasswordInput.value) {
     passwordMatchHint.classList.add("d-none");
@@ -78,9 +72,7 @@ function updatePasswordMatchHint() {
     passwordMatchHint.classList.remove("text-success");
     passwordMatchHint.classList.add("text-danger");
   } else if (!PASSWORD_PATTERN.test(passwordInput.value)) {
-    // Passwords match but the password itself is still too weak to submit -
-    // the red passwordHint above already explains why, so stay quiet here
-    // instead of claiming a false "match" success.
+    // weak password already has its own red hint so stay quiet
     passwordMatchHint.classList.add("d-none");
   } else {
     passwordMatchHint.classList.remove("d-none");
@@ -98,7 +90,7 @@ passwordInput.addEventListener("input", () => {
 
 confirmPasswordInput.addEventListener("input", updatePasswordMatchHint);
 
-// ---- Helpers ----
+// ---- helpers ----
 function showAlert(message) {
   registerAlert.textContent = message;
   registerAlert.classList.remove("d-none");
@@ -127,7 +119,7 @@ function mapAuthError(error) {
   }
 }
 
-// ---- Register form submit ----
+// ---- register submit ----
 registerForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   hideAlert();
@@ -149,8 +141,7 @@ registerForm.addEventListener("submit", async (e) => {
   }
 });
 
-// The first thing wrong with the form (as the message to show), or null
-// when everything is filled in correctly.
+// first problem with the form, null if its all good
 function registerFormProblem() {
   if (!registerForm.checkValidity()) {
     registerForm.classList.add("was-validated");
@@ -198,8 +189,7 @@ function registerFormProblem() {
   return null;
 }
 
-// Creates the login and the customer profile with a sign-up code, emails
-// the code, and moves on to the code page.
+// makes the login and profile, emails the code, goes to the code page
 async function createCustomerAccount() {
   const email = emailInput.value.trim().toLowerCase();
   const credential = await auth.createUserWithEmailAndPassword(
@@ -222,8 +212,7 @@ async function createCustomerAccount() {
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
 
-  // The account exists now, so go on to the code page even if the email
-  // didn't send - the customer can tap Resend there.
+  // account exists already so go on even if the email failed
   let codeSent = false;
   try {
     codeSent = await sendOtpEmail(email, otpCode, firstNameInput.value.trim());
@@ -232,7 +221,7 @@ async function createCustomerAccount() {
   }
   if (!codeSent) sessionStorage.setItem("amsonOtpSendFailed", "1");
   sessionStorage.setItem("amsonPendingVerificationEmail", email);
-  // After the code, new accounts go to the login page (not straight in).
+  // new accounts go to login after the code
   sessionStorage.setItem("amsonFromRegistration", "1");
   window.location.href = "verify-email.html";
 }

@@ -1,6 +1,4 @@
-/**
- * Product Management admin page.
- */
+// product management page
 
 const PRODUCTS_PAGE_SIZE = 8;
 
@@ -63,9 +61,7 @@ const priceRestrictedNote = document.getElementById("priceRestrictedNote");
 const priceRestrictedText = document.getElementById("priceRestrictedText");
 const priceLockToggleBtn = document.getElementById("priceLockToggleBtn");
 
-// Price lock state for the product open in the modal (REQ071-073 +
-// Modules "price locking"): only a Branch Manager sets prices; a locked
-// product's prices can't be edited until the Branch Manager unlocks them.
+// price lock for the open product, only branch manager sets prices
 let priceLockedInForm = false;
 
 let currentAdminRole = "admin";
@@ -81,7 +77,7 @@ function canEditPrices() {
   return currentAdminRole === "admin" || currentAdminRole === "branch_manager";
 }
 
-/* ---------- Load ---------- */
+// ---------- load ----------
 async function ensureDefaultCategories() {
   const snapshot = await db.collection("categories").get();
   if (!snapshot.empty) return;
@@ -141,7 +137,7 @@ function setCategorySelectValue(value) {
   }
 }
 
-/* ---------- Table ---------- */
+// ---------- table ----------
 function filteredProducts() {
   let filtered = allProducts.slice();
 
@@ -261,11 +257,11 @@ productsSortBtn.addEventListener("click", () => {
   renderProductsTable();
 });
 
-/* ---------- Segmented toggles ---------- */
+// ---------- segmented toggles ----------
 wireSegmentedToggle(productRxToggle);
 wireSegmentedToggle(productStatusToggle);
 
-/* ---------- Add / Edit modal ---------- */
+// ---------- add / edit modal ----------
 function resetProductForm() {
   productNameInput.value = "";
   productGenericNameInput.value = "";
@@ -313,7 +309,7 @@ function applyPriceFieldState() {
   priceRestrictedText.textContent = note;
   priceRestrictedNote.classList.toggle("d-none", !note);
 
-  // Only a Branch Manager editing an existing product gets the lock switch.
+  // only branch manager editing a product gets the lock switch
   priceLockToggleBtn.classList.toggle("d-none", !(canEdit && editingProductId));
   priceLockToggleBtn.innerHTML = priceLockedInForm
     ? '<i class="bi bi-unlock me-1"></i>Unlock prices'
@@ -370,7 +366,7 @@ function openEditModal(product) {
   saveProductBtn.textContent = "Save Changes";
   deleteProductBtn.style.display = "inline-block";
 
-  // Sales Staff can look up product details but not change them.
+  // sales staff can view but not edit
   const readOnly = !roleCanEditProducts(currentAdminRole);
   productModalEl.querySelectorAll("input, textarea, select, .segmented-toggle-btn").forEach((el) => (el.disabled = readOnly || el.disabled));
   if (categorySelectChoices) readOnly ? categorySelectChoices.disable() : categorySelectChoices.enable();
@@ -445,7 +441,7 @@ saveProductBtn.addEventListener("click", async () => {
 
     if (!canEditPrices()) {
       if (editingProductId) {
-        // Keep whatever prices the Branch Manager set - never write them.
+        // never write prices from here
         delete productData.costingPrice;
         delete productData.retailPrice;
         delete productData.wholesalePrice;
@@ -480,7 +476,7 @@ saveProductBtn.addEventListener("click", async () => {
 
       let priceChangeReason = "";
       if (priceChanges.length > 0) {
-        // The client asked for a reason with every price change (Interview 2).
+        // client wanted a reason for every price change
         priceChangeReason = (
           (await showAppPrompt(`Price change for ${productData.name}:\n${priceChanges.join("\n")}\n\nReason for the change:`, {
             title: "Confirm Price Change",
@@ -495,8 +491,7 @@ saveProductBtn.addEventListener("click", async () => {
         }
       }
 
-      // Costing and wholesale prices go to the staff-only record; the public
-      // product keeps only the retail price (and loses any older copies).
+      // cost and wholesale prices go to the staff-only record
       const privatePrices = splitPrivatePrices(productData);
       const writeBatch = db.batch();
       if (canEditPrices()) {
@@ -527,7 +522,7 @@ saveProductBtn.addEventListener("click", async () => {
       await writeBatch.commit();
     }
 
-    catalogLoadPromise = null; // force a fresh read next time any page loads the cache
+    catalogLoadPromise = null; // forces a fresh read next time
     bootstrap.Modal.getInstance(productModalEl).hide();
     await loadProducts();
   } catch (error) {
@@ -538,8 +533,7 @@ saveProductBtn.addEventListener("click", async () => {
   }
 });
 
-// Takes the costing and wholesale prices off a product's data (they're saved
-// separately, staff-only) and returns them.
+// takes the private prices off the product data
 function splitPrivatePrices(productData) {
   const prices = {};
   PRIVATE_PRICE_FIELDS.forEach((field) => {
@@ -574,7 +568,7 @@ deleteProductBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Batch upload (Excel .xlsx/.xls or .csv, via SheetJS) ---------- */
+// ---------- batch upload (excel or csv) ----------
 const BATCH_TEMPLATE_HEADERS = [
   "name", "genericName", "brand", "category", "shopSection", "costingPrice", "retailPrice",
   "wholesalePrice", "description", "availableInPOS", "availableInOnlineStore",
@@ -638,8 +632,7 @@ function batchReviewRowHtml(row = {}) {
   `;
 }
 
-// Marks rows whose product is already in the catalog, or that repeat an
-// earlier row of the same file. Those rows are skipped on import.
+// marks rows already in the catalog or repeated in the file
 function markBatchDuplicates() {
   const seen = new Map();
   let inCatalog = 0;
@@ -735,8 +728,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
     return;
   }
 
-  // Check against the catalog as it is now (someone may have added products
-  // since the file was opened), then leave duplicates out.
+  // recheck the catalog in case someone added products
   catalogLoadPromise = null;
   await loadCatalogCache();
   updateBatchReviewCount();
@@ -800,11 +792,11 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
       const categoryId = await resolveCategoryByName(row.category);
       const sku = await generateProductSku();
       const imageUrl = row.imageFile ? await uploadToCloudinary(row.imageFile, { kind: "product" }) : null;
-      // Same price rule as the form: only a Branch Manager's import sets prices.
+      // only branch manager imports set prices
       const pricesAllowed = canEditPrices();
       const ref = db.collection("products").doc();
       const writeBatch = db.batch();
-      // Costing and wholesale prices are saved staff-only (setPrivatePrices).
+      // private prices saved staff-only
       if (pricesAllowed) setPrivatePrices(writeBatch, ref.id, { costingPrice: row.costingPrice, wholesalePrice: row.wholesalePrice });
       writeBatch.set(ref, {
         sku,
@@ -825,7 +817,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
       });
       await writeBatch.commit();
       imported += 1;
-      row.tr.remove(); // saved - only failed rows stay in the review table
+      row.tr.remove(); // saved, only failed rows stay
     } catch (error) {
       console.error("Import failed:", row.name, error);
       failedRows.push(row);
@@ -876,9 +868,7 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
   }
 });
 
-// SheetJS reads both real Excel workbooks and plain CSV through the same
-// API, so one code path handles either - and it properly handles quoted
-// CSV fields containing commas, which a naive split(",") did not.
+// sheetjs reads excel and csv the same way
 batchFileInput.addEventListener("change", async () => {
   const file = batchFileInput.files[0];
   if (!file) return;
@@ -890,8 +880,7 @@ batchFileInput.addEventListener("change", async () => {
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: "array" });
     const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-    // defval keeps every declared column present (as "") even on a row
-    // that leaves it blank, instead of just omitting the key.
+    // defval keeps blank columns as empty strings
     const sheetRows = XLSX.utils.sheet_to_json(firstSheet, { defval: "" });
     rows = sheetRows.map((sheetRow) => {
       const row = {};
@@ -929,7 +918,7 @@ async function resolveCategoryByName(name) {
   return id;
 }
 
-/* ---------- Manage Categories ---------- */
+// ---------- manage categories ----------
 manageCategoriesBtn.addEventListener("click", () => {
   renderCategoriesList();
   bootstrap.Modal.getOrCreateInstance(categoriesModalEl).show();
@@ -968,9 +957,7 @@ async function renameCategory(id) {
   renderProductsTable();
 }
 
-// A category that still has products can be deleted by moving those
-// products into another category first, in the same step - that's how the
-// old default categories get replaced by the branch's own.
+// category with products moves them to another one first
 async function deleteCategory(id) {
   categoriesAlert.classList.add("d-none");
   const productsInCategory = allProducts.filter((p) => p.category === id);
@@ -994,7 +981,7 @@ async function deleteCategory(id) {
   }
 
   try {
-    // Firestore batches cap at 500 writes.
+    // firestore batches cap at 500 writes
     for (let i = 0; i < productsInCategory.length; i += FIRESTORE_BATCH_LIMIT) {
       const writeBatch = db.batch();
       productsInCategory.slice(i, i + FIRESTORE_BATCH_LIMIT).forEach((p) => writeBatch.update(db.collection("products").doc(p.id), { category: moveTo }));

@@ -1,6 +1,4 @@
-/**
- * Notifications admin page.
- */
+// notifications page
 
 const notificationsList = document.getElementById("notificationsList");
 const notificationsEmpty = document.getElementById("notificationsEmpty");
@@ -18,7 +16,7 @@ let currentReadMap = {};
 let notifFilter = "all";
 let shownNotifications = [];
 
-// Filter buttons: All / Orders / Stock / Live Chat, with a count on each.
+// filter buttons with a count on each
 document.querySelectorAll("#notifFilterGroup [data-filter]").forEach((btn) => {
   btn.addEventListener("click", () => {
     notifFilter = btn.dataset.filter;
@@ -114,7 +112,7 @@ if (markAllNotifsReadBtn) {
     if (!currentNotifUid || shownNotifications.length === 0) return;
     markAllNotifsReadBtn.disabled = true;
     try {
-      // Only the ones in the current filter.
+      // only marks the ones in the current filter
       await markAllStaffNotifsRead(currentNotifUid, shownNotifications);
       await loadNotifications();
       if (typeof refreshAdminNotifBell === "function") refreshAdminNotifBell(currentNotifUid);
@@ -126,7 +124,7 @@ if (markAllNotifsReadBtn) {
   });
 }
 
-// Desktop alerts: the browser asks the staff member once.
+// desktop alerts, browser asks once
 const enableBrowserAlertsBtn = document.getElementById("enableBrowserAlertsBtn");
 if (enableBrowserAlertsBtn && typeof Notification !== "undefined" && Notification.permission === "default") {
   enableBrowserAlertsBtn.classList.remove("d-none");

@@ -1,11 +1,6 @@
-/**
- * Shared Cloudinary upload helper.
- */
+// cloudinary upload helper
 
-// Phone photos are often 3-8 MB. Shrinking them in the browser first keeps
-// uploads fast on mobile data and keeps Cloudinary's free storage for many
-// more photos. maxSize is the longest side in pixels: product photos need
-// less, prescriptions and permits more (they must stay readable).
+// max image size per kind, phone photos get shrunk first
 const CLOUDINARY_UPLOAD_SIZES = {
   product: 1200,
   profile: 600,
@@ -13,8 +8,7 @@ const CLOUDINARY_UPLOAD_SIZES = {
   document: 2000,
 };
 
-// Returns a smaller JPEG of an image file, or the original file when it is
-// already small, isn't a photo (PDF, GIF, SVG) or can't be read.
+// makes a smaller jpeg unless the file is already small
 async function shrinkImageForUpload(file, maxSize) {
   if (!file || !/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type) || file.size < 300 * 1024) return file;
   try {
@@ -26,7 +20,7 @@ async function shrinkImageForUpload(file, maxSize) {
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext("2d");
-    // White behind transparent PNGs, since JPEG has no transparency.
+    // white background since jpeg cant be transparent
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, width, height);
     ctx.drawImage(bitmap, 0, 0, width, height);

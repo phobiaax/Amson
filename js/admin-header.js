@@ -1,13 +1,11 @@
-/**
- * Shared admin shell logic.
- */
+// shared admin header logic
 
 const adminDateLabel = document.getElementById("adminDateLabel");
 const adminProfileName = document.getElementById("adminProfileName");
 const adminLogoutBtn = document.getElementById("adminLogoutBtn");
 
 if (adminDateLabel) {
-  // Weekday + MM/DD/YYYY, the date format used everywhere else (REQNF028).
+  // weekday plus mm/dd/yyyy like everywhere else
   const today = new Date();
   adminDateLabel.textContent = `${today.toLocaleDateString("en-PH", { weekday: "long" })}, ${formatDateMDY(today)}`;
 }
@@ -26,7 +24,7 @@ auth.onAuthStateChanged(async (user) => {
     }
 
     const admin = doc.data();
-    // Deactivated in Staff Management: signed out even if "Remember me" kept them in.
+    // deactivated staff get signed out even with remember me
     if (admin.accountStatus === "deactivated") {
       try {
         sessionStorage.setItem("amsonLoginNotice", "This account has been deactivated. Please contact the Branch Manager.");
@@ -35,7 +33,7 @@ auth.onAuthStateChanged(async (user) => {
       window.location.href = "../login.html";
       return;
     }
-    // Staff need a confirmed device too (REQ044).
+    // staff need a confirmed device too
     if (!(await enforceRecognizedDevice(admin))) return;
 
     if (!roleCanAccessPage(admin.role, currentAdminPageName())) {
@@ -47,8 +45,7 @@ auth.onAuthStateChanged(async (user) => {
     if (adminProfileName) {
       adminProfileName.textContent = `${admin.firstName} ${admin.lastName}`;
     }
-    // The topbar and the sidebar both name the signed-in role (the pages'
-    // HTML says "Administrator" until this runs).
+    // shows the real role in the topbar and sidebar
     document.querySelectorAll(".admin-profile .role, .admin-sidebar-brand p").forEach((el) => {
       el.textContent = STAFF_ROLE_LABELS[admin.role] || admin.role;
     });
@@ -60,11 +57,10 @@ auth.onAuthStateChanged(async (user) => {
       }
     });
 
-    // The page stays hidden (style.css) until the role check has passed, so
-    // nobody glimpses a page they're about to be sent away from.
+    // page stays hidden until the role check passes
     document.querySelectorAll(".admin-body").forEach((el) => el.classList.add("admin-ready"));
     document.dispatchEvent(new CustomEvent("admin:ready", { detail: { uid: user.uid, admin } }));
-    // Staff alerts (orders, stock, expiry) aren't part of Sales Staff's job.
+    // sales staff dont get staff alerts
     if (roleCanAccessPage(admin.role, "notifications.html")) {
       refreshAdminNotifBell(user.uid).then(() => watchStaffAlertsLive(user.uid));
     }
@@ -73,10 +69,7 @@ auth.onAuthStateChanged(async (user) => {
   }
 });
 
-// ---- Notification bell (topbar) + unread badge (sidebar) - built once
-// here so every admin page gets it without needing its own markup or
-// script include. See products-data.js's computeStaffNotifications /
-// getStaffNotifReadMap / markStaffNotifRead for how unread is determined. ----
+// ---- notification bell and unread badge, built here for every admin page ----
 function ensureAdminNotifBell() {
   let bellBtn = document.getElementById("adminNotifBellBtn");
   if (bellBtn) return bellBtn;
@@ -101,8 +94,7 @@ function ensureAdminNotifBell() {
   return document.getElementById("adminNotifBellBtn");
 }
 
-// `notificationsOverride`: the live listeners below pass the list with
-// their fresh order/chat alerts swapped in.
+// live listeners pass a fresh list here
 async function refreshAdminNotifBell(uid, notificationsOverride = null) {
   if (typeof computeStaffNotifications !== "function") return;
   if (!ensureAdminNotifBell()) return;
@@ -183,12 +175,9 @@ async function refreshAdminNotifBell(uid, notificationsOverride = null) {
   }
 }
 
-// New orders waiting for verification and chats handed to staff show on the
-// bell (and as desktop alerts) the moment they happen, without a refresh.
-// Only those small sets are listened to; stock alerts refresh on page load.
+// new orders and staff chats show on the bell right away
 function watchStaffAlertsLive(uid) {
-  // undefined = waiting for the first snapshot; null = that listener failed,
-  // so its alerts stay as the last full read had them.
+  // undefined means waiting, null means the listener failed
   const live = { orders: undefined, chat: undefined };
   let timer = null;
   const merge = () => {
@@ -228,9 +217,8 @@ if (adminLogoutBtn) {
   });
 }
 
-// ---- Browser (desktop) alerts for staff ----
-// Turned on from the Notifications page. Each unread alert pops up once per
-// browser; it shows again only when its contents change.
+// ---- desktop alerts for staff ----
+// each alert pops up once unless it changes
 const BROWSER_ALERTED_KEY = "amsonBrowserAlerted";
 
 function showBrowserAlerts(unread) {

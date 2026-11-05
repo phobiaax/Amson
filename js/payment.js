@@ -1,6 +1,4 @@
-/**
- * Payment page.
- */
+// payment page
 
 const MAX_PROOF_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -58,16 +56,14 @@ function renderCreditPreview() {
   }
   paymentTotalText.textContent = formatPeso(finalTotal);
 
-  // Credit can fully cover the order - there's nothing to pay via QR Ph,
-  // so don't ask for a screenshot/reference number for a payment that
-  // never happens.
+  // credit covers everything so no screenshot needed
   fullyCoveredByCredit = finalTotal <= 0 && cartSubtotal > 0;
   qrBox.classList.toggle("d-none", fullyCoveredByCredit);
   fullyCoveredNotice.classList.toggle("d-none", !fullyCoveredByCredit);
   updateSubmitButtonState();
 }
 
-// ---- Require login (in case this page is opened directly) ----
+// ---- must be logged in ----
 auth.onAuthStateChanged(async (user) => {
   if (!user) {
     window.location.href = "../login.html?next=shop%2Fcheckout.html";
@@ -78,21 +74,18 @@ auth.onAuthStateChanged(async (user) => {
     customerCreditBalance = doc.exists ? doc.data().creditBalance || 0 : 0;
     renderCreditPreview();
   } catch (error) {
-    // Preview only - if it fails to load, checkout still works, the
-    // redemption itself happens authoritatively in the order transaction.
+    // just a preview, the real credit use happens when the order saves
   }
 });
 
-// Submit Order stays clickable: pressing it with something missing lists
-// what's still needed (see submitOrderBtn below). Any change to the form
-// clears that list.
+// button stays clickable and lists whats missing
 const submitOrderErrorAlert = document.getElementById("submitOrderErrorAlert");
 function updateSubmitButtonState() {
   submitOrderBtn.disabled = false;
   submitOrderErrorAlert.classList.add("d-none");
 }
 
-// ---- Page start ----
+// ---- page start ----
 (async function init() {
   if (!pendingOrder || !pendingOrder.cart || pendingOrder.cart.length === 0) {
     noPendingOrderNotice.classList.remove("d-none");
@@ -105,7 +98,7 @@ function updateSubmitButtonState() {
   submitOrderBtn.addEventListener("click", submitOrder);
 })();
 
-// ---- 1. What's being ordered, and the total ----
+// ---- 1. whats being ordered and the total ----
 function showOrderSummary() {
   requiresPrescription = pendingOrder.cart.some((item) => {
     const product = getProductById(item.id);
@@ -122,7 +115,7 @@ function showOrderSummary() {
   renderCreditPreview();
 }
 
-// The cart's total at the catalog's current prices.
+// cart total at current prices
 function cartTotalNow() {
   let total = 0;
   for (const item of pendingOrder.cart) {
@@ -132,7 +125,7 @@ function cartTotalNow() {
   return total;
 }
 
-// ---- 2. The payment screenshot, prescription photo and reference number ----
+// ---- 2. payment screenshot, prescription photo and reference no. ----
 function setUpUploads() {
   referenceNumberInput.addEventListener("input", () => {
     referenceNumberErrorText.classList.add("d-none");
@@ -158,8 +151,7 @@ function setUpUploads() {
   });
 }
 
-// One image picker: clicking the box opens the file chooser; a chosen image
-// is previewed, and one over 10MB is refused.
+// one image picker, previews the file and refuses over 10mb
 function setUpFilePicker({ dropzone, input, errorText, emptyState, previewState, previewImage, previewFilename }) {
   dropzone.addEventListener("click", () => input.click());
   input.addEventListener("change", () => {
@@ -186,7 +178,7 @@ function setUpFilePicker({ dropzone, input, errorText, emptyState, previewState,
   });
 }
 
-// ---- Submit Order: check the form, re-check stock and prices, place it ----
+// ---- submit: check form, recheck stock and prices, place order ----
 async function submitOrder() {
   const file = proofOfPaymentInput.files[0];
   const prescriptionFile = prescriptionPhotoInput.files[0];
@@ -204,9 +196,8 @@ async function submitOrder() {
   await placeOrder(file, prescriptionFile, referenceNumber);
 }
 
-// ---- 3. Is anything missing? ----
-// Lists everything still missing or invalid above the button, and under
-// each field. Returns true when the form is complete.
+// ---- 3. anything missing? ----
+// true when the form is complete
 function checkPaymentForm(file, prescriptionFile, referenceNumber) {
   const problems = [];
   if (requiresPrescription && !prescriptionFile) {
@@ -231,17 +222,12 @@ function checkPaymentForm(file, prescriptionFile, referenceNumber) {
   return true;
 }
 
-// ---- 4. Last check of stock and prices ----
-// Stock may have changed since the cart was filled (another customer bought
-// it, or it hasn't been received yet), and prices may have changed too, so
-// both are re-checked against live numbers right before the order is made.
-// Returns true when it's fine to go ahead; otherwise explains why not.
+// ---- 4. last stock and price check ----
 async function stockAndPricesStillOk(prescriptionFile) {
   clearCatalogCache();
   await loadCatalogCache();
 
-  // A product taken off the online store since it was added to the cart
-  // counts as unavailable too.
+  // products pulled from the online store count as unavailable
   const onlineProduct = (id) => storefrontCatalog().find((p) => p.id === id) || null;
   const outOfStockItems = pendingOrder.cart
     .map((item) => ({ item, product: onlineProduct(item.id) }))
@@ -259,7 +245,7 @@ async function stockAndPricesStillOk(prescriptionFile) {
     return false;
   }
 
-  // Prices changed: show the new total before submitting.
+  // prices changed so show the new total first
   const freshTotal = cartTotalNow();
   if (Math.abs(freshTotal - cartSubtotal) > 0.001) {
     cartSubtotal = freshTotal;
@@ -271,7 +257,7 @@ async function stockAndPricesStillOk(prescriptionFile) {
     return false;
   }
 
-  // Prescription pre-orders are always picked up at the store.
+  // prescription orders are always pickup
   requiresPrescription = pendingOrder.cart.some((item) => getProductById(item.id).rxRequired);
   if (requiresPrescription && !prescriptionFile) {
     prescriptionUploadBox.classList.remove("d-none");
@@ -284,10 +270,7 @@ async function stockAndPricesStillOk(prescriptionFile) {
   return true;
 }
 
-// ---- 5. Place the order ----
-// Uploads the photos, saves the order (using any store credit), tells the
-// customer it was received, empties those items from the cart, and shows
-// the confirmation.
+// ---- 5. place the order ----
 async function placeOrder(file, prescriptionFile, referenceNumber) {
   try {
     const user = auth.currentUser;
@@ -329,7 +312,7 @@ async function placeOrder(file, prescriptionFile, referenceNumber) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     }, { expectFullCredit: fullyCoveredByCredit });
 
-    // Order submission notification (Fig 2.10).
+    // order received notification
     if (user) {
       notifyCustomer(
         user.uid,

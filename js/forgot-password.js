@@ -1,6 +1,4 @@
-/**
- * Reset Your Password page.
- */
+// forgot password page
 
 const forgotPasswordForm = document.getElementById("forgotPasswordForm");
 const resetAlert = document.getElementById("resetAlert");

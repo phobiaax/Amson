@@ -1,17 +1,8 @@
-/**
- * Clear Test Data (temporary, Branch Manager only).
- *
- * Deletes the records made while testing so Amson starts live with a clean
- * system. Works together with the temporary delete rule at the bottom of
- * firestore.rules, which switches itself off on CLEAR_TEST_DATA_UNTIL.
- * Remove this page, its script, its Settings link and that rule after
- * go-live.
- */
+// temporary page that clears test records before going live
 
-// CLEAR_TEST_DATA_UNTIL (the switch-off date) is in admin-roles.js.
+// the switch-off date is in admin-roles.js
 
-// checked: whether the box starts ticked. Groups that usually hold Amson's
-// real setup (catalog, suppliers, wholesale buyers) start unticked.
+// groups with real setup data start unticked
 const CLEAR_GROUPS = [
   { key: "sales", label: "Orders and sales", hint: "Online orders, walk-in (POS) sales, wholesale sales and exchanges, customer order notices", collections: ["orders", "prescriptionOrders", "posSales", "wholesaleOrders", "wholesaleExchanges", "customerNotifications"], checked: true },
   { key: "stock", label: "Stock records", hint: "Received batches, purchase orders, stock counts, write-offs", collections: ["stockBatches", "batchCosts", "purchaseOrders", "reconciliations", "writeOffs"], checked: true },
@@ -22,10 +13,10 @@ const CLEAR_GROUPS = [
   { key: "wholesale", label: "Wholesale accounts", hint: "Only tick this if the wholesale buyers were made up for testing", collections: ["wholesaleAccounts"], checked: false },
 ];
 
-// Records inside each document of a collection.
+// records inside each doc of a collection
 const CLEAR_SUBCOLLECTIONS = { chatThreads: ["messages"] };
 
-// Yearly number counters restarted by "Restart numbering".
+// yearly counters that restart numbering resets
 const RESTART_COUNTER_PATTERN = /^(orders|purchaseOrders|reconciliations)-\d{4}$|^wholesaleExchanges$/;
 
 const clearGroupList = document.getElementById("clearGroupList");
@@ -63,8 +54,7 @@ function logClearProgress(line) {
   clearProgressLog.scrollTop = clearProgressLog.scrollHeight;
 }
 
-// A count query costs about one read per 1,000 records instead of one per
-// record; older SDKs without count() fall back to reading them.
+// count query is way cheaper than reading every record
 async function countCollection(name) {
   const ref = db.collection(name);
   if (typeof ref.count === "function") {
@@ -103,8 +93,7 @@ async function loadClearGroups() {
 async function loadClearAccounts() {
   try {
     const snapshot = await db.collection("users").get();
-    // The signed-in Branch Manager and other managers are never listed, so
-    // the branch can't lock itself out.
+    // managers are never listed so the branch cant lock itself out
     const accounts = snapshot.docs
       .map((doc) => ({ id: doc.id, ...doc.data() }))
       .filter((u) => u.id !== clearAdminUid && !["admin", "branch_manager"].includes(u.role))
@@ -149,7 +138,7 @@ clearConfirmInput.addEventListener("input", () => {
   clearTestDataBtn.disabled = clearRunning || clearConfirmInput.value.trim() !== "DELETE";
 });
 
-// Deletes refs in batches (Firestore allows up to 500 writes per batch).
+// deletes in batches since firestore caps writes per batch
 async function deleteRefs(refs) {
   for (let i = 0; i < refs.length; i += FIRESTORE_BATCH_LIMIT) {
     const writeBatch = db.batch();
@@ -160,7 +149,7 @@ async function deleteRefs(refs) {
 
 async function clearCollection(name) {
   const snapshot = await db.collection(name).get();
-  // Records inside each document (chat messages) are fetched in parallel.
+  // gets chat messages in parallel
   const subSnapshots = await Promise.all(
     snapshot.docs.flatMap((doc) => (CLEAR_SUBCOLLECTIONS[name] || []).map((sub) => doc.ref.collection(sub).get()))
   );
@@ -222,7 +211,7 @@ clearTestDataBtn.addEventListener("click", async () => {
 
   if (accounts.length) {
     try {
-      // The account's saved notification read-state goes with it.
+      // the accounts saved notification state goes too
       const refs = [];
       accounts.forEach((box) => {
         refs.push(db.collection("users").doc(box.value));

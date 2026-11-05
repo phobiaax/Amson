@@ -17,8 +17,7 @@ if errorlevel 1 (
 )
 echo.
 
-REM The deploy uploads this folder exactly as it is, so warn about edits
-REM that were never committed.
+REM warns about edits that were never committed
 set CHANGES=0
 for /f %%i in ('git status --porcelain ^| find /c /v ""') do set CHANGES=%%i
 if not "%CHANGES%"=="0" (
@@ -35,8 +34,7 @@ if errorlevel 2 (
 )
 echo.
 
-REM --only hosting: publishes the website only, never the database rules.
-REM The first time on this computer, run "npx firebase-tools login" first.
+REM website only, not the rules. first time here run npx firebase-tools login
 call npx.cmd --yes firebase-tools deploy --only hosting
 if errorlevel 1 (
   echo.

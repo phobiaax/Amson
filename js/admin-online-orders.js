@@ -1,6 +1,4 @@
-/**
- * Online Orders admin page.
- */
+// online orders page
 
 const ORDERS_PAGE_SIZE = 8;
 const HOLD_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -30,12 +28,11 @@ const PAYMENT_ISSUE_TYPES = {
     confirmLabel: "Confirm & approve payment",
     mode: "approve",
   },
-  // Not staff-selectable from the dropdown below - this hold is created
-  // automatically when approving payment fails because stock ran out.
+  // not in the dropdown, made automatically when approval runs out of stock
   out_of_stock: {
     label: "Out of Stock",
   },
-  // Set by the Reject Prescription button (REQ079), not the dropdown.
+  // set by the reject prescription button
   prescription_rejected: {
     label: "Prescription Not Accepted",
   },
@@ -57,7 +54,7 @@ const PRESCRIPTION_REJECTION_LABELS = {
   other: "Other",
 };
 
-// Who acted on a verification and when (REQ081).
+// who verified and when
 function verificationStamp(action) {
   return {
     action,
@@ -67,8 +64,7 @@ function verificationStamp(action) {
   };
 }
 
-// The customer's notice when an order is approved. Prescription orders go
-// straight to Ready for Pick-up (REQ025, REQ078).
+// customer notice on approval, prescription orders go to ready for pickup
 function notifyOrderApproved(order) {
   if (order.requiresPrescription) {
     notifyCustomer(
@@ -118,18 +114,12 @@ let issueType = null;
 let issueNoteManuallyEdited = false;
 let ordersFilter = "all";
 let ordersSearchTerm = "";
-// Defaults to "most recently acted on first" - once an order is verified/
-// updated it's the one staff were just working on, so it should surface at
-// the top of the history list rather than staying buried under its
-// original placement date.
+// newest acted on first
 let ordersSortDesc = true;
 let ordersSortField = "lastUpdated";
 let ordersCurrentPage = 1;
 let verificationSearchTerm = "";
-// First come, first served: the Payment Verification queue defaults to
-// oldest-placed-first, so the order staff see at the top is always the one
-// that's been waiting longest - not whichever order happened to come in
-// most recently.
+// oldest first, first come first served
 let verificationSortDesc = false;
 let verificationTypeFilter = "all";
 
@@ -165,8 +155,7 @@ const ordersPagination = document.getElementById("ordersPagination");
 
 const holdModalEl = document.getElementById("holdModal");
 
-// "Placed on hold!" after a payment issue (the customer is told) or after
-// running out of stock (the customer isn't told about that).
+// hold popup, out of stock holds dont notify the customer
 function showHoldModal(outOfStock = false) {
   document.getElementById("holdModalMessage").textContent = outOfStock
     ? "The order will stay on hold for 7 days or until it's restocked. The customer isn't notified about out-of-stock holds."
@@ -182,12 +171,7 @@ const lalamoveFeeError = document.getElementById("lalamoveFeeError");
 const markDispatchedBtn = document.getElementById("markDispatchedBtn");
 const pickupReadyModalEl = document.getElementById("pickupReadyModal");
 
-// A real Lalamove share-tracking link (from the app/web portal's "Share"
-// button) always looks like https://share.lalamove.com/?<order-id>&... -
-// anchored to that exact scheme+host so a lookalike domain (e.g.
-// share.lalamove.com.evil.com, or evil.com/share.lalamove.com) can't slip
-// through, and requiring something after the slash so the bare domain
-// alone isn't accepted as "a tracking link."
+// real lalamove share links always look like this
 const LALAMOVE_TRACKING_LINK_REGEX = /^https:\/\/share\.lalamove\.com\/\S+$/i;
 
 function trackingLinkValidationError(link) {
@@ -217,9 +201,7 @@ document.addEventListener("admin:ready", loadOrders);
 
 async function loadOrders() {
   try {
-    // The live listener's first snapshot is this page's order read (a
-    // separate get() as well would read every order twice).
-    // The catalog is needed for the price check before approving.
+    // live listeners first snapshot is the order read so we dont read twice
     const [orders] = await Promise.all([
       listenToOrders(),
       loadCatalogCache().catch((error) => console.error("Failed to load catalog:", error)),
@@ -242,8 +224,7 @@ async function loadOrders() {
   }
 }
 
-// Replaces any "Loading..." note still showing, so a failed load doesn't
-// leave the page looking empty or stuck.
+// replaces the loading note if the load fails
 function showOrdersLoadError() {
   const text = "Couldn't load orders. Check the connection, then refresh the page.";
   document.querySelectorAll(".orders-loading-note").forEach((note) => {
@@ -252,14 +233,13 @@ function showOrdersLoadError() {
   });
 }
 
-// Live orders (REQNF005): new orders, customer resubmissions and other
-// staff's actions show up without a refresh.
+// live orders so new ones show without refresh
 let unsubscribeOrders = null;
 let ordersRefreshTimer = null;
 
-// Resolves with the first snapshot; later ones redraw the queue and table.
+// first snapshot resolves, later ones redraw
 function listenToOrders() {
-  // One listener per page: a second call reuses what the first one keeps live.
+  // only one listener per page
   if (unsubscribeOrders) return Promise.resolve(allOrders);
   return new Promise((resolve, reject) => {
     let first = true;
@@ -281,14 +261,14 @@ function listenToOrders() {
       (error) => {
         console.warn("Live orders unavailable:", error);
         unsubscribeOrders = null; // a later call starts a new listener
-        // Without the listener, read once so the page still works.
+        // no listener so read once
         if (first) db.collection("orders").get().then((snap) => resolve(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }))), reject);
       }
     );
   });
 }
 
-/* ---------- Tabs ---------- */
+// ---------- tabs ----------
 function setActiveTab(tab) {
   tabVerificationBtn.classList.toggle("active", tab === "verification");
   tabOrdersBtn.classList.toggle("active", tab === "orders");
@@ -302,7 +282,7 @@ tabVerificationBtn.addEventListener("click", () => setActiveTab("verification"))
 tabOrdersBtn.addEventListener("click", () => setActiveTab("orders"));
 tabWalkinBtn.addEventListener("click", () => setActiveTab("walkin"));
 
-/* ---------- Walk-in Orders (read-only POS sales log) ---------- */
+// ---------- walk-in orders ----------
 const walkinSearchInput = document.getElementById("walkinSearchInput");
 const walkinTableBody = document.getElementById("walkinTableBody");
 const walkinTableEmpty = document.getElementById("walkinTableEmpty");
@@ -401,12 +381,12 @@ function openWalkinSaleReceipt(saleId) {
     onVoid:
       !sale.voided && roleCanVoidSales(currentStaffRole)
         ? async () => {
-            // Technical Staff need a Branch Manager to approve (client rule).
+            // technical staff need a branch manager to approve
             const details = await promptVoidDetails(sale, { requireApproval: currentStaffRole === "technical_staff" });
             if (!details) return;
             try {
               const result = await voidPosSale(sale, details, currentStaffName);
-              // Re-read the sale so the table shows its new total/items.
+              // reread the sale so the table updates
               const fresh = await db.collection("posSales").doc(sale.id).get();
               if (fresh.exists) Object.assign(sale, fresh.data());
               renderWalkinTable();
@@ -431,13 +411,12 @@ if (walkinSearchInput) {
   });
 }
 
-/* ---------- Payment Verification queue ---------- */
+// ---------- payment verification queue ----------
 function customerName(order) {
   return order.contact ? `${order.contact.firstName} ${order.contact.lastName}` : "-";
 }
 
-// Search box match (term already lower-case): order no., payment reference,
-// SI No. or customer name.
+// search by order no., reference, si no. or name
 function orderMatchesSearch(order, term) {
   return (
     (order.orderNumber || "").toLowerCase().includes(term) ||
@@ -448,9 +427,7 @@ function orderMatchesSearch(order, term) {
 }
 
 function verificationQueue() {
-  // Include orders the customer has resubmitted a fix for - their
-  // paymentIssue record stays (for staff context) until fully resolved,
-  // marked by resolvedByCustomerAt.
+  // includes resubmitted orders
   let queue = allOrders.filter(
     (order) => order.status === "placed" && (!order.paymentIssue || order.paymentIssue.resolvedByCustomerAt)
   );
@@ -522,11 +499,10 @@ function selectVerificationItem(id) {
   renderVerificationQueue();
 }
 
-// The database can't check an order's prices (the customer's browser sends
-// them), so flag any that don't match the catalog, or don't add up.
+// browser sends the prices so flag any that dont match the catalog
 function orderPriceProblems(order) {
   const problems = [];
-  // Skipped if the catalog couldn't load, so it can't flag every item.
+  // skip if the catalog didnt load
   (CATALOG_PRODUCTS.length ? order.items || [] : []).forEach((item) => {
     const product = getProductById(item.id);
     if (!product) problems.push(`${item.name || item.id} is no longer in the catalog`);
@@ -539,15 +515,13 @@ function orderPriceProblems(order) {
   return problems;
 }
 
-// A reference number already on another online order or walk-in sale may
-// be an old payment shown again: warn staff (they still check the GCash /
-// bank app that this payment really arrived).
+// warns if the reference no. was already used, staff still decide
 async function warnIfReferenceReused(order) {
   const warning = document.getElementById("reviewReusedRefWarning");
   warning.classList.add("d-none");
   const ref = String(order.paymentReferenceNumber || "").trim();
   if (!ref) return;
-  // As typed, and without spaces or dashes ("1234 5678" / "12345678").
+  // checks with and without spaces or dashes
   const forms = [...new Set([ref, ref.replace(/[\s-]/g, "")])];
   try {
     const snaps = await Promise.all(
@@ -573,8 +547,7 @@ async function warnIfReferenceReused(order) {
   }
 }
 
-// Before approving: if the prices don't check out, staff must confirm.
-// Resolves true to go ahead.
+// bad prices need staff to confirm first
 async function confirmPriceProblems(order) {
   const problems = orderPriceProblems(order);
   if (!problems.length) return true;
@@ -590,7 +563,7 @@ function renderReviewPanel(order) {
 
   document.getElementById("reviewOrderNumber").textContent = order.orderNumber;
   document.getElementById("reviewCustomerName").textContent = customerName(order);
-  // What the customer ordered, so staff can check it against the proof.
+  // items ordered so staff can check against the proof
   document.getElementById("reviewItemsList").innerHTML =
     (order.items || [])
       .map(
@@ -676,9 +649,7 @@ function renderReviewPanel(order) {
   }
 }
 
-// Deducts an online order's stock (FEFO), assigns its SI#, records which
-// batch each item came from, and applies buildUpdate's status change - all
-// in one transaction.
+// deducts stock (fefo), assigns si no. and records batches
 async function confirmOrderSale(order, buildUpdate, alsoWrite = null) {
   const lineItems = order.items || [];
   let itemsWithBatches = lineItems;
@@ -693,7 +664,7 @@ async function confirmOrderSale(order, buildUpdate, alsoWrite = null) {
           return buildUpdate(allocations, invoiceNo, itemsWithBatches);
         },
         alsoWrite,
-        // Two staff approving at once must not deduct stock twice.
+        // stops two staff from deducting stock twice
         check: (doc) => {
           const fresh = doc.exists ? doc.data() : null;
           if (!fresh || fresh.status !== "placed" || fresh.invoiceNo) {
@@ -706,9 +677,7 @@ async function confirmOrderSale(order, buildUpdate, alsoWrite = null) {
   return { invoiceNo, itemsWithBatches };
 }
 
-// Before an approval: compares each item with the stock that can be sold
-// online right now (the same rule the sale itself uses), so staff are told
-// exactly which item is short instead of the order going on hold unexplained.
+// checks stock before approving
 async function findOrderStockShortfalls(order) {
   const needed = new Map();
   (order.items || []).forEach((item) => {
@@ -726,14 +695,13 @@ async function findOrderStockShortfalls(order) {
   return checks.filter((c) => c.available < c.ordered);
 }
 
-// Resolves "proceed" (enough stock), "hold" (staff chose the 7-day hold) or
-// "cancel" (staff closed the warning; the order stays in the queue).
+// proceed, hold or cancel
 async function warnIfOrderCantBeFulfilled(order) {
   let shortfalls;
   try {
     shortfalls = await findOrderStockShortfalls(order);
   } catch (error) {
-    // The check itself failed: let the sale's own stock check decide.
+    // check failed so the sales own stock check decides
     console.warn("Stock check before approval failed:", error);
     return "proceed";
   }
@@ -746,11 +714,7 @@ async function warnIfOrderCantBeFulfilled(order) {
   return hold ? "hold" : "cancel";
 }
 
-// Approving failed for lack of stock. The payment itself was fine - it's
-// purely a fulfillment problem, so this isn't a dead end: the order goes on
-// the same kind of 7-day hold as a payment issue, giving time for a restock
-// before it closes (per the no-cancellation, no-refund policy). No email or
-// bell notice is sent to the customer for this; the lists are redrawn.
+// out of stock on approval becomes a hold, not a dead end
 async function holdOrderForOutOfStock(order) {
   const paymentIssue = {
     type: "out_of_stock",
@@ -777,15 +741,12 @@ approvePaymentBtn.addEventListener("click", async () => {
 
   try {
     if (!(await confirmPriceProblems(order))) return;
-    // Out of stock: warn first. "hold" goes through the same out-of-stock
-    // hold as below.
+    // out of stock warns first
     const stockCheck = await warnIfOrderCantBeFulfilled(order);
     if (stockCheck === "cancel") return;
     if (stockCheck === "hold") throw new Error("Not enough stock available to fulfill this quantity.");
 
-    // Pick-up (prescription) orders have no courier leg - go straight to
-    // "ready for pick-up". The stock deduction, SI# and status change are
-    // one transaction.
+    // pickup orders skip the courier step
     const newStatus = order.requiresPrescription ? "delivered" : "payment_confirmed";
     const { invoiceNo, itemsWithBatches } = await confirmOrderSale(order, (allocations, invoiceNo, itemsWithBatches) => {
       const update = {
@@ -831,10 +792,8 @@ approvePaymentBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Prescription rejection (REQ079) ---------- */
-// The order goes On Hold like a payment issue: the customer gets the reason
-// and 7 days to upload a valid prescription. If they don't, it closes, and
-// a payment staff already confirmed is kept as store credit (no refunds).
+// ---------- prescription rejection ----------
+// goes on hold with 7 days to upload a valid prescription
 const rejectPrescriptionBtn = document.getElementById("rejectPrescriptionBtn");
 
 rejectPrescriptionBtn.addEventListener("click", async () => {
@@ -1003,8 +962,7 @@ issueNoteInput.addEventListener("input", () => {
   issueNoteManuallyEdited = true;
 });
 
-// Payment Issue dialog, "hold" types (invalid payment, payment not received,
-// underpayment): the order goes On Hold for 7 days and the customer is told why.
+// payment issue hold for 7 days
 async function placeOrderOnPaymentHold(order, note) {
   const paymentIssue = {
     type: issueType,
@@ -1053,8 +1011,7 @@ async function placeOrderOnPaymentHold(order, note) {
   showHoldModal();
 }
 
-// Payment Issue dialog, Overpayment: the order is approved like Approve
-// Payment, and the excess becomes the customer's store credit.
+// overpayment gets approved and the extra becomes store credit
 async function approveOverpaidOrder(order, note) {
   if (!(await confirmPriceProblems(order))) return;
   const stockCheck = await warnIfOrderCantBeFulfilled(order);
@@ -1066,9 +1023,7 @@ async function approveOverpaidOrder(order, note) {
   const newStatus = order.requiresPrescription ? "delivered" : "payment_confirmed";
   const paymentOverage = { amountReceived: received, excessAmount, note };
 
-  // Clearing paymentIssue matters here too: an order the customer
-  // resubmitted still carries its old hold record, and leaving it behind
-  // kept the approved order stuck "On Hold" in the Online Orders table.
+  // clears the old hold record too
   const { invoiceNo, itemsWithBatches } = await confirmOrderSale(
     order,
     (allocations, invoiceNo, itemsWithBatches) => {
@@ -1131,18 +1086,12 @@ issueConfirmBtn.addEventListener("click", async () => {
   const config = PAYMENT_ISSUE_TYPES[issueType];
   const note = issueNoteInput.value.trim();
 
-  // Underpayment/overpayment both hinge entirely on this figure - the
-  // outstanding balance or the excess credited to the customer is computed
-  // directly from it, so it can't be left blank (which used to silently
-  // fall back to 0 outstanding / the full order total as "received").
+  // under and overpayment both depend on this amount
   if (issueType === "underpayment" || issueType === "overpayment") {
     const receivedRaw = issueAmountReceivedInput.value.trim();
     const receivedAmount = parseFloat(receivedRaw);
     const receivedValid = receivedRaw !== "" && receivedAmount >= 0;
-    // Beyond just "is a number" - underpayment only makes sense below the
-    // order total, and overpayment only above it. Letting either through
-    // at the wrong side would flag a hold/credit that doesn't reflect
-    // what actually happened.
+    // underpayment must be below the total, overpayment above
     const relationValid =
       receivedValid &&
       (issueType === "underpayment" ? receivedAmount < order.total : receivedAmount > order.total);
@@ -1185,7 +1134,7 @@ issueConfirmBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Payment approved modal ---------- */
+// ---------- payment approved modal ----------
 function openApprovedModal(order) {
   approvedModalOrderId = order.id;
   const shipping = order.shipping || {};
@@ -1207,7 +1156,7 @@ function openApprovedModal(order) {
   bootstrap.Modal.getOrCreateInstance(approvedModalEl).show();
 }
 
-// Copies text to the clipboard and briefly shows "Copied!" on the button.
+// copies text and shows copied! on the button
 function copyWithFeedback(btn, text) {
   navigator.clipboard.writeText(text).then(() => {
     const originalHtml = btn.innerHTML;
@@ -1218,7 +1167,7 @@ function copyWithFeedback(btn, text) {
   });
 }
 
-// One paste into Lalamove's notes/booking form (REQ103).
+// one paste into lalamove
 document.getElementById("copyAllDeliveryBtn").addEventListener("click", (e) => {
   const text = (id) => document.getElementById(id).textContent;
   const all = [
@@ -1240,13 +1189,7 @@ approvedModalEl.addEventListener("click", (e) => {
   copyWithFeedback(btn, targetText);
 });
 
-// A plain-text itemized receipt - products, what was paid online, and the
-// Lalamove fee the rider collects on delivery - used as the body of the
-// "order dispatched" notification below. Rides the existing
-// notifyCustomer()/sendOrderEmail() pipeline (orders.js) instead of a
-// separate EmailJS template, so it goes out through the one template
-// that's already configured and still respects the customer's
-// email-notifications toggle (REQ042).
+// plain text receipt for the rider
 function buildDispatchReceiptText(order, lalamoveFee, trackingLink) {
   const itemsList = (order.items || [])
     .map((item) => `- ${item.name} x${item.qty} - ${formatPeso(item.price * item.qty)}`)
@@ -1337,7 +1280,7 @@ markDispatchedBtn.addEventListener("click", async () => {
   }
 });
 
-/* ---------- Online Orders table ---------- */
+// ---------- online orders table ----------
 function isCompletedOrder(order) {
   return order.status === "delivered" || order.status === "received";
 }
@@ -1369,8 +1312,7 @@ function orderCreatedMillis(order) {
   return order.createdAt && order.createdAt.toMillis ? order.createdAt.toMillis() : 0;
 }
 
-// The most recent of this order's own status transitions - falls back to
-// its creation time for an order that's never moved past "placed".
+// latest status change, else when it was placed
 function orderLastUpdatedMillis(order) {
   let latest = orderCreatedMillis(order);
   const timestamps = order.statusTimestamps || {};
@@ -1420,14 +1362,7 @@ function renderOrdersTable() {
   renderOrdersPagination(totalPages);
 }
 
-// One consistent visual language for every row's status, instead of the
-// previous mix of plain badges, disabled-but-not-obviously-disabled
-// dropdowns, and text+button holds: always a colored pill for the current
-// state, plus a button underneath ONLY when there's something for staff to
-// actually do next. Advancing "placed" to "payment_confirmed" is
-// deliberately not offered here at all - that step has to go through
-// Payment Verification, where the proof of payment actually gets reviewed,
-// not skipped past from this table.
+// same badge style for every status
 const STATUS_BADGE_CLASSES = {
   placed: "text-bg-light border",
   payment_confirmed: "text-bg-secondary",
@@ -1453,11 +1388,7 @@ function renderOrderRow(order) {
   const labels = orderStepLabels(order);
   const currentIndex = steps.indexOf(order.status);
   const nextStep = steps[currentIndex + 1];
-  // "received" on a delivery is confirmed by the customer, never set by
-  // staff. A pick-up order is handed over at the counter, so staff mark it
-  // Picked Up themselves. Staff can also only ever move forward one step at a time,
-  // never skip ahead and never go back. Advancing out of "placed" also
-  // isn't offered from here - see comment above.
+  // customer confirms delivery received, staff hand over pickups
   const staffCanAdvance =
     order.status !== "closed_unresolved" && order.status !== "placed" && !order.paymentIssue && nextStep &&
     (nextStep !== "received" || order.requiresPrescription);
@@ -1468,10 +1399,7 @@ function renderOrderRow(order) {
   let actionHtml = "";
   let subtextHtml = "";
   if (order.paymentIssue) {
-    // On hold - no status changes are offered here at all, so staff can't
-    // accidentally skip past an unresolved issue. Resolve it via Payment
-    // Verification (after the customer resubmits, or manually with
-    // Release Hold below).
+    // on hold rows get no status buttons
     const issueLabel = (PAYMENT_ISSUE_TYPES[order.paymentIssue.type] || {}).label || "Payment Issue";
     const waitingOn =
       order.paymentIssue.type === "out_of_stock"
@@ -1482,9 +1410,7 @@ function renderOrderRow(order) {
     subtextHtml = `<p class="hold-note text-muted mb-1" style="font-size:0.78rem;">On Hold: ${issueLabel} - ${waitingOn}</p>`;
     actionHtml = `<button type="button" class="btn btn-outline-dark-amson btn-sm release-hold-btn" data-id="${order.id}">Release Hold</button>`;
   } else if (staffCanAdvance && nextStep === "dispatched") {
-    // Booking the courier needs the address/Lalamove link/tracking-link
-    // form in the approved modal, not a bare status jump - reopen the same
-    // modal shown right after approval so that info is never lost.
+    // booking the courier reopens the approved modal
     actionHtml = `<button type="button" class="btn btn-outline-dark-amson btn-sm book-delivery-btn" data-id="${order.id}">Book Delivery</button>`;
   } else if (staffCanAdvance) {
     const actionLabel = ADVANCE_ACTION_LABELS[nextStep] || `Mark as ${labels[nextStep]}`;
@@ -1522,7 +1448,7 @@ function renderOrderRow(order) {
   `;
 }
 
-/* ---------- Order details (eye button) ---------- */
+// ---------- order details ----------
 const orderDetailsModalEl = document.getElementById("orderDetailsModal");
 
 function openOrderDetails(order) {
@@ -1588,7 +1514,7 @@ function openOrderDetails(order) {
   bootstrap.Modal.getOrCreateInstance(orderDetailsModalEl).show();
 }
 
-// An approved online order on the same paper receipt as a walk-in sale.
+// online order on the same receipt as walk-in
 function printOnlineOrderReceipt(order) {
   const paid = (order.total || 0) + (order.creditApplied || 0);
   showSaleReceipt({
@@ -1618,10 +1544,7 @@ async function advanceOrderStatus(btn) {
 
   if (newStatus === previousStatus) return;
 
-  // Defense in depth: only ever allow moving exactly one step forward,
-  // regardless of what's in the DOM - never skip steps, never go
-  // backward, and only set "received" for a pick-up order (a delivery's
-  // receipt is the customer's to confirm).
+  // only one step forward at a time
   const steps = orderStatusSteps(order);
   const expectedNext = steps[steps.indexOf(previousStatus) + 1];
   if (newStatus !== expectedNext || (newStatus === "received" && !order.requiresPrescription)) return;
@@ -1749,10 +1672,7 @@ verificationSortBtn.addEventListener("click", () => {
   renderVerificationQueue();
 });
 
-// Linked from a customer's order history: open the Online Orders tab
-// filtered to that order number.
-// Also used by the Dashboard's "Find a sale by SI No.": ?tab=walkin opens
-// the Walk-in Orders tab with that search instead.
+// opened from a link, filter to that order no.
 const linkedParams = new URLSearchParams(window.location.search);
 const linkedOrderSearch = linkedParams.get("search");
 if (linkedOrderSearch && linkedParams.get("tab") === "walkin" && walkinSearchInput) {

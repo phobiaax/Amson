@@ -1,6 +1,4 @@
-/**
- * Login page logic.
- */
+// login page
 
 const loginForm = document.getElementById("loginForm");
 const loginAlert = document.getElementById("loginAlert");
@@ -13,7 +11,7 @@ const rememberMeInput = document.getElementById("rememberMe");
 const togglePasswordBtn = document.querySelector(".toggle-password");
 const togglePasswordIcon = document.getElementById("togglePasswordIcon");
 
-// ---- Password visibility toggle ----
+// ---- show/hide password ----
 togglePasswordBtn.addEventListener("click", () => {
   const isHidden = passwordInput.type === "password";
   passwordInput.type = isHidden ? "text" : "password";
@@ -21,7 +19,7 @@ togglePasswordBtn.addEventListener("click", () => {
   togglePasswordIcon.classList.toggle("bi-eye-slash");
 });
 
-// ---- Helpers ----
+// ---- helpers ----
 function showAlert(message) {
   loginAlert.classList.replace("alert-success", "alert-danger");
   loginAlert.textContent = message;
@@ -57,28 +55,24 @@ function mapAuthError(error) {
 
 const LOGIN_LOCKOUT_THRESHOLD = 5;
 const LOGIN_LOCKOUT_MS = 2 * 60 * 1000;
-// A saved lock may end up to this much later than a normal one (clock
-// differences); anything longer wasn't written by this page.
+// extra time allowed for clock differences
 const LOGIN_LOCK_GRACE_MS = 60 * 1000;
 
 function loginAttemptsDocId(email) {
   return email.trim().toLowerCase();
 }
 
-// When this address's login lock ends (ms), or null if it isn't locked. A
-// lock that has run out is cleared on the way.
+// when the login lock ends, null if not locked
 async function getActiveLoginLock(email) {
   const docRef = db.collection("loginAttempts").doc(loginAttemptsDocId(email));
   const doc = await docRef.get();
   if (!doc.exists) return null;
   const lockedUntil = doc.data().lockedUntil;
-  // A lock longer than a normal one (or not a time at all) wasn't written
-  // by this page - ignore it and clear it below.
+  // ignores locks this page couldnt have written
   const valid = typeof lockedUntil === "number" && lockedUntil <= Date.now() + LOGIN_LOCKOUT_MS + LOGIN_LOCK_GRACE_MS;
   if (valid && lockedUntil > Date.now()) return lockedUntil;
   if (lockedUntil) {
-    // Lockout period has passed - clear it so the next attempt gets a
-    // fresh set of tries instead of instantly re-locking.
+    // lock is over so clear it for fresh tries
     await docRef.delete();
   }
   return null;
@@ -113,8 +107,7 @@ function redirectByRole(userData) {
   window.location.href = loginNextPage() || "shop/index.html";
 }
 
-// ?next= brings a customer back to the shop page they came from (an order
-// link in an email, say). Only shop pages on this site are accepted.
+// ?next= sends the customer back to the shop page they came from
 function loginNextPage() {
   const next = new URLSearchParams(window.location.search).get("next") || "";
   return /^shop\/[\w-]+\.html(\?[\w=&%-]*)?$/.test(next) ? next : null;
@@ -139,8 +132,7 @@ async function performLogin(email, password) {
       return;
     }
 
-    // Always kept in the browser so new tabs share the login; without
-    // "Remember me" it ends when the browser closes (firebase-config.js).
+    // login is shared across tabs, without remember me it ends when the browser closes
     await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     markLoginRemembered(rememberMeInput.checked);
 
@@ -161,8 +153,7 @@ async function performLogin(email, password) {
     }
 
     await clearLoginAttempts(email);
-    // Unverified customers confirm their email first (that code also
-    // recognizes this device). Everyone else on a new device gets a code.
+    // unverified customers confirm email first, new devices get a code
     const needsEmailVerification = !STAFF_ROLES.includes(userData.role) && !userData.emailVerified;
     if (!needsEmailVerification && !isDeviceTrusted(userData)) {
       await startDeviceVerification(credential.user.uid, userData);
@@ -186,9 +177,7 @@ async function performLogin(email, password) {
   }
 }
 
-// ---- Already signed in on arrival (e.g. "Remember me" from a previous
-// visit, not a sign-in performLogin() just triggered below) - skip the
-// login form and go straight to where they belong ----
+// ---- already logged in on arrival, skip the form ----
 let isInitialLoginAuthCheck = true;
 auth.onAuthStateChanged(async (user) => {
   if (!isInitialLoginAuthCheck) return;
@@ -204,7 +193,7 @@ auth.onAuthStateChanged(async (user) => {
     }
     const needsEmailVerification = !STAFF_ROLES.includes(userData.role) && !userData.emailVerified;
     if (!needsEmailVerification && !isDeviceTrusted(userData)) {
-      // Signed in from before, but this device was never confirmed.
+      // logged in before but this device was never confirmed
       await auth.signOut();
       return;
     }
@@ -212,10 +201,10 @@ auth.onAuthStateChanged(async (user) => {
   } catch (error) {}
 });
 
-// ---- New-device code (REQ005, REQ044) ----
+// ---- new device code ----
 const DEVICE_OTP_TTL_MS = OTP_CODE_TTL_MS;
 const DEVICE_OTP_MAX_TRIES = 5;
-// A new device code can be requested once a minute.
+// new code once a minute
 const DEVICE_OTP_RESEND_MS = 60 * 1000;
 const deviceOtpPanel = document.getElementById("deviceOtpPanel");
 const deviceOtpInput = document.getElementById("deviceOtpInput");
@@ -313,14 +302,14 @@ deviceOtpResendBtn.addEventListener("click", async () => {
 
 document.getElementById("deviceOtpCancelBtn").addEventListener("click", () => cancelDeviceVerification());
 
-// Sent back here from another page (device not confirmed).
+// sent back here because the device isnt confirmed
 try {
   const notice = sessionStorage.getItem("amsonLoginNotice");
   if (notice) {
     sessionStorage.removeItem("amsonLoginNotice");
     showAlert(notice);
   }
-  // Just finished registering (verify-email.js).
+  // just finished registering
   const success = sessionStorage.getItem("amsonLoginSuccess");
   if (success) {
     sessionStorage.removeItem("amsonLoginSuccess");
@@ -334,7 +323,7 @@ try {
   }
 } catch (error) {}
 
-// ---- Login form submit ----
+// ---- login submit ----
 loginForm.addEventListener("submit", (e) => {
   e.preventDefault();
   if (!loginForm.checkValidity()) {

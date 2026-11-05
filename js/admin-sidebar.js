@@ -1,6 +1,4 @@
-/**
- * Mobile sidebar toggle.
- */
+// mobile sidebar toggle
 
 const adminSidebar = document.querySelector(".admin-sidebar");
 const sidebarToggleBtn = document.getElementById("sidebarToggleBtn");
@@ -22,11 +20,7 @@ if (sidebarBackdrop) {
   sidebarBackdrop.addEventListener("click", closeAdminSidebar);
 }
 
-/**
- * Desktop: collapse the sidebar to an icon rail (wider screens only - below
- * 992px it is the off-canvas menu above). Starts expanded; the choice is
- * remembered in this browser, so it stays the same from page to page.
- */
+// desktop sidebar can collapse to icons, choice is remembered
 const SIDEBAR_COLLAPSED_KEY = "amsonAdminSidebarCollapsed";
 const adminBody = document.querySelector(".admin-body");
 
@@ -53,9 +47,7 @@ function setSidebarCollapsed(collapsed) {
 }
 
 if (adminSidebar && adminBody) {
-  // Each link's text goes in its own span so it can be hidden on the rail
-  // (still read out by screen readers), and is copied to data-label for
-  // the hover tooltip.
+  // link text goes in a span so it can hide on the icon rail
   adminSidebar.querySelectorAll(".admin-nav-link").forEach((link) => {
     const words = [];
     Array.from(link.childNodes).forEach((node) => {
@@ -74,7 +66,7 @@ if (adminSidebar && adminBody) {
     link.dataset.label = label.textContent;
   });
 
-  // The logo stands in for the store name when the rail is narrow.
+  // logo replaces the store name when collapsed
   const brand = adminSidebar.querySelector(".admin-sidebar-brand");
   if (brand && !brand.querySelector(".admin-sidebar-logo")) {
     const logo = document.createElement("img");
@@ -94,6 +86,6 @@ if (adminSidebar && adminBody) {
   });
   adminSidebar.appendChild(collapseBtn);
 
-  // Applied before the page is revealed (admin-ready), so it doesn't jump.
+  // set before the page shows so it doesnt jump
   setSidebarCollapsed(readSidebarCollapsed());
 }

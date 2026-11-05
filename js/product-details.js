@@ -1,6 +1,4 @@
-/**
- * Product details page.
- */
+// product details page
 
 const productId = new URLSearchParams(window.location.search).get("id");
 const contentEl = document.getElementById("productDetailContent");
@@ -8,7 +6,7 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
 
 (async function init() {
   await loadCatalogCache();
-  // Only products shown in the online store (not inactive or in-store only).
+  // only products that are in the online store
   const product = storefrontCatalog().find((p) => p.id === productId) || null;
 
   if (!product) {

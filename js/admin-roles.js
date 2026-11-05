@@ -1,6 +1,4 @@
-/**
- * Shared RBAC constants for the admin side.
- */
+// shared role lists for the admin side
 
 const STAFF_ROLES = ["admin", "branch_manager", "technical_staff", "sales_staff"];
 
@@ -12,8 +10,7 @@ const STAFF_ROLE_LABELS = {
 };
 
 const ADMIN_PAGE_ACCESS = {
-  // Sales Staff: walk-in sales (POS, incl. today's sales) and catalog
-  // viewing only (REQ121; client: "POS lang").
+  // sales staff only gets pos and the catalog
   "dashboard.html": ["admin", "branch_manager", "technical_staff"],
   "pos.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "products.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
@@ -28,22 +25,19 @@ const ADMIN_PAGE_ACCESS = {
   "reports.html": ["admin", "branch_manager", "technical_staff"],
   "settings.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "staff-management.html": ["admin", "branch_manager"],
-  // Temporary, for go-live only (see js/admin-clear-test-data.js).
+  // temporary, only for go-live
   "clear-test-data.html": ["admin", "branch_manager"],
 };
 
-// When the temporary Clear Test Data page and its Settings card switch off.
-// UTC midnight, the same moment as timestamp.date(2026, 11, 15) in the
-// TEMPORARY block of firestore.rules - change both together.
+// same date as the temp block in firestore.rules, change both
 const CLEAR_TEST_DATA_UNTIL = new Date(Date.UTC(2026, 10, 15));
 
-// Where each role lands after login (and when sent away from a page it
-// can't open).
+// where each role lands after login
 function homePageForRole(role) {
   return role === "sales_staff" ? "pos.html" : "dashboard.html";
 }
 
-// Product catalog is view-only for Sales Staff.
+// sales staff can only view products
 function roleCanEditProducts(role) {
   return role !== "sales_staff";
 }

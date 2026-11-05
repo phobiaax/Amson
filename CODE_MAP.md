@@ -76,7 +76,7 @@ The "Shop by Category" cards on the home page.
 - Functions: `renderHomeCategoryCards()`
 - Also runs when the page loads: 1 statement (event listener / start-up)
 
-### formatting (dates, money, text, links, PDF)
+### formatting (dates, money, text, links, pdf)
 
 Turning dates, peso amounts and text into what is shown or printed.
 
