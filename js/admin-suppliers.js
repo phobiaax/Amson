@@ -240,6 +240,13 @@ saveSupplierBtn.addEventListener("click", async () => {
     supplierModalAlert.classList.remove("d-none");
     return;
   }
+  const contactProblem = contactDetailsProblem(supplierPhoneInput.value.trim(), supplierEmailInput.value.trim());
+  const sameName = allSuppliers.find((s) => s.id !== editingSupplierId && sameCompanyName(s.name, name));
+  if (contactProblem || sameName) {
+    supplierModalAlert.textContent = contactProblem || `"${sameName.name}" is already a supplier. Edit that one instead.`;
+    supplierModalAlert.classList.remove("d-none");
+    return;
+  }
 
   saveSupplierBtn.disabled = true;
   supplierModalAlert.classList.add("d-none");

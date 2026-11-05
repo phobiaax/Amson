@@ -44,6 +44,25 @@ const PLACE_NAME_PATTERN = /^(?=.*[A-Za-zÀ-ÖØ-öø-ÿ])[^<>]{2,60}$/;
 const PH_ZIP_PATTERN = /^\d{4}$/;
 
 // optional one line address on staff forms
+// staff forms: mobile or landline, 7 to 15 digits with spaces, dashes, brackets or a leading +
+const CONTACT_PHONE_PATTERN = /^\+?[\d\s()-]+$/;
+
+// phone and email on supplier / wholesale forms, both optional; null when fine
+function contactDetailsProblem(phone, email) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (phone && (!CONTACT_PHONE_PATTERN.test(phone) || digits.length < 7 || digits.length > 15)) {
+    return "Phone number: digits only, like 0917 123 4567 or (02) 8858 1000.";
+  }
+  if (email && !EMAIL_PATTERN.test(email)) return "Please enter a valid email address.";
+  return null;
+}
+
+// names compared ignoring capitals, spaces and dots
+function sameCompanyName(a, b) {
+  const key = (v) => String(v || "").toLowerCase().replace(/[.\s]+/g, " ").trim();
+  return key(a) === key(b);
+}
+
 const ONE_LINE_ADDRESS_PATTERN = /^(?=.*[A-Za-zÀ-ÖØ-öø-ÿ])[^<>]{5,200}$/;
 const ONE_LINE_ADDRESS_HINT = "Address: 5-200 characters, without < or > (or leave it blank).";
 
