@@ -739,7 +739,10 @@ async function markBatchBadOrder(batchId) {
     const batch = doc.data();
     // another page may have done it already
     if (batch.status === "bad_order" || (batch.quantity || 0) <= 0) return;
-    const reason = `Bad Order - within ${BAD_ORDER_MONTHS} months of expiry (${formatDateMDY(batch.expirationDate)}), deducted automatically`;
+    const expired = batch.expirationDate < localISODate(new Date());
+    const reason = expired
+      ? `Bad Order - expired on ${formatDateMDY(batch.expirationDate)}, deducted automatically`
+      : `Bad Order - within ${BAD_ORDER_MONTHS} months of expiry (${formatDateMDY(batch.expirationDate)}), deducted automatically`;
     tx.update(ref, {
       status: "bad_order",
       quantity: 0,
