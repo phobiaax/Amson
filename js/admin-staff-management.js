@@ -119,11 +119,11 @@ function renderStaffPagination(totalPages) {
     return;
   }
 
-  let html = `<button type="button" data-page="prev" ${staffCurrentPage === 1 ? "disabled" : ""}><i class="bi bi-chevron-left"></i></button>`;
+  let html = `<button type="button" data-page="prev" aria-label="Previous page" ${staffCurrentPage === 1 ? "disabled" : ""}><i class="bi bi-chevron-left"></i></button>`;
   for (let i = 1; i <= totalPages; i++) {
     html += `<button type="button" data-page="${i}" class="${i === staffCurrentPage ? "active" : ""}">${i}</button>`;
   }
-  html += `<button type="button" data-page="next" ${staffCurrentPage === totalPages ? "disabled" : ""}><i class="bi bi-chevron-right"></i></button>`;
+  html += `<button type="button" data-page="next" aria-label="Next page" ${staffCurrentPage === totalPages ? "disabled" : ""}><i class="bi bi-chevron-right"></i></button>`;
 
   staffPagination.innerHTML = html;
 }

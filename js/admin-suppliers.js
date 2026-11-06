@@ -143,11 +143,11 @@ function renderSuppliersPagination(totalPages) {
     return;
   }
 
-  let html = `<button type="button" data-page="prev" ${suppliersCurrentPage === 1 ? "disabled" : ""}><i class="bi bi-chevron-left"></i></button>`;
+  let html = `<button type="button" data-page="prev" aria-label="Previous page" ${suppliersCurrentPage === 1 ? "disabled" : ""}><i class="bi bi-chevron-left"></i></button>`;
   for (let i = 1; i <= totalPages; i++) {
     html += `<button type="button" data-page="${i}" class="${i === suppliersCurrentPage ? "active" : ""}">${i}</button>`;
   }
-  html += `<button type="button" data-page="next" ${suppliersCurrentPage === totalPages ? "disabled" : ""}><i class="bi bi-chevron-right"></i></button>`;
+  html += `<button type="button" data-page="next" aria-label="Next page" ${suppliersCurrentPage === totalPages ? "disabled" : ""}><i class="bi bi-chevron-right"></i></button>`;
 
   suppliersPagination.innerHTML = html;
 }

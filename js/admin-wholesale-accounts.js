@@ -252,11 +252,11 @@ function renderWholesalePagination(totalPages) {
     return;
   }
 
-  let html = `<button type="button" data-page="prev" ${wholesaleCurrentPage === 1 ? "disabled" : ""}><i class="bi bi-chevron-left"></i></button>`;
+  let html = `<button type="button" data-page="prev" aria-label="Previous page" ${wholesaleCurrentPage === 1 ? "disabled" : ""}><i class="bi bi-chevron-left"></i></button>`;
   for (let i = 1; i <= totalPages; i++) {
     html += `<button type="button" data-page="${i}" class="${i === wholesaleCurrentPage ? "active" : ""}">${i}</button>`;
   }
-  html += `<button type="button" data-page="next" ${wholesaleCurrentPage === totalPages ? "disabled" : ""}><i class="bi bi-chevron-right"></i></button>`;
+  html += `<button type="button" data-page="next" aria-label="Next page" ${wholesaleCurrentPage === totalPages ? "disabled" : ""}><i class="bi bi-chevron-right"></i></button>`;
 
   wholesalePagination.innerHTML = html;
 }

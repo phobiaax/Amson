@@ -2404,7 +2404,7 @@ function renderProductCard(product) {
   return `
     <div class="col">
       <div class="product-card ${product.inStock ? "" : "out-of-stock"}">
-        <a href="product-details.html?id=${product.id}" class="product-image-link product-quickview-trigger" data-product-id="${product.id}">
+        <a href="product-details.html?id=${product.id}" class="product-image-link product-quickview-trigger" data-product-id="${product.id}" aria-label="${escapeHtml(product.name)}">
           <div class="product-image" ${product.imageUrl ? `style="background-image:url('${cloudinaryImageUrl(product.imageUrl, 400)}'); background-size:cover; background-position:center;"` : ""}>
             ${product.inStock ? "" : `<span class="product-image-badge">Out of Stock</span>`}
           </div>
