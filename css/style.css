@@ -804,6 +804,27 @@ a {
   color: #fff;
 }
 
+/* phones: a small round chat button, plus room at the page end so it never sits on the last buttons */
+@media (max-width: 575.98px) {
+  .floating-chat-btn {
+    font-size: 0;
+    line-height: 1;
+    gap: 0;
+    padding: 0;
+    width: 3.25rem;
+    height: 3.25rem;
+    justify-content: center;
+    right: 1rem;
+    bottom: 1rem;
+  }
+  .floating-chat-btn i {
+    font-size: 1.35rem;
+  }
+  body:has(.floating-chat-btn:not(.d-none)) footer {
+    padding-bottom: 4.5rem;
+  }
+}
+
 /* ---------- filter sidebar (product catalog) ---------- */
 .filter-panel {
   background-color: #fff;
@@ -1665,6 +1686,12 @@ a {
   color: var(--amson-text-muted);
   font-weight: 500;
   font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* filter tabs wrap as whole buttons, never mid-word */
+.btn-group:has(> .order-filter-btn) {
+  flex-wrap: wrap;
 }
 
 .order-filter-btn.active {
