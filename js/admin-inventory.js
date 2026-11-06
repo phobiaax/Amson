@@ -420,11 +420,11 @@ function renderInventoryPagination(totalPages) {
     return;
   }
 
-  let html = `<button type="button" data-page="prev" ${inventoryCurrentPage === 1 ? "disabled" : ""}><i class="bi bi-chevron-left"></i></button>`;
+  let html = `<button type="button" data-page="prev" aria-label="Previous page" ${inventoryCurrentPage === 1 ? "disabled" : ""}><i class="bi bi-chevron-left"></i></button>`;
   for (let i = 1; i <= totalPages; i++) {
     html += `<button type="button" data-page="${i}" class="${i === inventoryCurrentPage ? "active" : ""}">${i}</button>`;
   }
-  html += `<button type="button" data-page="next" ${inventoryCurrentPage === totalPages ? "disabled" : ""}><i class="bi bi-chevron-right"></i></button>`;
+  html += `<button type="button" data-page="next" aria-label="Next page" ${inventoryCurrentPage === totalPages ? "disabled" : ""}><i class="bi bi-chevron-right"></i></button>`;
 
   inventoryPagination.innerHTML = html;
 }
@@ -1814,11 +1814,11 @@ function renderPoPagination(totalPages) {
     return;
   }
 
-  let html = `<button type="button" data-page="prev" ${poCurrentPage === 1 ? "disabled" : ""}><i class="bi bi-chevron-left"></i></button>`;
+  let html = `<button type="button" data-page="prev" aria-label="Previous page" ${poCurrentPage === 1 ? "disabled" : ""}><i class="bi bi-chevron-left"></i></button>`;
   for (let i = 1; i <= totalPages; i++) {
     html += `<button type="button" data-page="${i}" class="${i === poCurrentPage ? "active" : ""}">${i}</button>`;
   }
-  html += `<button type="button" data-page="next" ${poCurrentPage === totalPages ? "disabled" : ""}><i class="bi bi-chevron-right"></i></button>`;
+  html += `<button type="button" data-page="next" aria-label="Next page" ${poCurrentPage === totalPages ? "disabled" : ""}><i class="bi bi-chevron-right"></i></button>`;
 
   poPagination.innerHTML = html;
 }

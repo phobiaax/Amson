@@ -44,7 +44,7 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
           <div class="d-flex align-items-center gap-3 mb-4">
             <div class="qty-stepper">
               <button type="button" id="qtyMinus" aria-label="Decrease quantity">&minus;</button>
-              <input type="text" id="qtyInput" value="1" inputmode="numeric">
+              <input type="text" id="qtyInput" value="1" inputmode="numeric" aria-label="Quantity">
               <button type="button" id="qtyPlus" aria-label="Increase quantity">+</button>
             </div>
             <span class="text-muted">Subtotal: <strong id="subtotalText">${formatPeso(product.price)}</strong></span>

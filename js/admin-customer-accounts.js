@@ -139,11 +139,11 @@ function renderCustomersPagination(totalPages) {
     return;
   }
 
-  let html = `<button type="button" data-page="prev" ${customersCurrentPage === 1 ? "disabled" : ""}><i class="bi bi-chevron-left"></i></button>`;
+  let html = `<button type="button" data-page="prev" aria-label="Previous page" ${customersCurrentPage === 1 ? "disabled" : ""}><i class="bi bi-chevron-left"></i></button>`;
   for (let i = 1; i <= totalPages; i++) {
     html += `<button type="button" data-page="${i}" class="${i === customersCurrentPage ? "active" : ""}">${i}</button>`;
   }
-  html += `<button type="button" data-page="next" ${customersCurrentPage === totalPages ? "disabled" : ""}><i class="bi bi-chevron-right"></i></button>`;
+  html += `<button type="button" data-page="next" aria-label="Next page" ${customersCurrentPage === totalPages ? "disabled" : ""}><i class="bi bi-chevron-right"></i></button>`;
 
   customersPagination.innerHTML = html;
 }
