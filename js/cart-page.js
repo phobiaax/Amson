@@ -1,6 +1,7 @@
 // cart page
 
 const cartHeading = document.getElementById("cartHeading");
+const orderSummaryCard = document.getElementById("orderSummaryCard");
 const cartItemsContainer = document.getElementById("cartItemsContainer");
 const cartTotalText = document.getElementById("cartTotalText");
 const clearCartLink = document.getElementById("clearCartLink");
@@ -60,6 +61,7 @@ function renderCartPage() {
     return;
   }
 
+  orderSummaryCard.classList.remove("d-none");
   clearCartLink.classList.remove("d-none");
   selectAllRow.classList.remove("d-none");
   cartItemsContainer.innerHTML = cart.map(cartRowHtml).join("");
@@ -76,6 +78,8 @@ function showEmptyCart() {
   `;
   cartTotalText.textContent = formatPeso(0);
   selectedCountText.textContent = "0 of 0 items selected";
+  // nothing to sum up on an empty cart
+  orderSummaryCard.classList.add("d-none");
   noSelectionNotice.classList.add("d-none");
   selectAllRow.classList.add("d-none");
   checkoutBtn.classList.add("disabled");
