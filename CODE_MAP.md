@@ -80,7 +80,7 @@ The "Shop by Category" cards on the home page.
 
 Turning dates, peso amounts and text into what is shown or printed.
 
-- Functions: `localISODate()`, `formatDateMDY()`, `formatPeso()`, `escapeHtml()`, `safeUrl()`, `pdfSafeText()`, `printPdf()`, `createPdf()`
+- Functions: `localISODate()`, `formatDateMDY()`, `wholeQty()`, `formatPeso()`, `escapeHtml()`, `safeUrl()`, `pdfSafeText()`, `printPdf()`, `createPdf()`
 - Shared data: `PDF_TEXT_SWAPS`
 
 ### receipts
