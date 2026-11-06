@@ -875,6 +875,8 @@ const reportGenerateBtn = document.getElementById("reportGenerateBtn");
 const reportPdfBtn = document.getElementById("reportPdfBtn");
 const reportExcelBtn = document.getElementById("reportExcelBtn");
 const reportPreview = document.getElementById("reportPreview");
+// the empty state, put back when a report can't be made
+const reportPreviewEmptyHtml = reportPreview.innerHTML;
 const reportAlert = document.getElementById("reportAlert");
 
 let currentReport = null;
@@ -949,6 +951,10 @@ async function generateReport() {
     console.error("Report failed:", error);
     reportAlert.textContent = error.message || "Something went wrong generating this report. Please try again.";
     reportAlert.classList.remove("d-none");
+    currentReport = null;
+    reportPreview.innerHTML = reportPreviewEmptyHtml;
+    reportPdfBtn.disabled = true;
+    reportExcelBtn.disabled = true;
   } finally {
     reportGenerateBtn.disabled = false;
     reportGenerateBtn.textContent = "Generate";
