@@ -478,7 +478,8 @@ saveProductBtn.addEventListener("click", async () => {
         ["wholesalePrice", "Wholesale price"],
       ];
       const changedPriceFields = priceFields.filter(
-        ([field]) => editingProductOriginal && field in productData && editingProductOriginal[field] !== productData[field]
+        // a missing price counts as 0, so 0 -> 0 isn't listed as a change
+        ([field]) => editingProductOriginal && field in productData && (Number(editingProductOriginal[field]) || 0) !== (Number(productData[field]) || 0)
       );
       const priceChanges = changedPriceFields.map(
         ([field, label]) => `${label}: ${formatPeso(editingProductOriginal[field])} → ${formatPeso(productData[field])}`
