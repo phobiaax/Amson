@@ -763,7 +763,7 @@ receiveUploadBatchBtn.addEventListener("click", () => receiveBatchFileInput.clic
 
 receiveDownloadTemplateBtn.addEventListener("click", () => {
   const exampleRow = {
-    sku: "SKU-0001", batchNo: "B2026-001", expiryDate: "2027-06-30",
+    sku: "MED-0001", batchNo: "B2026-001", expiryDate: "2027-06-30",
     qtyReceived: 100, unitCost: 3.5, supplierName: "Unilab", receiptNo: "DR-0001", dateReceived: todayISO(),
   };
   const ws = XLSX.utils.json_to_sheet([exampleRow], { header: RECEIVE_BATCH_TEMPLATE_HEADERS });
@@ -782,7 +782,7 @@ const receiveBatchReviewConfirmBtn = document.getElementById("receiveBatchReview
 function receiveBatchReviewRowHtml(row = {}) {
   return `
     <tr>
-      <td><input type="text" class="form-control form-control-sm rbr-sku" value="${escapeHtml(row.sku || "")}" placeholder="e.g. SKU-0001"></td>
+      <td><input type="text" class="form-control form-control-sm rbr-sku" value="${escapeHtml(row.sku || "")}" placeholder="e.g. MED-0001"></td>
       <td><input type="text" class="form-control form-control-sm rbr-batchno" value="${escapeHtml(row.batchno || "")}"></td>
       <td><input type="date" class="form-control form-control-sm rbr-expirydate" value="${escapeHtml(row.expirydate || "")}"></td>
       <td><input type="number" min="1" step="1" class="form-control form-control-sm rbr-qty" value="${escapeHtml(row.qtyreceived || "")}"></td>
@@ -1890,7 +1890,7 @@ const poBatchFileInput = document.getElementById("poBatchFileInput");
 poUploadBatchBtn.addEventListener("click", () => poBatchFileInput.click());
 
 poDownloadTemplateBtn.addEventListener("click", () => {
-  const exampleRow = { sku: "SKU-0001", expectedQty: 100, supplierName: "Unilab", expectedDeliveryDate: todayISO() };
+  const exampleRow = { sku: "MED-0001", expectedQty: 100, supplierName: "Unilab", expectedDeliveryDate: todayISO() };
   const ws = XLSX.utils.json_to_sheet([exampleRow], { header: PO_BATCH_TEMPLATE_HEADERS });
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Purchase Order");
