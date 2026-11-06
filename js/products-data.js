@@ -1813,7 +1813,23 @@ async function exportTable({ title, subtitle = "", filenamePrefix, columns, rows
 
 // ---- fefo stock deduction ----
 // oldest expiry gets sold first, all items in one transaction
-async function deductStockFEFOMultiple(items, { includeWholesaleOnly = false, record = null, returns = [], extraReads = [], afterWrite = null } = {}) {
+// two counters can bump the invoice number at the same moment; the rules refuse the late one's stale
+// number instead of letting it retry, so try again (the whole sale is all or nothing)
+async function deductStockFEFOMultiple(items, options = {}) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await deductStockFEFOOnce(items, options);
+    } catch (error) {
+      if (error && error.code === "permission-denied" && attempt < 4) {
+        await new Promise((resolve) => setTimeout(resolve, 150 * attempt + Math.random() * 200));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
+async function deductStockFEFOOnce(items, { includeWholesaleOnly = false, record = null, returns = [], extraReads = [], afterWrite = null } = {}) {
   const allowedStatuses = includeWholesaleOnly ? ["active", "wholesale_only"] : ["active"];
   const isSellable = includeWholesaleOnly ? isWholesaleSellableBatch : isRetailSellableBatch;
 
