@@ -314,13 +314,26 @@ async function generateOrderNumber() {
   const year = new Date().getFullYear();
   const counterRef = db.collection("counters").doc(`orders-${year}`);
 
-  // transaction so two checkouts never get the same number
-  const nextCount = await db.runTransaction(async (transaction) => {
-    const counterDoc = await transaction.get(counterRef);
-    const next = (counterDoc.exists ? counterDoc.data().count || 0 : 0) + 1;
-    transaction.set(counterRef, { count: next }, { merge: true });
-    return next;
-  });
+  // transaction so two checkouts never get the same number; the rules refuse a stale number
+  // from a checkout at the same moment instead of retrying it, so try again
+  let nextCount;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      nextCount = await db.runTransaction(async (transaction) => {
+        const counterDoc = await transaction.get(counterRef);
+        const next = (counterDoc.exists ? counterDoc.data().count || 0 : 0) + 1;
+        transaction.set(counterRef, { count: next }, { merge: true });
+        return next;
+      });
+      break;
+    } catch (error) {
+      if (error && error.code === "permission-denied" && attempt < 4) {
+        await new Promise((resolve) => setTimeout(resolve, 150 * attempt + Math.random() * 200));
+        continue;
+      }
+      throw error;
+    }
+  }
   return `AMP-${year}-${String(nextCount).padStart(4, "0")}`;
 }
 
