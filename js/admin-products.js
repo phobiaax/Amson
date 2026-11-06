@@ -945,6 +945,7 @@ async function resolveCategoryByName(name) {
 
 // ---------- manage categories ----------
 manageCategoriesBtn.addEventListener("click", () => {
+  newCategoryNameInput.closest(".d-flex").classList.toggle("d-none", !canEditPrices());
   renderCategoriesList();
   bootstrap.Modal.getOrCreateInstance(categoriesModalEl).show();
 });
@@ -1054,21 +1055,48 @@ document.getElementById("addBranchCategoriesBtn").addEventListener("click", asyn
   }
 });
 
-addCategoryBtn.addEventListener("click", async () => {
-  const name = newCategoryNameInput.value.trim();
-  if (!name) return;
-
+// only the branch manager or admin adds a category, and never a second one with the same name
+async function addCategory() {
+  const name = newCategoryNameInput.value.trim().replace(/\s+/g, " ");
   categoriesAlert.classList.add("d-none");
-  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  if (!canEditPrices()) {
+    showFormAlert(categoriesAlert, "Only the Branch Manager or Administrator can add a category.");
+    return;
+  }
+  if (!name) {
+    showFormAlert(categoriesAlert, "Type the new category's name first.");
+    return;
+  }
+  const existing = Object.values(CATEGORY_LABELS).find((n) => n.trim().toLowerCase() === name.toLowerCase());
+  if (existing) {
+    showFormAlert(categoriesAlert, `"${existing}" is already a category.`);
+    return;
+  }
+  // a readable id, or a random one if that id is already used by another name
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const ref = slug && !CATEGORY_LABELS[slug] ? db.collection("categories").doc(slug) : db.collection("categories").doc();
 
+  addCategoryBtn.disabled = true;
   try {
-    await db.collection("categories").doc(id).set({ name });
-    CATEGORY_LABELS[id] = name;
+    await ref.set({ name });
+    CATEGORY_LABELS[ref.id] = name;
     newCategoryNameInput.value = "";
+    catalogLoadPromise = null;
     renderCategoriesList();
     renderCategorySelect();
+    await logAuditEvent({ action: "Category Added", details: name, record: name, after: name });
   } catch (error) {
     categoriesAlert.textContent = "Something went wrong adding this category. Please try again.";
     categoriesAlert.classList.remove("d-none");
+  } finally {
+    addCategoryBtn.disabled = false;
+  }
+}
+
+addCategoryBtn.addEventListener("click", addCategory);
+newCategoryNameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    addCategory();
   }
 });
