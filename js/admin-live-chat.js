@@ -245,21 +245,3 @@ chatFilterButtons.forEach((btn) => {
 });
 
 document.getElementById("chatUsageRefreshBtn").addEventListener("click", loadChatUsage);
-
-// test ai button, shows the real error if gemini fails
-document.getElementById("chatTestAiBtn").addEventListener("click", async (e) => {
-  const btn = e.currentTarget;
-  btn.disabled = true;
-  btn.textContent = "Testing...";
-  try {
-    const model = await getChatModel();
-    const result = await model.generateContent("Reply with the single word OK.");
-    await showAppAlert(`The AI is working. It replied: "${(result.response.text() || "").trim()}"`, { title: "AI Test" });
-  } catch (error) {
-    console.error("AI test failed:", error);
-    await showAppAlert(`The AI isn't answering yet. Error: ${error && error.message ? error.message : error}`, { title: "AI Test" });
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Test AI";
-  }
-});
