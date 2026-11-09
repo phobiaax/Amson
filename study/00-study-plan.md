@@ -20,7 +20,7 @@ Keep one page of notes called **"weak spots"**. You'll come back to it on Days 6
 | --- | --- | --- |
 | 1 h 15 | The basics: page structure, script order, JavaScript basics, Firebase words. Skim the glossary; don't memorize it. | `00-basics.md` |
 | 45 min | The big picture: the diagram, the collections table, the roles table. | `01-architecture.md` |
-| 1 h 30 | **FEFO and inventory.** It's the heart of the system and the hardest code. Read `deductStockFEFOOnce` (`products-data.js:1832`) line by line with the guide. Draw the "15 units from batch A and B" example on paper. | `07-inventory-and-fefo.md` |
+| 1 h 30 | **FEFO and inventory.** It's the heart of the system and the hardest code. Read `deductStockFEFOOnce` (`products-data.js:1851`) line by line with the guide. Draw the "15 units from batch A and B" example on paper. | `07-inventory-and-fefo.md` |
 | 15 min | Quiz 1-10, 48-51 | `15-quiz.md` |
 
 **You're done when you can explain:** what a transaction is, why we query outside it and re-read inside it, and what happens when two cashiers sell the last units.

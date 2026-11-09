@@ -84,7 +84,7 @@ saves `releaseStatus: "released"`, `releasedAt`, `releasedBy`, and logs it. Staf
 
 A printable invoice made with jsPDF: buyer, SI number, items, prices, total, free items marked.
 
-### 2.5 Exchanges (`processWholesaleExchange`, `products-data.js:1978-2061`)
+### 2.5 Exchanges (`processWholesaleExchange`, `products-data.js:1997-2080`)
 
 Same policy as walk-in: **no refunds**; replacement value must be **≥** the returned value.
 In one transaction it:
@@ -154,11 +154,11 @@ flowchart TD
 
 | Rule (`firestore.rules`) | What it blocks |
 | --- | --- |
-| `wholesaleAccounts` read/write `isOpsStaff()` (230) | Customers and Sales Staff seeing buyer details, documents or agreed prices. |
-| `wholesaleOrders` read/create/update `isOpsStaff()`, **no delete** (231) | Deleting wholesale sales; outsiders reading them. |
-| `wholesaleExchanges` ops staff, no delete (232) | Same for exchanges. |
-| `productPrices` read `isStaff()` (106) | Standard wholesale prices hidden from the public. |
-| `counters/salesInvoices` +1 only (313-316) | SI number tampering. |
+| `wholesaleAccounts` read/write `isOpsStaff()` (235) | Customers and Sales Staff seeing buyer details, documents or agreed prices. |
+| `wholesaleOrders` read/create/update `isOpsStaff()`, **no delete** (236) | Deleting wholesale sales; outsiders reading them. |
+| `wholesaleExchanges` ops staff, no delete (237) | Same for exchanges. |
+| `productPrices` read `isStaff()` (107) | Standard wholesale prices hidden from the public. |
+| `counters/salesInvoices` +1 only (318-321) | SI number tampering. |
 
 ---
 

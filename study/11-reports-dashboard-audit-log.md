@@ -38,7 +38,7 @@
 
 ## 2. Walkthrough
 
-### 2.1 Writing to the audit log: `logAuditEvent()` (`products-data.js:2375-2401`)
+### 2.1 Writing to the audit log: `logAuditEvent()` (`products-data.js:2394-2420`)
 
 ```js
 async function logAuditEvent({ action, details, actor, record, before, after, reason }) {
@@ -110,7 +110,7 @@ logAuditEvent({ action: "Report Generated", details: ... });
 
 The builders (`buildDailySalesReport`, `buildMonthlyInventoryReport`, …) arrange these into **sections** that match the paper forms.
 `downloadReportPdf` (714) draws them with jsPDF; `downloadReportExcel` (833-863) writes one sheet per section with SheetJS.
-`pdfSafeText` (`products-data.js:1302`) swaps "₱" for "PHP " because jsPDF's built-in fonts can't draw the peso sign.
+`pdfSafeText` (`products-data.js:1307`) swaps "₱" for "PHP " because jsPDF's built-in fonts can't draw the peso sign.
 
 ### 2.5 Staff notifications (`products-data.js:349-689`, `admin-header.js:98-211`)
 
@@ -172,10 +172,10 @@ flowchart LR
 1. **…the end date is before the start date?** "The end date is before the start date." The preview is cleared.
 2. **…a sale is voided after the report was printed?** The next report leaves it out (`if (sale.voided) return;`). The void is in the audit log.
 3. **…an online order is placed on Monday and confirmed on Tuesday?** Reports count it on **Tuesday** (payment-confirmed date). The dashboard's online chart groups confirmed orders by the date they were **placed**, so the two can differ by a day.
-4. **…someone tries to delete an audit log entry from the console?** Refused: `allow update, delete: if false` (`firestore.rules:245`). (Exception: the temporary Clear Test Data rule until 15 Nov 2026, Branch Manager only.)
+4. **…someone tries to delete an audit log entry from the console?** Refused: `allow update, delete: if false` (`firestore.rules:250`). (Exception: the temporary Clear Test Data rule until 15 Nov 2026, Branch Manager only.)
 5. **…the audit log write fails (e.g. internet drops right after a sale)?** The sale is already saved; `logAuditEvent` catches the error and logs it to the console. The sale record itself (with cashier, SI number, items) still exists.
 6. **…Sales Staff try to open Reports or the Audit Log?** Sent back to the POS; the rules refuse `auditLog` reads for them.
-7. **…a customer tries to write a fake audit entry?** Only two actions are allowed for customers ("Order Received by Customer", "Order Auto-Delivered"), with a short detail and the server time (`firestore.rules:240-244`).
+7. **…a customer tries to write a fake audit entry?** Only two actions are allowed for customers ("Order Received by Customer", "Order Auto-Delivered"), with a short detail and the server time (`firestore.rules:245-249`).
 8. **…there are no sales in the chosen period?** The chart shows its empty state; reports show empty sections.
 9. **…jsPDF or SheetJS failed to load (no internet)?** "PDF generation isn't available right now…" / "Excel export isn't available right now…"
 10. **…a product's name changed after it was sold?** Reports use the name saved on the sale line, so old reports stay accurate.
@@ -186,11 +186,11 @@ flowchart LR
 
 | Rule (`firestore.rules`) | What it blocks |
 | --- | --- |
-| `auditLog` read `isOpsStaff()` (236) | Customers and Sales Staff reading the history. |
-| `auditLog` create `isStaff()` (238) | Outsiders writing entries. |
-| customer create only 2 actions, fixed keys, ≤ 200 chars, `createdAt == request.time` (240-244) | Customers spamming or faking history, or back-dating entries. |
-| `auditLog` update/delete `false` (245) | Editing or erasing history. |
-| `notifications` ops staff only (248) | Others reading or changing staff read-states. |
+| `auditLog` read `isOpsStaff()` (241) | Customers and Sales Staff reading the history. |
+| `auditLog` create `isStaff()` (243) | Outsiders writing entries. |
+| customer create only 2 actions, fixed keys, ≤ 201 chars, `createdAt == request.time` (245-249) | Customers spamming or faking history, or back-dating entries. |
+| `auditLog` update/delete `false` (250) | Editing or erasing history. |
+| `notifications` ops staff only (253) | Others reading or changing staff read-states. |
 | Reads of `orders`, `posSales`, `wholesaleOrders`, `batchCosts`… ops staff only | Sales Staff and customers generating reports with private data. |
 
 ---
@@ -208,8 +208,8 @@ flowchart LR
 
 ## 8. Likely panel questions
 
-1. **"Can the Branch Manager delete or edit the audit log?"** No. The rules allow create only, never update or delete (`firestore.rules:245`). (The temporary clear-test rule ends 15 Nov 2026.)
-2. **"What's recorded in each audit entry?"** Action, details, the staff member's name, the record affected, before, after, reason, and server time (`logAuditEvent`, `products-data.js:2375`).
+1. **"Can the Branch Manager delete or edit the audit log?"** No. The rules allow create only, never update or delete (`firestore.rules:250`). (The temporary clear-test rule ends 15 Nov 2026.)
+2. **"What's recorded in each audit entry?"** Action, details, the staff member's name, the record affected, before, after, reason, and server time (`logAuditEvent`, `products-data.js:2394`).
 3. **"Why use the server timestamp?"** So a wrong or tampered computer clock can't change when something happened.
 4. **"How do your reports match the branch's formats?"** Each builder arranges the data into the same sections and columns as the branch's paper reports, then exports the same structure to PDF and Excel.
 5. **"When is an online order counted as a sale?"** When staff confirm the payment; that's also when it gets its SI number.

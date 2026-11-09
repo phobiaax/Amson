@@ -43,11 +43,12 @@ Google's servers; the browser is never trusted.** Live at https://amsonpharma.we
 | `createOrderWithCreditRedemption` | `orders.js:280` | Saves the order and subtracts store credit together |
 | `confirmOrderSale` | `admin-online-orders.js:656` | Approval: FEFO + SI no. + "already processed?" check |
 | `enforceOrderDeadline` | `orders.js:175` | Closes 7-day holds (credit) and auto-delivers after 3 days |
-| `deductStockFEFOOnce` | `products-data.js:1832` | The FEFO transaction: earliest expiry first, all or nothing |
-| `deductStockFEFOMultiple` | `products-data.js:1818` | Retries the above when two sales clash on the SI counter |
-| `voidPosSale` | `products-data.js:1581` | Full/partial void, units back to their batches |
-| `verifyVoidApprover` | `products-data.js:1561` | Checks the Branch Manager's password on a temporary app |
-| `processWalkinExchange` | `products-data.js:2065` | No-refund exchange, replacement ≥ returned value |
+| `deductStockFEFOOnce` | `products-data.js:1851` | The FEFO transaction: earliest expiry first, all or nothing |
+| `deductStockFEFOMultiple` | `products-data.js:1837` | Retries the above when two sales clash on the SI counter |
+| `voidPosSale` | `products-data.js:1591` | Full/partial void, units back to their batches |
+| `verifyVoidApprover` | `products-data.js:1567` | Signs the Branch Manager in on a temporary app; the void is saved as the manager |
+| `roundPeso` | `products-data.js:1282` | Rounds totals to the centavo before saving (avoids 37.050000000000004) |
+| `processWalkinExchange` | `products-data.js:2084` | No-refund exchange, replacement ≥ returned value |
 | `planStockReceipt` / `applyStockReceipt` | `admin-inventory.js:488` / `:537` | New batch or top-up, saved in one transaction |
 | `saveWriteOff` | `admin-inventory.js:1260` | Subtract from a batch + write-off record together |
 | `finalizeCount` | `admin-inventory.js:1675` | Applies counted − system to current stock |
@@ -55,8 +56,8 @@ Google's servers; the browser is never trusted.** Live at https://amsonpharma.we
 | `markBatchBadOrder` | `products-data.js:732` | Qty 0 + automatic write-off, in a transaction |
 | `saveWholesaleOrder` | `admin-wholesale-accounts.js:699` | FEFO including near-expiry, same SI series |
 | `generateReport` / `loadSalesInRange` | `admin-reports.js:919` / `:48` | Builds the branch-format reports |
-| `logAuditEvent` | `products-data.js:2375` | Adds an append-only history entry |
-| `escapeHtml` | `products-data.js:1285` | Stops XSS when building HTML |
+| `logAuditEvent` | `products-data.js:2394` | Adds an append-only history entry |
+| `escapeHtml` | `products-data.js:1290` | Stops XSS when building HTML |
 | `respond` / `chatAiReply` | `live-chat.js:1118` / `:569` | Chat answer order; the Gemini call |
 | `chatLooksLikeDosage` | `live-chat.js:24` | Blocks AI replies that look like a dose |
 
@@ -78,7 +79,7 @@ Google's servers; the browser is never trusted.** Live at https://amsonpharma.we
 | `REQUIRE_DEVICE_CODE` | `false` (new-device code off) | `device-trust.js:4` |
 | `APP_CHECK_SITE_KEY` | empty: off for the database (on for the AI) | `firebase-config.js:14` |
 | Number formats | Order `AMP-2026-0001`, SI `00000123`, SKU `MED-0001`, exchange `EX-00001` | counters |
-| Clear Test Data ends | 15 Nov 2026 | `firestore.rules:328`, `admin-roles.js:33` |
+| Clear Test Data ends | 15 Nov 2026 | `firestore.rules:333`, `admin-roles.js:33` |
 
 ## Roles
 
@@ -86,7 +87,7 @@ Google's servers; the browser is never trusted.** Live at https://amsonpharma.we
 | --- | --- | --- |
 | **Customer** | Shop, cart, checkout (QR Ph), own orders, fix holds, account, chat | rules: own data only (`customerId == myUid()`) |
 | **Sales Staff** | POS + read-only catalog + own settings | page access list + `isOpsStaff()` excludes them |
-| **Technical Staff** | Everything except Staff Management; no prices; voids need the BM's password; counts are saved for the BM | page checks + rules (`priceFieldsUnchanged`) |
+| **Technical Staff** | Everything except Staff Management; no prices; voids need the BM's password; counts are saved for the BM | page checks + rules (`priceFieldsUnchanged`; voids need `isManager()`) |
 | **Branch Manager** (= Admin) | Everything: prices, finalize counts, staff, categories | `isManager()` in rules |
 
 Two layers: the **page gate** (`admin-header.js:13-71`, `ADMIN_PAGE_ACCESS` in `admin-roles.js:12`) and the **rules**.
@@ -96,8 +97,8 @@ Two layers: the **page gate** (`admin-header.js:13-71`, `ADMIN_PAGE_ACCESS` in `
 1. **Why Firebase, no server?** Free plan, nothing to maintain, live updates, and server-side rules. Right for one branch's budget.
 2. **Where's the real security?** In `firestore.rules`, checked on Google's servers for every read and write; the page checks are just convenience.
 3. **Where are passwords stored?** Not in our database. Firebase Authentication keeps them hashed.
-4. **How does the lockout work?** 5 wrong tries → `loginAttempts/{email}` locked for 2 minutes; the rules only let the count go up (`auth.js:81`, rules 353-374).
-5. **Can a customer make themselves staff?** No. Sign-up must be role "customer", and you can't change your own role, status or credit (rules 42-54).
+4. **How does the lockout work?** 5 wrong tries → `loginAttempts/{email}` locked for 2 minutes; the rules only let the count go up (`auth.js:81`, rules 357-379).
+5. **Can a customer make themselves staff?** No. Sign-up must be role "customer", and you can't change your own role, status or credit (rules 42-55).
 6. **What is FEFO?** First Expiry, First Out: every sale takes from the earliest-expiring batch (`deductStockFEFOOnce`).
 7. **How do you stop overselling?** A Firestore transaction re-reads every batch and refuses if there isn't enough.
 8. **When is stock deducted for online orders?** When staff approve the payment, together with the SI number, in one transaction.
@@ -109,17 +110,22 @@ Two layers: the **page gate** (`admin-header.js:13-71`, `ADMIN_PAGE_ACCESS` in `
 14. **How is expired medicine blocked?** Retail needs more than 6 months left; within 2 months it becomes a Bad Order with quantity 0.
 15. **Who can change prices?** Only the Branch Manager. The page disables the boxes and the rules refuse anyone else.
 16. **How is the cost price hidden?** It's in `productPrices` / `batchCosts`, which only staff can read.
-17. **How are voids controlled?** A reason is required; Technical Staff need the Branch Manager's password; voided sales are marked, never deleted.
+17. **How are voids controlled?** A reason is required; Technical Staff need the Branch Manager's login, and the void is saved as the manager, so the rules (`isManager()`) enforce it too; voided sales are marked, never deleted.
 18. **Can the audit log be changed?** No. The rules allow create only, and the time is the server's.
 19. **Can the AI give medical advice?** No: fixed safe health replies, caution topics go to the pharmacist, and AI replies that look like a dose are replaced.
-20. **What's your biggest weakness?** Checks that need a server (email code, order prices, void approval) are only mitigated. The fix is Cloud Functions on the paid plan.
+20. **What's your biggest weakness?** Checks that need a server (email code, order prices) are only mitigated. The fix is Cloud Functions on the paid plan.
 
 ## Say these honestly if asked about limits
 - The email code can be skipped from the browser console.
 - Order prices come from the browser; staff get a warning.
-- Void approval, count finalizing and the expired-document block are page-level only.
+- Count finalizing and the expired-document block are page-level only.
 - Expiry moves and hold closures run when staff pages load.
 - Two people editing the same form: the last save wins.
+
+## Questions the guide didn't cover, so prepare an answer
+- **"Where's the senior citizen / PWD discount?"** Philippine law (RA 9994, RA 10754) requires 20% off plus VAT exemption on medicine for seniors and PWDs. The system has none. Have an honest answer ready: out of scope for this version, or handled manually, and what adding it would take (an ID field on the sale, a discount line, and the receipt and reports showing it).
+- **"Why not a backend server?"** The free Spark plan has no Cloud Functions, so the browser does the work and the rules guard every write. Know which checks are browser-only (the list above).
+- **"Why is an approved prescription order 'delivered'?"** In the code `delivered` also means "ready for pick-up" for Rx orders. Say so before they ask.
 
 ## Testing in one breath
 Firebase Emulator (never live data), Playwright, 119 rules checks, 147 screenshots with 0 script errors. 24 bugs found, 23 fixed (#9 documented).

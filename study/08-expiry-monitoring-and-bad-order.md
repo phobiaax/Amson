@@ -104,7 +104,7 @@ On Inventory, staff click **Mark disposed** (`markBatchDisposed`, `admin-invento
 
 ### 2.6 Wholesale can still sell near-expiry stock
 
-Wholesale orders call the FEFO engine with `includeWholesaleOnly: true` (`admin-wholesale-accounts.js:724`), so
+Wholesale orders call the FEFO engine with `includeWholesaleOnly: true` (`admin-wholesale-accounts.js:725`), so
 `isWholesaleSellableBatch` (`products-data.js:260-266`) accepts `active` **and** `wholesale_only` batches that aren't expired yet.
 Because of FEFO, wholesale buyers get the **earliest-expiring** units first, which is exactly the near-expiry stock.
 
@@ -165,9 +165,9 @@ flowchart TD
 
 | Rule (`firestore.rules`) | What it does |
 | --- | --- |
-| `stockBatches` update: `isStaff()` (215) | Only staff pages (running `enforceExpiryStatus`) can change status/quantity. |
-| `writeOffs` create: `isOpsStaff()` (229) | Only Technical/Branch Manager pages record write-offs. Note: Bad Order runs on Dashboard/Inventory, which Sales Staff can't open. |
-| `auditLog` create: `isStaff()`, no update/delete (238, 245) | The "System" entries can't be erased. |
+| `stockBatches` update: `isStaff()` (216) | Only staff pages (running `enforceExpiryStatus`) can change status/quantity. |
+| `writeOffs` create: `isOpsStaff()` (234) | Only Technical/Branch Manager pages record write-offs. Note: Bad Order runs on Dashboard/Inventory, which Sales Staff can't open. |
+| `auditLog` create: `isStaff()`, no update/delete (243, 250) | The "System" entries can't be erased. |
 
 ---
 

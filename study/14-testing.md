@@ -103,7 +103,7 @@ From the pre-defense test report (cleanup branch, 11/05/2026):
 
 | # | Bug | How it was found | Fix and proof |
 | --- | --- | --- | --- |
-| – | **Regression from fix #8:** with the strict "+1 only" SI rule, two POS counters completing sales at the same moment failed with `permission-denied` (3 of 10 rounds) | A "race" test: two browsers clicking Confirm together, 10 rounds | `deductStockFEFOMultiple` retries the whole sale up to 3 more times (`products-data.js:1818-1830`). Re-test: **16 of 16** simultaneous sales succeeded, no duplicate SI numbers. |
+| – | **Regression from fix #8:** with the strict "+1 only" SI rule, two POS counters completing sales at the same moment failed with `permission-denied` (3 of 10 rounds) | A "race" test: two browsers clicking Confirm together, 10 rounds | `deductStockFEFOMultiple` retries the whole sale up to 3 more times (`products-data.js:1837-1849`). Re-test: **16 of 16** simultaneous sales succeeded, no duplicate SI numbers. |
 | 25 | Two customers submitting checkout at the same moment: one failed on the order-number counter (this was already happening on the live site) | Same kind of race test with two customers | `generateOrderNumber` retries (`orders.js:313-338`). Re-test: **10 of 10** orders placed with unique numbers. |
 
 **After all fixes:** the affected tests were re-run, and the screenshot set was taken again and compared with the

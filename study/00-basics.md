@@ -109,7 +109,7 @@ let posCart = [];                       // js/admin-pos.js:1
 A function is a named set of steps you can run again and again.
 
 ```js
-// js/products-data.js:1281
+// js/products-data.js:1286
 function formatPeso(amount) {
   return `₱${(amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -263,12 +263,12 @@ productsGrid.innerHTML = pageItems.map(renderProductCard).join("");   // js/prod
 - So whenever we build HTML with `innerHTML`, any user-typed value goes through `escapeHtml()` first:
 
 ```js
-// js/products-data.js:1285
+// js/products-data.js:1290
 function escapeHtml(text) {
   return String(text == null ? "" : text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 ```
-It swaps the five dangerous characters for safe codes. Example: product cards use `${escapeHtml(product.name)}` (`js/products-data.js:2432`).
+It swaps the five dangerous characters for safe codes. Example: product cards use `${escapeHtml(product.name)}` (`js/products-data.js:2451`).
 
 ### 2.9 Browser storage
 
@@ -345,7 +345,7 @@ nextCount = await db.runTransaction(async (transaction) => {
   return next;
 });
 ```
-Rule of transactions: **all reads must come before any writes** (see the comment at `js/products-data.js:1885`).
+Rule of transactions: **all reads must come before any writes** (see the comment at `js/products-data.js:1904`).
 
 **Batch write** (`db.batch()`): several writes that save together, but without reading first. Used when saving a product and its private prices (`js/admin-products.js:509`).
 
@@ -366,7 +366,7 @@ browser console. **We can't trust the browser.** The real protection is the **se
 Google checks on *its* servers before every read and write.
 
 ```
-// firestore.rules:131-133
+// firestore.rules:132-134
 match /orders/{orderId} {
   allow read: if isSignedIn() && resource.data.customerId == myUid();
   allow read: if isOpsStaff();
@@ -376,7 +376,7 @@ match /orders/{orderId} {
 - `request.auth` = who is making the request.
 - `resource.data` = the document **as it is now** in the database.
 - `request.resource.data` = the document **as it would be after** this write.
-- The last rule, `match /{document=**} { allow read, write: if false; }` (`firestore.rules:376-378`), blocks everything not explicitly allowed.
+- The last rule, `match /{document=**} { allow read, write: if false; }` (`firestore.rules:381-383`), blocks everything not explicitly allowed.
 
 The rules file does nothing until it's **published** (`npx firebase-tools deploy --only firestore:rules`).
 
@@ -405,8 +405,8 @@ and adds **security headers** to every page: `X-Frame-Options: DENY`, `X-Content
 | **Google Gemini** (through Firebase AI Logic) | The chat assistant that answers questions the built-in answers can't | Free tier, no secret API key in our code (Firebase handles it), protected by App Check | `js/live-chat.js:478` `loadGeminiModel`, settings `js/chat-config.js` |
 | **reCAPTCHA** | The "I'm not a robot" checkbox on login and register | Slows down bots that try many passwords or fake sign-ups | `login.html:138`, check in `js/auth.js:119-124` |
 | **Chart.js** | Draws the sales line chart and category doughnut on the dashboard | Simple, free, looks good | `js/admin-dashboard.js:286` and `:363` |
-| **jsPDF** | Makes PDF files in the browser: receipts, reports, invoices | No server needed | `createPdf` in `js/products-data.js:1315`, `downloadOrderReceipt` in `js/orders.js:340` |
-| **SheetJS (xlsx)** | Reads and writes Excel files: report exports, backups, batch uploads | Staff already use Excel; no server needed | `exportTable` in `js/products-data.js:1749-1758`, `downloadReportExcel` in `js/admin-reports.js:833` |
+| **jsPDF** | Makes PDF files in the browser: receipts, reports, invoices | No server needed | `createPdf` in `js/products-data.js:1320`, `downloadOrderReceipt` in `js/orders.js:340` |
+| **SheetJS (xlsx)** | Reads and writes Excel files: report exports, backups, batch uploads | Staff already use Excel; no server needed | `exportTable` in `js/products-data.js:1768-1777`, `downloadReportExcel` in `js/admin-reports.js:833` |
 | **Bootstrap 5** | Ready-made layout, buttons, pop-ups (modals) and phone-friendly grid | Fast to build, works on phones | linked in every HTML page |
 | **Choices.js** | Searchable dropdowns (type to find a product) | Hundreds of products are too many for a normal dropdown | `makeSearchableSelect` in `js/products-data.js:1186` |
 

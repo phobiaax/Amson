@@ -195,8 +195,8 @@ flowchart TD
 3. **…the customer never fixes a hold?** After 7 days the next staff page load closes it as "Closed (Unresolved)" and adds any verified money to their credit, with a notice "You have ₱X credit from order …".
 4. **…the order total was tampered with?** The red "Check before approving" warning shows, and Approve asks "Approve anyway?". Staff should only approve if the amount actually received covers the real price.
 5. **…a customer reuses an old screenshot?** If the reference number matches an earlier order or walk-in sale, the warning shows. Staff confirm in the bank app.
-6. **…a customer tries to mark their own order "payment_confirmed" from the console?** Refused. Customers can only do Delivered → Received, Dispatched → Delivered after 3 days, or resubmit hold fields (`firestore.rules:150-174`).
-7. **…a customer tries to extend or remove their hold deadline?** While resubmitting, the rules only allow changing `resolvedByCustomerAt` and `holdUntil` inside `paymentIssue`, and `holdUntil` can't be set to a new value (`firestore.rules:170-173`). The app removes it on resubmit (the order then waits for staff).
+6. **…a customer tries to mark their own order "payment_confirmed" from the console?** Refused. Customers can only do Delivered → Received, Dispatched → Delivered after 3 days, or resubmit hold fields (`firestore.rules:151-175`).
+7. **…a customer tries to extend or remove their hold deadline?** While resubmitting, the rules only allow changing `resolvedByCustomerAt` and `holdUntil` inside `paymentIssue`, and `holdUntil` can't be set to a new value (`firestore.rules:171-174`). The app removes it on resubmit (the order then waits for staff).
 8. **…the internet drops while approving?** The transaction fails as a whole: no stock deducted, no SI number used, the order stays "placed". The error shows in the review panel.
 9. **…the tracking link is wrong?** "That doesn't look like a valid Lalamove tracking link. It should look like https://share.lalamove.com/…"; nothing saved.
 10. **…a Sales Staff member opens this page?** The header sends them back to the POS ("You don't have access to that page"), and the rules refuse their order reads/updates (`isOpsStaff`).
@@ -209,15 +209,15 @@ flowchart TD
 
 | Rule (`firestore.rules`) | What it blocks |
 | --- | --- |
-| `orders` read own / ops staff (132-133) | Customers seeing other customers' orders; Sales Staff reading online orders. |
-| `orders` update: `isOpsStaff()` (175) | Anyone except Technical/Branch Manager changing an order's status. |
-| customer update: delivered → received, only `status` + `statusTimestamps` (151-153) | Customers changing totals, items or status freely. |
-| customer update: dispatched → delivered only after 3 days of dispatch (155-158) | Customers skipping ahead. |
-| customer resubmit: only proof/reference/prescription + the two hold fields, photo links must be our Cloudinary (160-173) | Customers clearing a hold or approving themselves. |
-| `orders` delete: false (177) | Deleting orders (evidence) from the browser. |
-| `counters/salesInvoices` +1 only (313-316) | Jumping or resetting SI numbers. |
-| `users` update by ops staff only on customer docs (59-61) | Used when crediting overpayments and closed holds. |
-| `auditLog` no update/delete (245) | Hiding who approved what. |
+| `orders` read own / ops staff (133-134) | Customers seeing other customers' orders; Sales Staff reading online orders. |
+| `orders` update: `isOpsStaff()` (176) | Anyone except Technical/Branch Manager changing an order's status. |
+| customer update: delivered → received, only `status` + `statusTimestamps` (152-154) | Customers changing totals, items or status freely. |
+| customer update: dispatched → delivered only after 3 days of dispatch (156-159) | Customers skipping ahead. |
+| customer resubmit: only proof/reference/prescription + the two hold fields, photo links must be our Cloudinary (161-174) | Customers clearing a hold or approving themselves. |
+| `orders` delete: false (178) | Deleting orders (evidence) from the browser. |
+| `counters/salesInvoices` +1 only (318-321) | Jumping or resetting SI numbers. |
+| `users` update by ops staff only on customer docs (60-62) | Used when crediting overpayments and closed holds. |
+| `auditLog` no update/delete (250) | Hiding who approved what. |
 
 ---
 
@@ -236,7 +236,7 @@ flowchart TD
 
 1. **"How do you know the customer really paid?"** Staff compare the screenshot and reference number with the branch's GCash/bank app before approving. The system helps with reused-reference and price warnings (`warnIfReferenceReused`, `orderPriceProblems`).
 2. **"What stops two staff from approving the same order twice?"** The transaction's `check` re-reads the order and stops if it's no longer "placed" or already has an SI number (`confirmOrderSale`, `admin-online-orders.js:671-676`).
-3. **"When does an online order get its SI number?"** At approval, from the same counter as walk-in and wholesale sales, inside the stock transaction (`deductStockFEFOOnce`, `products-data.js:1886-1892`).
+3. **"When does an online order get its SI number?"** At approval, from the same counter as walk-in and wholesale sales, inside the stock transaction (`deductStockFEFOOnce`, `products-data.js:1905-1911`).
 4. **"What happens to the customer's money if the order can't continue?"** After 7 days the order closes and any verified payment becomes store credit (`enforceOrderDeadline`, `orders.js:175`), used automatically on the next order.
 5. **"Why 7 days?"** Long enough for a customer to top up or re-upload, short enough that stock and money aren't stuck. It's one setting: `HOLD_DURATION_MS` (`admin-online-orders.js:4`).
 6. **"How does the customer know their order status?"** Bell notices (`customerNotifications`), emails through EmailJS (`sendOrderEmail`, `orders.js:147`), and the live order page.
