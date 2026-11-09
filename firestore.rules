@@ -222,7 +222,11 @@ service cloud.firestore {
     }
     match /posSales/{saleId} {
       allow read, create: if isStaff();
-      allow update: if isOpsStaff();
+      // voids are branch manager only (technical staff void through the manager's approval login)
+      allow update: if isManager();
+      // walk-in exchanges only mark returned units on the items
+      allow update: if isOpsStaff() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["items"]);
     }
     match /suppliers/{supplierId}      { allow read, write: if isOpsStaff(); }
     match /purchaseOrders/{poId}       { allow read, create, update: if isOpsStaff(); }

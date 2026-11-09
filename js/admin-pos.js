@@ -224,7 +224,7 @@ function updateRxBlock() {
 }
 
 function posTotal() {
-  return posCart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  return roundPeso(posCart.reduce((sum, item) => sum + item.price * item.qty, 0));
 }
 
 function updatePosTotals() {

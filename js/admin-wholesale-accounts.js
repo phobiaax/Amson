@@ -705,6 +705,7 @@ async function saveWholesaleOrder(account, { items, freeOfCost, freeReason, free
   for (const it of items) {
     total += it.qty * it.unitPrice;
   }
+  total = roundPeso(total);
   const paymentMethod = processOrderPaymentSelect.value;
 
   const orderItems = items.map((it) => {
@@ -714,7 +715,7 @@ async function saveWholesaleOrder(account, { items, freeOfCost, freeReason, free
       productName: product ? product.name : it.productId,
       qty: it.qty,
       unitPrice: it.unitPrice,
-      subtotal: it.qty * it.unitPrice,
+      subtotal: roundPeso(it.qty * it.unitPrice),
       ...(it.free ? { free: true } : {}),
     };
   });

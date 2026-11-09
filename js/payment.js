@@ -122,7 +122,7 @@ function cartTotalNow() {
     const product = getProductById(item.id);
     if (product) total += product.price * item.qty;
   }
-  return total;
+  return roundPeso(total);
 }
 
 // ---- payment screenshot, prescription photo and reference no. ----
