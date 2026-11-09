@@ -47,11 +47,12 @@ service cloud.firestore {
       allow create: if isManager() &&
         request.resource.data.role in ["admin", "branch_manager", "technical_staff", "sales_staff"];
 
-      // own doc updates cant change role or status or raise store credit
+      // own doc updates cant change role or status or raise store credit or take it below zero
       allow update: if isSignedIn() && myUid() == uid &&
         request.resource.data.get("role", null) == resource.data.get("role", null) &&
         request.resource.data.get("accountStatus", null) == resource.data.get("accountStatus", null) &&
-        request.resource.data.get("creditBalance", 0) <= resource.data.get("creditBalance", 0);
+        request.resource.data.get("creditBalance", 0) <= resource.data.get("creditBalance", 0) &&
+        request.resource.data.get("creditBalance", 0) >= 0;
 
       // staff management is branch manager only
       allow update: if isManager();
