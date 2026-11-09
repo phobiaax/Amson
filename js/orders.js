@@ -288,7 +288,7 @@ async function createOrderWithCreditRedemption(orderData, { expectFullCredit = f
       balance = userDoc.exists ? userDoc.data().creditBalance || 0 : 0;
     }
     const appliedCredit = Math.max(0, Math.min(balance, orderData.total));
-    const finalTotal = orderData.total - appliedCredit;
+    const finalTotal = roundPeso(orderData.total - appliedCredit);
     if (expectFullCredit && finalTotal > 0) {
       throw new Error("Your store credit balance changed, so it no longer covers this order. Please reload the page to pay the rest.");
     }

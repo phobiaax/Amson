@@ -1278,6 +1278,11 @@ function wholeQty(value) {
   return /^\d+$/.test(text) ? Number(text) : NaN;
 }
 
+// to the centavo, so 12.35 x 3 saves as 37.05 and not 37.050000000000004
+function roundPeso(amount) {
+  return Math.round((amount || 0) * 100) / 100;
+}
+
 function formatPeso(amount) {
   return `₱${(amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -1523,15 +1528,15 @@ async function promptVoidDetails(sale, { requireApproval = false } = {}) {
     validate: async () => {
       const read = readVoidDialog(items);
       if (read.problem) return read.problem;
-      let approvedBy = null;
+      let approval = { approvedBy: null, approverApp: null };
       if (requireApproval) {
         try {
-          approvedBy = await verifyVoidApprover(document.getElementById("voidApproverEmail").value.trim(), document.getElementById("voidApproverPassword").value);
+          approval = await verifyVoidApprover(document.getElementById("voidApproverEmail").value.trim(), document.getElementById("voidApproverPassword").value);
         } catch (error) {
           return error.message;
         }
       }
-      details = { ...read.details, approvedBy };
+      details = { ...read.details, ...approval };
       return null;
     },
   });
@@ -1557,7 +1562,8 @@ function readVoidDialog(items) {
   return { details: { reason, lines } };
 }
 
-// checks the managers login on a separate app so staff stay signed in
+// signs the manager in on a separate app so staff stay signed in; the void is then saved
+// as the manager (the rules only let a manager void), and voidPosSale signs them out after
 async function verifyVoidApprover(email, password) {
   if (!email || !password) throw new Error("The Branch Manager's email and password are required to approve this void.");
   const app = firebase.initializeApp(firebaseConfig, `VoidApproval${Date.now()}`);
@@ -1565,28 +1571,41 @@ async function verifyVoidApprover(email, password) {
     const cred = await app.auth().signInWithEmailAndPassword(email, password);
     const doc = await db.collection("users").doc(cred.user.uid).get();
     const data = doc.exists ? doc.data() : {};
-    await app.auth().signOut();
     if (!["branch_manager", "admin"].includes(data.role)) throw new Error("That account isn't a Branch Manager, so it can't approve voids.");
     if (data.accountStatus === "deactivated") throw new Error("That Branch Manager account is deactivated.");
-    return `${data.firstName || ""} ${data.lastName || ""}`.trim() || email;
+    return { approvedBy: `${data.firstName || ""} ${data.lastName || ""}`.trim() || email, approverApp: app };
   } catch (error) {
+    await closeApproverApp(app);
     if (error && error.code && String(error.code).startsWith("auth/")) throw new Error("The Branch Manager's email or password is incorrect.");
     throw error;
-  } finally {
-    await app.delete();
   }
 }
 
+async function closeApproverApp(app) {
+  if (!app) return;
+  await app.auth().signOut().catch(() => {});
+  await app.delete().catch(() => {});
+}
+
 // voids the lines in one transaction, units go back to their batches
-async function voidPosSale(sale, { reason, lines, approvedBy }, voidedBy) {
-  const saleRef = db.collection("posSales").doc(sale.id);
-  const fallbackRefs = await findFallbackBatches(sale, lines);
+async function voidPosSale(sale, { reason, lines, approvedBy, approverApp }, voidedBy) {
+  try {
+    return await voidPosSaleAs(approverApp ? approverApp.firestore() : db, sale, { reason, lines, approvedBy }, voidedBy);
+  } finally {
+    await closeApproverApp(approverApp);
+  }
+}
+
+// store: the manager's own connection when they approved it, so the rules see a manager
+async function voidPosSaleAs(store, sale, { reason, lines, approvedBy }, voidedBy) {
+  const saleRef = store.collection("posSales").doc(sale.id);
+  const fallbackRefs = await findFallbackBatches(store, sale, lines);
 
   let voidedLines = [];
   let fullVoid = false;
   let voidedAmount = 0;
 
-  await db.runTransaction(async (transaction) => {
+  await store.runTransaction(async (transaction) => {
     const saleDoc = await transaction.get(saleRef);
     if (!saleDoc.exists) throw new Error("This sale no longer exists.");
     const data = saleDoc.data();
@@ -1600,7 +1619,7 @@ async function voidPosSale(sale, { reason, lines, approvedBy }, voidedBy) {
 
     const batchDocs = [];
     for (const batchId of returns.keys()) {
-      batchDocs.push(await transaction.get(db.collection("stockBatches").doc(batchId)));
+      batchDocs.push(await transaction.get(store.collection("stockBatches").doc(batchId)));
     }
     batchDocs.forEach((doc) => {
       if (!doc.exists) throw new Error("A batch from this sale no longer exists; the stock can't be returned automatically.");
@@ -1637,13 +1656,13 @@ async function voidPosSale(sale, { reason, lines, approvedBy }, voidedBy) {
 }
 
 // old sales without batches go back on the latest expiring batch
-async function findFallbackBatches(sale, lines) {
+async function findFallbackBatches(store, sale, lines) {
   const fallbackRefs = {};
   for (const { index } of lines) {
     const item = (sale.items || [])[index];
     const noFallbackNeeded = !item || (item.batches && item.batches.length) || fallbackRefs[item.productId];
     if (noFallbackNeeded) continue;
-    const snap = await db.collection("stockBatches").where("productId", "==", item.productId).where("status", "==", "active").get();
+    const snap = await store.collection("stockBatches").where("productId", "==", item.productId).where("status", "==", "active").get();
     const latest = snap.docs.sort((a, b) => new Date(b.data().expirationDate) - new Date(a.data().expirationDate))[0];
     if (!latest) throw new Error(`No active batch of ${item.name} to return the stock to. Receive stock first, then void.`);
     fallbackRefs[item.productId] = latest.ref;
