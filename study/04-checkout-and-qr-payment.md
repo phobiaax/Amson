@@ -104,7 +104,7 @@ const { appliedCredit, finalTotal } = await db.runTransaction(async (transaction
 });
 ```
 - Reads the **current** balance inside the transaction, so credit can't be spent twice.
-- The order and the credit deduction save **together**. The rules check that the balance after the write is exactly the old balance minus `creditApplied`, and that `lastCreditOrderId` is this order (`firestore.rules:143-147`).
+- The order and the credit deduction save **together**. The rules check that the balance after the write is exactly the old balance minus `creditApplied`, and that `lastCreditOrderId` is this order (`firestore.rules:144-148`).
 
 **After saving** (`payment.js:329-352`): the customer gets an "Order placed" bell notice (and email), the ordered items leave the cart (unticked ones stay), the draft is cleared, and the confirmation with the order number shows.
 
@@ -166,8 +166,8 @@ flowchart TD
 5. **…someone buys the last unit while I'm on the payment page?** The live re-check catches it: "Some items in your cart exceed what's currently in stock… (only 0 left, 1 in your cart)."
 6. **…a price changes while I'm paying?** "Some prices changed since you opened this page. Your new total is ₱X. Please check it and tap Submit Order again."
 7. **…a customer edits the order from the console to set prices to ₱1?** The rules can't check every price, so it would save. But staff see a red warning in verification ("… is ₱1 on this order but ₱100 in the catalog") and must confirm "Approve anyway" (module 05). Staff also check the amount actually received in the GCash/bank app.
-8. **…someone tries to create an order for another customer, or as already "payment_confirmed"?** Refused by the rules: `customerId` must be your own uid and `status` must be `"placed"` (`firestore.rules:136-138`).
-9. **…someone saves a proof link from another website?** Refused: photo links must start with `https://res.cloudinary.com/wb6wxped/` (`photoLinkOk`, `firestore.rules:126-129`).
+8. **…someone tries to create an order for another customer, or as already "payment_confirmed"?** Refused by the rules: `customerId` must be your own uid and `status` must be `"placed"` (`firestore.rules:137-139`).
+9. **…someone saves a proof link from another website?** Refused: photo links must start with `https://res.cloudinary.com/wb6wxped/` (`photoLinkOk`, `firestore.rules:127-130`).
 10. **…someone tries to use more store credit than they have?** The transaction uses the real balance. A hand-made write that doesn't subtract the credit, or subtracts the wrong amount, is refused by the rules (143-147).
 11. **…the screenshot is 15 MB?** "That file is too large. Please upload an image under 10MB." (browser check).
 12. **…the reference number is "ab"?** Refused: needs at least 4 letters or numbers.
@@ -180,14 +180,14 @@ flowchart TD
 
 | Rule (`firestore.rules`) | What it blocks |
 | --- | --- |
-| `orders` create: signed in, `customerId == myUid()` (136-137) | Placing orders as someone else. |
-| `status == "placed"` (138) | Creating an order that's already "paid" or "dispatched". |
-| `total >= 0` (139) | Negative totals. |
-| no `paymentIssue`, `invoiceNo`, `unappliedCredit`, `paymentOverage`, `verification`, `closedReason` (140) | Customers writing staff-only fields (fake SI number, fake verification). |
-| `photoLinkOk` for proof and prescription (141-142) | Proof images hosted somewhere else. |
-| credit: `getAfter(...)creditBalance == get(...)creditBalance - creditApplied` and `lastCreditOrderId == orderId` (143-147) | Using credit without it coming off the balance. |
-| `counters` `orders-YYYY` create = 1, update = +1 only (318-321) | Resetting or jumping order numbers. |
-| `customerNotifications` customer create only `order_placed` with fixed fields (198-202) | Customers writing fake notices to themselves with other kinds. |
+| `orders` create: signed in, `customerId == myUid()` (137-138) | Placing orders as someone else. |
+| `status == "placed"` (139) | Creating an order that's already "paid" or "dispatched". |
+| `total >= 0` (140) | Negative totals. |
+| no `paymentIssue`, `invoiceNo`, `unappliedCredit`, `paymentOverage`, `verification`, `closedReason` (141) | Customers writing staff-only fields (fake SI number, fake verification). |
+| `photoLinkOk` for proof and prescription (142-143) | Proof images hosted somewhere else. |
+| credit: `getAfter(...)creditBalance == get(...)creditBalance - creditApplied` and `lastCreditOrderId == orderId` (144-148) | Using credit without it coming off the balance. |
+| `counters` `orders-YYYY` create = 1, update = +1 only (323-326) | Resetting or jumping order numbers. |
+| `customerNotifications` customer create only `order_placed` with fixed fields (199-203) | Customers writing fake notices to themselves with other kinds. |
 | `users` own update: credit can't go up (54) | Giving yourself store credit. |
 
 ---
@@ -209,10 +209,11 @@ flowchart TD
 2. **"When is stock deducted for online orders?"** When staff approve the payment, not when the order is placed. Approval runs `deductStockFEFOMultiple` in one transaction with the SI number (`confirmOrderSale`, `admin-online-orders.js:656`).
 3. **"How do you prevent duplicate order numbers?"** A Firestore transaction on `counters/orders-YYYY`, a rule that only allows +1, and a retry when two checkouts clash (`generateOrderNumber`, `orders.js:313`).
 4. **"What if the customer changes the prices in the browser?"** The order still saves, but staff see a price-mismatch warning and must confirm "Approve anyway" (`confirmPriceProblems`, `admin-online-orders.js:554`). Staff also check the actual amount received. Moving pricing to the server is our planned improvement.
-5. **"How does store credit work, and can it be abused?"** Credit comes from overpayments and closed holds. At checkout it's subtracted inside the same transaction that creates the order (`createOrderWithCreditRedemption`, `orders.js:280`), and the rules check the balance went down by exactly the amount used.
+5. **"How does store credit work, and can it be abused?"** Credit comes from overpayments and closed holds. At checkout it's subtracted inside the same transaction that creates the order (`createOrderWithCreditRedemption`, `orders.js:280`), and the rules check the balance went down by exactly the amount used and never goes below zero.
 6. **"Why are prescription orders pick-up only?"** The pharmacist must check the original prescription and a valid ID before releasing Rx medicine.
 7. **"Where are the payment screenshots stored?"** On Cloudinary. Firestore only stores the link, and the rules only accept links to our own Cloudinary account.
 8. **"What happens if I lose internet in the middle of submitting?"** Either the order fully saves or nothing does (transaction). You get a message and can tap Submit again.
 9. **"Why check the stock again on the payment page?"** The shop uses a copy up to 5 minutes old; we re-read live right before submitting so customers don't pay for items that just sold out.
 10. **"Why does the date picker use local time?"** Philippine time is UTC+8. Before 8 AM, UTC is still "yesterday", so `toISOString()` would allow yesterday's date. `localISODate()` (`products-data.js:1262`) uses the local calendar.
 11. **"How big can an upload be?"** Under 10 MB; phone photos over 300 KB are shrunk to JPEG first (`cloudinary.js:12`), which saves data for customers.
+12. **"Why round totals?"** Computers store money as binary decimals, so ₱12.35 × 3 comes out as 37.050000000000004. `roundPeso` (`products-data.js:1282`) rounds every saved total to the centavo, on checkout, POS and wholesale.

@@ -169,7 +169,7 @@ flowchart TD
 
 ## 5. What happens if…
 
-1. **…Technical Staff try to change a price?** The price boxes are disabled. From the console, the rules refuse: `priceFieldsUnchanged()` must be true for non-managers (`firestore.rules:97-99`).
+1. **…Technical Staff try to change a price?** The price boxes are disabled. From the console, the rules refuse: `priceFieldsUnchanged()` must be true for non-managers (`firestore.rules:98-100`).
 2. **…Technical Staff try to make a price-pending product Active?** The page saves it as Inactive with a message. The rules also refuse `pricePending == true && status == "active"` for non-managers (98-99).
 3. **…the Branch Manager types a retail price of 0 or -10?** "Retail price must be more than ₱0.00." (bug #2 from testing, fixed). Same check in the Excel import.
 4. **…a price change has no reason?** "A reason is required to change a price. Nothing was saved."
@@ -188,14 +188,14 @@ flowchart TD
 
 | Rule (`firestore.rules`) | What it blocks |
 | --- | --- |
-| `products` read: `if true` (86) | (Allows the shop to show products.) |
-| `products` create by `isPriceManager()` (88) | n/a, managers can create any product. |
-| `products` create by product editors only with prices 0, `pricePending: true`, `status: "inactive"` (89-94) | Technical Staff publishing products with prices they chose. |
-| `products` update by editors only if `priceFieldsUnchanged()` and not activating a price-pending product (97-99) | Technical Staff changing retail/cost/wholesale, lock or pending flags. |
-| `products` delete: `isProductEditor()` (101) | Sales Staff and customers deleting products. |
-| `productPrices` read `isStaff()`; write manager only with exactly `costingPrice, wholesalePrice, updatedAt` (105-110) | Customers seeing costs; non-managers setting them; extra fields. |
-| `categories` write `isOpsStaff()` (121) | Sales Staff and customers changing categories. |
-| `counters` staff only (311) | Customers bumping the SKU counter. |
+| `products` read: `if true` (87) | (Allows the shop to show products.) |
+| `products` create by `isPriceManager()` (89) | n/a, managers can create any product. |
+| `products` create by product editors only with prices 0, `pricePending: true`, `status: "inactive"` (90-95) | Technical Staff publishing products with prices they chose. |
+| `products` update by editors only if `priceFieldsUnchanged()` and not activating a price-pending product (98-100) | Technical Staff changing retail/cost/wholesale, lock or pending flags. |
+| `products` delete: `isProductEditor()` (102) | Sales Staff and customers deleting products. |
+| `productPrices` read `isStaff()`; write manager only with exactly `costingPrice, wholesalePrice, updatedAt` (106-111) | Customers seeing costs; non-managers setting them; extra fields. |
+| `categories` write `isOpsStaff()` (122) | Sales Staff and customers changing categories. |
+| `counters` staff only (316) | Customers bumping the SKU counter. |
 
 ---
 
@@ -211,8 +211,8 @@ flowchart TD
 
 ## 8. Likely panel questions
 
-1. **"Who can change prices and how is it enforced?"** Only the Branch Manager (or Admin). The page disables the price boxes (`applyPriceFieldState`), and the rules refuse price changes from anyone else (`priceFieldsUnchanged`, `firestore.rules:77-83`, `96-99`).
-2. **"How do you hide the cost price from customers?"** It's stored in `productPrices`, readable only by staff (`firestore.rules:105-110`). The public product doc has only the retail price.
+1. **"Who can change prices and how is it enforced?"** Only the Branch Manager (or Admin). The page disables the price boxes (`applyPriceFieldState`), and the rules refuse price changes from anyone else (`priceFieldsUnchanged`, `firestore.rules:78-84`, `96-99`).
+2. **"How do you hide the cost price from customers?"** It's stored in `productPrices`, readable only by staff (`firestore.rules:106-111`). The public product doc has only the retail price.
 3. **"Why can't the rules just hide one field?"** Firestore rules allow or deny whole documents, not fields. So private fields go in a separate document.
 4. **"What happens when Technical Staff add a product?"** It's saved with price 0, inactive and "price pending". The Branch Manager is notified and must price it before it can be sold.
 5. **"Why require a reason for price changes?"** The client asked for it, so every change can be explained later. It's in the audit log with before and after prices.

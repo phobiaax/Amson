@@ -209,12 +209,12 @@ flowchart TD
 ## 5. What happens if…
 
 1. **…someone types the wrong password 5 times?** The 5th failure saves `lockedUntil` = now + 2 minutes. Any login for that email during the 2 minutes stops at `getActiveLoginLock` with a countdown, *before* Firebase is even asked. After 2 minutes the old lock is deleted and counting starts again.
-2. **…an attacker tries to reset their failed-login counter from the console?** The rules (`firestore.rules:363-368`) only allow `count` to go up by exactly 1, never while locked, and only the signed-in owner of that email (or a manager) may delete it. Setting `lockedUntil` far in the future is refused too (max 3 minutes ahead).
+2. **…an attacker tries to reset their failed-login counter from the console?** The rules (`firestore.rules:368-373`) only allow `count` to go up by exactly 1, never while locked, and only the signed-in owner of that email (or a manager) may delete it. Setting `lockedUntil` far in the future is refused too (max 3 minutes ahead).
 3. **…the internet drops during registration after the login was created but before the profile saved?** The login exists without a `users` doc. Logging in then hits "No account profile found. Please contact support." (`auth.js:142-146`) and signs out. Staff would delete the login in Firebase console → Authentication. (A known edge case.)
 4. **…the code email never arrives?** Register sets `amsonOtpSendFailed`, and the verify page shows "We couldn't send your code. Tap Resend" (`verify-email.js:171-174`). Resend makes a fresh code.
 5. **…the customer types the code after 10 minutes?** "This code has expired. Request a new one below." (`verify-email.js:82-85`).
 6. **…someone registers with an email that already has an account?** Firebase refuses with `auth/email-already-in-use` → "An account with this email already exists." This includes emails whose profile was deleted by Clear Test Data but whose login still exists in Authentication.
-7. **…a customer edits their own `role` to `"branch_manager"` from the console?** The rules refuse: on an own-doc update, `role` must equal the old role (`firestore.rules:51-54`). On create, role must be `"customer"`.
+7. **…a customer edits their own `role` to `"branch_manager"` from the console?** The rules refuse: on an own-doc update, `role` must equal the old role (`firestore.rules:51-55`). On create, role must be `"customer"`.
 8. **…a Sales Staff member types `admin/staff-management.html` in the address bar?** `roleCanAccessPage` is false → "You don't have access to that page" → back to `pos.html`. Even if they bypassed the page, the rules refuse staff writes (`users` update by staff needs `isManager()`).
 9. **…a staff member is deactivated while logged in?** On their next page load the header signs them out with "This account has been deactivated." Even before that, every database request fails, because `isStaff()` re-reads `accountStatus` on each request (`firestore.rules:19-23`).
 10. **…a logged-out person opens an admin page?** `onAuthStateChanged` gives `null` → sent to `login.html`. The page body never shows.
@@ -231,12 +231,12 @@ flowchart TD
 | `users` read own / ops staff (38-39) | Customers reading other customers' profiles, addresses, phone numbers. |
 | `users` create: own uid, `role == "customer"`, credit 0 (42-44) | Signing up as staff, or with free store credit. |
 | `users` create by `isManager()` with a staff role (47-48) | Non-managers creating staff accounts. |
-| own update: same `role`, same `accountStatus`, credit can't go up (51-54) | Promoting yourself, re-activating yourself, giving yourself credit. |
-| ops staff may update only customer docs (59-61) | Technical Staff changing staff roles (including their own). |
-| `users` delete: false (63) | Deleting accounts from the browser (except the temporary clear-test rule for non-managers). |
-| `loginAttempts` get-only for public, list for managers (359, 373) | Listing every email that has tried to log in. |
-| `loginAttempts` create count 1 / update +1 / not while locked / lock ≤ 3 min (360-368) | Resetting the counter, or locking someone out for hours. |
-| `loginAttempts` delete by owner, expired lock, or manager (369-372) | A stranger clearing someone else's lock. |
+| own update: same `role`, same `accountStatus`, credit can't go up (51-55) | Promoting yourself, re-activating yourself, giving yourself credit. |
+| ops staff may update only customer docs (60-62) | Technical Staff changing staff roles (including their own). |
+| `users` delete: false (64) | Deleting accounts from the browser (except the temporary clear-test rule for non-managers). |
+| `loginAttempts` get-only for public, list for managers (364, 378) | Listing every email that has tried to log in. |
+| `loginAttempts` create count 1 / update +1 / not while locked / lock ≤ 3 min (365-373) | Resetting the counter, or locking someone out for hours. |
+| `loginAttempts` delete by owner, expired lock, or manager (374-377) | A stranger clearing someone else's lock. |
 | `isStaff()` checks `accountStatus != "deactivated"` (19-23) | A deactivated staff member still using the database with an old login. |
 
 ---

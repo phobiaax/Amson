@@ -24,7 +24,7 @@
 
 ## 2. Walkthrough
 
-### 2.1 The FEFO engine (`deductStockFEFOOnce`, `products-data.js:1832-1936`)
+### 2.1 The FEFO engine (`deductStockFEFOOnce`, `products-data.js:1851-1955`)
 
 Used by POS sales, online approvals, wholesale orders and exchanges.
 
@@ -199,11 +199,11 @@ flowchart TD
 
 | Rule (`firestore.rules`) | What it blocks |
 | --- | --- |
-| `stockBatches` read: public; update: `isStaff()`; create/delete: `isOpsStaff()` (213-217) | Customers changing stock; Sales Staff creating or deleting batches. |
-| `batchCosts`: ops staff only (219-221) | Customers and Sales Staff seeing purchase costs. |
-| `writeOffs`, `reconciliations`, `purchaseOrders`, `suppliers`: ops staff (226-229) | Sales Staff and customers reading or writing back-office records. |
-| `counters`: staff; `salesInvoices` +1 only (308-316) | Tampering with SI / PO / count numbers. |
-| `auditLog`: append-only (235-246) | Hiding adjustments. |
+| `stockBatches` read: public; update: `isStaff()`; create/delete: `isOpsStaff()` (214-218) | Customers changing stock; Sales Staff creating or deleting batches. |
+| `batchCosts`: ops staff only (220-222) | Customers and Sales Staff seeing purchase costs. |
+| `writeOffs`, `reconciliations`, `purchaseOrders`, `suppliers`: ops staff (231-234) | Sales Staff and customers reading or writing back-office records. |
+| `counters`: staff; `salesInvoices` +1 only (313-321) | Tampering with SI / PO / count numbers. |
+| `auditLog`: append-only (240-251) | Hiding adjustments. |
 
 ---
 
@@ -220,12 +220,12 @@ flowchart TD
 
 ## 8. Likely panel questions
 
-1. **"What is FEFO and where is it in your code?"** First Expiry, First Out. `deductStockFEFOOnce` sorts batches by expiry and takes from the earliest (`products-data.js:1844-1847`, `1898-1913`).
+1. **"What is FEFO and where is it in your code?"** First Expiry, First Out. `deductStockFEFOOnce` sorts batches by expiry and takes from the earliest (`products-data.js:1863-1866`, `1898-1913`).
 2. **"Why not FIFO?"** A batch delivered later can expire earlier. Selling by expiry minimizes expired stock.
 3. **"How do you guarantee stock never goes negative?"** Inside the transaction we re-read each batch and throw if the total is too small (`1866-1869`); deductions use `Math.min(current, remaining)`.
 4. **"What is a transaction and why use it here?"** A group of reads and writes that happen all together or not at all, and retry if the data changed. Two cashiers can't both sell the same unit.
 5. **"Why do you query outside the transaction?"** Firestore transactions can only read documents by reference, not run queries, so we find the batch references first and re-read them inside.
-6. **"How do you keep purchase costs private if batches are public?"** Costs are saved in `batchCosts`, readable only by ops staff (`firestore.rules:219-221`).
+6. **"How do you keep purchase costs private if batches are public?"** Costs are saved in `batchCosts`, readable only by ops staff (`firestore.rules:220-222`).
 7. **"Who can change stock numbers by hand?"** Write-offs (Technical/BM, with a reason) and finalized stock counts (Branch Manager, with a reason). Both are logged.
 8. **"What happens if the count differs from the system?"** The Branch Manager must give a reason; the difference is applied to current stock and logged with before/after numbers.
 9. **"How are low-stock alerts calculated?"** Total stock at or below the product's reorder point (default 20) (`getStockLevelStatus`, `products-data.js:285`).

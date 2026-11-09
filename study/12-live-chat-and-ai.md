@@ -164,7 +164,7 @@ flowchart TD
 6. **…a customer sends two messages within 1.5 seconds?** The second waits and is sent after the gap (fixed during testing; it used to be dropped).
 7. **…someone floods messages from a script?** The rules limit each message to 2,000 characters and only allowed fields; the page limits 500 characters and 1.5 s per message. A determined script could still post many messages into its *own* thread.
 8. **…a guest tries to read another guest's chat?** They'd need the exact 24-character random id. A customer can only open `cust_<their own uid>`. Staff can list threads; customers can't (`list` is ops staff only).
-9. **…a customer tries to take the chat back from staff via the console?** Refused: once `status` is `"staff"`, customers can't change it (`firestore.rules:280`).
+9. **…a customer tries to take the chat back from staff via the console?** Refused: once `status` is `"staff"`, customers can't change it (`firestore.rules:285`).
 10. **…the AI is turned off (`aiProvider: "none"`)?** The chat still works with built-in answers, order cards, product cards, health templates and staff hand-off.
 11. **…staff reply while the customer is offline?** The message is saved; the customer sees it next time they open the chat (live listener).
 12. **…the customer asks "where is my order?"** `chatWantsOrders` → cards of *their own* orders (read under the normal orders rules) with status and next step, including the Lalamove tracking link if dispatched.
@@ -175,13 +175,13 @@ flowchart TD
 
 | Rule (`firestore.rules`) | What it blocks |
 | --- | --- |
-| `chatThreadIsMine`: id is `guest_` + 24 letters/digits, or `cust_` + your uid (261-264) | Customers opening other customers' chats by id. |
-| thread `get`: ops staff or owner; `list`: ops staff only (267-268) | Customers listing all chats. |
-| thread create: `status "ai"`, own `customerId` or none, only allowed keys, short strings (270-274) | Creating chats pretending to be another customer, or with junk fields. |
-| `chatThreadTextOk`: lastMessage ≤ 200, name ≤ 100, reason ≤ 100 (252-259) | Filling the database with huge text. |
-| customer update: only chat fields; status only `ai` / `waiting_staff` / unchanged; never away from `staff` (276-281) | Customers marking chats resolved or stealing them back from staff. |
-| messages: owner or ops staff read; customer side creates `customer`/`assistant`/`system` only, text ≤ 2,000, cards ≤ 20; no edit/delete (283-294) | Long spam messages; editing history; posting as "staff". |
-| `chatUsage`: create = 1, update = +1, only `count, updatedAt` (298-304) | Resetting or jumping the daily AI counter. |
+| `chatThreadIsMine`: id is `guest_` + 24 letters/digits, or `cust_` + your uid (266-269) | Customers opening other customers' chats by id. |
+| thread `get`: ops staff or owner; `list`: ops staff only (272-273) | Customers listing all chats. |
+| thread create: `status "ai"`, own `customerId` or none, only allowed keys, short strings (275-279) | Creating chats pretending to be another customer, or with junk fields. |
+| `chatThreadTextOk`: lastMessage ≤ 201, name ≤ 101, reason ≤ 101 (257-264) | Filling the database with huge text. |
+| customer update: only chat fields; status only `ai` / `waiting_staff` / unchanged; never away from `staff` (281-286) | Customers marking chats resolved or stealing them back from staff. |
+| messages: owner or ops staff read; customer side creates `customer`/`assistant`/`system` only, text ≤ 2,0, cards ≤ 20; no edit/delete (288-299) | Long spam messages; editing history; posting as "staff". |
+| `chatUsage`: create = 1, update = +1, only `count, updatedAt` (303-309) | Resetting or jumping the daily AI counter. |
 
 ---
 

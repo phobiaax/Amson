@@ -113,12 +113,13 @@ nextCount = await db.runTransaction(async (transaction) => {
 });
 ```
 
-### Snippet 3: `firestore.rules:51-54`
+### Snippet 3: `firestore.rules:51-55`
 ```
 allow update: if isSignedIn() && myUid() == uid &&
   request.resource.data.get("role", null) == resource.data.get("role", null) &&
   request.resource.data.get("accountStatus", null) == resource.data.get("accountStatus", null) &&
-  request.resource.data.get("creditBalance", 0) <= resource.data.get("creditBalance", 0);
+  request.resource.data.get("creditBalance", 0) <= resource.data.get("creditBalance", 0) &&
+  request.resource.data.get("creditBalance", 0) >= 0;
 ```
 
 ### Snippet 4: `js/cart.js:111-133` (shortened)
@@ -139,7 +140,7 @@ function addToCart(productId, qty = 1) {
 }
 ```
 
-### Snippet 5: `js/products-data.js:1818-1830`
+### Snippet 5: `js/products-data.js:1837-1849`
 ```js
 async function deductStockFEFOMultiple(items, options = {}) {
   for (let attempt = 1; ; attempt++) {
@@ -186,7 +187,7 @@ async function deductStockFEFOMultiple(items, options = {}) {
 ### Shop and cart
 19. A batch counts for retail only if it's active, has units, and expires more than 6 months from today.
 20. Each batch has its own expiry date. FEFO, expiry alerts and Bad Order need per-batch numbers, and one source of truth can't get out of sync.
-21. In `productPrices/{productId}` (and purchase costs in `batchCosts`), readable only by staff (`firestore.rules:105-110`, `219-221`).
+21. In `productPrices/{productId}` (and purchase costs in `batchCosts`), readable only by staff (`firestore.rules:106-111`, `219-221`).
 22. It caps the quantity at 6 and shows "Only 6 in stock - your cart is now at the limit."
 23. Prices are always read fresh from the catalog, so an old or edited price can't get into the order.
 24. On login they're merged into the account cart (bigger quantity per item wins), and the guest copy is cleared.
@@ -197,7 +198,7 @@ async function deductStockFEFOMultiple(items, options = {}) {
 27. "We couldn't reach the store to check stock. Check your internet connection, then tap Submit Order again." Nothing is saved.
 28. It reads the balance inside the transaction: applied = min(200, 150) = 150, final total = 0. The order is saved with `creditApplied: 150`, and the balance goes down by 150 (to 50) in the same transaction.
 29. No. The counter rule allows only +1, so the late transaction is refused; `generateOrderNumber` waits a moment and retries, getting the next number.
-30. `firestore.rules:138`: `request.resource.data.status == "placed"`.
+30. `firestore.rules:139`: `request.resource.data.status == "placed"`.
 31. The pharmacist must check the original prescription and a valid ID before releasing Rx medicine.
 32. The rules refuse it: `photoLinkOk` only accepts `https://res.cloudinary.com/wb6wxped/...`.
 33. When staff approve the payment, in the same transaction that gives the SI number (`confirmOrderSale`).
@@ -215,7 +216,7 @@ async function deductStockFEFOMultiple(items, options = {}) {
 41. So the cashier can't add the same product twice and go past the stock.
 42. To catch mistakes before stock is deducted and an SI number is used (fewer voids).
 43. Both bump the SI counter; the rules refuse the stale one; `deductStockFEFOMultiple` retries it and it gets the next number. No duplicates.
-44. It signs in on a temporary second Firebase app, checks the role and status, signs out, and deletes that app.
+44. It signs the manager in on a temporary second Firebase app and checks the role and status. The void is saved through that app as the manager (the rules only let a manager void), then the app is signed out and deleted.
 45. For the audit trail: the SI number still exists with the reason, who voided and who approved. Reports skip `voided` sales.
 46. Refused: the replacement must be of equal or higher value. Amson doesn't give refunds.
 47. The `@media print` section in `css/style.css` (around line 2100), which sets the receipt to 58 mm wide.
@@ -264,6 +265,7 @@ async function deductStockFEFOMultiple(items, options = {}) {
 - `request.resource.data.get("role", null) == resource.data.get("role", null)`: the role after the change must equal the role before (you can't change your role).
 - Same for `accountStatus` (you can't reactivate yourself).
 - `creditBalance` after ≤ before: you can spend credit but never add it.
+- `creditBalance` after ≥ 0: you can't spend credit you don't have (without this, a crafted order could claim ₱1,000 of credit and leave the balance at -₱1,000).
 
 **Snippet 4**
 - Read the cart, and see whether this product is already in it.

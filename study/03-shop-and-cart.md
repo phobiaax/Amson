@@ -75,7 +75,7 @@ Only **active** products marked **available online** appear in the shop. (The PO
 - `matchesSearch` (`products.js:26-33`): every typed word must appear somewhere in the name, generic name, brand or description, ignoring capitals. "bio 500" matches "Biogesic 500mg".
 - `applyFilters` (`products.js:62-98`): filters by category, section, min/max price and stock, then sorts. **Out-of-stock products always go to the bottom** (`products.js:81`).
 - `renderPage` (`products.js:100-117`): shows 16 per page (`PAGE_SIZE`) with page buttons.
-- Each product card comes from `renderProductCard` (`products-data.js:2422-2451`). Every text value is wrapped in `escapeHtml`, and out-of-stock items get a disabled button.
+- Each product card comes from `renderProductCard` (`products-data.js:2441-2470`). Every text value is wrapped in `escapeHtml`, and out-of-stock items get a disabled button.
 
 ### 2.4 Add to Cart (`js/cart.js`)
 
@@ -175,11 +175,11 @@ flowchart TD
 
 | Rule (`firestore.rules`) | What it does |
 | --- | --- |
-| `products` read: `if true` (86) | Anyone, even guests, can browse. Write needs staff (88-101). |
-| `productPrices` read: `isStaff()` (106) | Cost and wholesale prices are **not visible** to customers or guests, only retail. |
-| `stockBatches` read: `if true` (214) | The shop needs real quantities. Write needs staff. |
-| `categories` read: `if true` (120) | Category names are public. |
-| `users` update own doc (51-54) | Lets a customer save their own `cart`, but not change role, status or raise credit. |
+| `products` read: `if true` (87) | Anyone, even guests, can browse. Write needs staff (89-102). |
+| `productPrices` read: `isStaff()` (107) | Cost and wholesale prices are **not visible** to customers or guests, only retail. |
+| `stockBatches` read: `if true` (215) | The shop needs real quantities. Write needs staff. |
+| `categories` read: `if true` (121) | Category names are public. |
+| `users` update own doc (51-55) | Lets a customer save their own `cart`, but not change role, status or raise credit. |
 
 ---
 
@@ -198,11 +198,11 @@ flowchart TD
 1. **"How do you make sure expired medicine isn't sold online?"** Shop stock only counts batches that are active and expire more than 6 months from today (`isRetailSellableBatch`, `products-data.js:256`). Near-expiry batches move to "wholesale only" and expired ones to Bad Order (module 08).
 2. **"Where does the shop's stock number come from?"** It's the sum of retail-sellable `stockBatches` for that product, computed in `loadCatalogCache` (`products-data.js:1031-1036`).
 3. **"Why isn't there a stock field on the product?"** Stock lives on batches because each batch has its own expiry. One number on the product would get out of sync and can't do FEFO.
-4. **"Can customers see your cost price?"** No. Cost and wholesale prices are in `productPrices`, readable only by staff (`firestore.rules:105-110`). Product docs only hold the retail price.
+4. **"Can customers see your cost price?"** No. Cost and wholesale prices are in `productPrices`, readable only by staff (`firestore.rules:106-111`). Product docs only hold the retail price.
 5. **"Why cache the catalog?"** Firestore's free plan has daily read limits. A 5-minute copy cuts reads a lot; payment always re-checks live.
 6. **"What if the price changes while the item is in my cart?"** The cart doesn't store prices. The payment page recomputes the total and, if it changed, shows the new total and asks you to submit again (`payment.js:265-272`).
 7. **"How does the cart follow me to another device?"** Logged-in carts are saved to `users/{uid}.cart` (`flushCartSync`, `cart.js:49`). On login they're loaded and merged.
 8. **"How is the search done?"** In the browser: every typed word must appear in the name, generic name, brand or description (`matchesSearch`, `products.js:26`).
-9. **"What stops XSS on product cards?"** All text goes through `escapeHtml` before being put into the HTML (`renderProductCard`, `products-data.js:2422`).
+9. **"What stops XSS on product cards?"** All text goes through `escapeHtml` before being put into the HTML (`renderProductCard`, `products-data.js:2441`).
 10. **"Why are out-of-stock items shown?"** So customers know we carry them. They're sorted last and their buttons are disabled.
 11. **"What's the difference between `availableInOnlineStore` and `status`?"** `status: "inactive"` hides a product everywhere. `availableInOnlineStore` only controls the shop; a product can be POS-only.
