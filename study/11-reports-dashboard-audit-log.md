@@ -172,7 +172,7 @@ flowchart LR
 1. **…the end date is before the start date?** "The end date is before the start date." The preview is cleared.
 2. **…a sale is voided after the report was printed?** The next report leaves it out (`if (sale.voided) return;`). The void is in the audit log.
 3. **…an online order is placed on Monday and confirmed on Tuesday?** Reports count it on **Tuesday** (payment-confirmed date). The dashboard's online chart groups confirmed orders by the date they were **placed**, so the two can differ by a day.
-4. **…someone tries to delete an audit log entry from the console?** Refused: `allow update, delete: if false` (`firestore.rules:250`). (Exception: the temporary Clear Test Data rule until 15 Nov 2026, Branch Manager only.)
+4. **…someone tries to delete an audit log entry from the console?** Refused: `allow update, delete: if false` (`firestore.rules:250`). (Exception: the temporary Clear Test Data rule until 1 Dec 2026, Branch Manager only.)
 5. **…the audit log write fails (e.g. internet drops right after a sale)?** The sale is already saved; `logAuditEvent` catches the error and logs it to the console. The sale record itself (with cashier, SI number, items) still exists.
 6. **…Sales Staff try to open Reports or the Audit Log?** Sent back to the POS; the rules refuse `auditLog` reads for them.
 7. **…a customer tries to write a fake audit entry?** Only two actions are allowed for customers ("Order Received by Customer", "Order Auto-Delivered"), with a short detail and the server time (`firestore.rules:245-249`).
@@ -208,7 +208,7 @@ flowchart LR
 
 ## 8. Likely panel questions
 
-1. **"Can the Branch Manager delete or edit the audit log?"** No. The rules allow create only, never update or delete (`firestore.rules:250`). (The temporary clear-test rule ends 15 Nov 2026.)
+1. **"Can the Branch Manager delete or edit the audit log?"** No. The rules allow create only, never update or delete (`firestore.rules:250`). (The temporary clear-test rule ends 1 Dec 2026.)
 2. **"What's recorded in each audit entry?"** Action, details, the staff member's name, the record affected, before, after, reason, and server time (`logAuditEvent`, `products-data.js:2394`).
 3. **"Why use the server timestamp?"** So a wrong or tampered computer clock can't change when something happened.
 4. **"How do your reports match the branch's formats?"** Each builder arranges the data into the same sections and columns as the branch's paper reports, then exports the same structure to PDF and Excel.

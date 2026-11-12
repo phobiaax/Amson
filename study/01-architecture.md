@@ -163,9 +163,9 @@ writes and reads it, and what the rules allow. Rule helper names come from `fire
 | **`chatThreads/{id}/messages/{id}`** | `sender, text, createdAt, cards` | both chat scripts | 283-294: the owner or ops staff read; customer side may add `customer` / `assistant` / `system` messages up to 2,000 characters and 20 cards; never edited or deleted. |
 | **`chatUsage/{yyyy-mm-dd}`** | `count, updatedAt` | `claimChatAiQuota` (`live-chat.js:556`) | 297-304: anyone reads; create only with count 1; update only +1. |
 
-> **Temporary rule (`firestore.rules:329-354`)**: until **15 Nov 2026** a Branch Manager may delete test data
+> **Temporary rule (`firestore.rules:329-354`)**: until **1 Dec 2026** a Branch Manager may delete test data
 > (orders, sales, stock, logs, test users, etc.) using `admin/clear-test-data.html`. After that date the rule
-> switches itself off (`request.time < timestamp.date(2026, 11, 15)`). The page has the same date in
+> switches itself off (`request.time < timestamp.date(2026, 12, 1)`). The page has the same date in
 > `CLEAR_TEST_DATA_UNTIL` (`js/admin-roles.js:33`). Plan: remove both after go-live.
 
 ### 4.6 How the main collections relate

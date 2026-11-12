@@ -108,7 +108,7 @@ found in our security review and pre-defense testing, with what was fixed and wh
 | 4 | Email verification (and the device code) can be skipped from the console | **Accepted** as a known limitation (needs Firebase's link verification or a paid-plan Cloud Function). |
 | 5 | Same reference number / screenshot can be reused | **Partly fixed**: staff see a warning. Staff must still check the bank/GCash app. |
 | 6 | Cloudinary accepts unsigned uploads; size/type checked in the browser only | **Owner action**: limit formats, size and folder in the Cloudinary upload preset. |
-| 7 | Temporary "clear test data" delete rule | **Active until 15 Nov 2026**, Branch Manager only, then switches itself off. Remove the page and rule block after go-live. |
+| 7 | Temporary "clear test data" delete rule | **Active until 1 Dec 2026**, Branch Manager only, then switches itself off. Remove the page and rule block after go-live. |
 | 8 | Proof/prescription links could point anywhere | **Fixed in rules** (`photoLinkOk`). |
 | 9 | Public stock records show some back-office fields | **Accepted** (costs already moved to `batchCosts`). |
 | 10a | AI reply not checked for doses | **Fixed** (`chatLooksLikeDosage`). |
@@ -176,4 +176,4 @@ documented the rest. No remaining gap lets a customer or outsider read another c
 7. **"Is the audit log tamper-proof?"** Entries can't be edited or deleted (rules). The weakness is that the name is written by the browser; we'd add a uid check.
 8. **"What does App Check protect?"** Our Gemini AI usage: requests must carry a token proving they came from our website.
 9. **"Is the website HTTPS?"** Yes, Firebase Hosting serves only HTTPS, with security headers.
-10. **"What happens on 15 November?"** The temporary Clear Test Data rule and page stop working automatically; after go-live we delete them.
+10. **"What happens on 1 December?"** The temporary Clear Test Data rule and page stop working automatically; after go-live we delete them.
