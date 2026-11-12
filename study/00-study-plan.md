@@ -95,7 +95,7 @@ Keep one page of notes called **"weak spots"**. You'll come back to it on Days 6
 | 1 h | Re-read only the sections on your weak-spots page. | your notes |
 | 1 h | **Mock panel:** ask a friend or groupmate to pick random "Likely panel questions" from files 02-13 and the top 20 in the cheat sheet. Answer without notes. | 02-13, 16 |
 | 30 min | Read the cheat sheet twice. | `16-cheatsheet.md` |
-| — | Check the live site works: photos uploaded, AI chat answering, test data cleared before **15 Nov 2026** if needed. Then rest. | live site |
+| — | Check the live site works: photos uploaded, AI chat answering, test data cleared before **1 Dec 2026** if needed. Then rest. | live site |
 
 ---
 

@@ -79,7 +79,7 @@ Google's servers; the browser is never trusted.** Live at https://amsonpharma.we
 | `REQUIRE_DEVICE_CODE` | `false` (new-device code off) | `device-trust.js:4` |
 | `APP_CHECK_SITE_KEY` | empty: off for the database (on for the AI) | `firebase-config.js:14` |
 | Number formats | Order `AMP-2026-0001`, SI `00000123`, SKU `MED-0001`, exchange `EX-00001` | counters |
-| Clear Test Data ends | 15 Nov 2026 | `firestore.rules:333`, `admin-roles.js:33` |
+| Clear Test Data ends | 1 Dec 2026 | `firestore.rules:333`, `admin-roles.js:33` |
 
 ## Roles
 

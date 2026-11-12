@@ -30,7 +30,7 @@ const ADMIN_PAGE_ACCESS = {
 };
 
 // same date as the temp block in firestore.rules, change both
-const CLEAR_TEST_DATA_UNTIL = new Date(Date.UTC(2026, 10, 15));
+const CLEAR_TEST_DATA_UNTIL = new Date(Date.UTC(2026, 11, 1));
 
 // where each role lands after login
 function homePageForRole(role) {

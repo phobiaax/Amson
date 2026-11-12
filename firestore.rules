@@ -330,7 +330,7 @@ service cloud.firestore {
     // branch manager can delete what clear-test-data.html clears, turns off on the date below, remove after go-live
     function canClearTestData() {
       return isStaff() && myRole() in ["admin", "branch_manager"] &&
-        request.time < timestamp.date(2026, 11, 15);
+        request.time < timestamp.date(2026, 12, 1);
     }
     match /{collectionId}/{docId} {
       allow delete: if canClearTestData() && collectionId in [
