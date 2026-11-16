@@ -36,7 +36,7 @@ async function shrinkImageForUpload(file, maxSize) {
 
 async function uploadToCloudinary(file, { kind = "payment" } = {}) {
   if (CLOUDINARY_CLOUD_NAME === "YOUR_CLOUDINARY_CLOUD_NAME") {
-    throw new Error("Cloudinary is not configured yet. See README.md for setup steps.");
+    throw new Error("Cloudinary is not configured yet. See study/17-setup-and-services.md for setup steps.");
   }
 
   const upload = await shrinkImageForUpload(file, CLOUDINARY_UPLOAD_SIZES[kind] || CLOUDINARY_UPLOAD_SIZES.payment);

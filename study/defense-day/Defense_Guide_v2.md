@@ -90,7 +90,7 @@ Do these once, in order. Times are for the first run.
 
 1. **Don't import `3-live-products-50.xlsx` or `4-live-stock.xlsx`.** They are for the demo itself. If someone does, delete those products; the stock file will then need new numbers.
 2. **Don't register the Act 1 email.** It must be new on the day.
-3. Nobody runs `deploy.bat` or Clear Test Data.
+3. Nobody deploys or runs Clear Test Data.
 
 **D. Demo morning (5 minutes)**
 

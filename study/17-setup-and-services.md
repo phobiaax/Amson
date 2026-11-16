@@ -1,38 +1,6 @@
-# Amson Pharmaceuticals Web System
+# 17. Setup and services
 
-Online store, point-of-sale, inventory and order management for the Amson
-Pharmaceuticals Las Piñas branch. Plain HTML, CSS and JavaScript with
-Bootstrap 5, backed by Firebase (Authentication + Cloud Firestore) on the
-free Spark plan. There is no build step.
-
-## Running it locally
-
-1. Install [Node.js](https://nodejs.org/) (any current LTS).
-2. On Windows, double-click `start-server.bat`. It starts `http-server` on
-   port 8080 and opens `http://localhost:8080/shop/index.html`.
-   On other systems run `npx http-server -p 8080 -c-1` in this folder
-   (`-c-1` turns off browser caching, so after pulling new code the pages
-   run it straight away - no hard refresh needed). If a page still looks
-   old, close the server window and start it again.
-3. Staff sign in at `login.html` and land on their role's home page
-   (Sales Staff go straight to the POS).
-
-`pull-latest.bat` pulls the newest code from GitHub.
-
-## Folder layout
-
-| Folder / file | What it holds |
-| --- | --- |
-| `shop/` | Customer pages: catalog, cart, checkout, payment, My Orders, account |
-| `admin/` | Staff pages: dashboard, POS, online orders, products, inventory, suppliers, wholesale, customers, staff, audit log, settings |
-| `js/products-data.js` | Shared core: catalog cache, FEFO stock deduction, SI numbering, receipts, voids, dialogs, exports, audit log |
-| `js/orders.js` | Shared order helpers: statuses, holds, store credit, customer notifications, order receipt PDF |
-| `js/admin-roles.js` | Which pages each staff role may open |
-| `js/store-info.js` | Store name, contact details and FDA LTO number shown in every footer |
-| `js/legal-content.js` | Terms and Conditions + Privacy Policy text |
-| `js/*-config.js` | Firebase, Cloudinary and EmailJS settings |
-| `firestore.rules` | Database security rules |
-| `docs/AMSON-Deviation-Register.xlsx` | Paper-vs-system register and to-do list |
+How each outside service is set up, and the one-time store setup. (Moved from the old README.)
 
 ## Services and their settings
 
@@ -95,7 +63,7 @@ in-site bell always shows them.
 
 1. EmailJS dashboard → Email Templates → Create New Template.
 2. Set **To Email** to `{{to_email}}` and **Subject** to `{{subject}}`.
-3. Body: paste `docs/email-templates/order-update.html` into the template's
+3. Body: paste `study/reference/email-templates/order-update.html` into the template's
    HTML/code editor (same look as the verification code email). It uses
    `{{to_name}}`, `{{subject}}`, `{{message}}` and `{{link}}`.
 4. Save, then paste the template ID into `EMAILJS_ORDER_TEMPLATE_ID` in
@@ -141,24 +109,12 @@ While testing with made-up emails, set `REQUIRE_DEVICE_CODE = false` in
 
 ## Deployment
 
-The site is hosted on Firebase Hosting (free plan, same project as the
-database): https://amsonpharma.web.app. The old address,
-https://amson-web-app.web.app, gets the same files on every deploy, so both
-work. Nothing deploys automatically -
-develop and test on the local server, then publish when ready: double-click
-`deploy.bat` (it pulls the latest code, warns about uncommitted files, asks
-before publishing, then deploys the website only). The first time on a
-computer, sign in once with `npx firebase-tools login` using the account that
-owns the project. The same by hand:
+The site is on Firebase Hosting (free plan): https://amsonpharma.web.app (the old address https://amson-web-app.web.app gets the same files). Nothing deploys automatically. To publish, from the repo on branch `amson`:
 
     npx firebase-tools deploy --only hosting
 
-`firebase.json` publishes only the website (the pages, `admin/`, `shop/`,
-`js/`, `css/`, `assets/`); `docs/`, this README, `firestore.rules` and the
-`.bat` helpers stay private. `npx firebase-tools deploy --only firestore:rules`
-publishes the database rules. Every page is served with a "check for a newer
-copy" header, so a new deploy shows up without a hard refresh.
-Both addresses are authorized login domains. A custom domain added later
-(Hosting -> Add custom domain) must also be added under Authentication ->
-Settings -> Authorized domains, and to the reCAPTCHA checkbox key's domain
-list (google.com/recaptcha/admin).
+and for the database rules:
+
+    npx firebase-tools deploy --only firestore:rules
+
+`firebase.json` publishes only the website (pages, `admin/`, `shop/`, `js/`, `css/`, `assets/`); `study/` and `firestore.rules` stay private.

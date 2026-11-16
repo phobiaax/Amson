@@ -158,7 +158,7 @@ Each "Where" cell points at a file and line found by searching the code for that
 | REQNF014 | Display descriptive error messages when an operation cannot be completed, allowing users to understand what we… | p.64 | `js/auth.js:39` (mapAuthError) | matches |  |
 | REQNF015 | Be built on an architecture that can support a growing number of registered users, product listings, and concu… | p.64 | `firebase.json:5` | partly | Firestore scales, but the free Spark plan caps reads (about 50,000/day) (p.98). |
 | REQNF016 | Allow new branch accounts and inventory records to be added to the platform in future development cycles witho… | p.64 | — | missing | Single branch only (scope p.7). Future work p.120. |
-| REQNF017 | Be developed using a modular code structure with accompanying documentation so that individual components can … | p.64 | `CODE_MAP.md` | matches | study/ guides + CODE_MAP.md. |
+| REQNF017 | Be developed using a modular code structure with accompanying documentation so that individual components can … | p.64 | `study/` | matches | The study/ guides. |
 | REQNF018 | Include administrative tools that allow authorized personnel to manage products, users, and inventory records … | p.64 | `js/admin-roles.js:12` | matches |  |
 | REQNF019 | Be deployable to alternative hosting environments without requiring structural changes to the application's co… | p.65 | `firebase.json:8` | partly | Static files can be hosted anywhere, but login/database/AI depend on Firebase. |
 | REQNF020 | Support data export in standard formats including PDF and Excel to ensure that records remain accessible and u… | p.65 | `js/admin-reports.js:834` | matches |  |

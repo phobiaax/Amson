@@ -1,4 +1,4 @@
-// shared core for most pages, sections are listed in CODE_MAP.md
+// shared core for most pages
 
 // =====================================================================
 // ---- dialogs ----

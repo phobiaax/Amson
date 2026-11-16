@@ -84,7 +84,6 @@ Line by line, in plain words:
 
 - **Shared** (used by many pages): `firebase-config.js`, `products-data.js`, `validators.js`, `orders.js`, `cart.js`, `admin-header.js`, `admin-roles.js`, `device-trust.js`, `cloudinary.js`.
 - **Page files** (one page each): `admin-pos.js` → `admin/pos.html`, `checkout.js` → `shop/checkout.html`, and so on.
-- `CODE_MAP.md` in the repo root lists the sections inside `products-data.js`.
 
 ---
 
@@ -391,7 +390,7 @@ It uses reCAPTCHA in the background to get a token.
 ### 3.6 Firebase Hosting
 
 Serves our files at https://amsonpharma.web.app (and https://amson-web-app.web.app).
-`firebase.json` decides what gets published (it **ignores** `docs/`, `study/`, `README.md`, the rules file, etc.)
+`firebase.json` decides what gets published (it **ignores** `study/`, the rules file, etc.)
 and adds **security headers** to every page: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`.
 
 ---

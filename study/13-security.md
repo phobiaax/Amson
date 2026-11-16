@@ -92,7 +92,7 @@ found in our security review and pre-defense testing, with what was fixed and wh
 | `Referrer-Policy: strict-origin-when-cross-origin` | `firebase.json` | Leaking full page addresses (with ids) to other sites. |
 | App Check (reCAPTCHA Enterprise) on Gemini | `chat-config.js:11`, `live-chat.js:455-475` | Strangers using our AI quota with our config. |
 | No secret keys in code; Gemini key stays in Firebase | `js/*-config.js` | Key theft. (Firebase/EmailJS/Cloudinary keys are public by design.) |
-| `docs/`, `study/`, rules, README not published | `firebase.json` ignore list | Leaking internal documents. |
+| `study/` and the rules file not published | `firebase.json` ignore list | Leaking internal documents. |
 | Daily AI cap | `claimChatAiQuota`, `firestore.rules:303-309` | Runaway AI usage. |
 
 ---

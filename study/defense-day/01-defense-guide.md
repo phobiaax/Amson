@@ -1,6 +1,6 @@
 # DEFENSE GUIDE v2: Amson Sales and Inventory System
 
-> v2 keeps the original guide and fixes what changed. New sections are in the other files of this folder (see `README.md`).
+> v2 keeps the original guide and fixes what changed. New sections are in the other files of this folder (see `../17-setup-and-services.md`).
 
 Read this once from top to bottom. On the day, reread only the cheat sheet.
 
@@ -163,7 +163,7 @@ About 20 minutes. One person drives, one person talks.
 | 6 | Keep a Lalamove link ready: `https://share.lalamove.com/?demo123` | The link must start with `share.lalamove.com` (`js/admin-online-orders.js:177` (`trackingLinkValidationError`)). |
 | 7 | Record a 5-minute screen video of steps 6–15. | Your backup if the internet fails. |
 
-**Never during the demo:** press Settings → **Clear Test Data** (it deletes orders and stock) · run **`deploy.bat`** (it pulls the older `webapp` branch, `deploy.bat:12`) · register a brand-new account (the email can be slow; the free email plan allows about 200 a month, p.98).
+**Never during the demo:** press Settings → **Clear Test Data** (it deletes orders and stock) · deploy · register a brand-new account (the email can be slow; the free email plan allows about 200 a month, p.98).
 
 ### 3.2 The script
 
@@ -288,7 +288,7 @@ Backing: not in the manuscript (no ERD or data dictionary); `study/01-architectu
 **Q12. How did you test it?**
 > "We wrote test cases for every module, each linked to its requirement number. We tested each outside service, each page against each role, and the database rules. Testing on phones found pages stuck on loading, which we fixed before deployment."
 
-Backing: pp.99–100; test plans in `docs/`
+Backing: pp.99–100; test plans in `study/reference/`
 
 **Q13. What does each technology do?**
 > "HTML, CSS, JavaScript and Bootstrap build the pages. Firebase handles login, the database and hosting. Cloudinary stores photos, EmailJS sends emails, Chart.js draws the dashboard charts, jsPDF and SheetJS make the PDF and Excel files, and Gemini answers chat questions."
@@ -387,7 +387,7 @@ Backing: REQNF012 p.63; REQNF025 p.65 (Data Privacy Act); `study/13` §1.3
 **Q31. Your keys are visible in the code. Isn't that a leak?**
 > "Firebase browser keys are meant to be public. They only tell Google which project to talk to. What protects the data is the security rules, not hiding the key."
 
-Backing: `README.md` ("public browser keys by design")
+Backing: `study/17-setup-and-services.md` ("public browser keys by design")
 
 **Q32. Can someone get around your email verification or reCAPTCHA?**  *(weak spot)*
 > "A technical person using browser tools could, because those two checks run in the browser. What they still can't do is read other people's data or change stock or prices, because the database rules stop that. Moving those checks to a server needs the paid plan."
@@ -563,7 +563,7 @@ Backing: p.35; REQNF012 p.63; `js/live-chat.js:24`, `:322`, `:432`, `:569`
 **Q62. What does the AI cost, and what if it stops working?**
 > "Nothing. It uses Gemini's free tier through Firebase, and we cap it at 400 replies a day. Common questions like how to pay have built-in answers that don't use the AI. If the limit is reached or the AI fails, the chat goes to staff."
 
-Backing: `js/chat-config.js:7`; `README.md` (Live chat setup); REQ037 p.50
+Backing: `js/chat-config.js:7`; `study/17-setup-and-services.md` (Live chat setup); REQ037 p.50
 
 ---
 
@@ -678,12 +678,12 @@ All were checked as images. One answer covers them: **Q55**.
 
 1. **The copy on your laptop uses the LIVE database.** There is no separate test database in the repo. Anything you save is real. Use a test product and a test order.
 2. **Never open the Dashboard or Inventory after changing an expiry number** (requests 1 and 2 below). Those pages apply the expiry rules to real batches and can write stock off.
-3. **Don't publish rules and don't run `deploy.bat`.** A change on your laptop is only on your laptop until someone deploys.
+3. **Don't publish rules and don't deploy.** A change on your laptop is only on your laptop until someone deploys.
 
 ### 8.2 Start the project (do this before the defense, not during)
 
 1. Install Node.js (once).
-2. Open the project folder. Double-click **`start-server.bat`**.
+2. Open the project folder. Run `npx http-server -p 8080 -c-1` in the project folder.
 3. The browser opens `http://localhost:8080/shop/index.html`.
 4. Open the project folder in **VS Code**.
 5. Log in once on localhost to make sure it works there. **Ask** the lead programmer if the login's reCAPTCHA is refused on localhost (section 10).
@@ -806,7 +806,7 @@ git checkout -- js/products-data.js
 | Price restriction rules | `firestore.rules:78` and the products block at `:86` | "If you're not the manager, the price fields must be the same before and after your change." |
 | Payment approval with FEFO and invoice number | `js/admin-online-orders.js:656` | "Approving checks the order wasn't already processed, deducts the stock, and takes the next invoice number together." |
 
-More detail: `CODE_MAP.md` and `study/16-cheatsheet.md` (both now say the new-device code is on, `js/device-trust.js:4`).
+More detail: `study/16-cheatsheet.md` (both now say the new-device code is on, `js/device-trust.js:4`).
 
 ---
 
@@ -862,11 +862,11 @@ More detail: `CODE_MAP.md` and `study/16-cheatsheet.md` (both now say the new-de
 - [ ] Full demo run done and recorded.
 - [ ] Both web addresses tested on the defense laptop.
 - [ ] Phone hotspot tested with the laptop.
-- [ ] `start-server.bat` works; login on localhost tested; VS Code opens the project.
+- [ ] The local server (`npx http-server -p 8080 -c-1`) works; login on localhost tested; VS Code opens the project.
 - [ ] Account emails and passwords on paper.
 - [ ] Laptop charged; charger and a spare laptop packed.
 - [ ] Printed manuscript tabbed: objectives (p.5), scope (p.6), requirements (p.46), use cases (p.67), activity diagrams (p.76), budget (p.98), results (p.103), summary chart (p.118), conclusion (p.119), senior/PWD (p.174), payment (p.177), void (p.191), old POS (p.208).
-- [ ] Nobody runs `deploy.bat` or Clear Test Data.
+- [ ] Nobody deploys or runs Clear Test Data.
 - [ ] Reread the cheat sheet. Sleep.
 
 ### 9.4 On the day
@@ -887,7 +887,7 @@ These are not in the manuscript or the code. Agree on one answer each.
 | --- | --- | --- | --- |
 | 1 | Emails and passwords of the four demo accounts | Lead programmer | Demo, section 3.1 |
 | 2 | Does login work on `localhost:8080`, or does reCAPTCHA refuse it? | Lead programmer | Live debugging, section 8.2 |
-| 3 | Is `AMSON-Demo-Stock-43-Products.xlsx` (named in `docs/AMSON-Demo-Guide.html`) still needed? It isn't in the repo or the test kit. | Lead programmer | Only if products have no stock |
+| 3 | Is `AMSON-Demo-Stock-43-Products.xlsx` (named in the old demo guide, now deleted) still needed? It isn't in the repo or the test kit. | Lead programmer | Only if products have no stock |
 | 4 | Is the branch using the system day to day right now? | Whoever talks to the client | Q52 |
 | 5 | Who were the 50 customer respondents, and how were they chosen? | Whoever ran the survey | Q45, Q47. The paper doesn't state a sampling method. |
 | 6 | Is "Date of Completion: June 2027" in the abstract correct? | Adviser | Section 7.1 item 22 |

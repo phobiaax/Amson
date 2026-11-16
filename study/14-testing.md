@@ -26,11 +26,11 @@ After fixing bugs, we **re-ran** the affected tests and compared the new screens
 | **Rules test suite** | 119 allow/deny checks against the rules in a separate emulator project | e.g. "a customer reads another customer's order → must be denied". |
 | **Stand-ins for outside services** | EmailJS: messages captured, not sent. reCAPTCHA: always passes. Cloudinary: fake upload. Gemini: blocked. | So tests didn't send real emails or use real quotas. |
 | **Screenshot + audit script** | Opened every page per role at **375 px (phone), 768 px (tablet), 1440 px (laptop)** | Saved full-page screenshots and automatically checked: sideways scrolling, inputs without labels, buttons without names, low-contrast text, cut-off text, and console errors. |
-| **Manual test plans** | `docs/AMSON-Test-Plan.xlsx`, `AMSON-Test-Plan-Quick.xlsx`, `AMSON-Test-Plan-Retest.xlsx`, plus a live-site checklist | Step-by-step manual tests in the browser. |
+| **Manual test plans** | `study/reference/AMSON-Test-Plan.xlsx`, `AMSON-Test-Plan-Quick.xlsx`, `AMSON-Test-Plan-Retest.xlsx`, plus a live-site checklist | Step-by-step manual tests in the browser. |
 
 > **Be ready for this question:** "Can we see the automated tests?" The test scripts were kept **outside the project
 > repository** (they're test tooling, not part of the website), so they're not in the GitHub repo. What's in the repo
-> are the manual test plans in `docs/`. Say this honestly if asked.
+> are the manual test plans in `study/reference/`. Say this honestly if asked.
 
 ---
 

@@ -62,7 +62,7 @@ All products, prices, batch numbers and expiry dates come from the branch's pric
 6. Products: **MED-0050** exists, **MED-0051** doesn't. Dashboard at 0.
 7. Desktop: `3-live-products-50.xlsx`, `4-live-stock.xlsx`, folder `DEMO-LIVE-PHOTOS` (42 photos), the 4 test images, Lalamove link `https://share.lalamove.com/demo123` in Notepad.
 8. Both browsers logged in (Chrome = Branch Manager, Edge = customer). Hotspot ready. Recording of a full rehearsal saved offline.
-9. Nobody runs `deploy.bat` (`deploy.bat:12` pulls the old `webapp` branch) or Clear Test Data.
+9. Nobody deploys or runs Clear Test Data.
 
 ## 6.4 The script
 
