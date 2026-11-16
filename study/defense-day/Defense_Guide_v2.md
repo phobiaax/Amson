@@ -70,7 +70,11 @@
 
 Do these once, in order. Times are for the first run.
 
+**Where the files are:** Google Drive → **Defense demo files** (the 4 Excel files and `photo-and-stock-notes.txt`), and Drive → **AMSON TEST KIT** (photos and test images). The same Excel files are in the repo under `study/defense-day/demo-files/`.
+
 **A. Load the store (Branch Manager, Chrome, about 15 minutes)**
+
+> ✅ **DONE on Nov 16, 2026: 50 products and their stock are loaded. Do NOT repeat these steps.** Uploading `2-base-stock.xlsx` again adds the same quantities a second time.
 
 1. Products → **Upload Batch File** → `1-base-catalog-50.xlsx` → **Import 50 Products**.
 2. Search **MED-0001** (must be ACYDEN) and **MED-0050** (must be MUPIROCIN … BACTROMED). If either differs, stop: the stock file numbers must be fixed first.
@@ -85,6 +89,7 @@ Do these once, in order. Times are for the first run.
 3. Put on the desktop: `3-live-products-50.xlsx`, `4-live-stock.xlsx`, `payment-proof-TEST1001.png`, `payment-proof-TEST1002.png`, `prescription-SAMPLE.png`, `TOO-BIG-over-10MB.png`.
 4. In Notepad: the Lalamove link `https://share.lalamove.com/demo123`, and the **new customer's details** for Act 1 (name, an email inbox you can open on your phone, phone number, password).
 5. Log in once on this laptop with the Branch Manager, Technical Staff and Sales Staff accounts (Chrome), and with the backup customer (Edge). Each needs the emailed device code the first time only.
+   **Backup customer:** ______________________ (an already verified customer account with a saved address; fill in the email, keep the password off this document).
 
 **C. Rules until the demo**
 
