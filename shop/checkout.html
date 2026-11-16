@@ -204,6 +204,7 @@
         </div>
         <label for="deliveryDate" class="form-label">Preferred Date</label>
         <input type="date" class="form-control mb-3" id="deliveryDate">
+        <div class="invalid-feedback mt-n2 mb-3">Pick today or a later date.</div>
         <label for="deliveryTimeSlot" class="form-label">Preferred Time</label>
         <select class="form-select" id="deliveryTimeSlot">
           <option value="morning">Morning (8:00 AM - 12:00 PM)</option>
@@ -216,7 +217,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-dark-amson" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-amson" id="saveDeliveryScheduleBtn" data-bs-dismiss="modal">Save</button>
+        <button type="button" class="btn btn-amson" id="saveDeliveryScheduleBtn">Save</button>
       </div>
     </div>
   </div>

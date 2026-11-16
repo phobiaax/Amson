@@ -87,18 +87,24 @@ deliveryAsapCheck.addEventListener("change", () => {
   }
 });
 
+deliveryDateInput.addEventListener("input", () => deliveryDateInput.classList.remove("is-invalid"));
+
 saveDeliveryScheduleBtn.addEventListener("click", () => {
   if (deliveryAsapCheck.checked) {
     deliverySchedule = { asap: true };
     deliveryScheduleLabel.textContent = "Same Day Delivery";
-    return;
+  } else {
+    const date = deliveryDateInput.value;
+    const slot = deliveryTimeSlotInput.value;
+    // typed dates skip the picker's min, so check again (today read now, in case the page was left open overnight)
+    if (!date || date < localISODate(new Date())) {
+      deliveryDateInput.classList.add("is-invalid");
+      return;
+    }
+    deliverySchedule = { date, slot };
+    deliveryScheduleLabel.textContent = `${date} · ${TIME_SLOT_LABELS[slot]}`;
   }
-
-  const date = deliveryDateInput.value;
-  const slot = deliveryTimeSlotInput.value;
-  if (!date || date < todayISO) return;
-  deliverySchedule = { date, slot };
-  deliveryScheduleLabel.textContent = `${date} · ${TIME_SLOT_LABELS[slot]}`;
+  bootstrap.Modal.getOrCreateInstance(document.getElementById("deliveryScheduleModal")).hide();
 });
 
 // ---- form checks before payment ----
@@ -122,6 +128,10 @@ function checkoutFormIsValid() {
     addressProblems({ streetAddress: value("streetAddress"), city: value("city"), province: value("province"), zipCode: value("zipCode") }).forEach((p) =>
       problems.push({ id: ids[p.field], message: p.message })
     );
+  }
+
+  if (!requiresPrescription && deliverySchedule && deliverySchedule.date && deliverySchedule.date < localISODate(new Date())) {
+    problems.push({ id: "deliveryScheduleBtn", message: "Your delivery date has passed. Pick a new one." });
   }
 
   checkoutForm.querySelectorAll(".is-invalid").forEach((el) => el.classList.remove("is-invalid"));

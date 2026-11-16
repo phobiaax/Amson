@@ -2202,6 +2202,9 @@ a {
   border: 0;
   color: #fff;
   font-size: 1.1rem;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -0.5rem -0.75rem -0.5rem 0;
 }
 .chat-messages {
   flex: 1 1 auto;
@@ -2451,6 +2454,8 @@ a {
     width: auto;
     max-width: none;
     height: calc(100vh - 32px);
+    /* 100vh runs under the phone's address bar and can hide the close button */
+    height: calc(100dvh - 32px);
   }
 }
 
@@ -2731,6 +2736,13 @@ a {
 #batchReviewTableBody tr.br-duplicate .br-name {
   text-decoration: line-through;
   color: var(--amson-text-muted);
+}
+/* rows that must be fixed before import */
+#batchReviewTableBody tr.table-danger > td {
+  background-color: #fde2e2;
+}
+#batchReviewTableBody tr.table-danger > td:first-child {
+  box-shadow: inset 4px 0 0 var(--amson-red);
 }
 .br-dup-note {
   font-size: 0.72rem;

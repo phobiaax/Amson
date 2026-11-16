@@ -295,9 +295,6 @@ function renderOrder(order) {
   document.getElementById("detailTotal").textContent = formatPeso(order.total);
   updateMarkReceivedButton(order);
 
-  // receipt only exists once staff assign an si no.
-  downloadReceiptBtn.disabled = !order.invoiceNo;
-  downloadReceiptBtn.title = order.invoiceNo ? "" : "Available once your payment is verified";
 }
 
 // live status updates, paused while the customer is resubmitting

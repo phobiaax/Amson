@@ -41,9 +41,13 @@ function deviceLabel() {
   return `${browser} on ${os}`;
 }
 
+// one entry per browser (arrayUnion alone added the same browser again on every code)
 async function trustThisDevice(uid) {
-  await db.collection("users").doc(uid).update({
-    trustedDevices: firebase.firestore.FieldValue.arrayUnion({ id: getOrCreateDeviceId(), label: deviceLabel(), addedAt: new Date().toISOString() }),
+  const ref = db.collection("users").doc(uid);
+  const id = getOrCreateDeviceId();
+  const devices = ((await ref.get()).data() || {}).trustedDevices || [];
+  await ref.update({
+    trustedDevices: devices.filter((d) => d && d.id !== id).concat({ id, label: deviceLabel(), addedAt: new Date().toISOString() }),
   });
   try {
     sessionStorage.removeItem(DEVICE_PENDING_KEY);
@@ -51,8 +55,8 @@ async function trustThisDevice(uid) {
 }
 
 // forgets every device except this one
-async function forgetOtherDevices(uid, userData) {
-  const keep = (userData.trustedDevices || []).filter((d) => d && d.id === getOrCreateDeviceId());
+async function forgetOtherDevices(uid) {
+  const keep = [{ id: getOrCreateDeviceId(), label: deviceLabel(), addedAt: new Date().toISOString() }];
   await db.collection("users").doc(uid).update({ trustedDevices: keep });
   return keep;
 }

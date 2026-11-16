@@ -656,7 +656,15 @@ function batchReviewRowHtml(row = {}) {
   `;
 }
 
-// marks rows already in the catalog or repeated in the file
+// missing name, missing retail price or a bad price
+function batchRowInvalid(tr) {
+  const get = (cls) => tr.querySelector(`.${cls}`);
+  const retailPrice = get("br-retailprice").value;
+  const badPrice = canEditPrices() && productPriceProblem(parseFloat(retailPrice), get("br-costingprice").value, get("br-wholesaleprice").value);
+  return !get("br-name").value.trim() || (canEditPrices() && retailPrice === "") || !!badPrice;
+}
+
+// marks rows already in the catalog or repeated in the file, and bad rows in red
 function markBatchDuplicates() {
   const seen = new Map();
   let inCatalog = 0;
@@ -677,6 +685,7 @@ function markBatchDuplicates() {
       seen.set(key, index);
     }
     tr.classList.toggle("br-duplicate", !!reason);
+    tr.classList.toggle("table-danger", !reason && batchRowInvalid(tr));
     tr.dataset.duplicate = reason ? "1" : "";
     note.textContent = reason;
     note.classList.toggle("d-none", !reason);
@@ -702,8 +711,7 @@ batchReviewRemoveDupesBtn.addEventListener("click", () => {
 });
 
 let batchDupTimer = null;
-batchReviewTableBody.addEventListener("input", (e) => {
-  if (!e.target.classList.contains("br-name")) return;
+batchReviewTableBody.addEventListener("input", () => {
   clearTimeout(batchDupTimer);
   batchDupTimer = setTimeout(updateBatchReviewCount, 250);
 });
@@ -764,17 +772,11 @@ batchReviewConfirmBtn.addEventListener("click", async () => {
     return;
   }
 
-  let hasInvalid = false;
-  rowEls.forEach((tr) => tr.classList.remove("table-danger"));
+  const hasInvalid = importRows.some((tr) => tr.classList.contains("table-danger"));
   const parsedRows = importRows.map((tr) => {
     const get = (cls) => tr.querySelector(`.${cls}`);
     const name = get("br-name").value.trim();
     const retailPrice = get("br-retailprice").value;
-    const badPrice = canEditPrices() && productPriceProblem(parseFloat(retailPrice), get("br-costingprice").value, get("br-wholesaleprice").value);
-    if (!name || (canEditPrices() && retailPrice === "") || badPrice) {
-      tr.classList.add("table-danger");
-      hasInvalid = true;
-    }
     return {
       tr,
       imageFile: get("br-image-input").files[0] || null,

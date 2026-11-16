@@ -39,7 +39,7 @@ function renderOrderCard(id, order) {
         ${itemsHtml}
       </div>
       <div class="order-card-footer">
-        <button type="button" class="btn btn-outline-dark-amson download-receipt-btn" data-id="${id}"${order.invoiceNo ? "" : ' disabled title="Available once your payment is verified"'}>
+        <button type="button" class="btn btn-outline-dark-amson download-receipt-btn" data-id="${id}">
           <i class="bi bi-file-earmark-text me-1"></i>Download Receipt
         </button>
         <a href="order-details.html?id=${id}" class="btn btn-amson">View Details ></a>

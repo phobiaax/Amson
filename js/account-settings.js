@@ -382,7 +382,7 @@ document.getElementById("forgetDevicesBtn").addEventListener("click", async (e) 
   const btn = e.currentTarget;
   btn.disabled = true;
   try {
-    const keep = await forgetOtherDevices(signedInUid, currentUserData);
+    const keep = await forgetOtherDevices(signedInUid);
     currentUserData.trustedDevices = keep;
     renderTrustedDevices(keep);
   } catch (error) {

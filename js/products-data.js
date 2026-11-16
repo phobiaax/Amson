@@ -887,51 +887,14 @@ function liveStockBatches() {
   return liveQuery("stockBatches", db.collection("stockBatches"));
 }
 
-// shop pages keep the catalog in the browser for a few minutes
+// old browser copy of the catalog (removed: it hid Rx and price changes for 5 minutes)
 const CATALOG_CACHE_KEY = "amsonCatalogCache";
-
-const CATALOG_CACHE_MS = 5 * 60 * 1000;
-
-function catalogBrowserCacheAllowed() {
-  return !/\/admin\//.test(window.location.pathname);
-}
 
 function clearCatalogCache() {
   catalogLoadPromise = null;
   try {
     localStorage.removeItem(CATALOG_CACHE_KEY);
   } catch (error) {}
-}
-
-// timestamps saved as {__ms} and turned back on read
-function catalogCacheReplacer(key, value) {
-  return value && typeof value === "object" && typeof value.toMillis === "function" ? { __ms: value.toMillis() } : value;
-}
-
-function catalogCacheReviver(key, value) {
-  return value && typeof value === "object" && typeof value.__ms === "number" ? firebase.firestore.Timestamp.fromMillis(value.__ms) : value;
-}
-
-function readCatalogBrowserCache() {
-  if (!catalogBrowserCacheAllowed()) return null;
-  try {
-    const cached = JSON.parse(localStorage.getItem(CATALOG_CACHE_KEY), catalogCacheReviver);
-    if (cached && Date.now() - cached.savedAt < CATALOG_CACHE_MS && Array.isArray(cached.products)) return cached;
-  } catch (error) {}
-  return null;
-}
-
-function writeCatalogBrowserCache() {
-  if (!catalogBrowserCacheAllowed()) return;
-  try {
-    // replacer converts timestamps before stringify
-    const toJson = (v) => JSON.stringify(v, function (key) {
-      return catalogCacheReplacer(key, this[key]);
-    });
-    localStorage.setItem(CATALOG_CACHE_KEY, toJson({ savedAt: Date.now(), categories: CATEGORY_LABELS, products: CATALOG_PRODUCTS }));
-  } catch (error) {
-    // storage full or blocked, read live next time
-  }
 }
 
 // first load uses the live listeners
@@ -1002,13 +965,6 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
   if (catalogLoadPromise) return catalogLoadPromise;
 
   catalogLoadPromise = (async () => {
-    const cached = readCatalogBrowserCache();
-    if (cached) {
-      CATEGORY_LABELS = cached.categories || {};
-      CATALOG_PRODUCTS = cached.products;
-      return { products: CATALOG_PRODUCTS, categories: CATEGORY_LABELS };
-    }
-
     await authGate;
     // in parallel so pages dont wait on three trips
     let useLive = !catalogLoadedOnce;
@@ -1049,7 +1005,6 @@ async function loadCatalogCache({ afterStockChange = null } = {}) {
       };
     });
 
-    writeCatalogBrowserCache();
     return { products: CATALOG_PRODUCTS, categories: CATEGORY_LABELS };
   })();
   // a failed load shouldnt stick
