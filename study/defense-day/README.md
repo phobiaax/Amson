@@ -10,7 +10,8 @@ Improved version of the team's defense guide. The original guide is unchanged; t
 | `03-client-voice.md` | The client's exact words (Taglish + English) for each major decision | Q&A on "why did you…?" |
 | `04-gaps-and-answers.md` | Panel revisions status, ranked gaps, outdated statements, known limitations | Must read |
 | `05-diagram-walkthrough.md` | Each diagram vs the real flow, ranked by likelihood | With the printed paper open |
-| `06-demo-script.md` | 18-minute demo story, checklist, backup per failure | Rehearsal and the day |
+| `06-demo-script.md` | Full demo guide: current site state, required state, prep timeline, 22-minute script with live batch and photo uploads, fixes per failure | Days before, rehearsal, the day |
+| `demo-files/` | Ready-made upload files for the demo (catalog, stock, live products); fill the yellow price cells | Prep |
 | `07-security-qa.md` | 30 security questions with honest answers | Must read for the programmer |
 | `08-panel-questions.md` | Questions by chapter + "why didn't you use…" | Last study pass |
 

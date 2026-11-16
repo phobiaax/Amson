@@ -147,6 +147,8 @@ Expiry check: 6 months ► wholesale-only     2 months ► Bad Order (written of
 
 ## 3. Demo script  ·  Must know
 
+> **Replaced by `06-demo-script.md`** (full demo guide with the live batch and photo uploads and the current site state). Kept here for reference only.
+
 About 20 minutes. One person drives, one person talks.
 
 ### 3.1 Before the day
