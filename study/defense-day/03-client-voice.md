@@ -30,3 +30,25 @@ Transcripts are in the paper's appendices, in Taglish: Interview 1 = Appendix J 
 | 2 | Cancel only before processing | p.183 | No cancel; paid = confirmed | "The client then said paid means confirmed (p.184); our orders are paid at placement." |
 | 3 | One system instead of the old POS | pp.208–209 | Old POS still the main record | "The client chose to keep it during transition; integration is in our recommendations (p.120)." |
 | 4 | No senior/PWD discount | p.174 | Not built | Report the client's decision only. |
+
+## Basis for the roles (who can do what)
+
+**Our line:** "The roles come from the client. In Interview 2 they confirmed that Sales Staff use the POS only, and that the Technical Staff, the encoder, is the one who handles customer messages; the manager controls prices. The finer permissions follow from that split, and the client saw the limited Sales Staff account at the walkthrough."
+
+| Who | Client's words (page) | English | System |
+| --- | --- | --- | --- |
+| The three people | "tatlo lang kasi kami dito. So, siya talaga boss namin, manager namin. Tapos siya, yung lalaki, sales yan. … Then, ako naman sa paperworks." (Interview 1, p.143) | *There are only three of us: the manager, the sales guy, and me on paperwork.* | Branch Manager, Sales Staff, Technical Staff |
+| Technical Staff = the encoder | Speaker encodes the sales and the bulk buyers; team: "So, masasabi po natin na technical staff po kayo." (p.144) | *So we can call you technical staff.* | Inventory, online orders, wholesale, reports (REQ120 p.61) |
+| **Sales Staff = POS only** | Team: "si sales staff po POS lang ang ina-access niya, si tech staff po, inventory tapos sales po. Si branch manager lahat po…?" Client: **"Yes."** (Interview 2, p.161) | *Sales staff access only the POS; tech staff inventory and sales; branch manager everything? — Yes.* | Sales Staff: POS, Products (view), Settings (REQ121 p.61; `js/admin-roles.js`) |
+| Sales Staff: no inventory, no reports | Team: "hindi po siya nagmanage ng inventory, hindi po siya nagmanage ng reports?" Client: "**Hindi. … Sales lang talaga siya.**" (p.161) | *No. … He's sales only.* | Same |
+| **Technical Staff handles the messages** | "Yung nag eencode ka tas may message ng message minsan tatawag pa yan. … Eh sakin messenger, viber, WhatsApp, may call pa, may landline pa." (Interview 1, p.158) | *You're encoding and messages keep coming, sometimes they even call. … I get Messenger, Viber, WhatsApp, calls, the landline.* | Live Chat: Technical Staff and Branch Manager (REQ108–110 p.60) |
+| Sales can't take on the messages | "yung sa sales hindi niya nga makeri keri kasi mag piprepare pa tayo, mag baboxing pa tayo mag checheking pa tayo." (p.158) | *Sales can't keep up with it, because we still prepare, box and check orders.* | Sales Staff have no chat; they stay on the counter |
+| Prices: the manager only | "Yung pricing, yung manager na namin dito mismo yung gumagawa" (p.161) · "kailangan lang one access, one person lock." (p.151) · "yung sa main lang yung nakakagalaw, para iwas kami sa … sisi." (p.150) | *Pricing is done by our manager.* · *One access, a one-person lock.* · *Only the main [person] can change it, so we avoid blame.* | Branch Manager only, with reason, logged (REQ071–073 p.55; `firestore.rules` priceFieldsUnchanged) |
+| Exchanges: manager, or the encoder when he's away | Approved by "Yung manager po dito" … "Dalawa kami. If either pag wala siya pwede ako." (p.161) | *The manager here … There are two of us; if he's not around, I can.* | Branch Manager; Technical Staff with the manager's approval |
+| Voids: a second person must see it | "kailangan makita ng kasama mo na legit nga pinapacencel ng custom[er]" (Interview 4, p.191) | *Your co-worker must see that the customer really asked to cancel.* | Sales can't void; Technical needs the manager's login (REQ083 p.56) |
+| Wholesale buyers don't log in | "They are not allowed to order online, yung wholesalers. Kasi we need the proper documents." (p.162) | — | Staff record wholesale orders (REQ085–091 p.57) |
+| Client saw the limited account | Team: "Limitado lang po yung access. Ito po, POS pati products lang po yung pwede" (Demo transcript, p.213); no objection | *Access is limited; only POS and products.* | — |
+
+**Team decisions that follow from the split (not stated by the client; say "these follow from the roles the client gave us"):** only the Branch Manager manages staff accounts (REQ118 p.61); Technical Staff see the audit log (REQ123 p.62) and can deactivate customers (REQ117 p.61); the Branch Manager finalizes the month-end count (REQ061 p.53).
+
+**Fig 2.2 (p.67) draws "Manage Live Chat" on Sales Staff.** Answer: "That line is on the wrong actor. The client told us the encoder handles the messages and the counter can't keep up (p.158), and confirmed Sales Staff are POS only (p.161). REQ121, the discussion on p.68 and Fig 2.7 are correct, and that's what the system does."

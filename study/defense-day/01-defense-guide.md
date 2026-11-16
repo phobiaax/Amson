@@ -254,7 +254,7 @@ Backing: pp.18–19
 **Q6. Who are the users, and why three staff roles?**
 > "The branch has three people: the manager, a sales person at the counter, and a staff member who does the encoding and paperwork. Our three roles match them: Branch Manager, Sales Staff and Technical Staff. The client confirmed in the second interview that the sales person should only use the POS."
 
-Backing: Interview 1 p.143; Interview 2 pp.161–162; p.46
+Backing: Interview 1 p.143; Interview 2 pp.161–162; p.46 (quotes: `03-client-voice.md`, Basis for the roles)
 
 ### B. How we built it
 
@@ -527,7 +527,7 @@ Backing: Interview 1 p.159; p.7; p.80
 Backing: section 7 lists each drawing and what differs
 
 **Q56. Your overall use case diagram gives live chat to Sales Staff.**
-> "That line is drawn to the wrong actor in the overview. Sales Staff only have the POS and the catalog, as requirement 121 and Figure 2.7 show, and the system enforces it."
+> "That line is drawn to the wrong actor in the overview. The client told us the encoder, our Technical Staff, handles the customer messages and the counter can't keep up (Interview 1 p.158), and confirmed Sales Staff use the POS only (Interview 2 p.161). Requirement 121 and Figure 2.7 show that, and the system enforces it."
 
 Backing: Fig 2.2 p.67 vs REQ121 p.61 and Fig 2.7 p.74; `js/admin-roles.js:24`
 

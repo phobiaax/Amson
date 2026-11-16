@@ -23,7 +23,7 @@
 | 8 | Fake screenshot? | Staff check the real account; repeated reference numbers are flagged. | Interview 3 p.178 |
 | 9 | Why no refunds? | Branch policy: paid means confirmed; only swaps; verified money on a closed hold becomes store credit. | Interview 3 pp.183–184 |
 | 10 | Rx online? | Never delivered: pre-order, full payment, photo, pick up with the original. | REQ021–026 pp.48–49 |
-| 11 | How are roles enforced? | Page checks plus database rules on Google's servers. | `firestore.rules` |
+| 11 | Where do the roles come from, and how are they enforced? | Client confirmed Sales = POS only and the encoder (Technical) handles messages; manager controls prices. Enforced by page checks plus database rules. | Interview 2 p.161; Interview 1 p.158; `firestore.rules` |
 | 12 | Who changes prices? | Branch Manager only, with a reason, logged. | REQ071–073 p.55; Interview 1 p.150 |
 | 13 | Diagram doesn't match? | Drawn at design; the description and requirements were updated and the system follows them. | 05-diagram-walkthrough |
 | 14 | Do they still use the old POS? | Yes, by the client's choice during transition; integration is recommended. | pp.208–209, p.120 |

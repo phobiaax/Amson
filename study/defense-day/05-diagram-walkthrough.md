@@ -34,7 +34,7 @@ Figs 2.2, 2.10 and 2.11 were rechecked as images on Nov 16; the others follow th
 
 Five actors: Guest, Registered User (= Registered Customer), Sales Staff, Technical Staff, Branch Manager (Branch Manager inherits Technical Staff).
 **Difference:** Sales Staff is linked to "Manage Live Chat"; Technical Staff isn't. The system gives live chat to Technical Staff and Branch Manager only (`js/admin-roles.js`; REQ121 p.61; Fig 2.7 p.74).
-**Say:** Q56 in 01.
+**Say:** "The line is on the wrong actor. The client told us the encoder (Technical Staff) handles customer messages and the counter can't keep up (Interview 1 p.158), and confirmed Sales Staff are POS only (Interview 2 p.161)." Full quotes: 03-client-voice, Basis for the roles.
 
 ## 4. Fig 2.12 Admin Inventory Management (p.83) · **Medium**
 
