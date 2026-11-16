@@ -39,6 +39,8 @@ Paper security requirements: REQ003–005, REQ041, REQ043–045 (pp.46–51), RE
 
 **S15. How does the email code work, and can it be skipped?** A 6-digit code, valid 10 minutes (`js/otp.js:2`), sent by EmailJS. The check runs in the browser, so a technical user could mark their own account verified; they still can't touch anyone else's data. Fix: Firebase's built-in email link or a server check (paid plan). (study/13 #4)
 
+**S15b. Can someone register with a throwaway email?** Not with the 39 common throwaway domains (mailinator, yopmail, 10minutemail…), which are refused (`js/validators.js:21`); full list in `06-demo-script.md` §6.7. Other throwaway services aren't blocked, but every account still needs the 6-digit code sent to that inbox. (Group test LOG-01)
+
 **S16. New-device code?** On (`js/device-trust.js:4`). A browser not on the account's trusted list must enter an emailed code; 5 wrong codes cancel the login. "Forget all other devices" sends every other browser back to verify. (REQ005, REQ044)
 
 **S17. How random are the codes?** Six digits from `Math.random` (`js/otp.js:5`). Fine against guessing with the 5-try limit; `crypto.getRandomValues` would be stronger. Say it if asked.

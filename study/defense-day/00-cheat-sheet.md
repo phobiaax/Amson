@@ -44,4 +44,4 @@
 
 **Panel revisions (last defense):** 1 intro ✔ · 2 objectives ◐ · 3 theoretical framework ◐ · 4 conceptual framework + methodology ✔ · 5 diagram discussions ◐ · 6 chat ✔ (still lowest rated) · 7 Rx pre-order pick-up ✔ (Fig 2.10 lacks upload) · 8 thematic RRL ✔. Details: `04-gaps-and-answers.md` §4.1.
 
-**Before you walk in:** base catalog (25 products), photos and stock loaded; the 3 live-demo products NOT yet created; every demo account logged in on this laptop; demo files on the desktop; hotspot ready; nobody runs `deploy.bat` or Clear Test Data. Full checklist: `06-demo-script.md` §6.2–6.3.
+**Before you walk in:** 50 base products (MED-0001 to 0050) with stock loaded; the 50 live-demo products NOT yet imported; every demo account logged in on this laptop; demo files and 42 photos on the desktop; hotspot ready; nobody runs `deploy.bat` or Clear Test Data. Full checklist: `06-demo-script.md` §6.2–6.3.
