@@ -2695,14 +2695,17 @@ a {
 }
 
 /* ---- loading ring ---- */
+/* one gradient masked to a ring: two-colour borders leaked a hairline while rotating */
 .spinner-border {
   --bs-spinner-border-width: 0.2em;
-  border-color: rgba(0, 0, 0, 0.12);
-  border-top-color: currentColor;
+  --spinner-track: rgba(0, 0, 0, 0.12);
+  border: 0;
+  background: conic-gradient(currentColor 0 25%, var(--spinner-track) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - var(--bs-spinner-border-width)), #000 calc(100% - var(--bs-spinner-border-width) + 0.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - var(--bs-spinner-border-width)), #000 calc(100% - var(--bs-spinner-border-width) + 0.5px));
 }
 .btn .spinner-border {
-  border-color: rgba(255, 255, 255, 0.35);
-  border-top-color: currentColor;
+  --spinner-track: rgba(255, 255, 255, 0.35);
 }
 .task-modal-icon .spinner-border {
   font-size: 1rem;
