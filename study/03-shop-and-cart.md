@@ -17,15 +17,11 @@
 
 ## 2. Walkthrough
 
-### 2.1 Loading the catalog: `loadCatalogCache()` (`js/products-data.js:1001-1061`)
+### 2.1 Loading the catalog: `loadCatalogCache()` (`js/products-data.js:964-1016`)
 
 Every shop page calls this first. It builds `CATALOG_PRODUCTS`, the list every page works from.
 
-```js
-const cached = readCatalogBrowserCache();
-if (cached) { CATEGORY_LABELS = cached.categories || {}; CATALOG_PRODUCTS = cached.products; return ...; }
-```
-1. **Shop pages reuse a 5-minute copy** saved in localStorage (`CATALOG_CACHE_MS = 5 * 60 * 1000`, line 893). This cuts database reads, which matters on the free plan's daily limits. Staff pages never use this copy (`catalogBrowserCacheAllowed`, line 895), so staff always see live stock.
+1. **Every page reads the catalog live.** There used to be a 5-minute copy saved in the browser, but group testing (SHOP-06) showed it hid changes: a product just marked "prescription required" still showed without the Rx tag for up to 5 minutes. It was removed, so customers and staff always see the same data.
 
 ```js
 await authGate;
@@ -75,7 +71,7 @@ Only **active** products marked **available online** appear in the shop. (The PO
 - `matchesSearch` (`products.js:26-33`): every typed word must appear somewhere in the name, generic name, brand or description, ignoring capitals. "bio 500" matches "Biogesic 500mg".
 - `applyFilters` (`products.js:62-98`): filters by category, section, min/max price and stock, then sorts. **Out-of-stock products always go to the bottom** (`products.js:81`).
 - `renderPage` (`products.js:100-117`): shows 16 per page (`PAGE_SIZE`) with page buttons.
-- Each product card comes from `renderProductCard` (`products-data.js:2441-2470`). Every text value is wrapped in `escapeHtml`, and out-of-stock items get a disabled button.
+- Each product card comes from `renderProductCard` (`products-data.js:2396-2425`). Every text value is wrapped in `escapeHtml`, and out-of-stock items get a disabled button.
 
 ### 2.4 Add to Cart (`js/cart.js`)
 
@@ -121,14 +117,10 @@ function addToCart(productId, qty = 1) {              // cart.js:111
 
 ```mermaid
 flowchart TD
-  A[Open a shop page] --> B{5-minute catalog copy<br/>in localStorage?}
-  B -- yes --> C[Use it]
-  B -- no --> D[Read categories, products,<br/>stockBatches in parallel]
+  A[Open a shop page] --> D[Read categories, products,<br/>stockBatches in parallel]
   D --> E[Sum only retail-sellable batches:<br/>active, qty over 0, expiry over 6 months]
   E --> F[CATALOG_PRODUCTS with price,<br/>totalStock, inStock]
-  F --> G[Save 5-minute copy]
-  C --> H[storefrontCatalog: active + online]
-  G --> H
+  F --> H[storefrontCatalog: active + online]
   H --> I[Filter, search, sort, 16 per page]
   I --> J[Click Add to Cart]
   J --> K{qty ≤ totalStock?}
@@ -147,7 +139,7 @@ flowchart TD
 | Decision | Why | Alternatives we didn't use |
 | --- | --- | --- |
 | Load the whole catalog once and filter in the browser | One branch has a few hundred products; filtering in the browser is instant and costs no extra reads. | A database query per filter (more reads, slower, needs indexes). |
-| 5-minute browser copy for shop pages only | Saves Firestore reads on the free plan; 5 minutes is short enough to stay accurate. Payment re-checks stock live anyway. | No cache (more reads); a long cache (stale stock). |
+| Live catalog on every page, no browser copy | Rx tags, prices and stock are never out of date. A 5-minute copy was tried and removed after testing showed stale Rx tags. | A browser copy (fewer reads, but changes show late). |
 | Stock computed from batches, not a single "stock" number on the product | One source of truth. Expiry rules (6-month retail cut-off) are applied automatically, and FEFO needs per-batch quantities. | A `stock` field on each product (easy to get out of sync with batches). |
 | Cart holds only `{id, qty}` | Prices can't go stale in the cart; they're read fresh from the catalog. | Storing price in the cart (could charge an old price). |
 | Cart in localStorage + account | Guests can shop without signing up; logged-in carts follow the customer to other devices. | Account-only cart (forces login to shop), or browser-only (lost on another device). |
@@ -160,10 +152,10 @@ flowchart TD
 1. **…a customer adds more than the stock?** `addToCart` caps the quantity at `totalStock` and shows "Only N in stock". The + button is disabled at the limit (`cart-page.js:106`).
 2. **…stock runs out while it's in someone's cart?** The cart still shows it, but the payment page re-reads stock live and refuses: "Some items in your cart exceed what's currently in stock…" (see `04-checkout-and-qr-payment.md`).
 3. **…a batch reaches 6 months before expiry?** `isRetailSellableBatch` stops counting it, so the shop's stock drops (or shows Out of Stock). The units can still go to wholesale.
-4. **…staff mark a product inactive or untick "available online"?** It disappears from `storefrontCatalog()`. Within 5 minutes for customers with a cached copy; immediately on the payment re-check.
+4. **…staff mark a product inactive or untick "available online"?** It disappears from `storefrontCatalog()`. On the customer's next page load, and again on the payment re-check.
 5. **…someone searches with HTML like `<b>hi</b>`?** The search text is shown with `escapeHtml` (`products.js:110`, `:159`), so it's displayed as text.
 6. **…a customer types "2.5" as a quantity?** `wholeQty` gives `NaN` → the old quantity comes back with "Please enter a whole number of 1 or more."
-7. **…the internet is off when the page opens?** If there's a fresh 5-minute copy, the shop still shows it. Otherwise the live listener waits up to 10 seconds (`LIVE_QUERY_OFFLINE_MS`, line 192) and then tries a direct read.
+7. **…the internet is off when the page opens?** The live listener waits up to 10 seconds (`LIVE_QUERY_OFFLINE_MS`, line 192) and then tries a direct read.
 8. **…someone edits the price in their cart from the console?** The cart has no prices, and the order total is recalculated from the catalog at payment. A tampered order would still be flagged at staff verification (see module 05).
 9. **…a guest adds items and then logs in?** The guest cart is merged into the account cart, and the guest copy is cleared (`cart.js:100-102`).
 10. **…localStorage is blocked (private mode)?** Every storage call is in `try/catch`; logged-in carts still save to the account.
@@ -186,7 +178,7 @@ flowchart TD
 ## 7. Known limitations and how we'd improve them
 
 1. **Stock records are public, including some back-office fields** (supplier id, receipt number, disposal note). **Improve:** move those fields to a staff-only collection, as was already done for costs (`batchCosts`).
-2. **The shop copy can be up to 5 minutes old.** Fine for browsing, and payment re-checks live. **Improve:** shorter cache or live listeners on the products page.
+2. **Every page load reads the whole catalog** (products and stock batches). On the free plan's 50,000 reads a day, very heavy traffic could reach the limit. **Improve:** a short browser copy (about 1 minute), or the paid Blaze plan.
 3. **Stock isn't reserved when items are in a cart** (or even when an order is placed); it's deducted when staff approve the payment. Two customers can order the last unit; the second goes to an out-of-stock hold. **Improve:** reservation with a timeout (needs server logic).
 4. **Search is simple word matching**, no typo tolerance in the shop. **Improve:** a search service, or a "did you mean" list.
 5. **Loading all products at once** won't scale to tens of thousands of items. **Improve:** paginated queries.
@@ -196,13 +188,13 @@ flowchart TD
 ## 8. Likely panel questions
 
 1. **"How do you make sure expired medicine isn't sold online?"** Shop stock only counts batches that are active and expire more than 6 months from today (`isRetailSellableBatch`, `products-data.js:256`). Near-expiry batches move to "wholesale only" and expired ones to Bad Order (module 08).
-2. **"Where does the shop's stock number come from?"** It's the sum of retail-sellable `stockBatches` for that product, computed in `loadCatalogCache` (`products-data.js:1031-1036`).
+2. **"Where does the shop's stock number come from?"** It's the sum of retail-sellable `stockBatches` for that product, computed in `loadCatalogCache` (`products-data.js:987-992`).
 3. **"Why isn't there a stock field on the product?"** Stock lives on batches because each batch has its own expiry. One number on the product would get out of sync and can't do FEFO.
 4. **"Can customers see your cost price?"** No. Cost and wholesale prices are in `productPrices`, readable only by staff (`firestore.rules:106-111`). Product docs only hold the retail price.
-5. **"Why cache the catalog?"** Firestore's free plan has daily read limits. A 5-minute copy cuts reads a lot; payment always re-checks live.
+5. **"Why don't you cache the catalog?"** We did (5 minutes), but testing showed changes like a new Rx requirement appeared late for customers. Correct data mattered more than saving reads at our traffic; payment re-checks live either way.
 6. **"What if the price changes while the item is in my cart?"** The cart doesn't store prices. The payment page recomputes the total and, if it changed, shows the new total and asks you to submit again (`payment.js:265-272`).
 7. **"How does the cart follow me to another device?"** Logged-in carts are saved to `users/{uid}.cart` (`flushCartSync`, `cart.js:49`). On login they're loaded and merged.
 8. **"How is the search done?"** In the browser: every typed word must appear in the name, generic name, brand or description (`matchesSearch`, `products.js:26`).
-9. **"What stops XSS on product cards?"** All text goes through `escapeHtml` before being put into the HTML (`renderProductCard`, `products-data.js:2441`).
+9. **"What stops XSS on product cards?"** All text goes through `escapeHtml` before being put into the HTML (`renderProductCard`, `products-data.js:2396`).
 10. **"Why are out-of-stock items shown?"** So customers know we carry them. They're sorted last and their buttons are disabled.
 11. **"What's the difference between `availableInOnlineStore` and `status`?"** `status: "inactive"` hides a product everywhere. `availableInOnlineStore` only controls the shop; a product can be POS-only.

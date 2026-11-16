@@ -35,7 +35,7 @@ Google's servers; the browser is never trusted.** Live at https://amsonpharma.we
 | `performLogin` | `auth.js:116` | reCAPTCHA → lock check → sign in → deactivated? → role redirect |
 | `recordFailedLogin` | `auth.js:81` | +1 failed try; at 5 locks for 2 minutes |
 | `createCustomerAccount` | `register.js:193` | Firebase login + `users` doc (role customer) + email code |
-| `loadCatalogCache` | `products-data.js:1001` | Builds the product list with stock from sellable batches |
+| `loadCatalogCache` | `products-data.js:964` | Builds the product list with stock from sellable batches |
 | `isRetailSellableBatch` | `products-data.js:256` | Active, has units, more than 6 months to expiry |
 | `addToCart` | `cart.js:111` | Adds `{id, qty}`, capped at stock |
 | `stockAndPricesStillOk` | `payment.js:235` | Live re-check of stock and prices before ordering |
@@ -43,12 +43,12 @@ Google's servers; the browser is never trusted.** Live at https://amsonpharma.we
 | `createOrderWithCreditRedemption` | `orders.js:280` | Saves the order and subtracts store credit together |
 | `confirmOrderSale` | `admin-online-orders.js:656` | Approval: FEFO + SI no. + "already processed?" check |
 | `enforceOrderDeadline` | `orders.js:175` | Closes 7-day holds (credit) and auto-delivers after 3 days |
-| `deductStockFEFOOnce` | `products-data.js:1851` | The FEFO transaction: earliest expiry first, all or nothing |
-| `deductStockFEFOMultiple` | `products-data.js:1837` | Retries the above when two sales clash on the SI counter |
-| `voidPosSale` | `products-data.js:1591` | Full/partial void, units back to their batches |
-| `verifyVoidApprover` | `products-data.js:1567` | Signs the Branch Manager in on a temporary app; the void is saved as the manager |
-| `roundPeso` | `products-data.js:1282` | Rounds totals to the centavo before saving (avoids 37.050000000000004) |
-| `processWalkinExchange` | `products-data.js:2084` | No-refund exchange, replacement ≥ returned value |
+| `deductStockFEFOOnce` | `products-data.js:1806` | The FEFO transaction: earliest expiry first, all or nothing |
+| `deductStockFEFOMultiple` | `products-data.js:1792` | Retries the above when two sales clash on the SI counter |
+| `voidPosSale` | `products-data.js:1546` | Full/partial void, units back to their batches |
+| `verifyVoidApprover` | `products-data.js:1522` | Signs the Branch Manager in on a temporary app; the void is saved as the manager |
+| `roundPeso` | `products-data.js:1237` | Rounds totals to the centavo before saving (avoids 37.050000000000004) |
+| `processWalkinExchange` | `products-data.js:2039` | No-refund exchange, replacement ≥ returned value |
 | `planStockReceipt` / `applyStockReceipt` | `admin-inventory.js:488` / `:537` | New batch or top-up, saved in one transaction |
 | `saveWriteOff` | `admin-inventory.js:1260` | Subtract from a batch + write-off record together |
 | `finalizeCount` | `admin-inventory.js:1675` | Applies counted − system to current stock |
@@ -56,8 +56,8 @@ Google's servers; the browser is never trusted.** Live at https://amsonpharma.we
 | `markBatchBadOrder` | `products-data.js:732` | Qty 0 + automatic write-off, in a transaction |
 | `saveWholesaleOrder` | `admin-wholesale-accounts.js:699` | FEFO including near-expiry, same SI series |
 | `generateReport` / `loadSalesInRange` | `admin-reports.js:919` / `:48` | Builds the branch-format reports |
-| `logAuditEvent` | `products-data.js:2394` | Adds an append-only history entry |
-| `escapeHtml` | `products-data.js:1290` | Stops XSS when building HTML |
+| `logAuditEvent` | `products-data.js:2349` | Adds an append-only history entry |
+| `escapeHtml` | `products-data.js:1245` | Stops XSS when building HTML |
 | `respond` / `chatAiReply` | `live-chat.js:1118` / `:569` | Chat answer order; the Gemini call |
 | `chatLooksLikeDosage` | `live-chat.js:24` | Blocks AI replies that look like a dose |
 
@@ -72,11 +72,10 @@ Google's servers; the browser is never trusted.** Live at https://amsonpharma.we
 | `HOLD_DURATION_MS` | 7 days, then closed + credit | `admin-online-orders.js:4` |
 | `DISPATCH_AUTO_DELIVER_MS` | 3 days after dispatch → Delivered | `orders.js:93` |
 | `DEFAULT_REORDER_POINT` | 20 (low stock) | `products-data.js:245` |
-| `CATALOG_CACHE_MS` | 5-minute shop copy | `products-data.js:893` |
 | `MAX_PROOF_FILE_SIZE_BYTES` | 10 MB | `payment.js:3` |
 | `dailyAiLimit` / `historyMessages` | 400 AI replies a day / last 8 messages | `chat-config.js` |
 | `CHAT_MAX_LENGTH` / `CHAT_MIN_GAP_MS` | 500 characters / 1.5 s between messages | `live-chat.js:4-6` |
-| `REQUIRE_DEVICE_CODE` | `false` (new-device code off) | `device-trust.js:4` |
+| `REQUIRE_DEVICE_CODE` | `true` (new-device code on) | `device-trust.js:4` |
 | `APP_CHECK_SITE_KEY` | empty: off for the database (on for the AI) | `firebase-config.js:14` |
 | Number formats | Order `AMP-2026-0001`, SI `00000123`, SKU `MED-0001`, exchange `EX-00001` | counters |
 | Clear Test Data ends | 1 Dec 2026 | `firestore.rules:333`, `admin-roles.js:33` |

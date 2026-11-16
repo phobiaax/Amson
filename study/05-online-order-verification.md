@@ -124,7 +124,7 @@ if (rxIssue) update.prescriptionPhotoUrl = uploadedUrl;
 else { update.proofOfPaymentUrl = uploadedUrl; update.paymentReferenceNumber = referenceNumber; }
 await currentOrderRef.update(update);
 ```
-The order goes back into the staff queue with a **"Customer Resubmitted"** badge. The customer's order page listens live (`onSnapshot`, `order-details.js:308`), so a staff hold appears there without refreshing.
+The order goes back into the staff queue with a **"Customer Resubmitted"** badge. The customer's order page listens live (`onSnapshot`, `order-details.js:305`), so a staff hold appears there without refreshing.
 
 ### 2.7 Deadlines (`enforceOrderDeadline`, `js/orders.js:175-267`)
 
@@ -141,7 +141,7 @@ Runs whenever an order is loaded:
 
 - **Mark Dispatched** (`markDispatchedBtn`, 1225-1284): the tracking link must look like `https://share.lalamove.com/...` (`LALAMOVE_TRACKING_LINK_REGEX`, line 175), and the Lalamove fee must be 0 or more. Saves `status: "dispatched"`, the link and fee, and notifies the customer with the tracking link.
 - **Advance status** (`advanceOrderStatus`, 1542-1587): only **one step forward** at a time (`expectedNext = steps[steps.indexOf(previousStatus) + 1]`), always with a confirm box. Staff can't mark a delivery order "Received"; only the customer can (or the 3-day auto rule makes it Delivered).
-- **Customer confirms receipt** (`order-details.js:368-385`): Delivered → Received. The rules allow exactly this change and nothing else.
+- **Customer confirms receipt** (`order-details.js:365-382`): Delivered → Received. The rules allow exactly this change and nothing else.
 - **Release hold** (`releaseOrderHold`, 1589-1614): staff can clear a hold so the order returns to normal review, for example after the customer paid the balance at the store.
 
 ---
@@ -236,7 +236,7 @@ flowchart TD
 
 1. **"How do you know the customer really paid?"** Staff compare the screenshot and reference number with the branch's GCash/bank app before approving. The system helps with reused-reference and price warnings (`warnIfReferenceReused`, `orderPriceProblems`).
 2. **"What stops two staff from approving the same order twice?"** The transaction's `check` re-reads the order and stops if it's no longer "placed" or already has an SI number (`confirmOrderSale`, `admin-online-orders.js:671-676`).
-3. **"When does an online order get its SI number?"** At approval, from the same counter as walk-in and wholesale sales, inside the stock transaction (`deductStockFEFOOnce`, `products-data.js:1905-1911`).
+3. **"When does an online order get its SI number?"** At approval, from the same counter as walk-in and wholesale sales, inside the stock transaction (`deductStockFEFOOnce`, `products-data.js:1860-1866`).
 4. **"What happens to the customer's money if the order can't continue?"** After 7 days the order closes and any verified payment becomes store credit (`enforceOrderDeadline`, `orders.js:175`), used automatically on the next order.
 5. **"Why 7 days?"** Long enough for a customer to top up or re-upload, short enough that stock and money aren't stuck. It's one setting: `HOLD_DURATION_MS` (`admin-online-orders.js:4`).
 6. **"How does the customer know their order status?"** Bell notices (`customerNotifications`), emails through EmailJS (`sendOrderEmail`, `orders.js:147`), and the live order page.

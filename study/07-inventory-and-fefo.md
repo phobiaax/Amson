@@ -24,7 +24,7 @@
 
 ## 2. Walkthrough
 
-### 2.1 The FEFO engine (`deductStockFEFOOnce`, `products-data.js:1851-1955`)
+### 2.1 The FEFO engine (`deductStockFEFOOnce`, `products-data.js:1806-1910`)
 
 Used by POS sales, online approvals, wholesale orders and exchanges.
 
@@ -220,7 +220,7 @@ flowchart TD
 
 ## 8. Likely panel questions
 
-1. **"What is FEFO and where is it in your code?"** First Expiry, First Out. `deductStockFEFOOnce` sorts batches by expiry and takes from the earliest (`products-data.js:1863-1866`, `1898-1913`).
+1. **"What is FEFO and where is it in your code?"** First Expiry, First Out. `deductStockFEFOOnce` sorts batches by expiry and takes from the earliest (`products-data.js:1818-1821`, `1898-1913`).
 2. **"Why not FIFO?"** A batch delivered later can expire earlier. Selling by expiry minimizes expired stock.
 3. **"How do you guarantee stock never goes negative?"** Inside the transaction we re-read each batch and throw if the total is too small (`1866-1869`); deductions use `Math.min(current, remaining)`.
 4. **"What is a transaction and why use it here?"** A group of reads and writes that happen all together or not at all, and retry if the data changed. Two cashiers can't both sell the same unit.

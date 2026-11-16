@@ -109,7 +109,7 @@ let posCart = [];                       // js/admin-pos.js:1
 A function is a named set of steps you can run again and again.
 
 ```js
-// js/products-data.js:1286
+// js/products-data.js:1241
 function formatPeso(amount) {
   return `₱${(amount || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -180,7 +180,7 @@ We also use array methods that loop for you:
 
 `...` (the **spread** operator) copies everything from one object into another:
 ```js
-return { id: doc.id, ...data, price: data.retailPrice, totalStock, inStock: ... };   // js/products-data.js:1041
+return { id: doc.id, ...data, price: data.retailPrice, totalStock, inStock: ... };   // js/products-data.js:997
 ```
 "Make a new object with the document id, *all* its saved fields, plus a few computed ones."
 
@@ -212,7 +212,7 @@ try {
 ```
 
 A **Promise** is the "I'll answer later" object that `await` waits on. `Promise.all([...])` waits for several things at once,
-for example loading categories, products and stock at the same time (`js/products-data.js:1016`).
+for example loading categories, products and stock at the same time (`js/products-data.js:972`).
 
 ### 2.7 Events (reacting to clicks and typing)
 
@@ -263,16 +263,16 @@ productsGrid.innerHTML = pageItems.map(renderProductCard).join("");   // js/prod
 - So whenever we build HTML with `innerHTML`, any user-typed value goes through `escapeHtml()` first:
 
 ```js
-// js/products-data.js:1290
+// js/products-data.js:1245
 function escapeHtml(text) {
   return String(text == null ? "" : text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 ```
-It swaps the five dangerous characters for safe codes. Example: product cards use `${escapeHtml(product.name)}` (`js/products-data.js:2451`).
+It swaps the five dangerous characters for safe codes. Example: product cards use `${escapeHtml(product.name)}` (`js/products-data.js:2406`).
 
 ### 2.9 Browser storage
 
-- **`localStorage`**: survives closing the browser. We keep the guest cart (`amsonCart`), a 5-minute catalog copy, and the device id.
+- **`localStorage`**: survives closing the browser. We keep the guest cart (`amsonCart`) and the device id.
 - **`sessionStorage`**: cleared when the tab closes. We keep the order being checked out (`amsonPendingOrder`) and one-time messages for the login page.
 - We always wrap these in `try { } catch { }` because private browsing can block them.
 
@@ -323,7 +323,7 @@ const userDoc = await db.collection("users").doc(uid).get();     // js/auth.js:1
 ```
 **Write**:
 - `.set(data)`: create or overwrite a document (`js/register.js:203`)
-- `.update({ field: value })`: change some fields (`js/device-trust.js:45`)
+- `.update({ field: value })`: change some fields (`js/device-trust.js:46`)
 - `.add(data)`: create with an automatic id (`js/orders.js:139`)
 - `.delete()`: remove (`js/auth.js:94`)
 
@@ -345,7 +345,7 @@ nextCount = await db.runTransaction(async (transaction) => {
   return next;
 });
 ```
-Rule of transactions: **all reads must come before any writes** (see the comment at `js/products-data.js:1904`).
+Rule of transactions: **all reads must come before any writes** (see the comment at `js/products-data.js:1859`).
 
 **Batch write** (`db.batch()`): several writes that save together, but without reading first. Used when saving a product and its private prices (`js/admin-products.js:509`).
 
@@ -405,10 +405,10 @@ and adds **security headers** to every page: `X-Frame-Options: DENY`, `X-Content
 | **Google Gemini** (through Firebase AI Logic) | The chat assistant that answers questions the built-in answers can't | Free tier, no secret API key in our code (Firebase handles it), protected by App Check | `js/live-chat.js:478` `loadGeminiModel`, settings `js/chat-config.js` |
 | **reCAPTCHA** | The "I'm not a robot" checkbox on login and register | Slows down bots that try many passwords or fake sign-ups | `login.html:138`, check in `js/auth.js:119-124` |
 | **Chart.js** | Draws the sales line chart and category doughnut on the dashboard | Simple, free, looks good | `js/admin-dashboard.js:286` and `:363` |
-| **jsPDF** | Makes PDF files in the browser: receipts, reports, invoices | No server needed | `createPdf` in `js/products-data.js:1320`, `downloadOrderReceipt` in `js/orders.js:340` |
-| **SheetJS (xlsx)** | Reads and writes Excel files: report exports, backups, batch uploads | Staff already use Excel; no server needed | `exportTable` in `js/products-data.js:1768-1777`, `downloadReportExcel` in `js/admin-reports.js:833` |
+| **jsPDF** | Makes PDF files in the browser: receipts, reports, invoices | No server needed | `createPdf` in `js/products-data.js:1275`, `downloadOrderReceipt` in `js/orders.js:340` |
+| **SheetJS (xlsx)** | Reads and writes Excel files: report exports, backups, batch uploads | Staff already use Excel; no server needed | `exportTable` in `js/products-data.js:1723-1732`, `downloadReportExcel` in `js/admin-reports.js:833` |
 | **Bootstrap 5** | Ready-made layout, buttons, pop-ups (modals) and phone-friendly grid | Fast to build, works on phones | linked in every HTML page |
-| **Choices.js** | Searchable dropdowns (type to find a product) | Hundreds of products are too many for a normal dropdown | `makeSearchableSelect` in `js/products-data.js:1186` |
+| **Choices.js** | Searchable dropdowns (type to find a product) | Hundreds of products are too many for a normal dropdown | `makeSearchableSelect` in `js/products-data.js:1141` |
 
 All of these load from a **CDN** (a fast public file server) with a fixed version number, for example `chart.js@4.4.4`.
 
@@ -442,7 +442,7 @@ Every technical word used anywhere in this study guide, in alphabetical order.
 | **Bootstrap** | A CSS/JS toolkit for layout, buttons and pop-ups. |
 | **Branch Manager (BM)** | Top staff role: sets prices, finalizes stock counts, manages staff. |
 | **Brute force** | Trying many passwords quickly to guess one. Lockout and reCAPTCHA slow it down. |
-| **Cache** | A saved copy kept to avoid reading again. Our shop keeps the catalog for 5 minutes. |
+| **Cache** | A saved copy kept to avoid reading again. Our shop used to keep the catalog for 5 minutes; it now reads it live so changes show at once. |
 | **CDN** | A fast public server that hosts library files like Bootstrap. |
 | **Chart.js** | Library that draws charts. |
 | **Choices.js** | Library for searchable dropdowns. |

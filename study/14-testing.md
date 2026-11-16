@@ -103,8 +103,19 @@ From the pre-defense test report (cleanup branch, 11/05/2026):
 
 | # | Bug | How it was found | Fix and proof |
 | --- | --- | --- | --- |
-| – | **Regression from fix #8:** with the strict "+1 only" SI rule, two POS counters completing sales at the same moment failed with `permission-denied` (3 of 10 rounds) | A "race" test: two browsers clicking Confirm together, 10 rounds | `deductStockFEFOMultiple` retries the whole sale up to 3 more times (`products-data.js:1837-1849`). Re-test: **16 of 16** simultaneous sales succeeded, no duplicate SI numbers. |
+| – | **Regression from fix #8:** with the strict "+1 only" SI rule, two POS counters completing sales at the same moment failed with `permission-denied` (3 of 10 rounds) | A "race" test: two browsers clicking Confirm together, 10 rounds | `deductStockFEFOMultiple` retries the whole sale up to 3 more times (`products-data.js:1792-1804`). Re-test: **16 of 16** simultaneous sales succeeded, no duplicate SI numbers. |
 | 25 | Two customers submitting checkout at the same moment: one failed on the order-number counter (this was already happening on the live site) | Same kind of race test with two customers | `generateOrderNumber` retries (`orders.js:313-338`). Re-test: **10 of 10** orders placed with unique numbers. |
+
+**Found in the group test sheet (live site, Nov 2026):**
+
+| Test | Bug | Fix |
+| --- | --- | --- |
+| SHOP-06 | A product just marked Rx still showed without the Rx tag | Removed the 5-minute browser copy of the catalog; shop reads live. |
+| PAY-04 | A typed past delivery date was accepted | Save checks the date and keeps the pop-up open; checked again before payment. |
+| PAY-18 | Download Receipt was greyed out before verification, so the "available once verified" message never showed | Button always works; before verification it shows the message, after it downloads the PDF. |
+| PROD-13 | Bad rows in the products import only turned red after Import, and the red was hidden under the input boxes | Rows are checked as soon as the file opens and while editing; stronger red. |
+| LOG-30 | The same browser was saved again on every code, so "Forget other devices" left extra entries | One entry per browser; Forget keeps only this browser. |
+| DEV-02 | The chat pop-up was hard to close on phones | Fits the visible screen (`100dvh`) and a bigger close button. |
 
 **After all fixes:** the affected tests were re-run, and the screenshot set was taken again and compared with the
 "before" set. The only differences were the intended ones (e.g. the new Close button and category row).

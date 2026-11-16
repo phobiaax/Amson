@@ -24,7 +24,7 @@
 ### 2.1 Checkout page (`js/checkout.js`)
 
 1. **Which items?** `getCheckoutCart()` (`checkout.js:33-45`) takes the cart and keeps only the ids ticked on the cart page (`amsonCheckoutSelectedIds`). Nothing ticked → the whole cart.
-2. **Must be logged in.** `auth.onAuthStateChanged` (`checkout.js:190-213`): no user → `login.html?next=shop%2Fcheckout.html`. Logged in → fill in name, email, phone and the **saved address**.
+2. **Must be logged in.** `auth.onAuthStateChanged` (`checkout.js:200-223`): no user → `login.html?next=shop%2Fcheckout.html`. Logged in → fill in name, email, phone and the **saved address**.
 3. **Prescription check** (`checkout.js:58-69`):
    ```js
    requiresPrescription = cart.some((item) => { const product = getProductById(item.id); return product && product.rxRequired; });
@@ -35,9 +35,9 @@
    }
    ```
    If any item needs a prescription, the address section is hidden and a "pick-up at the store" notice shows.
-4. **Delivery schedule** (`checkout.js:76-102`): "Same Day" or a date + time slot. Dates in the past are blocked (`deliveryDateInput.min = todayISO`, using the **local** date so it isn't "yesterday" before 8 AM, which is midnight UTC).
-5. **Form check** (`checkoutFormIsValid`, `checkout.js:108-136`): every problem gets a red outline and one line in a list above the button. Patterns come from `validators.js`, the same ones the register page uses. The address uses `addressProblems()` (`validators.js:70`): street 5-150 characters with no `<` `>`, city/province 2-60, ZIP exactly 4 digits.
-6. **Proceed to Payment** (`checkout.js:144-186`): saves the order draft to `sessionStorage.amsonPendingOrder` and the address to the user's profile, then opens `payment.html`. **Nothing is ordered yet.**
+4. **Delivery schedule** (`checkout.js:76-108`): "Same Day" or a date + time slot. Dates in the past are blocked (`deliveryDateInput.min = todayISO`, using the **local** date so it isn't "yesterday" before 8 AM, which is midnight UTC). A typed date can skip the picker's limit, so Save checks again and keeps the pop-up open with "Pick today or a later date"; `checkoutFormIsValid` checks once more in case the page was left open overnight (group test PAY-04).
+5. **Form check** (`checkoutFormIsValid`, `checkout.js:114-146`): every problem gets a red outline and one line in a list above the button. Patterns come from `validators.js`, the same ones the register page uses. The address uses `addressProblems()` (`validators.js:70`): street 5-150 characters with no `<` `>`, city/province 2-60, ZIP exactly 4 digits.
+6. **Proceed to Payment** (`checkout.js:154-196`): saves the order draft to `sessionStorage.amsonPendingOrder` and the address to the user's profile, then opens `payment.html`. **Nothing is ordered yet.**
 
 ### 2.2 Payment page (`js/payment.js`)
 
@@ -63,7 +63,7 @@ clearCatalogCache();
 try { await loadCatalogCache(); } catch (error) { return connectionProblem(); }
 ```
 - Offline → "We couldn't reach the store to check stock. Check your internet connection…"
-- Throws away the 5-minute copy and **re-reads stock live**.
+- **Re-reads stock and prices live**.
 - Any item over the live stock (or no longer sold online) → "Some items in your cart exceed what's currently in stock: … Please go back to your cart."
 - Total changed since the page opened (a price change) → shows the new total and asks the customer to tap Submit again.
 
@@ -214,6 +214,6 @@ flowchart TD
 7. **"Where are the payment screenshots stored?"** On Cloudinary. Firestore only stores the link, and the rules only accept links to our own Cloudinary account.
 8. **"What happens if I lose internet in the middle of submitting?"** Either the order fully saves or nothing does (transaction). You get a message and can tap Submit again.
 9. **"Why check the stock again on the payment page?"** The shop uses a copy up to 5 minutes old; we re-read live right before submitting so customers don't pay for items that just sold out.
-10. **"Why does the date picker use local time?"** Philippine time is UTC+8. Before 8 AM, UTC is still "yesterday", so `toISOString()` would allow yesterday's date. `localISODate()` (`products-data.js:1262`) uses the local calendar.
+10. **"Why does the date picker use local time?"** Philippine time is UTC+8. Before 8 AM, UTC is still "yesterday", so `toISOString()` would allow yesterday's date. `localISODate()` (`products-data.js:1217`) uses the local calendar.
 11. **"How big can an upload be?"** Under 10 MB; phone photos over 300 KB are shrunk to JPEG first (`cloudinary.js:12`), which saves data for customers.
-12. **"Why round totals?"** Computers store money as binary decimals, so ₱12.35 × 3 comes out as 37.050000000000004. `roundPeso` (`products-data.js:1282`) rounds every saved total to the centavo, on checkout, POS and wholesale.
+12. **"Why round totals?"** Computers store money as binary decimals, so ₱12.35 × 3 comes out as 37.050000000000004. `roundPeso` (`products-data.js:1237`) rounds every saved total to the centavo, on checkout, POS and wholesale.

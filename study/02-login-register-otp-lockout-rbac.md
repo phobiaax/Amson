@@ -86,7 +86,7 @@
 | 4 | `auth.signInWithEmailAndPassword` (`auth.js:139`) | Firebase checks the password. |
 | 5 | read `users/{uid}` (`auth.js:140`) | No profile → sign out. `accountStatus === "deactivated"` → sign out, "Your account has been deactivated." |
 | 6 | `clearLoginAttempts(email)` (`auth.js:155`) | Successful login wipes the failed counter. |
-| 7 | device check (`auth.js:157-161`) | Only if `REQUIRE_DEVICE_CODE` is on (it's **off**, see below). |
+| 7 | device check (`auth.js:157-161`) | Browser not in `trustedDevices` → emailed code first (see below). |
 | 8 | `redirectByRole(userData)` (`auth.js:97-108`) | Staff → `admin/pos.html` or `admin/dashboard.html`. Unverified customer → `verify-email.html`. Customer → `shop/index.html` or the safe `?next=` page. |
 
 On a wrong password (`auth.js:163-171`):
@@ -112,13 +112,14 @@ This blocks an **open redirect**, where an attacker's link would send people to 
 - On the next visit, `authGate` (`firebase-config.js:61-74`) checks: "Remember Me was off **and** the cookie is gone"
   → sign out. Every page waits for `authGate` before listening for the user, so nothing loads half-logged-in.
 
-### 2.5 New-device code (built, currently switched off)
+### 2.5 New-device code (on)
 
-`js/device-trust.js:4`: `const REQUIRE_DEVICE_CODE = false;` (a team decision). When turned on:
+`js/device-trust.js:4`: `const REQUIRE_DEVICE_CODE = true;` (it was off for a while by team decision, then turned back on):
 - each browser gets a random 24-character id in localStorage;
 - logging in from a browser not in `trustedDevices` emails a 6-digit code (`auth.js:216-239`);
 - 5 wrong codes cancels the login (`auth.js:264-268`), and a new code can be requested once a minute.
-Today `isDeviceTrusted()` simply returns `true` (`device-trust.js:27-28`).
+- `trustThisDevice` (`device-trust.js:45`) saves each browser **once** (an earlier version added it again on every code).
+- Account Settings → "Forget all other devices" (`forgetOtherDevices`, `device-trust.js:58`) keeps only the current browser; every other browser is sent back to log in with a code on its next page load (`enforceRecognizedDevice`).
 
 ### 2.6 Forgot password (`js/forgot-password.js:38-60`)
 
@@ -245,7 +246,7 @@ flowchart TD
 
 1. **The email code can be skipped by a skilled user.** The code is stored on the customer's *own* `users` document, which they can read, and they may update their own doc (just not role/status/credit). So someone could set `emailVerified: true` from the console. No other customer's data leaks. **Improve:** use Firebase's built-in email-verification link, or check codes in a Cloud Function (needs the paid Blaze plan).
 2. **reCAPTCHA is only checked in the browser.** Bots that skip the page can skip it. Firebase's own throttling still applies. **Improve:** verify the token on a server, or enable App Check for Authentication.
-3. **The new-device code is off** (`REQUIRE_DEVICE_CODE = false`), and when on, its code lives in browser memory. **Improve:** the same server-side check as #1.
+3. **The new-device code lives in browser memory**, and the check runs in the browser, not in the rules. **Improve:** the same server-side check as #1.
 4. **EmailJS sends from the browser**, so its public key could be abused to send emails. **Improve:** restrict allowed origins and turn on rate limits in the EmailJS dashboard.
 5. **Deleting a customer profile doesn't delete their login.** Staff must delete the email in Firebase Authentication too (the Clear Test Data page reminds them). **Improve:** a Cloud Function that deletes both.
 6. **Forgot Password may reveal whether an email is registered** ("No account found…"), depending on Firebase's email-enumeration setting.

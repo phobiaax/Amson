@@ -24,7 +24,7 @@ voids (lines 1488-1745), FEFO + SI numbers (`deductStockFEFOMultiple`, lines 183
 ### 2.1 Opening the POS (`admin-pos.js:48-59`)
 
 On `admin:ready`: remember the cashier's name and role, show **Return / Exchange** only to roles that may void
-(`roleCanVoidSales`, `products-data.js:1488`: admin, branch manager, technical staff), load today's sales, start a
+(`roleCanVoidSales`, `products-data.js:1443`: admin, branch manager, technical staff), load today's sales, start a
 live listener on today's sales (so sales from **other counters** appear), then fill the searchable product box.
 
 ```js
@@ -42,7 +42,7 @@ if (!product || !qty || qty <= 0) { ... "enter a whole-number quantity of at lea
 const available = posAvailableQty(productId);
 if (qty > available) { posAddItemError.textContent = `Only ${available} of ${product.name} left to add.`; return; }
 ```
-- `wholeQty` (`products-data.js:1276`) accepts only digits, so "2.5", "-3" and "1e2" are refused.
+- `wholeQty` (`products-data.js:1231`) accepts only digits, so "2.5", "-3" and "1e2" are refused.
 - `posAvailableQty` (`admin-pos.js:106-111`) = stock − what's already in this cart, so the cashier can't add the same item twice past the stock.
 
 ### 2.3 Complete Sale (`posCompleteSaleBtn`, `admin-pos.js:239-365`)
@@ -81,20 +81,20 @@ Line by line:
   3. bumps `counters/salesInvoices` by 1;
   4. saves the sale.
   If any product is short, the whole thing fails: "Not enough stock available to fulfill this quantity."
-- `batchFieldsFromAllocation` (`products-data.js:1958`) records **which batches** each item came from. Voids and returns need this.
+- `batchFieldsFromAllocation` (`products-data.js:1913`) records **which batches** each item came from. Voids and returns need this.
 
-Afterwards: the cart clears, stock refreshes, the **final receipt** ("Sale Complete", with the SI number) opens and the print window opens automatically (`autoPrint: true` → `window.print()`, `products-data.js:1355`), and an audit log entry "Walk-in Sale" is written.
+Afterwards: the cart clears, stock refreshes, the **final receipt** ("Sale Complete", with the SI number) opens and the print window opens automatically (`autoPrint: true` → `window.print()`, `products-data.js:1310`), and an audit log entry "Walk-in Sale" is written.
 
 > **Retry for two counters at once:** both transactions bump the SI counter. The rules only allow `count + 1`
 > (`firestore.rules:320-321`), so the slower one is refused with `permission-denied`. `deductStockFEFOMultiple`
-> (`products-data.js:1837-1849`) waits a moment and **re-runs the whole sale** (up to 3 more tries). Tested: 16 of 16 simultaneous sales succeeded, with no duplicate SI numbers.
+> (`products-data.js:1792-1804`) waits a moment and **re-runs the whole sale** (up to 3 more tries). Tested: 16 of 16 simultaneous sales succeeded, with no duplicate SI numbers.
 
 ### 2.4 Receipt printing
 
 `css/style.css:2100-2140` has an `@media print` section: when printing, only the receipt is shown, **58 mm** wide,
 with names wrapping. `printPdf` / `window.print()` open the browser's print dialog for the thermal printer.
 
-### 2.5 Voids (`promptVoidDetails` → `voidPosSale`, `products-data.js:1493-1656`)
+### 2.5 Voids (`promptVoidDetails` → `voidPosSale`, `products-data.js:1448-1611`)
 
 From **Today's Sales → View → Void** (`openPosSaleReceipt`, `admin-pos.js:451-497`):
 
@@ -120,7 +120,7 @@ From **Today's Sales → View → Void** (`openPosSaleReceipt`, `admin-pos.js:45
    - **partial void** → reduces the item quantities and `total`, keeps `originalTotal`, and appends to `partialVoids` (lines, amount, reason, who, approver, when).
 4. An audit entry ("Walk-in Sale Voided" / "Walk-in Sale Items Voided") with before/after totals and the reason. The receipt reopens showing a **VOIDED** banner.
 
-### 2.6 Returns / exchanges (`processWalkinExchange`, `products-data.js:2084-2212`)
+### 2.6 Returns / exchanges (`processWalkinExchange`, `products-data.js:2039-2167`)
 
 Started from the POS **Return / Exchange** button (type the SI number) or from a receipt.
 1. `checkWalkinExchange` (2074-2099): the sale exists and isn't voided; the return qty ≤ what's left on that line; a reason is required; and the replacement value must be **≥ the returned value** ("Refunds aren't given").
@@ -229,12 +229,12 @@ flowchart TD
 
 ## 8. Likely panel questions
 
-1. **"How does the POS decide which batch to sell from?"** FEFO, first expiry first out. `deductStockFEFOOnce` sorts candidate batches by `expirationDate` and takes from the earliest (`products-data.js:1863-1866`, `1898-1913`).
+1. **"How does the POS decide which batch to sell from?"** FEFO, first expiry first out. `deductStockFEFOOnce` sorts candidate batches by `expirationDate` and takes from the earliest (`products-data.js:1818-1821`, `1898-1913`).
 2. **"How do you prevent two cashiers from selling the same last item?"** Firestore transactions: the second transaction re-reads the batch, sees no stock, and fails.
-3. **"What's an SI number and how is it generated?"** The Sales Invoice number, 8 digits (`formatInvoiceNo`, `products-data.js:1972`). It comes from `counters/salesInvoices` inside the sale's transaction; the rules allow only +1.
+3. **"What's an SI number and how is it generated?"** The Sales Invoice number, 8 digits (`formatInvoiceNo`, `products-data.js:1927`). It comes from `counters/salesInvoices` inside the sale's transaction; the rules allow only +1.
 4. **"Why preview the receipt before saving?"** To catch mistakes before stock and an SI number are used.
 5. **"Who can void, and why does Technical Staff need approval?"** Branch Manager and Technical Staff; Technical Staff need the BM's password. It's a two-person rule against fraud.
-6. **"How is the manager's password checked without logging the cashier out?"** The manager signs in on a temporary second Firebase app (`verifyVoidApprover`, `products-data.js:1567`). The void is saved through that app as the manager, then the app is signed out and deleted.
+6. **"How is the manager's password checked without logging the cashier out?"** The manager signs in on a temporary second Firebase app (`verifyVoidApprover`, `products-data.js:1522`). The void is saved through that app as the manager, then the app is signed out and deleted.
    **Follow-up: "So can't Technical Staff skip the approval from the console?"** No. The rules only let a Branch Manager void (`firestore.rules:225-229`), so without the manager's login the database refuses it.
 7. **"Do you delete voided sales?"** No. We mark them `voided: true` with the reason, who voided and who approved, so reports skip them but the record stays for audit.
 8. **"What happens to the stock in a void?"** It goes back to the exact batches the units came from, in the same transaction (`voidPosSaleAs`, lines 1620-1630).

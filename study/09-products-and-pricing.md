@@ -98,7 +98,7 @@ await writeBatch.commit();
 
 ### 2.3 Merging private prices back in (staff pages only)
 
-`loadPrivatePrices` (`products-data.js:949-968`) reads `productPrices` **only on admin pages** (`isStaffPage()`), and
+`loadPrivatePrices` (`products-data.js:912-931`) reads `productPrices` **only on admin pages** (`isStaffPage()`), and
 `loadCatalogCache` merges them into each product (`...(privatePrices.get(doc.id) || {})`). On shop pages it returns an
 empty map, so customers never have them, even in memory.
 
@@ -107,14 +107,14 @@ empty map, so customers never have them, even in memory.
 Refused while any batch still has stock: "Write off its remaining batches in Inventory Management before deleting it."
 Then a confirm.
 
-### 2.5 Excel import (`batchReviewConfirmBtn`, `admin-products.js:747-...`)
+### 2.5 Excel import (`batchReviewConfirmBtn`, `admin-products.js:755-...`)
 
 1. Upload an Excel/CSV made from the template (`BATCH_TEMPLATE_HEADERS`, line 596). Rows show in an **editable review table**.
 2. Duplicates (already in the catalog, or repeated in the file) are marked and skipped (`markBatchDuplicates`).
-3. Each row is checked: a name, and for the Branch Manager a retail price above 0 with no negative cost/wholesale. Bad rows turn red.
+3. Each row is checked: a name, and for the Branch Manager a retail price above 0 with no negative cost/wholesale (`batchRowInvalid`). Bad rows turn red **as soon as the file opens** and update while you edit (group test PROD-13: before, they only turned red after clicking Import).
 4. Each product is saved one at a time with a progress bar. A Technical Staff import is saved **price 0, inactive, pricePending**. Failed rows stay in the table to retry.
 
-### 2.6 Categories (`addCategory`, `admin-products.js:1059-1094`)
+### 2.6 Categories (`addCategory`, `admin-products.js:1061-1096`)
 
 Only the Branch Manager (or Admin) can add a category. The name is trimmed, and duplicates are refused ignoring
 capitals ("generics" vs "Generics"). The id is a readable slug (`baby-mom-care`). Logged as "Category Added".

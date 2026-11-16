@@ -25,7 +25,7 @@ found in our security review and pre-defense testing, with what was fixed and wh
 | Remember Me off → login ends when the browser closes | `firebase-config.js:33-86` | Someone using a shared computer after you leave. |
 | Safe `?next=` redirect (shop pages only) | `loginNextPage`, `auth.js:111` | **Open redirect** phishing links. |
 | Password change needs the current password (re-authentication) | `setupChangePasswordForm`, `validators.js` (`reauthenticateWithCredential`) | Someone at an unlocked computer changing your password. |
-| New-device code (built, **off** by team decision) | `device-trust.js:4` | Stolen-password logins from new devices (when turned on). |
+| New-device code (on) | `device-trust.js:4` | Stolen-password logins from new devices. |
 
 ### 1.2 Authorization: what may you do? (RBAC)
 
@@ -38,7 +38,7 @@ found in our security review and pre-defense testing, with what was fixed and wh
 | Page gate on every admin page + hidden menu items | `admin-header.js:13-71`, `ADMIN_PAGE_ACCESS` | Staff wandering into pages they shouldn't use (UI layer). |
 | Only Branch Manager sets prices (rules) | `priceFieldsUnchanged`, `firestore.rules:78-100`, `105-110` | Staff changing prices. |
 | Sales Staff limited to POS and read-only catalog | `isOpsStaff()` everywhere except POS | Cashiers voiding sales, reading orders, adjusting stock records. |
-| Void approval: Technical Staff need the BM's password | `verifyVoidApprover`, `products-data.js:1567`; rules: only `isManager()` may void (`firestore.rules:225-229`) | "Void and pocket the cash" fraud. The void is saved through the manager's login, so the database checks it too. |
+| Void approval: Technical Staff need the BM's password | `verifyVoidApprover`, `products-data.js:1522`; rules: only `isManager()` may void (`firestore.rules:225-229`) | "Void and pocket the cash" fraud. The void is saved through the manager's login, so the database checks it too. |
 | Default deny: everything not listed is refused | `firestore.rules:381-383` | Any collection we forgot to protect. |
 
 ### 1.3 Data protection: who can see what?
@@ -74,11 +74,11 @@ found in our security review and pre-defense testing, with what was fixed and wh
 
 | Measure | Where | Attack it prevents |
 | --- | --- | --- |
-| `escapeHtml()` on every user/staff value placed in HTML | `products-data.js:1290` (used everywhere) | **XSS**: scripts hidden in names, addresses, chat, product names, SKUs. |
+| `escapeHtml()` on every user/staff value placed in HTML | `products-data.js:1245` (used everywhere) | **XSS**: scripts hidden in names, addresses, chat, product names, SKUs. |
 | `textContent` for messages | e.g. `auth.js:25` | Same. |
-| `safeUrl()`: only `http(s)` links | `products-data.js:1296` | `javascript:` links in image/document URLs. |
+| `safeUrl()`: only `http(s)` links | `products-data.js:1251` | `javascript:` links in image/document URLs. |
 | Patterns for names, phone, email, address (no `<` `>`), ZIP, reference no. | `validators.js` | Junk or script-like input; typos. |
-| Whole-number quantities everywhere (`wholeQty`) | `products-data.js:1276` | "2.5", "-3", "1e2" quantities. |
+| Whole-number quantities everywhere (`wholeQty`) | `products-data.js:1231` | "2.5", "-3", "1e2" quantities. |
 | Length limits in rules for chat | `firestore.rules:257-264, 289-292` | Filling the database with huge text. |
 | 10 MB image limit + resize before upload | `payment.js:3`, `cloudinary.js:12` | Huge uploads (browser-level only). |
 

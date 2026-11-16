@@ -127,7 +127,7 @@ writes and reads it, and what the rules allow. Rule helper names come from `fire
 | Collection | Main fields | Written by | Read by | Rules |
 | --- | --- | --- | --- | --- |
 | **`products/{id}`** | `name, genericName, brand, category, retailPrice, reorderPoint, description, dosageNotes, shopSection, imageUrl, availableInPOS, availableInOnlineStore, rxRequired, status, priceLocked, pricePending, sku, createdAt` | `admin-products.js`, `admin-product-photos.js`, quick-add in `admin-inventory.js` | everyone (`loadCatalogCache`) | 85-102: public read. Branch Manager may create/update anything. Other ops staff may create only with **all prices 0, `pricePending: true`, `status: "inactive"`**, and may update only if **price fields don't change** and they don't make a price-pending product active. Sales Staff can't write. |
-| **`productPrices/{productId}`** | `costingPrice, wholesalePrice, updatedAt` | `setPrivatePrices` (`products-data.js:971`) | staff pages only (`loadPrivatePrices`) | 105-110: staff read; only the Branch Manager writes, and only those 3 fields. This keeps cost and wholesale prices **out of the public product docs**. |
+| **`productPrices/{productId}`** | `costingPrice, wholesalePrice, updatedAt` | `setPrivatePrices` (`products-data.js:934`) | staff pages only (`loadPrivatePrices`) | 105-110: staff read; only the Branch Manager writes, and only those 3 fields. This keeps cost and wholesale prices **out of the public product docs**. |
 | **`categories/{slug}`** | `name` | `admin-products.js` `addCategory` | everyone | 119-122: public read, ops staff write (the page only lets the Branch Manager add). |
 | **`storeSettings/homeBanner`** | `active, kind, message, updatedAt` | `admin-store-banner.js` | `store-info.js` (shop banner) | 113-117: public read; Branch Manager, Technical Staff or Admin write. |
 
@@ -158,7 +158,7 @@ writes and reads it, and what the rules allow. Rule helper names come from `fire
 | Collection | Main fields | Written by | Rules |
 | --- | --- | --- | --- |
 | **`counters/{id}`** | `count`. Ids: `orders-2026`, `salesInvoices`, `products`, `purchaseOrders-2026`, `reconciliations-2026`, `wholesaleExchanges` | `generateOrderNumber`, `deductStockFEFOOnce`, `generateProductSku`, etc. | 308-322: signed-in users read. `salesInvoices` may only go **up by exactly 1**, by staff. `orders-YYYY` may only go up by 1 (customers bump it at checkout). Other counters: staff. |
-| **`auditLog/{id}`** | `action, details, user, ipAddress, createdAt, record, before, after, reason` | `logAuditEvent` (`products-data.js:2394`) from every important action | 235-246: ops staff read; any staff create; customers may only log "Order Received by Customer" / "Order Auto-Delivered" with a short detail and the server time. **No updates or deletes** (append-only). |
+| **`auditLog/{id}`** | `action, details, user, ipAddress, createdAt, record, before, after, reason` | `logAuditEvent` (`products-data.js:2349`) from every important action | 235-246: ops staff read; any staff create; customers may only log "Order Received by Customer" / "Order Auto-Delivered" with a short detail and the server time. **No updates or deletes** (append-only). |
 | **`chatThreads/{threadId}`** | `lastMessage, lastMessageAt, customerName, kind, customerId, status ("ai" / "waiting_staff" / "staff" / "resolved"), unreadByStaff, handoffReason, handoffAt, createdAt` | `live-chat.js`, `admin-live-chat.js` | 252-281: the id must be `cust_<your uid>` or a random `guest_` id. Customers create only with `status: "ai"` and short text; they may only switch between `ai` and `waiting_staff` (they can't take a chat away from staff). Ops staff list and update. |
 | **`chatThreads/{id}/messages/{id}`** | `sender, text, createdAt, cards` | both chat scripts | 283-294: the owner or ops staff read; customer side may add `customer` / `assistant` / `system` messages up to 2,000 characters and 20 cards; never edited or deleted. |
 | **`chatUsage/{yyyy-mm-dd}`** | `count, updatedAt` | `claimChatAiQuota` (`live-chat.js:556`) | 297-304: anyone reads; create only with count 1; update only +1. |
@@ -224,15 +224,15 @@ From `ADMIN_PAGE_ACCESS` (`js/admin-roles.js:12-30`):
 | Action | Who | Enforced in the page (UI) | Enforced in the rules (server) |
 | --- | --- | --- | --- |
 | Browse shop, cart | Anyone (guests too) | none needed | `products`, `stockBatches`, `categories` are public read |
-| Place an online order | Logged-in customer | `checkout.js:145` / `payment.js:67` send guests to login | `orders` create: `customerId == myUid()` and `status == "placed"` |
+| Place an online order | Logged-in customer | `checkout.js:155` / `payment.js:67` send guests to login | `orders` create: `customerId == myUid()` and `status == "placed"` |
 | See an order | The customer who owns it, ops staff | My Orders only lists your own | `orders` read: own or `isOpsStaff()` |
 | Ring up a walk-in sale | All staff | POS page open to all staff | `posSales` create: `isStaff()`; `stockBatches` update: `isStaff()` |
-| Void / return a walk-in sale | Technical (needs BM password), Branch Mgr | `roleCanVoidSales` (`products-data.js:1488`); approval dialog for Technical Staff (`admin-pos.js:473`) | `posSales` update: voids need `isManager()`; Technical Staff voids are saved through the BM's approval login |
+| Void / return a walk-in sale | Technical (needs BM password), Branch Mgr | `roleCanVoidSales` (`products-data.js:1443`); approval dialog for Technical Staff (`admin-pos.js:473`) | `posSales` update: voids need `isManager()`; Technical Staff voids are saved through the BM's approval login |
 | Approve online payments | Technical, Branch Mgr | Online Orders page hidden from Sales | `orders` update: `isOpsStaff()` |
 | Set or change prices | Branch Mgr only | `canEditPrices()` disables price boxes (`admin-products.js:76`) | `isPriceManager()` on `products`; `priceFieldsUnchanged()` for others; `productPrices` write manager only |
 | Add a product | Technical, Branch Mgr | Add button hidden for Sales (`admin-products.js:70`) | Technical Staff's new products must be price 0, `pricePending`, inactive |
 | Finalize a stock count | Branch Mgr | `canFinalize` (`admin-inventory.js:1607`); others "save for the manager" | page-only (rules let ops staff update batches) |
-| Add a category | Branch Mgr | `addCategory` check (`admin-products.js:1062`) | rules allow ops staff (page restricts it) |
+| Add a category | Branch Mgr | `addCategory` check (`admin-products.js:1064`) | rules allow ops staff (page restricts it) |
 | Manage staff | Branch Mgr | page access list | `users` create staff / update: `isManager()` |
 | Deactivate a customer | Technical, Branch Mgr | Customer Accounts page | ops staff may update only `role == "customer"` docs |
 | Read the audit log | Technical, Branch Mgr | page access list | `auditLog` read: `isOpsStaff()` |

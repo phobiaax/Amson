@@ -38,7 +38,7 @@
 
 ## 2. Walkthrough
 
-### 2.1 Writing to the audit log: `logAuditEvent()` (`products-data.js:2394-2420`)
+### 2.1 Writing to the audit log: `logAuditEvent()` (`products-data.js:2349-2375`)
 
 ```js
 async function logAuditEvent({ action, details, actor, record, before, after, reason }) {
@@ -110,7 +110,7 @@ logAuditEvent({ action: "Report Generated", details: ... });
 
 The builders (`buildDailySalesReport`, `buildMonthlyInventoryReport`, …) arrange these into **sections** that match the paper forms.
 `downloadReportPdf` (714) draws them with jsPDF; `downloadReportExcel` (833-863) writes one sheet per section with SheetJS.
-`pdfSafeText` (`products-data.js:1307`) swaps "₱" for "PHP " because jsPDF's built-in fonts can't draw the peso sign.
+`pdfSafeText` (`products-data.js:1262`) swaps "₱" for "PHP " because jsPDF's built-in fonts can't draw the peso sign.
 
 ### 2.5 Staff notifications (`products-data.js:349-689`, `admin-header.js:98-211`)
 
@@ -209,7 +209,7 @@ flowchart LR
 ## 8. Likely panel questions
 
 1. **"Can the Branch Manager delete or edit the audit log?"** No. The rules allow create only, never update or delete (`firestore.rules:250`). (The temporary clear-test rule ends 1 Dec 2026.)
-2. **"What's recorded in each audit entry?"** Action, details, the staff member's name, the record affected, before, after, reason, and server time (`logAuditEvent`, `products-data.js:2394`).
+2. **"What's recorded in each audit entry?"** Action, details, the staff member's name, the record affected, before, after, reason, and server time (`logAuditEvent`, `products-data.js:2349`).
 3. **"Why use the server timestamp?"** So a wrong or tampered computer clock can't change when something happened.
 4. **"How do your reports match the branch's formats?"** Each builder arranges the data into the same sections and columns as the branch's paper reports, then exports the same structure to PDF and Excel.
 5. **"When is an online order counted as a sale?"** When staff confirm the payment; that's also when it gets its SI number.

@@ -84,7 +84,7 @@ saves `releaseStatus: "released"`, `releasedAt`, `releasedBy`, and logs it. Staf
 
 A printable invoice made with jsPDF: buyer, SI number, items, prices, total, free items marked.
 
-### 2.5 Exchanges (`processWholesaleExchange`, `products-data.js:1997-2080`)
+### 2.5 Exchanges (`processWholesaleExchange`, `products-data.js:1952-2035`)
 
 Same policy as walk-in: **no refunds**; replacement value must be **≥** the returned value.
 In one transaction it:

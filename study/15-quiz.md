@@ -27,7 +27,7 @@ Types: **[Code]** what does this code do · **[What if]** · **[Why]** design ch
 15. [Why] Why does the login error say "Incorrect email or password" for both a wrong password and an unknown email?
 16. [What if] A staff member is deactivated while still logged in on another computer. When do they lose access?
 17. [Code] What does `loginNextPage()` protect against?
-18. [Why] Why is the new-device code built but not active?
+18. [How] What happens when a customer logs in from a browser they never used before?
 
 ### Shop and cart
 19. [Code] Explain `isRetailSellableBatch(batch)` in one sentence.
@@ -36,7 +36,7 @@ Types: **[Code]** what does this code do · **[What if]** · **[Why]** design ch
 22. [What if] A customer adds 10 of an item but only 6 are in stock. What does the cart do?
 23. [Why] Why does the cart store only `{ id, qty }` and not the price?
 24. [What if] A guest adds items to the cart and then logs in. What happens to those items?
-25. [Why] Why do shop pages keep a 5-minute copy of the catalog in the browser?
+25. [Why] Why don't shop pages keep a copy of the catalog in the browser any more?
 
 ### Checkout and payment
 26. [Why] Why QR Ph with a screenshot instead of a payment gateway?
@@ -140,7 +140,7 @@ function addToCart(productId, qty = 1) {
 }
 ```
 
-### Snippet 5: `js/products-data.js:1837-1849`
+### Snippet 5: `js/products-data.js:1792-1804`
 ```js
 async function deductStockFEFOMultiple(items, options = {}) {
   for (let attempt = 1; ; attempt++) {
@@ -182,7 +182,7 @@ async function deductStockFEFOMultiple(items, options = {}) {
 15. So attackers can't find out which emails have accounts (account enumeration).
 16. Immediately for database access: `isStaff()` checks `accountStatus` on every request. On the next page load the header signs them out.
 17. Open redirects: it only allows `shop/<page>.html`, so a phishing link can't send users to another site after login.
-18. A team decision. With it on, everyone needs a real inbox and a code on each new browser, which is inconvenient for testing and the defense. It's one setting (`REQUIRE_DEVICE_CODE` in `device-trust.js:4`).
+18. A 6-digit code is emailed and they must enter it before the shop opens (5 wrong codes cancel the login). The browser is then saved once in `trustedDevices`. It was off for a while (team decision) and was turned back on; it's one setting (`REQUIRE_DEVICE_CODE` in `device-trust.js:4`).
 
 ### Shop and cart
 19. A batch counts for retail only if it's active, has units, and expires more than 6 months from today.
@@ -191,7 +191,7 @@ async function deductStockFEFOMultiple(items, options = {}) {
 22. It caps the quantity at 6 and shows "Only 6 in stock - your cart is now at the limit."
 23. Prices are always read fresh from the catalog, so an old or edited price can't get into the order.
 24. On login they're merged into the account cart (bigger quantity per item wins), and the guest copy is cleared.
-25. To save Firestore reads on the free plan. The payment page re-reads stock live before submitting, so the copy can't cause overselling.
+25. The 5-minute copy hid changes: testing showed a product newly marked "prescription required" still appeared without the Rx tag. Reading live costs more reads, but the payment page re-checks live anyway, so correctness won.
 
 ### Checkout and payment
 26. No gateway fees or contracts; customers already use GCash/Maya; money goes straight to the branch. The cost is manual verification.
