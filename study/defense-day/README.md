@@ -1,5 +1,7 @@
 # Defense Guide v2
 
+**Main file: `Defense_Guide_v2.docx`** (source: `Defense_Guide_v2.md`), the team's trimmed edit: cheat sheet, demo guide, gaps, security Q&A. The numbered files below are the longer reference versions.
+
 Improved version of the team's defense guide. The original guide is unchanged; this folder is not published (Firebase Hosting ignores `study/**`).
 
 | File | What it is | Read when |
