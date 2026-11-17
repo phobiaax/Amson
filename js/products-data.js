@@ -1233,7 +1233,6 @@ function wholeQty(value) {
   return /^\d+$/.test(text) ? Number(text) : NaN;
 }
 
-// to the centavo, so 12.35 x 3 saves as 37.05 and not 37.050000000000004
 function roundPeso(amount) {
   return Math.round((amount || 0) * 100) / 100;
 }
@@ -1517,8 +1516,7 @@ function readVoidDialog(items) {
   return { details: { reason, lines } };
 }
 
-// signs the manager in on a separate app so staff stay signed in; the void is then saved
-// as the manager (the rules only let a manager void), and voidPosSale signs them out after
+// checks the managers login on a separate app so staff stay signed in
 async function verifyVoidApprover(email, password) {
   if (!email || !password) throw new Error("The Branch Manager's email and password are required to approve this void.");
   const app = firebase.initializeApp(firebaseConfig, `VoidApproval${Date.now()}`);
@@ -1551,7 +1549,6 @@ async function voidPosSale(sale, { reason, lines, approvedBy, approverApp }, voi
   }
 }
 
-// store: the manager's own connection when they approved it, so the rules see a manager
 async function voidPosSaleAs(store, sale, { reason, lines, approvedBy }, voidedBy) {
   const saleRef = store.collection("posSales").doc(sale.id);
   const fallbackRefs = await findFallbackBatches(store, sale, lines);

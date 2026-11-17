@@ -47,7 +47,7 @@ service cloud.firestore {
       allow create: if isManager() &&
         request.resource.data.role in ["admin", "branch_manager", "technical_staff", "sales_staff"];
 
-      // own doc updates cant change role or status or raise store credit or take it below zero
+      // own doc updates cant change role or status or raise store credit
       allow update: if isSignedIn() && myUid() == uid &&
         request.resource.data.get("role", null) == resource.data.get("role", null) &&
         request.resource.data.get("accountStatus", null) == resource.data.get("accountStatus", null) &&
@@ -222,9 +222,7 @@ service cloud.firestore {
     }
     match /posSales/{saleId} {
       allow read, create: if isStaff();
-      // voids are branch manager only (technical staff void through the manager's approval login)
       allow update: if isManager();
-      // walk-in exchanges only mark returned units on the items
       allow update: if isOpsStaff() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(["items"]);
     }

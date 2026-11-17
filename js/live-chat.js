@@ -257,7 +257,6 @@ function chatOtcProducts() {
   return CATALOG_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false && !p.rxRequired);
 }
 
-// otc products in these shop sections, for when no label names the symptom
 function chatProductsInSections(sections, limit = 4) {
   const wanted = new Set(sections.filter(Boolean));
   return chatOtcProducts()
@@ -624,7 +623,6 @@ async function chatAiReply(history, question) {
       result = await model.generateContent({ contents });
     }
     let text = (result.response.text() || "").trim();
-    // the model sometimes drops a bracket ([HEALTH]), so any bracket count matches
     const code = (name) => new RegExp(`\\[+\\s*${name}\\s*\\]+`, "gi");
     if (code("HEALTH").test(text)) return { health: true };
     if (code("ORDERS").test(text)) return { orders: true };
@@ -1074,7 +1072,6 @@ function chatOrderCardHtml(card, myOrders) {
       });
     }
     let products = labelWords.length ? chatProductsForLabelWords(labelWords) : [];
-    // products without label text are still found by their shop section
     if (!products.length) products = chatProductsInSections(known.map((sx) => sx.section));
     if (!products.length) return reply("none");
     const healthText = CHAT_HEALTH_TEXT[lang];

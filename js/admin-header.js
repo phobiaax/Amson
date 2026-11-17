@@ -94,7 +94,6 @@ function ensureAdminNotifBell() {
   return document.getElementById("adminNotifBellBtn");
 }
 
-// count bubble on a side menu link, hidden at 0
 function setNavBadge(href, count) {
   const link = document.querySelector(`.admin-nav-link[href="${href}"]`);
   if (!link) return;
@@ -132,7 +131,6 @@ async function refreshAdminNotifBell(uid, notificationsOverride = null) {
     }
 
     setNavBadge("notifications.html", unread.length);
-    // chats waiting for staff, shown whether or not the alert was read
     const waitingChats = notifications.find((n) => n.key === "chat_waiting");
     setNavBadge("live-chat.html", waitingChats ? waitingChats.signature.split(",").length : 0);
 

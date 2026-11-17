@@ -382,7 +382,6 @@ function openProductPicker(input) {
         .join("")
     : `<div class="product-picker-empty">No product matches "${escapeHtml(input.value)}".</div>`;
   const box = input.getBoundingClientRect();
-  // wide enough for long names, but never past the screen edge
   const width = Math.min(Math.max(box.width, 460), window.innerWidth - 16);
   pickerMenu.style.width = `${width}px`;
   pickerMenu.style.left = `${Math.max(8, Math.min(box.left, window.innerWidth - width - 8))}px`;
