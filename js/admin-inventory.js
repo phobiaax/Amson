@@ -636,26 +636,26 @@ function addReceiveItemRow() {
     <div class="row g-3">
       <div class="col-md-6">
         <div class="d-flex justify-content-between align-items-center">
-          <label for="receiveProduct${receiveItemCount}" class="form-label mb-0">Product <span class="text-danger">*</span></label>
+          <label class="form-label mb-0">Product <span class="text-danger">*</span></label>
           <button type="button" class="btn btn-link btn-sm p-0 quick-add-product-btn" style="font-size:0.8rem;">+ New Product</button>
         </div>
-        <select id="receiveProduct${receiveItemCount}" class="form-select receive-product-select"></select>
+        <select class="form-select receive-product-select"></select>
       </div>
       <div class="col-md-6">
-        <label for="receiveQty${receiveItemCount}" class="form-label">Qty Received <span class="text-danger">*</span></label>
-        <input type="number" min="1" id="receiveQty${receiveItemCount}" class="form-control receive-qty-input">
+        <label class="form-label">Qty Received <span class="text-danger">*</span></label>
+        <input type="number" min="1" class="form-control receive-qty-input">
       </div>
       <div class="col-md-6">
-        <label for="receiveBatch${receiveItemCount}" class="form-label">Batch No. <span class="text-danger">*</span></label>
-        <input type="text" id="receiveBatch${receiveItemCount}" class="form-control receive-batchno-input" placeholder="e.g. BIO-500-100">
+        <label class="form-label">Batch No. <span class="text-danger">*</span></label>
+        <input type="text" class="form-control receive-batchno-input" placeholder="e.g. BIO-500-100">
       </div>
       <div class="col-md-6">
-        <label for="receiveExpiry${receiveItemCount}" class="form-label">Expiry Date <span class="text-danger">*</span></label>
-        <input type="date" id="receiveExpiry${receiveItemCount}" class="form-control receive-expiry-input">
+        <label class="form-label">Expiry Date <span class="text-danger">*</span></label>
+        <input type="date" class="form-control receive-expiry-input">
       </div>
       <div class="col-md-6">
-        <label for="receiveCost${receiveItemCount}" class="form-label">Unit Cost (&#8369;) <span class="text-muted fw-normal">(optional)</span></label>
-        <input type="number" min="0" step="0.01" id="receiveCost${receiveItemCount}" class="form-control receive-unitcost-input">
+        <label class="form-label">Unit Cost (&#8369;) <span class="text-muted fw-normal">(optional)</span></label>
+        <input type="number" min="0" step="0.01" class="form-control receive-unitcost-input">
       </div>
     </div>
   `;
@@ -1154,20 +1154,20 @@ function addWriteOffItemRow() {
     <button type="button" class="repeater-remove-btn" aria-label="Remove item"><i class="bi bi-x-lg"></i></button>
     <div class="row g-3">
       <div class="col-md-6">
-        <label for="writeOffProduct${writeOffItemCount}" class="form-label">Product</label>
-        <select id="writeOffProduct${writeOffItemCount}" class="form-select writeoff-product-select"></select>
+        <label class="form-label">Product</label>
+        <select class="form-select writeoff-product-select"></select>
       </div>
       <div class="col-md-6">
-        <label for="writeOffBatch${writeOffItemCount}" class="form-label">Batch</label>
-        <select id="writeOffBatch${writeOffItemCount}" class="form-select writeoff-batch-select"></select>
+        <label class="form-label">Batch</label>
+        <select class="form-select writeoff-batch-select"></select>
       </div>
       <div class="col-md-6">
-        <label for="writeOffQty${writeOffItemCount}" class="form-label">Qty to Write Off</label>
-        <input type="number" min="1" id="writeOffQty${writeOffItemCount}" class="form-control writeoff-qty-input">
+        <label class="form-label">Qty to Write Off</label>
+        <input type="number" min="1" class="form-control writeoff-qty-input">
       </div>
       <div class="col-md-6">
-        <label for="writeOffReason${writeOffItemCount}" class="form-label">Reason</label>
-        <input type="text" id="writeOffReason${writeOffItemCount}" class="form-control writeoff-reason-input" placeholder="e.g. Damaged packaging">
+        <label class="form-label">Reason</label>
+        <input type="text" class="form-control writeoff-reason-input" placeholder="e.g. Damaged packaging">
       </div>
     </div>
   `;
@@ -1858,12 +1858,12 @@ function addPoItemRow() {
     <button type="button" class="repeater-remove-btn" aria-label="Remove item"><i class="bi bi-x-lg"></i></button>
     <div class="row g-3">
       <div class="col-md-8">
-        <label for="poProduct${poItemCount}" class="form-label">Product</label>
-        <select id="poProduct${poItemCount}" class="form-select po-product-select"></select>
+        <label class="form-label">Product</label>
+        <select class="form-select po-product-select"></select>
       </div>
       <div class="col-md-4">
-        <label for="poQty${poItemCount}" class="form-label">Expected Qty</label>
-        <input type="number" min="1" id="poQty${poItemCount}" class="form-control po-qty-input">
+        <label class="form-label">Expected Qty</label>
+        <input type="number" min="1" class="form-control po-qty-input">
       </div>
     </div>
   `;

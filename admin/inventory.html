@@ -373,7 +373,7 @@
       <h2 class="mb-1">Start a Stock Count</h2>
       <p class="text-muted mb-3">Choose the month this count is for (usually the month-end count).</p>
 
-      <label for="reconciliationPeriodInput" class="form-label">Month</label>
+      <label class="form-label">Month</label>
       <input type="month" class="form-control mb-3" id="reconciliationPeriodInput">
 
       <div class="alert alert-warning" style="font-size:0.85rem;">
@@ -400,13 +400,13 @@
       <div class="row g-3 mb-3">
         <div class="col-md-6">
           <div class="d-flex justify-content-between align-items-center">
-            <label for="receiveSupplierSelect" class="form-label mb-0">Supplier <span class="text-danger">*</span></label>
+            <label class="form-label mb-0">Supplier <span class="text-danger">*</span></label>
             <button type="button" class="btn btn-link btn-sm p-0" id="receiveNewSupplierBtn" style="font-size:0.8rem;">+ New Supplier</button>
           </div>
           <select class="form-select" id="receiveSupplierSelect"></select>
         </div>
         <div class="col-md-6">
-          <label for="receiveDateInput" class="form-label">Date Received <span class="text-danger">*</span></label>
+          <label class="form-label">Date Received <span class="text-danger">*</span></label>
           <input type="date" class="form-control" id="receiveDateInput">
         </div>
         <div class="col-md-6">
@@ -485,13 +485,13 @@
       <h2 class="mb-1">New Supplier</h2>
       <p class="text-muted mb-3">Add a supplier without leaving Receive Stock.</p>
 
-      <label for="quickSupplierNameInput" class="form-label">Company Name *</label>
+      <label class="form-label">Company Name *</label>
       <input type="text" class="form-control mb-3" id="quickSupplierNameInput">
 
-      <label for="quickSupplierContactInput" class="form-label">Contact Person</label>
+      <label class="form-label">Contact Person</label>
       <input type="text" class="form-control mb-3" id="quickSupplierContactInput">
 
-      <label for="quickSupplierPhoneInput" class="form-label">Phone</label>
+      <label class="form-label">Phone</label>
       <input type="text" class="form-control mb-3" id="quickSupplierPhoneInput">
 
       <div id="quickAddSupplierAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
@@ -511,13 +511,13 @@
       <h2 class="mb-1">New Product</h2>
       <p class="text-muted mb-3">Add a product without leaving Receive Stock. You can fill in the rest of its details later in Product Management.</p>
 
-      <label for="quickProductNameInput" class="form-label">Product Name *</label>
+      <label class="form-label">Product Name *</label>
       <input type="text" class="form-control mb-3" id="quickProductNameInput">
 
-      <label for="quickProductCategorySelect" class="form-label">Category *</label>
+      <label class="form-label">Category *</label>
       <select class="form-select mb-3" id="quickProductCategorySelect"></select>
 
-      <label for="quickProductPriceInput" class="form-label">Retail Price *</label>
+      <label class="form-label">Retail Price *</label>
       <input type="number" min="0" step="0.01" class="form-control mb-3" id="quickProductPriceInput">
 
       <div id="quickAddProductAlert" class="alert alert-danger auth-alert d-none mb-3" role="alert"></div>
@@ -540,7 +540,7 @@
           <p class="text-muted mb-0">Remove unsellable, damaged, or expired items from active inventory</p>
         </div>
         <div>
-          <label for="writeOffDateInput" class="form-label mb-1">Date</label>
+          <label class="form-label mb-1">Date</label>
           <input type="date" class="form-control form-control-sm" id="writeOffDateInput">
         </div>
       </div>
@@ -569,11 +569,11 @@
 
       <div class="row g-3 mb-3">
         <div class="col-md-6">
-          <label for="poSupplierSelect" class="form-label">Supplier</label>
+          <label class="form-label">Supplier</label>
           <select class="form-select" id="poSupplierSelect"></select>
         </div>
         <div class="col-md-6">
-          <label for="poExpectedDateInput" class="form-label">Expected Delivery Date</label>
+          <label class="form-label">Expected Delivery Date</label>
           <input type="date" class="form-control" id="poExpectedDateInput">
         </div>
       </div>
