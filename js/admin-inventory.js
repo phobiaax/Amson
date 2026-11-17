@@ -289,6 +289,11 @@ function filteredBatches() {
       ...b,
       computedStatuses: getBatchStatuses(b, physicalStockByProduct[b.productId] || 0),
     }));
+  // never received products have no batch, so they get an empty row
+  const withBatch = new Set(allBatches.map((b) => b.productId));
+  CATALOG_PRODUCTS.filter((p) => p.status === "active" && !withBatch.has(p.id)).forEach((p) =>
+    filtered.push({ id: `none-${p.id}`, productId: p.id, batchNo: "-", quantity: 0, expirationDate: "", noBatch: true, computedStatuses: ["out_of_stock"] })
+  );
 
   if (inventoryFilter !== "all") {
     filtered = filtered.filter((b) => b.computedStatuses.includes(inventoryFilter));
@@ -308,6 +313,7 @@ function filteredBatches() {
   }
 
   filtered.sort((a, b) => {
+    if (a.noBatch !== b.noBatch) return a.noBatch ? 1 : -1;
     const aTime = inventorySortMillis(a);
     const bTime = inventorySortMillis(b);
     return inventorySortDesc ? bTime - aTime : aTime - bTime;
