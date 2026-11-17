@@ -526,23 +526,23 @@ function addProcessOrderItemRow() {
   priceNote.className = "text-muted mb-0 mt-1";
   priceNote.style.fontSize = "0.75rem";
   priceInput.insertAdjacentElement("afterend", priceNote);
-  // buyers agreed price first, else the standard wholesale price
+  // agreed price, else wholesale, else retail
   const setDefaultPrice = () => {
     const product = getProductById(productSelect.value);
     const account = allWholesaleAccounts.find((w) => w.id === processingAccountId);
     const agreed = account && account.agreedPrices ? account.agreedPrices[productSelect.value] : undefined;
-    // no wholesale price means empty, never a silent 0
     const standard = product && product.wholesalePrice > 0 ? product.wholesalePrice : null;
+    const retail = product && product.price > 0 ? product.price : null;
     // free can be the whole order or one item
     const free = processOrderFreeCheck.checked || freeCheck.checked;
     priceInput.disabled = free;
     freeCheck.disabled = processOrderFreeCheck.checked;
     if (free) priceInput.value = 0;
-    else priceInput.value = agreed != null ? agreed : standard != null ? standard : "";
-    const missing = !free && agreed == null && standard == null;
+    else priceInput.value = agreed != null ? agreed : standard != null ? standard : retail != null ? retail : "";
+    const missing = !free && agreed == null && standard == null && retail == null;
     priceNote.textContent = free
       ? "Free item"
-      : agreed != null ? "Agreed price for this buyer" : standard != null ? "Standard wholesale price" : "No wholesale price set for this product - type the price";
+      : agreed != null ? "Agreed price for this buyer" : standard != null ? "Standard wholesale price" : retail != null ? "No wholesale price set - using the retail price" : "No price set for this product - type the price";
     priceNote.classList.toggle("text-danger", missing);
     priceNote.classList.toggle("text-muted", !missing);
     updateFreeReasonVisibility();
@@ -689,7 +689,7 @@ function checkProcessOrder(account, { items, freeOfCost, freeReason, freeItems }
   }
   const invalid = items.some((it) => !it.productId || !it.qty || it.qty <= 0 || isNaN(it.unitPrice) || it.unitPrice < 0);
   if (invalid || items.length === 0) {
-    showFormAlert(processOrderAlert, "Every item needs a product, a quantity, and a unit price (type one where it says no wholesale price is set).");
+    showFormAlert(processOrderAlert, "Every item needs a product, a quantity, and a unit price (type one where it says no price is set).");
     return false;
   }
   return true;
