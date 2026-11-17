@@ -222,7 +222,9 @@ service cloud.firestore {
     }
     match /posSales/{saleId} {
       allow read, create: if isStaff();
+      // only the manager voids
       allow update: if isManager();
+      // exchanges only touch items
       allow update: if isOpsStaff() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(["items"]);
     }

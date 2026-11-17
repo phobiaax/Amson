@@ -130,6 +130,7 @@ if (enableBrowserAlertsBtn && typeof Notification !== "undefined" && Notificatio
   enableBrowserAlertsBtn.classList.remove("d-none");
   enableBrowserAlertsBtn.addEventListener("click", async () => {
     const result = await Notification.requestPermission();
+    // prompt closed, let them try again
     if (result === "default") return;
     enableBrowserAlertsBtn.classList.add("d-none");
     if (result === "granted") showAppAlert("Desktop alerts are on. New alerts will pop up when you open any staff page.", { title: "Desktop Alerts" });

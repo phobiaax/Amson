@@ -94,6 +94,7 @@ function ensureAdminNotifBell() {
   return document.getElementById("adminNotifBellBtn");
 }
 
+// red count on a menu link
 function setNavBadge(href, count) {
   const link = document.querySelector(`.admin-nav-link[href="${href}"]`);
   if (!link) return;
@@ -131,6 +132,7 @@ async function refreshAdminNotifBell(uid, notificationsOverride = null) {
     }
 
     setNavBadge("notifications.html", unread.length);
+    // stays until the chat is answered
     const waitingChats = notifications.find((n) => n.key === "chat_waiting");
     setNavBadge("live-chat.html", waitingChats ? waitingChats.signature.split(",").length : 0);
 

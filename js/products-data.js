@@ -1233,6 +1233,7 @@ function wholeQty(value) {
   return /^\d+$/.test(text) ? Number(text) : NaN;
 }
 
+// round to the centavo
 function roundPeso(amount) {
   return Math.round((amount || 0) * 100) / 100;
 }
@@ -1549,6 +1550,7 @@ async function voidPosSale(sale, { reason, lines, approvedBy, approverApp }, voi
   }
 }
 
+// saves as the manager when they approved it
 async function voidPosSaleAs(store, sale, { reason, lines, approvedBy }, voidedBy) {
   const saleRef = store.collection("posSales").doc(sale.id);
   const fallbackRefs = await findFallbackBatches(store, sale, lines);
