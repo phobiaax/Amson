@@ -60,7 +60,7 @@
 
 # Part 2. Demo guide
 
-**The story (about 24 minutes):** a customer signs up and logs in → a delivery of 50 products arrives (batch upload, photos, stock) → the customer orders → staff verify and dispatch → the counter sells, FEFO and expiry rules show → void, price change, audit log → reports.
+**The story (about 26 minutes):** a customer signs up, asks the chat assistant, and places an order → staff answer the chat, verify the payment and dispatch → a delivery of 50 new products arrives (batch upload, photos, stock) → the counter sells, FEFO and expiry rules show → void, price change, audit log → reports.
 
 **Two browsers:** Chrome = staff. Edge (or an Incognito window) = customer. Two tabs of one browser share one login.
 
@@ -84,8 +84,8 @@ Do these once, in order. Times are for the first run.
 
 **B. Prepare the laptop (about 20 minutes)**
 
-1. Copy the **42 product photos** listed in `photo-and-stock-notes.txt` from Drive → AMSON TEST KIT → 3 - Product images into a desktop folder **DEMO-LIVE-PHOTOS**.
-2. In that folder, rename two files so all 42 match automatically: `SYMDEX.jpg` → **`SYMDEX 325 MG TABLET.jpg`**, and `Acetyphil.webp` → **`ACETYLPHIL.webp`**.
+1. Copy the **50 product photos** (one per live product) from Drive → AMSON TEST KIT → 3 - Product images into a desktop folder **DEMO-LIVE-PHOTOS**. Leave out photos of products that aren't in `3-live-products-50.xlsx` (e.g. `lemzinc.webp`).
+2. In that folder, rename two files so all 50 match automatically: `SYMDEX.jpg` → **`SYMDEX 325 MG TABLET.jpg`**, and `Acetyphil.webp` → **`ACETYLPHIL.webp`**.
 3. Put on the desktop: `3-live-products-50.xlsx`, `4-live-stock.xlsx`, `payment-proof-TEST1001.png`, `payment-proof-TEST1002.png`, `prescription-SAMPLE.png`, `TOO-BIG-over-10MB.png`.
 4. In Notepad: the Lalamove link `https://share.lalamove.com/demo123`, and the **new customer's details** for Act 1 (name, an email inbox you can open on your phone, phone number, password).
 5. Log in once on this laptop with the Branch Manager, Technical Staff and Sales Staff accounts (Chrome), and with the backup customer (Edge). Each needs the emailed device code the first time only.
@@ -100,68 +100,89 @@ Do these once, in order. Times are for the first run.
 **D. Demo morning (5 minutes)**
 
 1. Products: **MED-0050** exists, **MED-0051** doesn't. Dashboard shows 0 orders and 0 sales.
-2. Chrome logged in as Branch Manager. Edge on the shop home page, **logged out**.
+2. Chrome on the staff login page (staff log in during Act 4). Edge on the shop home page, **logged out**.
 3. Phone hotspot ready. A recording of a full practice run saved offline.
 
 ## The script
+
+The customer goes first, using the 50 products already in the store. Staff only log in after the order is placed.
 
 ### Act 1. The customer signs up and logs in (Edge, 4 min)
 
 | Step | Do | Say | Proves |
 | --- | --- | --- | --- |
-| 1 | Open the shop home page, logged out. Scroll the banner and categories. | "This is the first thing customers see. Guests can browse and chat without an account." | Fig 2.3 p.68 |
-| 2 | Register. Type a `@mailinator.com` email → it's refused. Type password `abc123` → refused. Phone `12345` → refused. | "We stop throwaway emails, weak passwords and invalid PH numbers before anything is sent." | REQ001 p.46 |
+| 1 | Open the shop home page, logged out. Scroll the banner and the "Shop by Need" sections. | "This is the first thing customers see. Guests can browse and chat without an account." | Fig 2.3 p.68 |
+| 2 | Register. Type a `@mailinator.com` email → refused. Password `abc123` → refused. Phone `12345` → refused. | "We stop throwaway emails, weak passwords and invalid PH numbers before anything is sent." | REQ001 p.46 |
 | 3 | Fill in the real details from Notepad. Tick "I agree" → the Terms open → scroll to the bottom → Accept. Tick reCAPTCHA → Register. | "Customers must read the Terms, including the no-refund policy, before they can agree." | REQ003, REQ006 pp.46–47 |
 | 4 | Open the email on your phone → type the 6-digit code. | "The account only works after the email is confirmed." | REQ002 p.46 |
 | 5 | Log in with the new account. No second code is asked. | "Five wrong passwords lock the account for two minutes. A new device needs an emailed code; this one was confirmed at sign-up." | REQ004–005 p.47 |
 
 **If the code email takes more than 1 minute:** say "email can be slow on the free plan," then log in with the backup customer and carry on.
 
-### Act 2. A delivery of 50 products arrives (Chrome, Branch Manager, 5 min)
+### Act 2. The customer asks the chat assistant (Edge, 4 min)
+
+Open the chat (bottom right) and type each question.
+
+| Step | Type in the chat | What appears | Say | Proves |
+| --- | --- | --- | --- | --- |
+| 6 | `What are your store hours?` | Instant built-in answer with the hours and address. | "Common questions are answered instantly, without the AI." | REQ035–036 p.50 |
+| 7 | `How do I pay?` | QR Ph steps; no cash on delivery. | "It follows the branch's own policies: QR Ph only, payment first." | REQ036 p.50; Interview 3 p.178 |
+| 8 | `cough meds?` | A list of cough and cold products we carry, as product cards, plus "Ask our pharmacist". | "It lists what we carry for that symptom. It never picks a medicine or a dose." | p.35; REQNF012 p.63; panel revision #6 |
+| 9 | `ano ang gamot sa sakit ng tiyan?` | Stomach products, answered in Filipino. | "It answers in Filipino or English, whichever the customer uses." | REQ036 p.50 |
+| 10 | `how many paracetamol can I give my 3 year old?` | Only "please ask our pharmacist or a doctor"; no products, no dose. | "Doses, children and pregnancy always go to the pharmacist. That's a safety rule in the code." | p.35; REQNF012 p.63 |
+
+### Act 3. The customer orders (Edge, 5 min)
 
 | Step | Do | Say | Proves |
 | --- | --- | --- | --- |
-| 6 | Products → **Upload Batch File** → `3-live-products-50.xlsx` → point at the review table (name, price, Rx) → **Import 50 Products**. | "Staff add a whole delivery from the Excel price list. Duplicates and bad rows are caught before anything is saved." | REQ064, REQ068 p.54 |
-| 7 | Products → **Upload Photos** → select all 42 photos in DEMO-LIVE-PHOTOS → each is matched by name → **Save**. | "Photos are matched to products by their names; staff only confirm." | REQ068 p.54 |
-| 8 | Inventory → Receive Stock → **Upload Batch File** → `4-live-stock.xlsx` → **Confirm Import**. | "Each delivery is recorded per batch with the expiry from the box. FEFO and expiry alerts run on this." | REQ062–064 p.54 |
+| 11 | Tap a product card from the chat (or search `couxin`) → add **AMBROXOL 30 MG TABLET COUXIN 30** (₱60). Search `harvimide` → add **LOPERAMIDE 2MG HARVIMIDE** (₱100). Show a red **Rx** tag on any antibiotic in passing. | "Prescription items are marked everywhere and can only be picked up." | REQ009–013 pp.47–48; REQ023 p.49 |
+| 12 | Cart → change a quantity → Checkout → type the address → pick a delivery date → Proceed. | "The address is saved to the account for next time. The delivery fee goes to the Lalamove rider." | REQ014–020 p.48 |
+| 13 | Payment: upload `TOO-BIG-over-10MB.png` (refused) → upload `payment-proof-TEST1001.png`, reference **TEST1001** → Submit. | "QR Ph straight to the branch account, as the owner required. Staff check it first." | REQ028–030 pp.49–50; Interview 3 p.179 |
+| 14 | My Orders: "Order Pending Verification". Open the chat → `where is my order?` → a card of this order with its status. | "The assistant reads only this customer's own orders." | REQ031 p.50; REQ036 p.50 |
+| 15 | In the chat: `talk to staff`. | "Anything the assistant can't settle goes to a person. Staff are alerted." | REQ037–038 pp.50–51 |
 
-### Act 3. The customer orders (Edge, customer, 5 min)
-
-| Step | Do | Say | Proves |
-| --- | --- | --- | --- |
-| 9 | Refresh the shop → search "lagundi": it's there with its photo. | "The shop reads the same database, so the delivery is online at once." | REQNF005 p.63 |
-| 10 | Chat → "How do I pay?" → "ano ang gamot sa lagnat?" | "Instant answers. For medicine it lists what we carry and points to the pharmacist, never a dose." | REQ035–037 p.50; panel revision #6 |
-| 11 | Add **LAGUNDI 300 MG SYRUP OFPLEMED** (₱80) and **PARACETAMOL 500 MG TABLET NAHALGESIC** (₱100) → change a quantity → Checkout → type the address → pick a delivery date → Proceed. | "The address is saved to the account for next time. The delivery fee goes to the Lalamove rider." | REQ014–020 p.48 |
-| 12 | Payment: upload `TOO-BIG-over-10MB.png` (refused) → upload `payment-proof-TEST1001.png`, reference **TEST1001** → Submit. | "QR Ph straight to the branch account, as the owner required. Staff check it first." | REQ028–030 pp.49–50; Interview 3 p.179 |
-
-### Act 4. Staff verify and dispatch (Chrome, Technical Staff, 3 min)
+### Act 4. Staff answer, verify and dispatch (Chrome, Technical Staff, 5 min)
 
 | Step | Do | Say | Proves |
 | --- | --- | --- | --- |
-| 13 | Log in as Technical Staff → Dashboard shows the new order and bell, without refreshing → Online Orders → open it → **Approve Payment** → paste the Lalamove link, fee 80 → **Mark Dispatched**. | "Approval deducts stock, earliest expiry first, and gives the SI number in one step." | REQ076, REQ101–104 pp.55–59 |
-| 14 | Edge: My Orders → status Dispatched, tracking link → **Download Receipt**. | "The customer sees every status; the receipt has the SI number." | REQ031–034 p.50; REQ093 p.58 |
+| 16 | Log in as **Technical Staff** → the Dashboard already shows the new order and the bell has the chat and the order, without refreshing. | "Everything the customer did is already here." | REQ047–048 p.52; REQNF005 p.63 |
+| 17 | Live Chat → open the customer's chat → reply `Hi! Your order is being checked now.` → switch to Edge: the reply appears. Back in Chrome → **Resolve**. | "Staff see the whole conversation, including what the assistant said, and reply from here." | REQ108–110 p.60 |
+| 18 | Online Orders → Payment Verification → open the order → check the screenshot and reference → **Approve Payment** → paste the Lalamove link, fee 80 → **Mark Dispatched**. | "Approval deducts stock, earliest expiry first, and gives the SI number in one step." | REQ076, REQ101–104 pp.55–59 |
+| 19 | Edge: My Orders → status Dispatched, tracking link → **Download Receipt**. | "The customer sees every status; the receipt has the SI number." | REQ031–034 p.50; REQ093 p.58 |
 
-### Act 5. The counter, stock and controls (Chrome, 5 min)
-
-| Step | Do | Say | Proves |
-| --- | --- | --- | --- |
-| 15 | Log in as **Sales Staff** → the menu shows only POS, Products, Settings → POS: **ACETYLPHIL** ×5 + **GAUZE PAD 2 X 2 SURE-GUARD** → G-Cash with no reference (refused) → Cash → Complete. Then type `/admin/dashboard.html` → sent back. | "The counter only sees what it needs. Typing the address doesn't help; the page and the database both refuse." | REQ082, REQ121 pp.56–61; Interview 2 p.161 |
-| 16 | Log in as Technical Staff → Inventory → ACETYLPHIL → batch **2510011 (exp 10/2028)** went from 20 to 15; batch **251157 (exp 11/2028)** untouched. | "FEFO: the batch that expires first is sold first." | REQ065 p.54 |
-| 17 | Inventory → Near Expiry: **ACYDEN** and **IBUFEN** = Wholesale Only. Low Stock: **TRIFOCID**. | "Six months before expiry, stock leaves retail. At two months it's a Bad Order. That's the branch's own rule." | REQ066–067 p.54; Interview 1 p.148 |
-| 18 | Log in as Branch Manager → POS → Today's Sales → open the Sales Staff sale → **Void** the gauze pad → reason. | "Voids need the manager and a reason; the stock goes back to its batch." | REQ083 p.56; Interview 4 p.191 |
-| 19 | Products → LAGUNDI → change the retail price → reason → Save → Audit Log → search "Price" and "Void". | "Only the manager changes prices. Every change shows before, after, who, when and why, and nobody can edit it." | REQ071–073 p.55; REQ122–124 pp.61–62 |
-
-### Act 6. Reports (Chrome, Branch Manager, 2 min)
+### Act 5. A delivery of 50 products arrives (Chrome, Branch Manager, 5 min)
 
 | Step | Do | Say | Proves |
 | --- | --- | --- | --- |
-| 20 | Reports → Daily Sales (today) → preview → PDF → Excel. Then the Dashboard. | "Online and counter sales with batch and expiry, in the format the main office asked for. Everything we did today is in one database." | REQ111–115 pp.60–61; Interview 1 p.151 |
+| 20 | Log in as **Branch Manager** → Products → **Upload Batch File** → `3-live-products-50.xlsx` → point at the review table (name, price, Rx) → **Import 50 Products**. | "Staff add a whole delivery from the Excel price list. Duplicates and bad rows are caught before anything is saved." | REQ064, REQ068 p.54 |
+| 21 | Products → **Upload Photos** → select all 50 photos in DEMO-LIVE-PHOTOS → each is matched by name → **Save**. | "Photos are matched to products by their file names; staff confirm before saving." | REQ068 p.54 |
+| 22 | Inventory → Receive Stock → **Upload Batch File** → `4-live-stock.xlsx` → **Confirm Import**. | "Each delivery is recorded per batch with the expiry from the box. FEFO and expiry alerts run on this." | REQ062–064 p.54 |
+| 23 | Edge: refresh the shop → search `lagundi`: it's there with its photo. | "The shop reads the same database, so the delivery is online at once." | REQNF005 p.63 |
+
+**Note:** Technical Staff can't do Act 5. A product they import has no prices and stays Inactive until the Branch Manager prices it (REQ071 p.55).
+
+### Act 6. The counter, stock and controls (Chrome, 5 min)
+
+| Step | Do | Say | Proves |
+| --- | --- | --- | --- |
+| 24 | Log in as **Sales Staff** → the menu shows only POS, Products, Settings → POS: **ACETYLPHIL** ×5 + **GAUZE PAD 2 X 2 SURE-GUARD** → G-Cash with no reference (refused) → Cash → Complete. Then type `/admin/dashboard.html` → sent back. | "The counter only sees what it needs. Typing the address doesn't help; the page and the database both refuse." | REQ082, REQ121 pp.56–61; Interview 2 p.161 |
+| 25 | Log in as **Technical Staff** → Inventory → ACETYLPHIL → batch **2510011 (exp 10/2028)** went from 20 to 15; batch **251157 (exp 11/2028)** untouched. | "FEFO: the batch that expires first is sold first." | REQ065 p.54 |
+| 26 | Inventory → Near Expiry: **ACYDEN** and **IBUFEN** = Wholesale Only. Low Stock: **TRIFOCID**. | "Six months before expiry, stock leaves retail. At two months it's a Bad Order. That's the branch's own rule." | REQ066–067 p.54; Interview 1 p.148 |
+| 27 | Log in as **Branch Manager** → POS → Today's Sales → open the Sales Staff sale → **Void** the gauze pad → reason. | "Voids need the manager and a reason; the stock goes back to its batch." | REQ083 p.56; Interview 4 p.191 |
+| 28 | Products → LAGUNDI → change the retail price → reason → Save → Audit Log → search "Price" and "Void". | "Only the manager changes prices. Every change shows before, after, who, when and why, and nobody can edit it." | REQ071–073 p.55; REQ122–124 pp.61–62 |
+
+### Act 7. Reports (Chrome, Branch Manager, 2 min)
+
+| Step | Do | Say | Proves |
+| --- | --- | --- | --- |
+| 29 | Reports → Daily Sales (today) → preview → PDF → Excel. Then the Dashboard. | "Online and counter sales with batch and expiry, in the format the main office asked for. Everything we did today is in one database." | REQ111–115 pp.60–61; Interview 1 p.151 |
 
 **Only if the panel asks (2 minutes each):**
 
 - **Rx pre-order:** add AMOXICILLIN 500 MG BETAMOX → the address section disappears → upload `prescription-SAMPLE.png` + `payment-proof-TEST1002.png` → staff approve → Ready for Pick-up (REQ021–027, panel revision #7).
 - **Purchase order discrepancy:** Inventory → Purchase Orders → create for 2 items → receive one short (REQ053–058 p.53).
 - **Supplier report:** Reports → Supplier Purchases (this month) shows today's delivery (REQ112 p.60).
+- **Chat after the delivery:** ask `cough meds?` again; the new cough products now appear too.
 
 ## If something goes wrong
 
@@ -174,6 +195,8 @@ Do these once, in order. Times are for the first run.
 | Product shows Out of Stock | Pick another product (19 delivery items have no batch in the price list) | "It hasn't been received yet." |
 | "Check before approving" | Approve anyway | "A safety check: a price changed after the order." |
 | AI chat doesn't answer | Use the quick-question buttons → Talk to staff | "Common questions don't need the AI." |
+| `cough meds?` shows no products | Carry on to `how many paracetamol…` | "It only lists products we have in stock online; otherwise it sends the customer to the pharmacist." |
+| Staff reply doesn't appear in Edge | Wait 3 seconds; close and reopen the chat | "Messages are delivered live." |
 | No internet | Phone hotspot. Still down: play the recording | "It's a cloud system; offline support is in our recommendations (p.120)." |
 | Wrong person logged in | You used two tabs of one browser: switch browser | — |
 
