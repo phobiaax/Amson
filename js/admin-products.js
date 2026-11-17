@@ -1034,29 +1034,6 @@ async function deleteCategory(id) {
   }
 }
 
-document.getElementById("addBranchCategoriesBtn").addEventListener("click", async () => {
-  categoriesAlert.classList.add("d-none");
-  const existingNames = new Set(Object.values(CATEGORY_LABELS).map((n) => n.toLowerCase()));
-  const missing = Object.entries(DEFAULT_CATEGORIES).filter(([id, name]) => !CATEGORY_LABELS[id] && !existingNames.has(name.toLowerCase()));
-  if (missing.length === 0) {
-    categoriesAlert.textContent = "The branch's categories are already added.";
-    categoriesAlert.classList.remove("d-none");
-    return;
-  }
-  try {
-    const writeBatch = db.batch();
-    missing.forEach(([id, name]) => writeBatch.set(db.collection("categories").doc(id), { name }));
-    await writeBatch.commit();
-    missing.forEach(([id, name]) => (CATEGORY_LABELS[id] = name));
-    catalogLoadPromise = null;
-    renderCategoriesList();
-    renderCategorySelect();
-  } catch (error) {
-    categoriesAlert.textContent = "Something went wrong adding the categories. Please try again.";
-    categoriesAlert.classList.remove("d-none");
-  }
-});
-
 // only the branch manager or admin adds a category, and never a second one with the same name
 async function addCategory() {
   const name = newCategoryNameInput.value.trim().replace(/\s+/g, " ");
