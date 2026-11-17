@@ -614,10 +614,12 @@ async function chatAiReply(history, question) {
       result = await model.generateContent({ contents });
     }
     let text = (result.response.text() || "").trim();
-    if (text.includes("[[HEALTH]]")) return { health: true };
-    if (text.includes("[[ORDERS]]")) return { orders: true };
-    const handoff = text.includes("[[STAFF]]");
-    text = text.replace(/\[\[STAFF\]\]/g, "").trim();
+    // the model sometimes drops a bracket ([HEALTH]), so any bracket count matches
+    const code = (name) => new RegExp(`\\[+\\s*${name}\\s*\\]+`, "gi");
+    if (code("HEALTH").test(text)) return { health: true };
+    if (code("ORDERS").test(text)) return { orders: true };
+    const handoff = code("STAFF").test(text);
+    text = text.replace(code("STAFF"), "").trim();
     if (!text) return handoff ? { text: "", handoff } : null;
     // cards for products the reply mentions
     return { text, handoff, products: chatProductsMentioned(text, listed) };
