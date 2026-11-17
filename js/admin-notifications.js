@@ -130,7 +130,10 @@ if (enableBrowserAlertsBtn && typeof Notification !== "undefined" && Notificatio
   enableBrowserAlertsBtn.classList.remove("d-none");
   enableBrowserAlertsBtn.addEventListener("click", async () => {
     const result = await Notification.requestPermission();
+    // closing the browser's prompt leaves it undecided, so the button stays to try again
+    if (result === "default") return;
     enableBrowserAlertsBtn.classList.add("d-none");
     if (result === "granted") showAppAlert("Desktop alerts are on. New alerts will pop up when you open any staff page.", { title: "Desktop Alerts" });
+    else showAppAlert("This browser blocked desktop alerts for this site. To allow them, click the icon left of the address bar, set Notifications to Allow, then reload the page.", { title: "Desktop Alerts" });
   });
 }
