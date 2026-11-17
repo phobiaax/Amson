@@ -40,7 +40,7 @@ const breadcrumbEl = document.getElementById("breadcrumbProductName");
             ${product.rxRequired ? `<p class="stock-badge out-of-stock mb-0"><i class="bi bi-file-medical"></i> Prescription Required</p>` : ""}
           </div>
 
-          <label class="form-label d-block">Quantity</label>
+          <label for="qtyInput" class="form-label d-block">Quantity</label>
           <div class="d-flex align-items-center gap-3 mb-4">
             <div class="qty-stepper">
               <button type="button" id="qtyMinus" aria-label="Decrease quantity">&minus;</button>

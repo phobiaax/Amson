@@ -489,16 +489,16 @@ function addProcessOrderItemRow() {
     <button type="button" class="repeater-remove-btn" aria-label="Remove item"><i class="bi bi-x-lg"></i></button>
     <div class="row g-3">
       <div class="col-md-5">
-        <label class="form-label">Product</label>
-        <select class="form-select order-product-select"></select>
+        <label for="orderProduct${processOrderItemCount}" class="form-label">Product</label>
+        <select id="orderProduct${processOrderItemCount}" class="form-select order-product-select"></select>
       </div>
       <div class="col-md-3">
-        <label class="form-label">Qty</label>
-        <input type="number" min="1" class="form-control order-qty-input" value="1">
+        <label for="orderQty${processOrderItemCount}" class="form-label">Qty</label>
+        <input type="number" min="1" id="orderQty${processOrderItemCount}" class="form-control order-qty-input" value="1">
       </div>
       <div class="col-md-4">
-        <label class="form-label">Unit Price (&#8369;)</label>
-        <input type="number" min="0" step="0.01" class="form-control order-price-input">
+        <label for="orderPrice${processOrderItemCount}" class="form-label">Unit Price (&#8369;)</label>
+        <input type="number" min="0" step="0.01" id="orderPrice${processOrderItemCount}" class="form-control order-price-input">
         <div class="form-check mt-1">
           <input class="form-check-input order-free-check" type="checkbox" id="orderFreeCheck${processOrderItemCount}">
           <label class="form-check-label" for="orderFreeCheck${processOrderItemCount}" style="font-size:0.85rem;">Free (&#8369;0)</label>
