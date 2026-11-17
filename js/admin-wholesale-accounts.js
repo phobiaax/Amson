@@ -472,10 +472,13 @@ async function deleteWholesaleAccount(id) {
 }
 
 // ---------- process wholesale order ----------
+// stock wholesale can sell, near expiry included
+let wholesaleStock = {};
+
 function populateOrderProductSelect(selectEl) {
   // only active products with a price
   selectEl.innerHTML = productsByName(CATALOG_PRODUCTS.filter((p) => p.status === "active" && !p.pricePending))
-    .map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
+    .map((p) => `<option value="${p.id}">${escapeHtml(`${p.name} (${wholesaleStock[p.id] || 0} in stock)`)}</option>`)
     .join("");
   selectEl._choices = makeSearchableSelect(selectEl);
 }
@@ -577,7 +580,7 @@ function recalcProcessOrderTotal() {
   processOrderTotal.textContent = formatPeso(total);
 }
 
-function openProcessOrderModal(account) {
+async function openProcessOrderModal(account) {
   if (!account) return;
   processingAccountId = account.id;
   processOrderAlert.classList.add("d-none");
@@ -606,6 +609,16 @@ function openProcessOrderModal(account) {
   ].filter(Boolean);
   if (expiredDocs.length) {
     showFormAlert(processOrderAlert, `This buyer's ${expiredDocs.join(" and ")} has expired. Ask for an updated copy before selling - the order can't be recorded until it's updated.`);
+  }
+
+  wholesaleStock = {};
+  try {
+    (await liveStockBatches()).docs.forEach((doc) => {
+      const b = doc.data();
+      if (isWholesaleSellableBatch(b)) wholesaleStock[b.productId] = (wholesaleStock[b.productId] || 0) + (b.quantity || 0);
+    });
+  } catch (error) {
+    console.warn("Stock counts unavailable:", error);
   }
 
   destroyChoicesIn(processOrderItemsContainer);
