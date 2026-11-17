@@ -94,6 +94,20 @@ function ensureAdminNotifBell() {
   return document.getElementById("adminNotifBellBtn");
 }
 
+// count bubble on a side menu link, hidden at 0
+function setNavBadge(href, count) {
+  const link = document.querySelector(`.admin-nav-link[href="${href}"]`);
+  if (!link) return;
+  let badge = link.querySelector(".badge-count");
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.className = "badge-count";
+    link.appendChild(badge);
+  }
+  badge.textContent = count > 9 ? "9+" : String(count);
+  badge.classList.toggle("d-none", count === 0);
+}
+
 // live listeners pass a fresh list here
 async function refreshAdminNotifBell(uid, notificationsOverride = null) {
   if (typeof computeStaffNotifications !== "function") return;
@@ -117,21 +131,10 @@ async function refreshAdminNotifBell(uid, notificationsOverride = null) {
       }
     }
 
-    const sidebarLink = document.querySelector('.admin-nav-link[href="notifications.html"]');
-    if (sidebarLink) {
-      let sidebarBadge = sidebarLink.querySelector(".badge-count");
-      if (!sidebarBadge) {
-        sidebarBadge = document.createElement("span");
-        sidebarBadge.className = "badge-count";
-        sidebarLink.appendChild(sidebarBadge);
-      }
-      if (unread.length > 0) {
-        sidebarBadge.textContent = unread.length > 9 ? "9+" : String(unread.length);
-        sidebarBadge.classList.remove("d-none");
-      } else {
-        sidebarBadge.classList.add("d-none");
-      }
-    }
+    setNavBadge("notifications.html", unread.length);
+    // chats waiting for staff, shown whether or not the alert was read
+    const waitingChats = notifications.find((n) => n.key === "chat_waiting");
+    setNavBadge("live-chat.html", waitingChats ? waitingChats.signature.split(",").length : 0);
 
     const list = document.getElementById("adminNotifDropdownList");
     if (list) {
