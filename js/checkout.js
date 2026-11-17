@@ -21,9 +21,9 @@ const provinceInput = document.getElementById("province");
 const zipCodeInput = document.getElementById("zipCode");
 
 const TIME_SLOT_LABELS = {
-  morning: "Morning (8AM-12PM)",
-  afternoon: "Afternoon (12PM-4PM)",
-  evening: "Evening (4PM-8PM)",
+  morning: "Morning (9AM-12PM)",
+  afternoon: "Early Afternoon (12PM-3PM)",
+  evening: "Late Afternoon (3PM-6PM)",
 };
 
 let deliverySchedule = null;

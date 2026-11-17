@@ -391,7 +391,7 @@ function chatOrderSteps(o, status) {
   return { pickup, steps, current: at };
 }
 
-const CHAT_SLOT_LABELS = { morning: "morning (8AM-12PM)", afternoon: "afternoon (12PM-4PM)", evening: "evening (4PM-8PM)" };
+const CHAT_SLOT_LABELS = { morning: "morning (9AM-12PM)", afternoon: "early afternoon (12PM-3PM)", evening: "late afternoon (3PM-6PM)" };
 
 function chatDeliverySchedule(schedule) {
   if (!schedule || schedule.asap || !schedule.date) return "same day";

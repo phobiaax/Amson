@@ -79,9 +79,9 @@ function orderItemRowsHtml(items) {
 }
 
 const DELIVERY_SLOT_LABELS = {
-  morning: "Morning (8AM-12PM)",
-  afternoon: "Afternoon (12PM-4PM)",
-  evening: "Evening (4PM-8PM)",
+  morning: "Morning (9AM-12PM)",
+  afternoon: "Early Afternoon (12PM-3PM)",
+  evening: "Late Afternoon (3PM-6PM)",
 };
 
 function formatDeliverySchedule(schedule) {
