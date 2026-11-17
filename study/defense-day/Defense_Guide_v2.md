@@ -125,7 +125,7 @@ Open the chat (bottom right) and type each question.
 
 | Step | Type in the chat | What appears | Say | Proves |
 | --- | --- | --- | --- | --- |
-| 6 | `What are your store hours?` | Instant built-in answer with the hours and address. | "Common questions are answered instantly, without the AI." | REQ035–036 p.50 |
+| 6 | `What are your store hours?` | Instant built-in answer with the store hours and hotline. | "Common questions are answered instantly, without the AI." | REQ035–036 p.50 |
 | 7 | `How do I pay?` | QR Ph steps; no cash on delivery. | "It follows the branch's own policies: QR Ph only, payment first." | REQ036 p.50; Interview 3 p.178 |
 | 8 | `cough meds?` | A list of cough and cold products we carry, as product cards, plus "Ask our pharmacist". | "It lists what we carry for that symptom. It never picks a medicine or a dose." | p.35; REQNF012 p.63; panel revision #6 |
 | 9 | `ano ang gamot sa sakit ng tiyan?` | Stomach products, answered in Filipino. | "It answers in Filipino or English, whichever the customer uses." | REQ036 p.50 |
