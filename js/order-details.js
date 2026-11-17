@@ -257,6 +257,10 @@ function renderOrder(order) {
     ["dispatched", "delivered", "received"].includes(order.status);
   trackingCard.classList.toggle("d-none", !showTracking);
   if (showTracking) document.getElementById("detailTrackingLink").href = order.trackingLink;
+  const feeText = document.getElementById("detailDeliveryFee");
+  const hasFee = showTracking && typeof order.lalamoveFee === "number";
+  feeText.classList.toggle("d-none", !hasFee);
+  if (hasFee) feeText.textContent = `Delivery fee: ${formatPeso(order.lalamoveFee)}`;
 
   if (order.shipping) {
     document.getElementById("detailAddress").textContent =
