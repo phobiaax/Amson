@@ -70,7 +70,7 @@
 
 Do these once, in order. Times are for the first run.
 
-**Where the files are:** Google Drive → **Defense demo files** (the 4 Excel files and `photo-and-stock-notes.txt`), and Drive → **AMSON TEST KIT** (photos and test images). The same Excel files are in the repo under `study/defense-day/demo-files/`.
+**Where the files are:** Google Drive → **Defense demo files** (the 5 Excel files and `photo-and-stock-notes.txt`), and Drive → **AMSON TEST KIT** (photos and test images). The same Excel files are in the repo under `study/defense-day/demo-files/`.
 
 **A. Load the store (Branch Manager, Chrome, about 15 minutes)**
 
@@ -203,7 +203,7 @@ One customer (Edge) and one staff login (Chrome, **Branch Manager** for every st
 **Only if the panel asks (2 minutes each):**
 
 - **Price change:** Products → LAGUNDI → change retail price → reason → Audit Log (REQ071–073 p.55).
-- **Purchase order discrepancy:** Inventory → Purchase Orders → create for 2 items → receive one short (REQ053–058 p.53).
+- **Purchase order batch upload:** Inventory → Purchase Orders → Create → **Upload** `5-purchase-order.xlsx` (COUXIN 20, HARVIMIDE 20, ACYDEN 10; Supplier Sample) → Save. Then receive it with one item short → discrepancy report. Note: the PO file has its own columns (`sku, expectedQty, supplierName, expectedDeliveryDate`); it is **not** the stock file. The stock file needs batch and expiry because it records what actually arrived (REQ053–058 p.53).
 - **Chat after the delivery:** ask `cough meds?` again; the new cough products now appear.
 
 ## If something goes wrong
