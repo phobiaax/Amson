@@ -235,7 +235,7 @@ function renderPhotoRows() {
           <div class="photo-picker">
             <div class="current-thumb" title="${product && product.imageUrl ? "Current photo" : "No photo yet"}" style="${product ? photoThumbStyle(product.imageUrl, 80) : ""}"></div>
             <div class="picker-input-wrap">
-              <input type="text" class="form-control form-control-sm photo-row-product" autocomplete="off" placeholder="Search product name, brand or code" value="${product ? escapeHtml(product.name) : ""}" aria-label="Product for this photo">
+              <input type="text" class="form-control form-control-sm photo-row-product" autocomplete="off" placeholder="Search product name, brand or code" value="${product ? escapeHtml(product.name) : ""}" title="${product ? escapeHtml(product.name) : ""}" aria-label="Product for this photo">
               ${product ? `<button type="button" class="picker-clear" title="Clear" aria-label="Clear product"><i class="bi bi-x-lg"></i></button>` : ""}
             </div>
           </div>
@@ -374,7 +374,7 @@ function openProductPicker(input) {
           <button type="button" class="product-picker-item ${i === 0 ? "active" : ""}" role="option" data-index="${i}">
             <span class="thumb" style="${photoThumbStyle(p.imageUrl, 80)}"></span>
             <span class="min-w-0">
-              <span class="d-block text-truncate">${escapeHtml(p.name)}</span>
+              <span class="d-block picker-name">${escapeHtml(p.name)}</span>
               <span class="meta">${escapeHtml(p.sku || "")}${p.imageUrl ? " · has a photo" : ""}${usedBy ? " · another photo is set to this" : ""}</span>
             </span>
           </button>`;
@@ -382,8 +382,10 @@ function openProductPicker(input) {
         .join("")
     : `<div class="product-picker-empty">No product matches "${escapeHtml(input.value)}".</div>`;
   const box = input.getBoundingClientRect();
-  pickerMenu.style.left = `${box.left}px`;
-  pickerMenu.style.width = `${Math.max(box.width, 320)}px`;
+  // wide enough for long names, but never past the screen edge
+  const width = Math.min(Math.max(box.width, 460), window.innerWidth - 16);
+  pickerMenu.style.width = `${width}px`;
+  pickerMenu.style.left = `${Math.max(8, Math.min(box.left, window.innerWidth - width - 8))}px`;
   const below = window.innerHeight - box.bottom;
   if (below < 240 && box.top > below) {
     pickerMenu.style.top = "";
