@@ -217,20 +217,21 @@ function chatProductsMentioned(replyText, products, limit = 3) {
 // ---- what we carry for this ----
 // never picks a medicine for anyone, just shows matching products
 const CHAT_SYMPTOMS = [
-  { name: "fever", fil: "lagnat", say: ["fever", "lagnat", "nilalagnat", "sinat", "temperature"], label: ["fever", "pyrexia", "antipyretic"] },
-  { name: "headache", fil: "sakit ng ulo", say: ["headache", "sakit ng ulo", "masakit ang ulo", "migraine"], label: ["headache", "migraine"] },
-  { name: "body pain", fil: "pananakit ng katawan", say: ["body pain", "muscle pain", "sakit ng katawan", "pananakit ng katawan", "joint pain", "sprain", "ngalay"], label: ["body pain", "muscle pain", "muscular", "joint pain", "sprain", "aches"] },
-  { name: "toothache", fil: "sakit ng ngipin", say: ["toothache", "sakit ng ngipin", "masakit ang ngipin"], label: ["toothache", "dental pain"] },
-  { name: "cough", fil: "ubo", say: ["cough", "ubo", "inuubo", "plema", "phlegm"], label: ["cough", "phlegm", "mucus", "expectorant"] },
-  { name: "colds", fil: "sipon", say: ["colds", "cold", "sipon", "sinisipon", "runny nose", "stuffy nose", "barado ang ilong", "clogged nose"], label: ["colds", "common cold", "nasal congestion", "runny nose", "decongestant"] },
-  { name: "flu", fil: "trangkaso", say: ["flu", "trangkaso"], label: ["flu", "influenza"] },
-  { name: "allergy", fil: "allergy o pangangati", say: ["allergy", "allergies", "allergic", "makati", "kati", "itchy", "rashes", "pantal", "hives"], label: ["allergy", "allergies", "allergic", "itch", "rashes", "hives", "antihistamine"] },
-  { name: "diarrhea", fil: "pagtatae", say: ["diarrhea", "diarrhoea", "lbm", "pagtatae", "nagtatae", "loose bowel"], label: ["diarrhea", "diarrhoea", "loose bowel"] },
-  { name: "acidity", fil: "hyperacidity o heartburn", say: ["hyperacidity", "acidity", "heartburn", "kabag", "bloating", "masakit ang sikmura", "sikmura"], label: ["hyperacidity", "acidity", "heartburn", "antacid", "bloating", "flatulence"] },
-  { name: "menstrual pain", fil: "sakit ng puson tuwing may regla", say: ["dysmenorrhea", "menstrual cramps", "period pain", "regla", "puson"], label: ["dysmenorrhea", "menstrual"] },
-  { name: "sore throat", fil: "masakit na lalamunan", say: ["sore throat", "masakit ang lalamunan", "lalamunan"], label: ["sore throat", "throat"] },
+  { name: "fever", fil: "lagnat", say: ["fever", "lagnat", "nilalagnat", "sinat", "temperature"], label: ["fever", "pyrexia", "antipyretic"], section: "pain-fever" },
+  { name: "headache", fil: "sakit ng ulo", say: ["headache", "sakit ng ulo", "masakit ang ulo", "migraine"], label: ["headache", "migraine"], section: "pain-fever" },
+  { name: "body pain", fil: "pananakit ng katawan", say: ["body pain", "muscle pain", "sakit ng katawan", "pananakit ng katawan", "joint pain", "sprain", "ngalay"], label: ["body pain", "muscle pain", "muscular", "joint pain", "sprain", "aches"], section: "pain-fever" },
+  { name: "toothache", fil: "sakit ng ngipin", say: ["toothache", "sakit ng ngipin", "masakit ang ngipin"], label: ["toothache", "dental pain"], section: "pain-fever" },
+  { name: "cough", fil: "ubo", say: ["cough", "ubo", "inuubo", "plema", "phlegm"], label: ["cough", "phlegm", "mucus", "expectorant"], section: "cough-colds" },
+  { name: "colds", fil: "sipon", say: ["colds", "cold", "sipon", "sinisipon", "runny nose", "stuffy nose", "barado ang ilong", "clogged nose"], label: ["colds", "common cold", "nasal congestion", "runny nose", "decongestant"], section: "cough-colds" },
+  { name: "flu", fil: "trangkaso", say: ["flu", "trangkaso"], label: ["flu", "influenza"], section: "cough-colds" },
+  { name: "allergy", fil: "allergy o pangangati", say: ["allergy", "allergies", "allergic", "makati", "kati", "itchy", "rashes", "pantal", "hives"], label: ["allergy", "allergies", "allergic", "itch", "rashes", "hives", "antihistamine"], section: "cough-colds" },
+  { name: "diarrhea", fil: "pagtatae", say: ["diarrhea", "diarrhoea", "lbm", "pagtatae", "nagtatae", "loose bowel"], label: ["diarrhea", "diarrhoea", "loose bowel"], section: "stomach" },
+  { name: "acidity", fil: "hyperacidity o heartburn", say: ["hyperacidity", "acidity", "heartburn", "kabag", "bloating", "masakit ang sikmura", "sikmura"], label: ["hyperacidity", "acidity", "heartburn", "antacid", "bloating", "flatulence"], section: "stomach" },
+  { name: "menstrual pain", fil: "sakit ng puson tuwing may regla", say: ["dysmenorrhea", "menstrual cramps", "period pain", "regla", "puson"], label: ["dysmenorrhea", "menstrual"], section: "pain-fever" },
+  { name: "sore throat", fil: "masakit na lalamunan", say: ["sore throat", "masakit ang lalamunan", "lalamunan"], label: ["sore throat", "throat"], section: "cough-colds" },
   { name: "motion sickness", fil: "hilo sa biyahe", say: ["motion sickness", "travel sickness", "hilo sa biyahe", "nahihilo sa sasakyan"], label: ["motion sickness", "travel sickness"] },
-  { name: "constipation", fil: "tibi", say: ["constipation", "constipated", "tibi", "hindi makadumi"], label: ["constipation", "laxative"] },
+  { name: "stomach problems", fil: "sakit ng tiyan", say: ["stomach", "tummy", "stomachache", "stomach ache", "tiyan", "sakit ng tiyan"], label: [], section: "stomach" },
+  { name: "constipation", fil: "tibi", say: ["constipation", "constipated", "tibi", "hindi makadumi"], label: ["constipation", "laxative"], section: "stomach" },
 ];
 
 // doses, kids, pregnancy and conditions always go to the pharmacist
@@ -254,6 +255,15 @@ function chatHasHealthCaution(text) {
 
 function chatOtcProducts() {
   return CATALOG_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false && !p.rxRequired);
+}
+
+// otc products in these shop sections, for when no label names the symptom
+function chatProductsInSections(sections, limit = 4) {
+  const wanted = new Set(sections.filter(Boolean));
+  return chatOtcProducts()
+    .filter((p) => wanted.has(p.shopSection))
+    .sort((a, b) => (b.inStock ? 1 : 0) - (a.inStock ? 1 : 0) || a.name.localeCompare(b.name))
+    .slice(0, limit);
 }
 
 // otc products whose label has these words
@@ -1063,7 +1073,9 @@ function chatOrderCardHtml(card, myOrders) {
         return lang === "fil" ? CHAT_WORD_FIL[w] || w : w;
       });
     }
-    const products = labelWords.length ? chatProductsForLabelWords(labelWords) : [];
+    let products = labelWords.length ? chatProductsForLabelWords(labelWords) : [];
+    // products without label text are still found by their shop section
+    if (!products.length) products = chatProductsInSections(known.map((sx) => sx.section));
     if (!products.length) return reply("none");
     const healthText = CHAT_HEALTH_TEXT[lang];
     await addMessage(
