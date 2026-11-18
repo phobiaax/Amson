@@ -80,3 +80,22 @@ Code: `js/admin-wholesale-accounts.js:699` (saveWholesaleOrder).
 | 2.5 Inventory (p.71) | Technical Staff, Branch Manager | Receive, PO, write-off, count ("Stock Reconciliation" = Stock Count) |
 | 2.6 Order processing (p.73) | Sales, Technical, Branch Manager | POS, online orders, wholesale |
 | 2.7 Admin controls (p.74) | Technical Staff, Branch Manager | Staff, prices (manager), reports, audit log. **Best figure to show roles.** |
+
+---
+
+## Nov 18 recheck of all 14 use-case and activity drawings (new findings only)
+
+| Fig | Difference in the drawing | Say |
+| --- | --- | --- |
+| 2.2 (p.67) | Sales Staff linked to Manage Live Chat; Technical Staff not. Fig 2.7 (p.74) has it right | "Line on the wrong actor; 2.7 and the system give chat to Technical Staff" |
+| 2.6 (p.73) | Generate Reports and Process Wholesale linked only to Branch Manager; system lets Technical Staff do both | "Technical Staff is the encoder who makes the reports (p.143)" |
+| 2.6 | Void linked to Technical Staff with no approval step | "Technical Staff start it, the Branch Manager approves (p.191)" |
+| 2.8 (p.76) | No reCAPTCHA; a wrong OTP goes to the password counter | "reCAPTCHA is on login (REQ003); codes have their own limit" |
+| 2.9 (p.77) | No reCAPTCHA step; duplicate check drawn before the Terms | "reCAPTCHA is on the form; order of checks differs" |
+| 2.12 (p.83) | Under 2 months: "Apply FEFO-Based Stock Deduction" | "It's written off as Bad Order and can't be sold" |
+| 2.12 | Mismatch branch repeats "Verify quantities" instead of "PO marked Discrepancy + report" | "Discrepancy report, staff acknowledge (REQ055-058)" |
+| 2.12 | Receiving always links a PO | "Receiving works with or without a PO" |
+| 2.12 | 6 months: admin picks Write Off or Free-of-Cost | "Automatic Wholesale Only; free-of-cost is chosen on the wholesale order" |
+| 2.13 (p.85) | No "Mark Released" step; free-of-cost only for near-expiry | "Release step added; any free item needs a reason" |
+| 2.14 (p.87) | No payment method / reference number step | "Non-cash needs a reference number (client, p.207)" |
+| 2.3, 2.4, 2.5, 2.7 | Match the system | — |
