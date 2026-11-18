@@ -220,9 +220,8 @@ function openViewModal(customer) {
   statusEl.className = `badge rounded-pill ${status === "active" ? "text-bg-success" : "text-bg-secondary"}`;
 
   toggleCustomerStatusBtn.textContent = status === "active" ? "Deactivate Account" : "Reactivate Account";
-  toggleCustomerStatusBtn.className = status === "active" ? "btn btn-outline-dark-amson flex-fill" : "btn btn-amson flex-fill";
-  toggleCustomerStatusBtn.style.borderColor = status === "active" ? "var(--amson-red)" : "";
-  toggleCustomerStatusBtn.style.color = status === "active" ? "var(--amson-red)" : "";
+  toggleCustomerStatusBtn.className = status === "active" ? "btn btn-outline-amson flex-fill" : "btn btn-amson flex-fill";
+  toggleCustomerStatusBtn.style.borderWidth = status === "active" ? "1px" : "";
 
   bootstrap.Modal.getOrCreateInstance(viewCustomerModalEl).show();
 }
