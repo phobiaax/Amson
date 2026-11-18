@@ -113,6 +113,13 @@ a {
   color: #fff;
 }
 
+/* clicking keeps the hover look, bootstrap made it see-through with black text */
+.btn-amson, .search-btn { --bs-btn-active-bg: var(--amson-red-dark); --bs-btn-active-border-color: var(--amson-red-dark); --bs-btn-active-color: #fff; }
+.btn-outline-amson { --bs-btn-active-bg: var(--amson-red); --bs-btn-active-border-color: var(--amson-red); --bs-btn-active-color: #fff; }
+.btn-outline-dark-amson, .order-filter-btn { --bs-btn-active-bg: var(--amson-dark); --bs-btn-active-border-color: var(--amson-dark); --bs-btn-active-color: #fff; }
+.btn-approve-payment { --bs-btn-active-bg: #15803c; --bs-btn-active-border-color: #15803c; --bs-btn-active-color: #fff; }
+.btn-hero { --bs-btn-active-bg: #f3f3f3; --bs-btn-active-border-color: transparent; --bs-btn-active-color: var(--amson-red-dark); }
+
 .cart-icon {
   font-size: 1.3rem;
   color: var(--amson-dark);
