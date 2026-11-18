@@ -47,7 +47,7 @@ How to use it: say the decision, then "the client said this in our Nth interview
 | | *"Hindi kami allowed na bumalik ng cash bumalik ng cheque, bumalik ng online."* | **p.170** | Wholesale exchange p.44, p.90 |
 | | Wrong item delivered: *"exchange item no refund"* | p.182 | |
 | | Once paid, no cancel: *"Edi wag muna silang mag bayad."* *"Kahit anong mode of payment hindi kami pwedeng mag labas ng pera."* | **pp.183–184** | Limitation p.8 (no customer cancellation or refund) |
-| | Overpayment goes to the customer's account as credit: *"Oo, walang refund."* | p.188 | REQ098–099 p.59; store credit p.82 |
+| | Overpayment goes to the customer's account as credit: *"Oo, walang refund."* | p.188 | REQ098 p.58; REQ099 p.59; store credit p.82 |
 | | Exchange for something cheaper isn't allowed: *"Mapipilitan silang mag order ng vitamins… wala kaming refund sa pera."* | **p.217** | |
 | **No prescription medicine delivered online** | *"Bawal ang RX sa online mga over the counter lang"* | **p.159** | Rx is **pick-up only**: p.3, p.5, p.7; REQ023 p.49; REQ080 p.56 |
 | | Rx flow shown to the branch: no address, bring the original prescription and ID | p.205 | |
