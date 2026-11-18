@@ -25,12 +25,7 @@ const ADMIN_PAGE_ACCESS = {
   "reports.html": ["admin", "branch_manager", "technical_staff"],
   "settings.html": ["admin", "branch_manager", "technical_staff", "sales_staff"],
   "staff-management.html": ["admin", "branch_manager"],
-  // temporary, only for go-live
-  "clear-test-data.html": ["admin", "branch_manager"],
 };
-
-// same date as the temp block in firestore.rules, change both
-const CLEAR_TEST_DATA_UNTIL = new Date(Date.UTC(2026, 11, 1));
 
 // where each role lands after login
 function homePageForRole(role) {

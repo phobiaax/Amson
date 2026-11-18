@@ -326,33 +326,6 @@ service cloud.firestore {
         request.resource.data.count == resource.data.count + 1;
     }
 
-    // ---- temporary: clearing test data before go-live ----
-    // branch manager can delete what clear-test-data.html clears, turns off on the date below, remove after go-live
-    function canClearTestData() {
-      return isStaff() && myRole() in ["admin", "branch_manager"] &&
-        request.time < timestamp.date(2026, 12, 1);
-    }
-    match /{collectionId}/{docId} {
-      allow delete: if canClearTestData() && collectionId in [
-        "orders", "prescriptionOrders", "posSales", "wholesaleOrders", "wholesaleExchanges",
-        "customerNotifications", "stockBatches", "purchaseOrders", "reconciliations", "writeOffs",
-        "chatThreads", "notifications", "auditLog", "loginAttempts",
-        "products", "categories", "suppliers", "wholesaleAccounts", "productPrices", "batchCosts"];
-    }
-    match /chatThreads/{threadId}/messages/{messageId} {
-      allow delete: if canClearTestData();
-    }
-    match /users/{uid} {
-      allow delete: if canClearTestData() && uid != myUid() &&
-        !(resource.data.get("role", "") in ["admin", "branch_manager"]);
-    }
-    match /counters/{counterId} {
-      // the go-live start number for invoices
-      allow create, update: if canClearTestData() && counterId == "salesInvoices";
-      allow delete: if canClearTestData() &&
-        (counterId.matches("(orders|purchaseOrders|reconciliations)-[0-9]{4}") || counterId in ["wholesaleExchanges", "products"]);
-    }
-
     // ---- login lockout tracking ----
     // used before sign-in, only staff can list since doc names are emails
     function loginLockValid() {

@@ -17,10 +17,6 @@ document.addEventListener("admin:ready", (e) => {
   settingsLastNameInput.value = admin.lastName || "";
   settingsContactNumberInput.value = admin.contactNumber || "";
   settingsEmailInput.value = admin.email || "";
-  // temporary clear test data link
-  if (["admin", "branch_manager"].includes(admin.role) && new Date() < CLEAR_TEST_DATA_UNTIL) {
-    document.getElementById("clearTestDataCard").classList.remove("d-none");
-  }
 });
 
 saveProfileBtn.addEventListener("click", async () => {
