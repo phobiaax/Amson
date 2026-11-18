@@ -1,13 +1,14 @@
 // reports page, uses the branchs own report formats
 
+// desc shows under the report picker
 const REPORT_TYPES = {
-  daily_sales: { label: "Daily Sales Report", range: "dates" },
-  customer_file: { label: "Customer File (sales per customer)", range: "dates" },
-  monthly_inventory: { label: "Monthly Inventory (per category)", range: "month" },
-  supplier_purchases: { label: "Supplier Purchases", range: "month" },
-  pull_out: { label: "Pull-Out Report (write-offs)", range: "dates" },
-  returns_exchanges: { label: "Return / Exchange Report (wholesale)", range: "dates" },
-  po_discrepancy: { label: "Purchase Order Discrepancy Report", range: "dates" },
+  daily_sales: { label: "Daily Sales Report", range: "dates", desc: "All sales from the counter, online orders and wholesale for the chosen dates: totals per day in the main office format, totals per payment method, each item sold, and each item by batch with its expiry, date received and supplier. For the daily report to the main office." },
+  customer_file: { label: "Customer File (sales per customer)", range: "dates", desc: "Every sale grouped by customer name (unnamed counter sales go under WALK-IN), with the SI number, batch, expiry, quantity, price and payment terms, plus a total per customer. Shows what each buyer purchased and when." },
+  monthly_inventory: { label: "Monthly Inventory (per category)", range: "month", desc: "Month-end stock, one sheet per category, one line per batch: system (POS) stock, physical count, costing, retail and wholesale prices, batch, expiry and supplier. The Physical column comes from that month's finalized stock count. Includes a sheet of batches expiring that month." },
+  supplier_purchases: { label: "Supplier Purchases", range: "month", desc: "Every delivery received in the month: supplier, date received, receipt or DR number, product, brand, batch, expiry, quantity, unit price and amount, with a grand total. For the monthly purchases report." },
+  pull_out: { label: "Pull-Out Report (write-offs)", range: "dates", desc: "Stock taken out of inventory in the chosen dates (expired, Bad Order, damaged or lost): product, batch, expiry, quantity, unit cost and reason, with the total quantity and cost." },
+  returns_exchanges: { label: "Return / Exchange Report (wholesale)", range: "dates", desc: "Items wholesale buyers returned and what they got instead: item, batch, expiry, buyer, SI number, purchase and return dates, quantity and amount, the replacement, any price difference paid, and the reason. No cash is refunded." },
+  po_discrepancy: { label: "Purchase Order Discrepancy Report", range: "dates", desc: "Purchase orders received in the chosen dates where the delivered quantity didn't match what was ordered: PO number, supplier, receipt or DR, product, expected and received quantities, the difference, and whether it is still open." },
 };
 
 const REPORT_PAYMENT_LABELS = {
@@ -904,6 +905,7 @@ function setupReportControls() {
 
 function syncReportControls() {
   const range = REPORT_TYPES[reportTypeSelect.value].range;
+  document.getElementById("reportTypeDesc").textContent = REPORT_TYPES[reportTypeSelect.value].desc || "";
   reportDatesGroup.classList.toggle("d-none", range !== "dates");
   reportMonthGroup.classList.toggle("d-none", range !== "month");
   currentReport = null;
