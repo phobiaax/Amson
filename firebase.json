@@ -21,7 +21,8 @@
         "firestore.rules",
         "netlify.toml",
         "_headers",
-        "*.bat"
+        "*.bat",
+        "maintenance/**"
       ],
       "headers": [
         {
@@ -65,7 +66,8 @@
         "firestore.rules",
         "netlify.toml",
         "_headers",
-        "*.bat"
+        "*.bat",
+        "maintenance/**"
       ],
       "headers": [
         {
