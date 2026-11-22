@@ -329,8 +329,13 @@ async function computeInventoryAlertCounts(batchesOverride = null) {
   let nearExpiry = 0;
   let expired = 0;
   batches.forEach((b) => {
-    if (b.quantity === 0) return; // empty lots dont count for expiry
     const status = getExpiryStatus(b);
+    // expired stock is auto written off as bad order (qty 0), still count it as expired
+    if (b.status === "bad_order") {
+      if (status === "expired" && (b.badOrderQty || 0) > 0) expired += 1;
+      return;
+    }
+    if (b.quantity === 0) return; // empty lots dont count for expiry
     if (status === "near_expiry") nearExpiry += 1;
     if (status === "expired") expired += 1;
   });
