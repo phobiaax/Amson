@@ -10,6 +10,8 @@ const AI_RETRY_WAIT_MS = 5000;
 const FAQ_MAX_WORDS = 14;
 // preview length in the staff chat list
 const CHAT_PREVIEW_LENGTH = 120;
+// products listed per section in one chat message
+const CHAT_LIST_MAX = 15;
 
 // ai replies with a dose or schedule never get shown
 const CHAT_DOSAGE_PATTERNS = [
@@ -257,6 +259,53 @@ function chatOtcProducts() {
   return CATALOG_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false && !p.rxRequired);
 }
 
+// ---- cart and product list answers, no ai call ----
+function chatCartItems() {
+  if (typeof getCart !== "function") return []; // staff pages have no cart
+  return getCart()
+    .map((item) => ({ qty: item.qty || 0, p: getProductById(item.id) }))
+    .filter((item) => item.p && item.qty > 0);
+}
+
+function chatCartSummary() {
+  const items = chatCartItems();
+  if (!items.length) return "empty";
+  const total = items.reduce((sum, i) => sum + i.qty * (i.p.price || 0), 0);
+  return `${items.map((i) => `${i.p.name} x${i.qty} - ${formatPeso(i.qty * (i.p.price || 0))}${i.p.rxRequired ? " (prescription, pick-up only)" : ""}`).join("; ")}; total ${formatPeso(total)} before delivery`;
+}
+
+function chatWantsCart(text) {
+  const t = chatNormalize(text);
+  return / (cart|basket) /.test(t) && / (my|ko|laman|what|whats|ano|anong|show|check|total|inside|magkano|nasa) /.test(t) && !/ (how|paano) /.test(t);
+}
+
+function chatWantsProductList(text) {
+  const t = chatNormalize(text);
+  return / (list|lista|catalog|catalogue|categories|category|sections|what do you sell|all products|all items|what products|what items|anong products|ano ang benta|binebenta|tinda nyo|tinda ninyo) /.test(t);
+}
+
+function chatShopProducts() {
+  return CATALOG_PRODUCTS.filter((p) => p.status === "active" && p.availableInOnlineStore !== false);
+}
+
+// the shop section the message names, by a word from its label
+function chatSectionIn(text) {
+  if (typeof SHOP_SECTIONS === "undefined") return null;
+  const t = chatNormalize(text);
+  return SHOP_SECTIONS.find((s) =>
+    chatNormalize(s.label.replace(/&/g, " "))
+      .trim()
+      .split(" ")
+      .some((w) => w.length >= 4 && t.includes(` ${w}`))
+  ) || null;
+}
+
+function chatSectionsSummary() {
+  if (typeof SHOP_SECTIONS === "undefined") return "";
+  const products = chatShopProducts();
+  return SHOP_SECTIONS.map((s) => `${s.label} (${products.filter((p) => p.shopSection === s.id).length})`).join("; ");
+}
+
 // otc products by shop section
 function chatProductsInSections(sections, limit = 4) {
   const wanted = new Set(sections.filter(Boolean));
@@ -451,6 +500,7 @@ function chatSystemInstruction() {
     "Medicines within 6 months of expiry are not sold online. Wholesale buyers are served directly by the branch.",
     "Never give medical advice, dosages, diagnoses, drug interactions or prescription validation; tell the customer to ask a pharmacist or doctor.",
     "Only mention products, prices and stock from the product list given with the question (it covers the question and the customer's recent messages, so a follow-up like \"can I order that\" still has the product). To order, the customer adds the product to the cart in the shop. If a product isn't listed, say you couldn't find it and suggest searching the shop or asking staff. Never invent prices.",
+    "The customer's current cart and the shop sections are also given with the question: use the cart for questions about their cart, and for questions about what the shop sells, name the sections and suggest browsing them or asking for a section's list.",
     "Never ask for passwords, payment details or personal information. Never share or guess other customers' or staff members' names, orders, addresses, emails or phone numbers - say you can only help with the customer's own orders and account.",
     "Only when the customer clearly asks to talk to a person or staff, end your reply with the exact text [[STAFF]]. If you can't answer something, or it needs staff (a problem with a specific order, payment or item), say so briefly and suggest tapping \"Talk to staff\" - don't add [[STAFF]] for that.",
     "If the customer describes symptoms or a health condition, or asks what medicine to take or buy for one, reply with only the exact text [[HEALTH]] and nothing else.",
@@ -605,7 +655,7 @@ async function chatAiReply(history, question) {
     role: "user",
     parts: [
       {
-        text: `${question}\n\n[Reply in ${chatLooksFilipino(question) ? "Filipino" : "English"}]\n[Product list for this question: ${products.length ? products.join("; ") : "no matching products found"}]`,
+        text: `${question}\n\n[Reply in ${chatLooksFilipino(question) ? "Filipino" : "English"}]\n[Product list for this question: ${products.length ? products.join("; ") : "no matching products found"}]\n[Customer's cart: ${chatCartSummary()}]\n[Shop sections (product count): ${chatSectionsSummary()}]`,
       },
     ],
   });
@@ -691,6 +741,12 @@ function chatCardHtml(card, myOrders) {
   }
   if (card.type === "login") {
     return `<a class="chat-card-btn" href="${/\/shop\//.test(window.location.pathname) ? "../" : ""}login.html">Log in to see your orders</a>`;
+  }
+  // messages are written by the browser, so only plain shop pages
+  if (card.type === "link") {
+    return /^[a-z-]+\.html(\?[a-z0-9=&-]*)?$/.test(card.page || "")
+      ? `<a class="chat-card-btn" href="${chatShopPath(card.page)}">${escapeHtml(card.label)}</a>`
+      : "";
   }
   if (card.type === "product") return chatProductCardHtml(card);
   if (card.type === "order") return chatOrderCardHtml(card, myOrders);
@@ -1165,6 +1221,17 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
 
+    if (chatWantsCart(text)) {
+      await answerCart(text);
+      return;
+    }
+
+    // before health so "list of pain & fever" shows the section
+    if (chatWantsProductList(text)) {
+      await answerProductList(text);
+      return;
+    }
+
     if (chatIsHealthQuestion(text) || chatSymptomsIn(text).length) {
       if (await answerHealth(text)) return;
     }
@@ -1176,6 +1243,74 @@ function chatOrderCardHtml(card, myOrders) {
     }
 
     await askAssistant(text);
+  }
+
+  async function loadCatalogQuietly() {
+    if (typeof loadCatalogCache !== "function") return;
+    try {
+      await loadCatalogCache();
+    } catch (error) {}
+  }
+
+  async function answerCart(text) {
+    await loadCatalogQuietly();
+    const fil = chatLooksFilipino(text);
+    const items = chatCartItems();
+    if (!items.length) {
+      await addMessage(
+        "assistant",
+        fil ? "Wala pang laman ang cart ninyo. Mag-browse sa shop at i-tap ang Add to Cart." : "Your cart is empty. Browse the shop and tap Add to Cart to add something.",
+        [{ type: "link", label: "Browse the shop", page: "products.html" }]
+      );
+      return;
+    }
+    const count = items.reduce((n, i) => n + i.qty, 0);
+    const total = items.reduce((sum, i) => sum + i.qty * (i.p.price || 0), 0);
+    const lines = items.map((i) => `- ${i.p.name} x${i.qty} - ${formatPeso(i.qty * (i.p.price || 0))}${i.p.inStock ? "" : " (out of stock)"}`);
+    const rx = items.some((i) => i.p.rxRequired);
+    const note = rx
+      ? fil ? "\nMay prescription medicine sa cart, kaya pick-up sa store ang order na ito." : "\nThere's a prescription medicine in your cart, so this order is for store pick-up."
+      : fil ? "\nHindi pa kasama ang delivery fee, binabayaran ito sa rider." : "\nThe delivery fee isn't included; it's paid to the rider.";
+    await addMessage(
+      "assistant",
+      `${fil ? `Laman ng cart ninyo (${count} item${count === 1 ? "" : "s"}):` : `Your cart (${count} item${count === 1 ? "" : "s"}):`}\n${lines.join("\n")}\n${fil ? "Kabuuan" : "Total"}: ${formatPeso(total)}${note}`,
+      [{ type: "link", label: fil ? "Tingnan ang cart" : "View cart", page: "cart.html" }]
+    );
+  }
+
+  // whole catalog by section, or one section's products
+  async function answerProductList(text) {
+    await loadCatalogQuietly();
+    const fil = chatLooksFilipino(text);
+    const products = chatShopProducts();
+    const section = chatSectionIn(text);
+    if (section) {
+      const inSection = products
+        .filter((p) => p.shopSection === section.id)
+        .sort((a, b) => (b.inStock ? 1 : 0) - (a.inStock ? 1 : 0) || a.name.localeCompare(b.name));
+      const shown = inSection.slice(0, CHAT_LIST_MAX);
+      const lines = shown.map((p) => `- ${p.name} - ${formatPeso(p.price)}${p.inStock ? "" : " (out of stock)"}${p.rxRequired ? " (Rx)" : ""}`);
+      const more = inSection.length - shown.length;
+      await addMessage(
+        "assistant",
+        inSection.length
+          ? `${section.label} (${inSection.length}):\n${lines.join("\n")}${more > 0 ? `\n${fil ? `at ${more} pa sa shop` : `+${more} more in the shop`}` : ""}`
+          : fil ? `Wala pa kaming produkto online sa ${section.label}.` : `We don't have products online in ${section.label} yet.`,
+        [{ type: "link", label: fil ? "Buksan sa shop" : "Open in shop", page: `products.html?section=${section.id}` }]
+      );
+      return;
+    }
+    const sections = typeof SHOP_SECTIONS === "undefined" ? [] : SHOP_SECTIONS;
+    await addMessage(
+      "assistant",
+      fil
+        ? `May ${products.length} produkto kami online. I-tap ang isang section para makita ang laman nito:`
+        : `We have ${products.length} products online. Tap a section to see what's in it:`,
+      [
+        ...sections.map((s) => ({ type: "button", label: s.label, q: `List of ${s.label}` })),
+        { type: "link", label: fil ? "Lahat ng produkto" : "All products", page: "products.html" },
+      ]
+    );
   }
 
   // nothing matched so ask the ai, else search products or go to staff
