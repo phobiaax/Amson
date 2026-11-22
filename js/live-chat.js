@@ -303,7 +303,7 @@ function chatSectionIn(text) {
 function chatSectionsSummary() {
   if (typeof SHOP_SECTIONS === "undefined") return "";
   const products = chatShopProducts();
-  return SHOP_SECTIONS.map((s) => `${s.label} (${products.filter((p) => p.shopSection === s.id).length})`).join("; ");
+  return SHOP_SECTIONS.map((s) => `${s.id} = ${s.label} (${products.filter((p) => p.shopSection === s.id).length})`).join("; ");
 }
 
 // otc products by shop section
@@ -500,7 +500,9 @@ function chatSystemInstruction() {
     "Medicines within 6 months of expiry are not sold online. Wholesale buyers are served directly by the branch.",
     "Never give medical advice, dosages, diagnoses, drug interactions or prescription validation; tell the customer to ask a pharmacist or doctor.",
     "Only mention products, prices and stock from the product list given with the question (it covers the question and the customer's recent messages, so a follow-up like \"can I order that\" still has the product). To order, the customer adds the product to the cart in the shop. If a product isn't listed, say you couldn't find it and suggest searching the shop or asking staff. Never invent prices.",
-    "The customer's current cart and the shop sections are also given with the question: use the cart for questions about their cart, and for questions about what the shop sells, name the sections and suggest browsing them or asking for a section's list.",
+    "The customer's current cart and the shop sections are also given with the question.",
+    "If the customer wants to see what's in their cart or its total, reply with only the exact text [[CART]] and nothing else. For other questions about their cart (is an item in stock, can it be delivered), answer from the cart yourself.",
+    "If the customer wants a list or overview of the products the shop sells, reply with only the exact text [[LIST]]. If they want the products of one shop section or a kind of product that matches a section (e.g. vitamins, skin care), reply with only [[LIST:section-id]] using an id from the shop sections. Asking what to take for a symptom is a health question, not a list.",
     "Never ask for passwords, payment details or personal information. Never share or guess other customers' or staff members' names, orders, addresses, emails or phone numbers - say you can only help with the customer's own orders and account.",
     "Only when the customer clearly asks to talk to a person or staff, end your reply with the exact text [[STAFF]]. If you can't answer something, or it needs staff (a problem with a specific order, payment or item), say so briefly and suggest tapping \"Talk to staff\" - don't add [[STAFF]] for that.",
     "If the customer describes symptoms or a health condition, or asks what medicine to take or buy for one, reply with only the exact text [[HEALTH]] and nothing else.",
@@ -655,7 +657,7 @@ async function chatAiReply(history, question) {
     role: "user",
     parts: [
       {
-        text: `${question}\n\n[Reply in ${chatLooksFilipino(question) ? "Filipino" : "English"}]\n[Product list for this question: ${products.length ? products.join("; ") : "no matching products found"}]\n[Customer's cart: ${chatCartSummary()}]\n[Shop sections (product count): ${chatSectionsSummary()}]`,
+        text: `${question}\n\n[Reply in ${chatLooksFilipino(question) ? "Filipino" : "English"}]\n[Product list for this question: ${products.length ? products.join("; ") : "no matching products found"}]\n[Customer's cart: ${chatCartSummary()}]\n[Shop sections (id = name (product count)): ${chatSectionsSummary()}]`,
       },
     ],
   });
@@ -678,6 +680,9 @@ async function chatAiReply(history, question) {
     const code = (name) => new RegExp(`\\[+\\s*${name}\\s*\\]+`, "gi");
     if (code("HEALTH").test(text)) return { health: true };
     if (code("ORDERS").test(text)) return { orders: true };
+    if (code("CART").test(text)) return { cart: true };
+    const list = text.match(/\[+\s*LIST\s*(?::\s*([a-z-]+))?\s*\]+/i);
+    if (list) return { list: true, section: list[1] ? list[1].toLowerCase() : "" };
     const handoff = code("STAFF").test(text);
     text = text.replace(code("STAFF"), "").trim();
     if (!text) return handoff ? { text: "", handoff } : null;
@@ -1221,14 +1226,10 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
 
-    if (chatWantsCart(text)) {
-      await answerCart(text);
-      return;
-    }
-
-    // before health so "list of pain & fever" shows the section
-    if (chatWantsProductList(text)) {
-      await answerProductList(text);
+    // our own section buttons, exact text only
+    const tapped = typeof SHOP_SECTIONS === "undefined" ? null : SHOP_SECTIONS.find((s) => text.trim() === `List of ${s.label}`);
+    if (tapped) {
+      await answerProductList(text, tapped.id);
       return;
     }
 
@@ -1279,11 +1280,13 @@ function chatOrderCardHtml(card, myOrders) {
   }
 
   // whole catalog by section, or one section's products
-  async function answerProductList(text) {
+  async function answerProductList(text, sectionId = null) {
     await loadCatalogQuietly();
     const fil = chatLooksFilipino(text);
     const products = chatShopProducts();
-    const section = chatSectionIn(text);
+    const section = sectionId !== null
+      ? (typeof SHOP_SECTIONS === "undefined" ? null : SHOP_SECTIONS.find((s) => s.id === sectionId) || null)
+      : chatSectionIn(text);
     if (section) {
       const inSection = products
         .filter((p) => p.shopSection === section.id)
@@ -1339,6 +1342,14 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
     // or an order question the word list missed
+    if (reply && reply.cart) {
+      await answerCart(text);
+      return;
+    }
+    if (reply && reply.list) {
+      await answerProductList(text, reply.section);
+      return;
+    }
     if (reply && reply.orders) {
       await answerOrders(text);
       return;
@@ -1362,7 +1373,15 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
 
-    // no ai answer so show product cards instead
+    // no ai answer so guess from keywords, then product cards
+    if (chatWantsCart(text)) {
+      await answerCart(text);
+      return;
+    }
+    if (chatWantsProductList(text)) {
+      await answerProductList(text);
+      return;
+    }
     const recent = history.filter((m) => m.sender === "customer").slice(-3).reverse().map((m) => m.text);
     const products = chatProductsInContext(text, recent, 3);
     if (products.length) {
