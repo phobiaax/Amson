@@ -342,6 +342,22 @@ const CHAT_HEALTH_TEXT = {
 };
 
 // ---- order cards ----
+// "what's in my cart"
+function chatWantsCart(text) {
+  const t = chatNormalize(text);
+  return [" cart ", " carts ", " basket ", " laman ng cart", " cart ko "].some((w) => t.includes(w));
+}
+
+// "list of products" / "what do you sell" with no product named
+function chatWantsCatalog(text) {
+  const t = chatNormalize(text);
+  return [
+    "list of products", "product list", "products list", "all products", "your products", "what products", "what do you sell",
+    "what do you have", "what medicines do you have", "what items", "catalog", "menu", "ano ang benta", "ano binebenta",
+    "anong meron", "ano meron", "anong mga gamot", "mga produkto",
+  ].some((w) => t.includes(` ${w}`));
+}
+
 function chatWantsOrders(text) {
   const t = chatNormalize(text);
   return (
@@ -692,6 +708,7 @@ function chatCardHtml(card, myOrders) {
   if (card.type === "login") {
     return `<a class="chat-card-btn" href="${/\/shop\//.test(window.location.pathname) ? "../" : ""}login.html">Log in to see your orders</a>`;
   }
+  if (card.type === "link") return `<a class="chat-card-btn" href="${escapeHtml(chatShopPath(card.href))}">${escapeHtml(card.label)}</a>`;
   if (card.type === "product") return chatProductCardHtml(card);
   if (card.type === "order") return chatOrderCardHtml(card, myOrders);
   return "";
@@ -1160,6 +1177,11 @@ function chatOrderCardHtml(card, myOrders) {
       return;
     }
 
+    if (chatWantsCart(text)) {
+      await answerCart(text);
+      return;
+    }
+
     if (chatWantsOrders(text)) {
       await answerOrders(text);
       return;
@@ -1169,6 +1191,8 @@ function chatOrderCardHtml(card, myOrders) {
       if (await answerHealth(text)) return;
     }
 
+    if (chatWantsCatalog(text) && (await answerCatalog(text))) return;
+
     const faq = chatMatchFaq(text);
     if (faq) {
       await addMessage("assistant", faq);
@@ -1176,6 +1200,56 @@ function chatOrderCardHtml(card, myOrders) {
     }
 
     await askAssistant(text);
+  }
+
+  // cart contents from this browser's cart
+  async function answerCart(text) {
+    const fil = chatLooksFilipino(text);
+    const cart = typeof getCart === "function" ? getCart() : [];
+    if (typeof loadCatalogCache === "function") {
+      try {
+        await loadCatalogCache();
+      } catch (error) {}
+    }
+    const lines = cart
+      .map((item) => ({ item, product: typeof getProductById === "function" ? getProductById(item.id) : null }))
+      .filter((x) => x.product);
+    if (!lines.length) {
+      await addMessage(
+        "assistant",
+        fil ? "Wala pa pong laman ang inyong cart." : "Your cart is empty.",
+        [{ type: "link", label: fil ? "Tingnan ang mga produkto" : "Browse products", href: "products.html" }]
+      );
+      return;
+    }
+    const total = lines.reduce((sum, x) => sum + (Number(x.product.price) || 0) * (Number(x.item.qty) || 0), 0);
+    const list = lines.map((x) => `• ${x.product.name} × ${x.item.qty}`).join("\n");
+    await addMessage(
+      "assistant",
+      `${fil ? "Laman ng inyong cart" : "Your cart"} (${lines.length} ${lines.length === 1 ? "item" : "items"}):\n${list}\n${fil ? "Kabuuan" : "Total"}: ${formatPeso(total)}`,
+      [{ type: "link", label: fil ? "Pumunta sa cart" : "Go to cart", href: "cart.html" }]
+    );
+  }
+
+  // shop sections as links, only when no product is named; false lets the normal flow answer
+  async function answerCatalog(text) {
+    if (typeof loadCatalogCache === "function") {
+      try {
+        await loadCatalogCache();
+      } catch (error) {}
+    }
+    if (chatFindProducts(text).length || typeof SHOP_SECTIONS === "undefined") return false;
+    const fil = chatLooksFilipino(text);
+    await addMessage(
+      "assistant",
+      fil
+        ? "Mga gamot at medical supplies po ang aming tinda. Pumili ng section para makita ang mga produkto, o i-type ang pangalan ng gamot."
+        : "We carry medicines and medical supplies. Pick a section to see what's available, or type a product name.",
+      SHOP_SECTIONS.map((sec) => ({ type: "link", label: sec.label, href: `products.html?section=${sec.id}` })).concat([
+        { type: "link", label: fil ? "Lahat ng produkto" : "All products", href: "products.html" },
+      ])
+    );
+    return true;
   }
 
   // nothing matched so ask the ai, else search products or go to staff
