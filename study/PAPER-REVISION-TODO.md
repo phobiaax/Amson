@@ -3,7 +3,7 @@
 Base file: `AMSON_FINAL_MANUSCRIPT_NOV23.docx` (checked Nov 23).
 Anything in `[brackets]` is a number you fill in from the survey data.
 
-**Tables in Word:** every table below comes as a tab-separated block. Copy it, paste it into Word, select the pasted lines, go to **Insert → Table → Convert Text to Table**, make sure **Separate text at: Tabs** is selected, and click OK.
+**Tables in Word:** (all tables are captioned as Charts, like your classmates' paper.) every table below comes as a tab-separated block. Copy it, paste it into Word, select the pasted lines, go to **Insert → Table → Convert Text to Table**, make sure **Separate text at: Tabs** is selected, and click OK.
 
 Assumed data:
 - **IT experts:** 2 respondents, ISO survey (20 questions, Excellent to Unacceptable).
@@ -23,24 +23,25 @@ Assumed data:
 
 ## ☐ 1. Small fixes to what's already in the paper (no data needed)
 
-**1a. Caption the interpretation table.** It has no caption yet. Put this above it:
+**1a. Caption the interpretation table** as a chart, the way your classmates did. Put this above it:
 
 ```
-Table 1. Interpretation of Weighted Mean
+Chart 1.1. Interpretation of Weighted Mean
 ```
 
-**1b. Add a "LIST OF TABLES"** page after LIST OF CHARTS. The paper doesn't have one yet, and the new tables need it. Use the same layout as LIST OF CHARTS:
+**1b. Renumber the Gantt chart.** The new charts in the Statistical Tool section come before it, so:
+- the Gantt chart caption (p.97) changes from "Chart 1.1. Gantt Chart" to **"Chart 1.3. Gantt Chart"** (or **1.2** if you skip the mapping chart in step 2);
+- the LIST OF CHARTS changes the same way.
+
+**New LIST OF CHARTS lines** (same style as the existing ones):
 
 ```
-Table	Title	Page
-Table 1	Interpretation of Weighted Mean	[ ]
-Table 2	Mapping of Survey Items to ISO/IEC 25010 and TAM	[ ]
-Table 3	ISO/IEC 25010 Results by Characteristic	[ ]
-Table 4	ISO/IEC 25010 Results by Respondent Group	[ ]
-Table 5	Technology Acceptance Model Results	[ ]
+Chart 1.1	Table (Interpretation of Weighted Mean)	[ ]
+Chart 1.2	Table (Mapping of Survey Items to ISO/IEC 25010 and TAM)	[ ]
+Chart 1.3	Gantt Chart (Calendar of Activities)	97
 ```
 
-The table numbers here (1–5) replace the "6.1 / 6.2 / 6.3" numbers in the old list. Your paper numbers its charts by section (2.x, 3.x), but there are only 5 tables, so plain 1–5 is simpler. If your adviser wants section numbers, rename them.
+The rest of the new lines come in step 7.
 
 **1c. Abstract (p.ii) still says "53 respondents".** Fix it in step 6 once you have the numbers.
 
@@ -55,10 +56,10 @@ This answers "where is ISO in your questionnaire?", since the Admin Survey form 
 Paragraph:
 
 ```
-The survey items were written in simple language for the respondents and grouped under the ISO/IEC 25010 characteristics and the TAM constructs as shown in Table 2.
+The survey items were written in simple language for the respondents and grouped under the ISO/IEC 25010 characteristics and the TAM constructs as shown in Chart 1.2.
 ```
 
-Caption: **Table 2. Mapping of Survey Items to ISO/IEC 25010 and TAM**
+Caption: **Chart 1.2. Mapping of Survey Items to ISO/IEC 25010 and TAM**
 
 ```
 ISO/IEC 25010 Characteristic	Staff Survey Items	Customer Survey Items	IT Expert Survey Items
@@ -70,7 +71,7 @@ Security	12, 13	Security 1	17–20
 Overall Satisfaction (not ISO)	15	Overall Satisfaction 1–2	–
 ```
 
-Then, right under it, a second small table for TAM. It can also stay part of Table 2: paste it below the first table and convert it separately.
+Then, right under it, a second small table for TAM. It can also stay part of Chart 1.2: paste it below the first table and convert it separately.
 
 ```
 TAM Construct	Survey Items
@@ -149,7 +150,7 @@ Heading:
 Summary of Findings
 ```
 
-### Table 3. ISO/IEC 25010 Results by Characteristic
+### Chart 6.2. ISO/IEC 25010 Results by Characteristic
 
 Fill the existing groups (Customers, Branch Manager, Technical Staff, Sales Staff) from your Chart 4.1 data. Only the IT Experts column is new.
 
@@ -166,10 +167,10 @@ Overall						[ ]	[ ]	–
 "Weighted Mean" = the average of the 5 group columns, so each group counts equally. Ask your adviser if they'd rather weight by the number of respondents.
 
 ```
-Table 3 summarizes the ISO/IEC 25010 evaluation across all respondent groups. [Highest characteristic] ranked first with a weighted mean of [x.xx] ([interpretation]), followed by [2nd] ([x.xx]), [3rd] ([x.xx]), [4th] ([x.xx]), and [5th] ([x.xx]). The overall weighted mean of [x.xx] ([interpretation]) indicates that the system meets the software quality requirements of the ISO/IEC 25010 standard as evaluated by both the end-users and IT professionals.
+Chart 6.2 summarizes the ISO/IEC 25010 evaluation across all respondent groups. [Highest characteristic] ranked first with a weighted mean of [x.xx] ([interpretation]), followed by [2nd] ([x.xx]), [3rd] ([x.xx]), [4th] ([x.xx]), and [5th] ([x.xx]). The overall weighted mean of [x.xx] ([interpretation]) indicates that the system meets the software quality requirements of the ISO/IEC 25010 standard as evaluated by both the end-users and IT professionals.
 ```
 
-### Table 4. ISO/IEC 25010 Results by Respondent Group
+### Chart 6.3. ISO/IEC 25010 Results by Respondent Group
 
 ```
 Criteria	Weighted Mean	Interpretation	Rank
@@ -185,7 +186,7 @@ Overall Results	[ ]	[ ]	–
 This table summarizes the evaluation results across the respondent groups, showing that the [group] achieved the highest weighted mean of [x.xx] ([interpretation], Rank 1), followed by [group] ([x.xx], Rank 2), [group] ([x.xx], Rank 3), [group] ([x.xx], Rank 4), and [group] ([x.xx], Rank 5), resulting in an overall weighted mean of [x.xx] ([interpretation]) that indicates high software quality across user roles and technical evaluators.
 ```
 
-### Table 5. Technology Acceptance Model Results
+### Chart 6.4. Technology Acceptance Model Results
 
 ```
 Criteria	Weighted Mean	Interpretation	Rank
@@ -196,7 +197,7 @@ Overall Results	[ ]	[ ]	–
 ```
 
 ```
-Table 5 shows that the branch staff [strongly agree / agree] that the system is useful and easy to use. [Highest construct] ranked first with a weighted mean of [x.xx] ([interpretation]), followed by [2nd] ([x.xx]) and [3rd] ([x.xx]). The overall weighted mean of [x.xx] ([interpretation]) indicates a high level of user acceptance among the branch staff, satisfying the Technology Acceptance Model component of the fourth objective.
+Chart 6.4 shows that the branch staff [strongly agree / agree] that the system is useful and easy to use. [Highest construct] ranked first with a weighted mean of [x.xx] ([interpretation]), followed by [2nd] ([x.xx]) and [3rd] ([x.xx]). The overall weighted mean of [x.xx] ([interpretation]) indicates a high level of user acceptance among the branch staff, satisfying the Technology Acceptance Model component of the fourth objective.
 ```
 
 ---
@@ -227,8 +228,24 @@ The system was evaluated by 55 respondents, the Branch Manager, the Technical St
 
 ## ☐ 7. Front and back matter (do last; page numbers shift)
 
-- ☐ **LIST OF CHARTS:** add Charts 4.1–4.6 and 5.1–5.3; rename the summary chart to 6.1.
-- ☐ **LIST OF TABLES:** fill in the page numbers (step 1b).
+- ☐ **LIST OF CHARTS:** rename the summary chart to 6.1, then add these lines:
+
+```
+Chart 4.1	Pie Chart (IT Experts' Years of Experience)	[ ]
+Chart 4.2	Stacked Bar Chart (Functional Suitability of IT Experts)	[ ]
+Chart 4.3	Stacked Bar Chart (Performance Efficiency of IT Experts)	[ ]
+Chart 4.4	Stacked Bar Chart (Usability of IT Experts)	[ ]
+Chart 4.5	Stacked Bar Chart (Reliability of IT Experts)	[ ]
+Chart 4.6	Stacked Bar Chart (Security of IT Experts)	[ ]
+Chart 5.1	Stacked Bar Chart (Perceived Usefulness of Staff)	[ ]
+Chart 5.2	Stacked Bar Chart (Perceived Ease of Use of Staff)	[ ]
+Chart 5.3	Stacked Bar Chart (Intention to Use of Staff)	[ ]
+Chart 6.1	Clustered Column Chart (Summary of Survey Results)	[ ]
+Chart 6.2	Table (ISO/IEC 25010 Results by Characteristic)	[ ]
+Chart 6.3	Table (ISO/IEC 25010 Results by Respondent Group)	[ ]
+Chart 6.4	Table (Technology Acceptance Model Results)	[ ]
+```
+
 - ☐ **Appendices:** add the 2 new questionnaires (IT expert and TAM), plus scans of the signed TAM forms.
 - ☐ **TABLE OF CONTENTS:** add "Statistical Tool" and "Summary of Findings", then right-click → Update Field → Update entire table.
 
