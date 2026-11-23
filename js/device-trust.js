@@ -1,7 +1,7 @@
 // remembers which browsers an account has logged in from
 
 // asks for an emailed code on new devices, set to false to turn it off
-const REQUIRE_DEVICE_CODE = true;
+const REQUIRE_DEVICE_CODE = false;
 
 const DEVICE_ID_KEY = "amsonDeviceId";
 const DEVICE_PENDING_KEY = "amsonDeviceCheckPending";
