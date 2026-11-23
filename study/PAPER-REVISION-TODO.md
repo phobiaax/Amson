@@ -3,7 +3,7 @@
 Base file: `AMSON_FINAL_MANUSCRIPT_NOV23.docx` (checked Nov 23).
 Anything in `[brackets]` is a number you fill in from the survey data.
 
-**Tables in Word:** (all tables are captioned as Charts, like your classmates' paper.) every table below comes as a tab-separated block. Copy it, paste it into Word, select the pasted lines, go to **Insert → Table → Convert Text to Table**, make sure **Separate text at: Tabs** is selected, and click OK.
+**Tables in Word:** all tables are captioned as Charts, like your classmates' paper. Every table below comes as a tab-separated block. Copy it, paste it into Word, select the pasted lines, go to **Insert → Table → Convert Text to Table**, make sure **Separate text at: Tabs** is selected, and click OK.
 
 Assumed data:
 - **IT experts:** 2 respondents, ISO survey (20 questions, Excellent to Unacceptable).
