@@ -1,6 +1,6 @@
 # Paper revision to-do (evaluation: ISO + TAM + IT experts)
 
-Checked against `AMSON_FINAL_MANUSCRIPT_NOV24new` (txt export).
+Checked against `AMSON_FINAL_MANUSCRIPT_NOV24newcmpressedpics.docx`.
 Results files: `study/reference/TAM_Results.docx`, `study/reference/IT_Expert_and_Summary_Results.docx`.
 
 ## Done
@@ -19,12 +19,7 @@ Results files: `study/reference/TAM_Results.docx`, `study/reference/IT_Expert_an
 
 1. ☐ **Two charts are numbered 4.1.** The IT experts' pie chart is 4.1, and so is the old summary chart ("Chart 4.1. Summary of Survey Results"). Rename the summary chart to **Chart 6.1**, in its caption and in LIST OF CHARTS.
 2. ☐ **Two charts are numbered 1.1.** Rename the Gantt chart caption (p.97) and its LIST OF CHARTS line to **Chart 1.2**.
-3. ☐ **The captions for Charts 6.2, 6.3 and 6.4 are missing** under their tables (the txt has the tables and paragraphs but no caption lines). Add these below each table, centered and in italics:
-   ```
-   Chart 6.2. ISO/IEC 25010 Results by Characteristic
-   Chart 6.3. ISO/IEC 25010 Results by Respondent Group
-   Chart 6.4. Technology Acceptance Model Results
-   ```
+3. ☑ Captions for Charts 6.2, 6.3 and 6.4 (they're there; the txt export had dropped them)
 4. ☐ **LIST OF CHARTS:** change the Gantt line to 1.2 and the summary line to 6.1, then add the lines below (paste, select, Insert → Table → Convert Text to Table, Tabs). Fill in the page numbers last.
    ```
    Chart 4.1	Pie Chart (IT Experts' Years of Experience)	
@@ -42,7 +37,14 @@ Results files: `study/reference/TAM_Results.docx`, `study/reference/IT_Expert_an
    Chart 6.4	Table (Technology Acceptance Model Results)	
    ```
    Also fill in the page number on the existing Chart 1.1 line.
-5. ☐ **Appendix O:** add the **IT Expert Survey** (the questionnaire, or screenshots of the Google Form) next to Admin, TAM and User Survey.
+5. ☐ **Appendix O:** add a heading **IT Expert Survey** with screenshots of the Google Form, after TAM Survey.
+   Also make the LIST OF APPENDICES names match the headings in the body:
+   - O: list says "Survey Questions", body says "Evaluation Tool/Test Documents"
+   - P: "Transcript for Survey and Testing" vs "Transcript of Survey Testing"
+   - H: "PayMongo Pricing" vs "PayMongo Pricing Limitation"
+   - I: "Lalamove API Instruction" vs "Lalamove API Limitation"
+   - R: "Sample Input/Output Reports" vs "Sample Input/Output/Reports"
+   - A–G use "Appendix A:" in the body but "Appendix A." elsewhere; pick one
 6. ☐ **TABLE OF CONTENTS:** add "Statistical Tool" and "Summary of Findings" if they aren't listed, then right-click → Update Field → Update entire table.
 7. ☐ **Last:** update all page numbers in LIST OF CHARTS and LIST OF APPENDICES. Appendix O and P moved when pages were added.
 
