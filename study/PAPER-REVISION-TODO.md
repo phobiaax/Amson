@@ -48,6 +48,89 @@ Results files: `study/reference/TAM_Results.docx`, `study/reference/IT_Expert_an
 6. ☐ **TABLE OF CONTENTS:** add "Statistical Tool" and "Summary of Findings" if they aren't listed, then right-click → Update Field → Update entire table.
 7. ☐ **Last:** update all page numbers in LIST OF CHARTS and LIST OF APPENDICES. Appendix O and P moved when pages were added.
 
+## Round 2 (added Nov 24)
+
+Order: R1 → R2 → R3 need nothing from anyone. R4 needs the customer survey CSV. R5 needs the signed letters.
+
+### ☐ R1. Research Instrument + Sampling Technique (15 min)
+
+**Where:** Methodology, right **before "Statistical Tool"** (after the Agile "Review:" paragraph). Two short headings, same style as "Statistical Tool".
+
+```
+Research Instrument
+
+The researchers used survey questionnaires as the research instrument. The Admin Survey for the Branch Manager, Technical Staff, and Sales Staff, the User Survey for customers, and the IT Expert Survey were rated on a five-point Likert scale and grouped under the ISO/IEC 25010 quality characteristics of Functional Suitability, Performance Efficiency, Usability, Reliability, and Security. The TAM Survey for the branch staff was rated on a five-point Likert scale and grouped under Perceived Usefulness, Perceived Ease of Use, and Intention to Use. The questionnaires are shown in Appendix O.
+
+Sampling Technique
+
+The researchers used total enumeration for the branch staff, since the Las Piñas branch has one Branch Manager, one Technical Staff, and one Sales Staff. Convenience sampling was used for the 50 customers, who were selected based on their availability and willingness to use the system and answer the survey. Purposive sampling was used for the two IT professionals, who were selected because they have at least one (1) year of experience in the IT industry.
+```
+
+### ☐ R2. "All computation goes to results" (10 min check)
+
+Rule: **Statistical Tool = formulas and how to read them only. Results = every number.**
+- The Statistical Tool section has no computed numbers now, so nothing moves out of it.
+- Cronbach's alpha follows the same rule: formula in Statistical Tool (R3), values in Results (R4).
+- Check: search the Methodology for any "4." or "%" values. There should be none.
+
+### ☐ R3. Cronbach's alpha formula (10 min)
+
+**Where:** Statistical Tool, after the **Weighted Mean** paragraph and before **Rank**. Insert the formula as a Word equation: **α = (k / (k − 1)) × (1 − Σσᵢ² / σₜ²)**
+
+```
+Cronbach's Alpha:
+
+Used to measure the internal consistency of the customer survey. Where α is Cronbach's alpha, k is the number of items, σᵢ² is the variance of each item, and σₜ² is the variance of the total scores. It was computed only for the customer survey, since the staff and IT expert groups have too few respondents, and only for characteristics with two or more items. The value was interpreted as Excellent (0.90 and above), Good (0.80 to 0.89), Acceptable (0.70 to 0.79), Questionable (0.60 to 0.69), Poor (0.50 to 0.59), or Unacceptable (below 0.50) (George & Mallery, 2003).
+```
+
+**References:** add in alphabetical order:
+```
+George, D., & Mallery, P. (2003). SPSS for Windows step by step: A simple guide and reference, 11.0 update (4th ed.). Allyn & Bacon.
+```
+
+### ☐ R4. Cronbach's alpha results (needs the CSV; 10 min once I have it)
+
+**Blocker:** export **User Survey | Amson Pharmaceuticals** → Responses → ⋮ → Download responses (.csv) → send it to me. I'll fill the values.
+
+**Where:** Implementation Results, right **after the Chart 3.8 paragraph** (end of Customer Evaluation). Using **Chart 3.9** means no renumbering.
+
+Heading: `Reliability of the Customer Survey`
+
+```
+Criteria	Number of Items	Cronbach's Alpha	Interpretation
+Functional Suitability	5	[ ]	[ ]
+Usability	4	[ ]	[ ]
+Overall Satisfaction	2	[ ]	[ ]
+Whole Questionnaire	14	[ ]	[ ]
+```
+Caption below it: `Chart 3.9. Reliability of the Customer Survey`
+
+```
+Chart 3.9 shows that the customer survey has [an acceptable / a good / an excellent] level of internal consistency, with a Cronbach's alpha of [x.xx] for the whole questionnaire. Performance Efficiency, Reliability, and Security were not included because each has only one item.
+```
+
+LIST OF CHARTS line:
+```
+Chart 3.9	Table (Reliability of the Customer Survey)	
+```
+
+### ☐ R5. Validation letters + proof of IT experts (20 min once signed)
+
+**Where:** a new **Appendix S. Validation Letters of IT Experts**, at the end. Adding it last means no relettering.
+- Per expert: the **signed validation letter** + **proof** (certificate of employment or company ID; cover ID numbers and addresses).
+- LIST OF APPENDICES line: `Appendix S. Validation Letters of IT Experts`
+- **Only if the letters say the experts checked the questionnaire**, add this sentence at the end of the Research Instrument paragraph (R1):
+```
+The questionnaires were reviewed and validated by IT professionals (Appendix S).
+```
+
+### ☐ R6. New Rx flow: paper text + diagrams (about 2 hours, mostly redrawing)
+
+All the paste-ready text and the redraw steps are in **`study/PAPER-RX-CHANGES.md`**:
+- 14 text places (Background, Scope, Modules, REQ021–025, REQ031, REQ077–079, descriptions under Figs 2.4/2.6/2.10/2.11)
+- Redraw **Fig 2.10** (Rx branch) and **Fig 2.11** (prescription check before payment check)
+- Add use cases to **Figs 2.4 and 2.6**
+
 ## Optional
 
 - ☐ **Item-mapping table (Chart 1.2 if added; the Gantt chart then becomes 1.3).** Shows which question belongs to which ISO characteristic or TAM construct. Useful if the panel asks "where is ISO in your form?".
