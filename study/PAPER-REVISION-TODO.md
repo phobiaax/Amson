@@ -51,12 +51,12 @@ Rule: **Statistical Tool = formulas and how to read them only. Results = every n
 ```
 Cronbach's Alpha:
 
-Used to measure the internal consistency of the customer survey. Where α is Cronbach's alpha, k is the number of items, σᵢ² is the variance of each item, and σₜ² is the variance of the total scores. It was computed only for the customer survey, since the staff and IT expert groups have too few respondents, and only for characteristics with two or more items. The value was interpreted as Excellent (0.90 and above), Good (0.80 to 0.89), Acceptable (0.70 to 0.79), Questionable (0.60 to 0.69), Poor (0.50 to 0.59), or Unacceptable (below 0.50) (George & Mallery, 2003).
+Used to measure the internal consistency of the customer survey. Where α is Cronbach's alpha, k is the number of items, σᵢ² is the variance of each item, and σₜ² is the variance of the total scores. It was computed only for the customer survey, since the staff and IT expert groups have too few respondents, and only for characteristics with two or more items. The value was interpreted as Excellent (0.90 and above), Good (0.80 to 0.89), Acceptable (0.70 to 0.79), Questionable (0.60 to 0.69), Poor (0.50 to 0.59), or Unacceptable (below 0.50) (George & Mallery, 2019).
 ```
 
 **References:** add in alphabetical order:
 ```
-George, D., & Mallery, P. (2003). SPSS for Windows step by step: A simple guide and reference, 11.0 update (4th ed.). Allyn & Bacon.
+George, D., & Mallery, P. (2019). IBM SPSS Statistics 26 step by step: A simple guide and reference (16th ed.). Routledge.
 ```
 
 ### ☐ R4. Cronbach's alpha results (5 min, values computed from the 50 customer responses)
