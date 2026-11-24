@@ -88,9 +88,7 @@ Used to measure the internal consistency of the customer survey. Where α is Cro
 George, D., & Mallery, P. (2003). SPSS for Windows step by step: A simple guide and reference, 11.0 update (4th ed.). Allyn & Bacon.
 ```
 
-### ☐ R4. Cronbach's alpha results (needs the CSV; 10 min once I have it)
-
-**Blocker:** export **User Survey | Amson Pharmaceuticals** → Responses → ⋮ → Download responses (.csv) → send it to me. I'll fill the values.
+### ☐ R4. Cronbach's alpha results (5 min, values computed from the 50 customer responses)
 
 **Where:** Implementation Results, right **after the Chart 3.8 paragraph** (end of Customer Evaluation). Using **Chart 3.9** means no renumbering.
 
@@ -98,21 +96,23 @@ Heading: `Reliability of the Customer Survey`
 
 ```
 Criteria	Number of Items	Cronbach's Alpha	Interpretation
-Functional Suitability	5	[ ]	[ ]
-Usability	4	[ ]	[ ]
-Overall Satisfaction	2	[ ]	[ ]
-Whole Questionnaire	14	[ ]	[ ]
+Functional Suitability	5	0.79	Acceptable
+Usability	4	0.79	Acceptable
+Overall Satisfaction	2	0.72	Acceptable
+Whole Questionnaire	14	0.92	Excellent
 ```
 Caption below it: `Chart 3.9. Reliability of the Customer Survey`
 
 ```
-Chart 3.9 shows that the customer survey has [an acceptable / a good / an excellent] level of internal consistency, with a Cronbach's alpha of [x.xx] for the whole questionnaire. Performance Efficiency, Reliability, and Security were not included because each has only one item.
+Chart 3.9 shows that the customer survey has an excellent level of internal consistency, with a Cronbach's alpha of 0.92 for the whole questionnaire. Functional Suitability (0.79), Usability (0.79), and Overall Satisfaction (0.72) were each within the acceptable range. Performance Efficiency, Reliability, and Security were not included because each has only one item.
 ```
 
 LIST OF CHARTS line:
 ```
 Chart 3.9	Table (Reliability of the Customer Survey)	
 ```
+
+Check: the same CSV gives the paper's existing averages exactly (FS 4.64, PE 4.60, U 4.66, R 4.82, S 4.62, OS 4.75), so the item grouping matches the paper.
 
 ### ☐ R5. Validation letters + proof of IT experts (20 min once signed)
 
