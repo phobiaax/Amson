@@ -17,36 +17,7 @@ Results files: `study/reference/TAM_Results.docx`, `study/reference/IT_Expert_an
 
 ## Left to do
 
-1. ☐ **Two charts are numbered 4.1.** The IT experts' pie chart is 4.1, and so is the old summary chart ("Chart 4.1. Summary of Survey Results"). Rename the summary chart to **Chart 6.1**, in its caption and in LIST OF CHARTS.
-2. ☐ **Two charts are numbered 1.1.** Rename the Gantt chart caption (p.97) and its LIST OF CHARTS line to **Chart 1.2**.
-3. ☑ Captions for Charts 6.2, 6.3 and 6.4 (they're there; the txt export had dropped them)
-4. ☐ **LIST OF CHARTS:** change the Gantt line to 1.2 and the summary line to 6.1, then add the lines below (paste, select, Insert → Table → Convert Text to Table, Tabs). Fill in the page numbers last.
-   ```
-   Chart 4.1	Pie Chart (IT Experts' Years of Experience)	
-   Chart 4.2	Stacked Bar Chart (Functional Suitability of IT Experts)	
-   Chart 4.3	Stacked Bar Chart (Performance Efficiency of IT Experts)	
-   Chart 4.4	Stacked Bar Chart (Usability of IT Experts)	
-   Chart 4.5	Stacked Bar Chart (Reliability of IT Experts)	
-   Chart 4.6	Stacked Bar Chart (Security of IT Experts)	
-   Chart 5.1	Stacked Bar Chart (Perceived Usefulness of Staff)	
-   Chart 5.2	Stacked Bar Chart (Perceived Ease of Use of Staff)	
-   Chart 5.3	Stacked Bar Chart (Intention to Use of Staff)	
-   Chart 6.1	Clustered Column Chart (Summary of Survey Results)	
-   Chart 6.2	Table (ISO/IEC 25010 Results by Characteristic)	
-   Chart 6.3	Table (ISO/IEC 25010 Results by Respondent Group)	
-   Chart 6.4	Table (Technology Acceptance Model Results)	
-   ```
-   Also fill in the page number on the existing Chart 1.1 line.
-5. ☐ **Appendix O:** add a heading **IT Expert Survey** with screenshots of the Google Form, after TAM Survey.
-   Also make the LIST OF APPENDICES names match the headings in the body:
-   - O: list says "Survey Questions", body says "Evaluation Tool/Test Documents"
-   - P: "Transcript for Survey and Testing" vs "Transcript of Survey Testing"
-   - H: "PayMongo Pricing" vs "PayMongo Pricing Limitation"
-   - I: "Lalamove API Instruction" vs "Lalamove API Limitation"
-   - R: "Sample Input/Output Reports" vs "Sample Input/Output/Reports"
-   - A–G use "Appendix A:" in the body but "Appendix A." elsewhere; pick one
-6. ☐ **TABLE OF CONTENTS:** add "Statistical Tool" and "Summary of Findings" if they aren't listed, then right-click → Update Field → Update entire table.
-7. ☐ **Last:** update all page numbers in LIST OF CHARTS and LIST OF APPENDICES. Appendix O and P moved when pages were added.
+1. ☐ **Appendix O:** add the **IT Expert Survey** (Google Form screenshots) after TAM Survey.
 
 ## Round 2 (added Nov 24)
 
@@ -90,7 +61,7 @@ George, D., & Mallery, P. (2003). SPSS for Windows step by step: A simple guide 
 
 ### ☐ R4. Cronbach's alpha results (5 min, values computed from the 50 customer responses)
 
-**Where:** Implementation Results, right **after the Chart 3.8 paragraph** (end of Customer Evaluation). Using **Chart 3.9** means no renumbering.
+**Where:** Implementation Results, right **after the Chart 3.8 paragraph** (end of Customer Evaluation).
 
 Heading: `Reliability of the Customer Survey`
 
@@ -101,27 +72,19 @@ Usability	4	0.79	Acceptable
 Overall Satisfaction	2	0.72	Acceptable
 Whole Questionnaire	14	0.92	Excellent
 ```
-Caption below it: `Chart 3.9. Reliability of the Customer Survey`
-
 ```
 Chart 3.9 shows that the customer survey has an excellent level of internal consistency, with a Cronbach's alpha of 0.92 for the whole questionnaire. Functional Suitability (0.79), Usability (0.79), and Overall Satisfaction (0.72) were each within the acceptable range. Performance Efficiency, Reliability, and Security were not included because each has only one item.
-```
-
-LIST OF CHARTS line:
-```
-Chart 3.9	Table (Reliability of the Customer Survey)	
 ```
 
 Check: the same CSV gives the paper's existing averages exactly (FS 4.64, PE 4.60, U 4.66, R 4.82, S 4.62, OS 4.75), so the item grouping matches the paper.
 
 ### ☐ R5. Validation letters + proof of IT experts (20 min once signed)
 
-**Where:** a new **Appendix S. Validation Letters of IT Experts**, at the end. Adding it last means no relettering.
+**Where:** a new appendix at the end: **Validation Letters of IT Experts**.
 - Per expert: the **signed validation letter** + **proof** (certificate of employment or company ID; cover ID numbers and addresses).
-- LIST OF APPENDICES line: `Appendix S. Validation Letters of IT Experts`
 - **Only if the letters say the experts checked the questionnaire**, add this sentence at the end of the Research Instrument paragraph (R1):
 ```
-The questionnaires were reviewed and validated by IT professionals (Appendix S).
+The questionnaires were reviewed and validated by IT professionals (Appendix [letter]).
 ```
 
 ### ☐ R6. New Rx flow: paper text + diagrams (about 2 hours, mostly redrawing)
@@ -133,5 +96,9 @@ All the paste-ready text and the redraw steps are in **`study/PAPER-RX-CHANGES.m
 
 ## Optional
 
-- ☐ **Item-mapping table (Chart 1.2 if added; the Gantt chart then becomes 1.3).** Shows which question belongs to which ISO characteristic or TAM construct. Useful if the panel asks "where is ISO in your form?".
+- ☐ **Item-mapping table.** Shows which question belongs to which ISO characteristic or TAM construct. Useful if the panel asks "where is ISO in your form?".
 - ☐ **Redo Chart 6.1** to include an IT Experts bar. Not required: Chart 6.3 already shows the experts.
+
+## Later: formatting pass
+
+- ☐ Captions, chart and appendix numbering, list of charts, list of appendices, table of contents, page numbers. Done once, after all content is in.
