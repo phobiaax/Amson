@@ -129,6 +129,73 @@ service cloud.firestore {
         (data[field] is string && data[field].matches("https://res[.]cloudinary[.]com/wb6wxped/.+"));
     }
 
+    function cloudinaryUrl(v) {
+      return v is string && v.matches("https://res[.]cloudinary[.]com/wb6wxped/.+");
+    }
+
+    // several prescription photos, up to 10 on one order
+    function rxPhotoListOk(list) {
+      return list is list && list.size() <= 10 &&
+        (list.size() < 1 || cloudinaryUrl(list[0])) && (list.size() < 2 || cloudinaryUrl(list[1])) &&
+        (list.size() < 3 || cloudinaryUrl(list[2])) && (list.size() < 4 || cloudinaryUrl(list[3])) &&
+        (list.size() < 5 || cloudinaryUrl(list[4])) && (list.size() < 6 || cloudinaryUrl(list[5])) &&
+        (list.size() < 7 || cloudinaryUrl(list[6])) && (list.size() < 8 || cloudinaryUrl(list[7])) &&
+        (list.size() < 9 || cloudinaryUrl(list[8])) && (list.size() < 10 || cloudinaryUrl(list[9]));
+    }
+
+    // prescription orders start unchecked and unpaid, the pharmacist reviews them first
+    function rxOrderCreateOk(data) {
+      return data.get("requiresPrescription", false) == false ||
+        ("rxReview" in data &&
+         data.rxReview.keys().hasOnly(["state", "items"]) &&
+         data.rxReview.state == "pending" &&
+         data.rxReview.items.size() == 0 &&
+         rxPhotoListOk(data.get("prescriptionPhotoUrls", [])) &&
+         data.get("prescriptionPhotoUrls", []).size() >= 1 &&
+         data.get("proofOfPaymentUrl", null) == null &&
+         data.get("creditApplied", 0) == 0);
+    }
+
+    // customer steps before paying a prescription order
+    function rxCustomerStepOk(orderId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      let changed = after.diff(before).affectedKeys();
+      return before.status == "placed" && before.get("requiresPrescription", false) == true &&
+        "rxReview" in before && !("paymentSubmittedAt" in before) && (
+        // new photos for the rejected items, back to the pharmacist
+        (before.rxReview.state == "needs_customer" && after.rxReview.state == "pending" &&
+         changed.hasOnly(["prescriptionPhotoUrls", "rxReview"]) &&
+         after.rxReview.diff(before.rxReview).affectedKeys().hasOnly(["state", "resubmittedAt"]) &&
+         rxPhotoListOk(after.prescriptionPhotoUrls) &&
+         after.prescriptionPhotoUrls.size() > before.get("prescriptionPhotoUrls", []).size())
+        ||
+        // drop the rejected items and go on to payment
+        (before.rxReview.state == "needs_customer" && after.rxReview.state == "approved" &&
+         changed.hasOnly(["items", "total", "rxReview"]) &&
+         after.rxReview.diff(before.rxReview).affectedKeys().hasOnly(["state", "itemsRemovedAt", "removedItems"]) &&
+         after.items.size() > 0 && after.items.size() < before.items.size() &&
+         after.total >= 0 && after.total <= before.total)
+        ||
+        // pay once approved, store credit comes off in the same write
+        (before.rxReview.state == "approved" &&
+         changed.hasOnly(["proofOfPaymentUrl", "paymentReferenceNumber", "paymentSubmittedAt", "creditApplied", "subtotal", "total"]) &&
+         "paymentSubmittedAt" in after &&
+         after.subtotal == before.total &&
+         after.creditApplied >= 0 && after.creditApplied <= after.subtotal &&
+         after.total >= 0 &&
+         photoLinkOk(after, "proofOfPaymentUrl") &&
+         (after.creditApplied == 0 ||
+          (getAfter(/databases/$(database)/documents/users/$(myUid())).data.get("lastCreditOrderId", null) == orderId &&
+           getAfter(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) ==
+             get(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) - after.creditApplied)))
+        ||
+        // cancel before paying, nothing to refund
+        (after.status == "closed_unresolved" && after.get("cancelledByCustomer", false) == true &&
+         changed.hasOnly(["status", "cancelledByCustomer", "closedReason", "statusTimestamps"]))
+      );
+    }
+
     match /orders/{orderId} {
       allow read: if isSignedIn() && resource.data.customerId == myUid();
       allow read: if isOpsStaff();
@@ -138,7 +205,8 @@ service cloud.firestore {
         request.resource.data.customerId == myUid() &&
         request.resource.data.status == "placed" &&
         request.resource.data.get("total", 0) >= 0 &&
-        !request.resource.data.keys().hasAny(["paymentIssue", "invoiceNo", "unappliedCredit", "paymentOverage", "verification", "closedReason"]) &&
+        !request.resource.data.keys().hasAny(["paymentIssue", "invoiceNo", "unappliedCredit", "paymentOverage", "verification", "closedReason", "paymentSubmittedAt", "cancelledByCustomer"]) &&
+        rxOrderCreateOk(request.resource.data) &&
         photoLinkOk(request.resource.data, "proofOfPaymentUrl") &&
         photoLinkOk(request.resource.data, "prescriptionPhotoUrl") &&
         (request.resource.data.get("creditApplied", 0) == 0 ||
@@ -146,6 +214,9 @@ service cloud.firestore {
           getAfter(/databases/$(database)/documents/users/$(myUid())).data.get("lastCreditOrderId", null) == orderId &&
           getAfter(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) ==
             get(/databases/$(database)/documents/users/$(myUid())).data.get("creditBalance", 0) - request.resource.data.creditApplied));
+
+      // prescription first, then payment
+      allow update: if isSignedIn() && resource.data.customerId == myUid() && rxCustomerStepOk(orderId);
 
       // customers can only confirm receipt, auto-deliver after 3 days, or resubmit a hold fix
       allow update: if isSignedIn() && resource.data.customerId == myUid() && (

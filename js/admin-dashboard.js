@@ -16,7 +16,7 @@ function watchOrderTilesLive() {
     .where("status", "in", ["placed", "payment_confirmed", "dispatched"])
     .onSnapshot(
       (snap) => {
-        const statuses = snap.docs.map((doc) => doc.data().status);
+        const statuses = snap.docs.filter((doc) => !orderWaitingOnCustomer(doc.data())).map((doc) => doc.data().status);
         document.getElementById("pendingVerificationCount").textContent = statuses.filter((st) => st === "placed").length;
         document.getElementById("activeOrdersCount").textContent = statuses.filter((st) => st !== "placed").length;
       },
@@ -199,7 +199,7 @@ async function loadDashboardStats() {
     // voided sales arent revenue
     const posSales = posSalesSnapshot.docs.map((doc) => doc.data()).filter((s) => !s.voided);
 
-    const pendingVerification = orders.filter((o) => o.status === "placed").length;
+    const pendingVerification = orders.filter((o) => o.status === "placed" && !orderWaitingOnCustomer(o)).length;
     // verified but not handed over yet
     const activeOrders = orders.filter((o) => ["payment_confirmed", "dispatched"].includes(o.status)).length;
     // applies the expiry rules here too

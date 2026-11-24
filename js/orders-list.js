@@ -42,7 +42,7 @@ function renderOrderCard(id, order) {
         <button type="button" class="btn btn-outline-dark-amson download-receipt-btn" data-id="${id}">
           <i class="bi bi-file-earmark-text me-1"></i>Download Receipt
         </button>
-        <a href="order-details.html?id=${id}" class="btn btn-amson">View Details ></a>
+        <a href="order-details.html?id=${id}" class="btn btn-amson">${rxAwaitingPayment(order) ? "Pay Now >" : "View Details >"}</a>
       </div>
     </div>
   `;

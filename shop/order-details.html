@@ -135,6 +135,74 @@
 
       <div class="alert alert-info d-none mb-4" id="overpaymentNotice" role="alert"></div>
 
+      <!-- prescription first, then payment -->
+      <div class="checkout-card p-3 mb-4 d-none" id="rxStepSection">
+        <h2 class="h6 fw-bold mb-2" id="rxStepTitle"></h2>
+        <p class="mb-3" id="rxStepDetail" style="font-size:0.9rem;"></p>
+        <div id="rxItemResults"></div>
+
+        <div id="rxFixActions" class="d-none mt-3">
+          <p class="fw-semibold mb-1" style="font-size:0.9rem;">Option 1: Upload a new prescription for the rejected items</p>
+          <p class="text-muted mb-2" style="font-size:0.8rem;">Add a photo of each prescription (up to 5). Your earlier photos stay on the order.</p>
+          <div class="rx-photo-grid mb-2" id="rxFixPhotoGrid"></div>
+          <div class="upload-dropzone bg-white" id="rxFixDropzone">
+            <div>
+              <i class="bi bi-upload"></i>
+              <span id="rxFixPrompt">Click to add a prescription photo</span>
+              <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB each</p>
+            </div>
+            <input type="file" id="rxFixInput" accept="image/png,image/jpeg" multiple class="d-none">
+          </div>
+          <p class="text-danger d-none mb-0 mt-2" id="rxFixError" style="font-size:0.82rem;"></p>
+          <button type="button" class="btn btn-amson w-100 mt-2" id="rxResubmitBtn">Resubmit Prescription</button>
+
+          <p class="fw-semibold mb-1 mt-4" style="font-size:0.9rem;">Option 2: Remove the rejected items</p>
+          <p class="text-muted mb-2" style="font-size:0.8rem;">You'll pay only for the items that were approved.</p>
+          <button type="button" class="btn btn-outline-dark-amson w-100" id="rxRemoveRejectedBtn">Remove rejected items and continue</button>
+        </div>
+
+        <div id="rxPaySection" class="d-none mt-2">
+          <div class="summary-total-row d-none" id="rxPaySubtotalRow"><span>Subtotal</span><span id="rxPaySubtotal"></span></div>
+          <div class="summary-total-row text-success d-none" id="rxPayCreditRow"><span>Store credit applied</span><span id="rxPayCredit"></span></div>
+          <div class="summary-total-row mb-3"><span>Pay via QR Ph</span><strong class="product-price mb-0" id="rxPayTotal"></strong></div>
+
+          <div class="alert alert-success d-none" id="rxPayCoveredNotice" role="alert" style="font-size:0.9rem;">
+            Your store credit covers the full total. There's nothing to pay via QR Ph; just confirm below.
+          </div>
+          <div id="rxPayQrBox">
+            <div class="qr-code-image mx-auto" style="width:100%; max-width:260px; height:auto; padding:6px;">
+              <img src="../assets/payment-qr.jpg" alt="Amson Pharmaceuticals QR Ph payment code" style="max-width:100%; height:auto;">
+            </div>
+            <ol class="mt-3" style="font-size:0.88rem;">
+              <li>Scan the QR code with GCash, Maya or your bank app.</li>
+              <li>Check that the recipient name is <b>AMSON PHARMACEUTICAL...</b> before you pay.</li>
+              <li>Send the exact amount above, then upload a screenshot of the completed payment.</li>
+            </ol>
+            <p class="payment-warning mb-3"><i class="bi bi-exclamation-triangle-fill"></i>Please double-check the amount before sending. Payments are non-refundable.</p>
+            <div class="upload-dropzone bg-white" id="rxPayDropzone">
+              <div id="rxPayEmptyState">
+                <i class="bi bi-upload"></i>
+                <span>Click to upload proof of payment</span>
+                <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
+              </div>
+              <div id="rxPayPreviewState" class="d-none">
+                <img id="rxPayPreviewImage" src="" alt="Proof of payment preview" style="max-width:100%; max-height:180px; border-radius:8px;">
+                <p class="mb-0 mt-2" id="rxPayPreviewFilename" style="font-size:0.85rem;"></p>
+                <p class="text-muted mb-0" style="font-size:0.75rem;">Click to change</p>
+              </div>
+              <input type="file" id="rxPayProofInput" accept="image/png,image/jpeg" class="d-none">
+            </div>
+            <label for="rxPayReferenceInput" class="form-label mt-3">Reference Number *</label>
+            <input type="text" class="form-control" id="rxPayReferenceInput" placeholder="e.g. GC1234567890">
+          </div>
+          <div class="alert alert-danger d-none mt-3 mb-0" id="rxPayError" role="alert" style="white-space:pre-line;"></div>
+          <button type="button" class="btn btn-amson w-100 mt-3" id="rxPaySubmitBtn">Submit Payment</button>
+        </div>
+
+        <div class="alert alert-success d-none mt-3 mb-0" id="rxStepSuccess" role="alert"></div>
+        <button type="button" class="btn btn-link link-red p-0 mt-3 d-none" id="rxCancelOrderBtn" style="font-size:0.85rem;">Cancel this order</button>
+      </div>
+
       <div class="alert alert-success d-none mb-4" id="issueResubmitSuccess" role="alert">Resubmitted. Our team will review it again shortly.</div>
 
       <div class="alert alert-danger d-none mb-4" id="paymentIssueSection" role="alert">
@@ -202,9 +270,7 @@
 
       <div class="mb-4 d-none" id="detailPrescriptionSection">
         <h2 class="h6 fw-bold mb-3"><i class="bi bi-file-medical text-danger me-1"></i>Prescription</h2>
-        <a id="detailPrescriptionLink" href="#" target="_blank" rel="noopener" class="d-block" style="max-width:220px;">
-          <img id="detailPrescriptionImage" src="" alt="Prescription photo" style="width:100%; max-height:180px; object-fit:contain; display:block; border-radius:8px; border:1px solid var(--amson-border); background-color:#f2f2f4;">
-        </a>
+        <div class="rx-photo-grid" id="detailPrescriptionPhotos" style="max-width:420px;"></div>
       </div>
 
       <h2 class="h6 fw-bold mb-3">Order Items</h2>
@@ -260,6 +326,7 @@
 <script src="../js/orders.js"></script>
 <script src="../js/validators.js"></script>
 <script src="../js/order-details.js"></script>
+<script src="../js/rx-order.js"></script>
 <script src="../js/store-info.js"></script>
 <script src="../js/chat-config.js"></script>
 <script src="../js/live-chat.js"></script>

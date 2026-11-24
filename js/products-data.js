@@ -387,19 +387,30 @@ function staffNotifMillis(v) {
   return v && v.toMillis ? v.toMillis() : v ? new Date(v).getTime() || 0 : 0;
 }
 
+// prescription approved or rejected and waiting on the customer, nothing for staff yet
+function orderWaitingOnCustomer(o) {
+  return !!(o && o.status === "placed" && o.requiresPrescription && o.rxReview && !o.paymentSubmittedAt && o.rxReview.state !== "pending");
+}
+
 function staffOrderNotifications(orderDocs) {
   return orderDocs
-    .filter((doc) => doc.data().status === "placed")
+    .filter((doc) => doc.data().status === "placed" && !orderWaitingOnCustomer(doc.data()))
     .map((doc) => {
       const o = doc.data();
+      const rxCheck = !!(o.rxReview && o.rxReview.state === "pending");
       return {
         key: `payment_verification:${doc.id}`,
         category: "orders",
-        at: Math.max(staffNotifMillis(o.createdAt), staffNotifMillis(o.paymentIssue && o.paymentIssue.resolvedByCustomerAt)),
-        signature: o.status,
+        at: Math.max(
+          staffNotifMillis(o.createdAt),
+          staffNotifMillis(o.paymentIssue && o.paymentIssue.resolvedByCustomerAt),
+          staffNotifMillis(o.rxReview && o.rxReview.resubmittedAt),
+          staffNotifMillis(o.paymentSubmittedAt)
+        ),
+        signature: `${o.status}:${rxCheck ? "rx" : "pay"}`,
         severity: "info",
         icon: "bi-credit-card",
-        message: `Order ${o.orderNumber} is awaiting payment verification.`,
+        message: rxCheck ? `Order ${o.orderNumber} is awaiting prescription verification.` : `Order ${o.orderNumber} is awaiting payment verification.`,
         link: "online-orders.html",
       };
     });

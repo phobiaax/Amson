@@ -103,20 +103,19 @@
         <div class="qr-box d-none mb-4" id="prescriptionUploadBox">
           <div class="text-start">
             <p class="fw-bold mb-2"><i class="bi bi-file-medical text-danger me-1"></i>Upload Prescription</p>
-            <p class="text-muted mb-3" style="font-size:0.85rem;">Your order includes a medicine that requires a valid prescription. Upload a clear photo of it below.</p>
+            <p class="text-muted mb-2" style="font-size:0.85rem;">Your order includes medicine that requires a valid prescription. Our pharmacist checks your prescription first. You'll pay only after it's approved, so nothing is charged if it can't be accepted.</p>
+            <p class="mb-1" style="font-size:0.85rem;">Your prescription must cover:</p>
+            <ul class="mb-3" id="rxItemsNeeded" style="font-size:0.85rem;"></ul>
+            <p class="text-muted mb-2" style="font-size:0.8rem;">If your medicines are on different prescriptions, add a photo of each one (up to 5).</p>
 
+            <div class="rx-photo-grid mb-2" id="rxPhotoGrid"></div>
             <div class="upload-dropzone" id="rxUploadDropzone">
               <div id="rxUploadEmptyState">
                 <i class="bi bi-upload"></i>
-                <span>Click to upload prescription photo</span>
-                <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB</p>
+                <span id="rxUploadPrompt">Click to add a prescription photo</span>
+                <p class="mb-0" style="font-size:0.75rem;">PNG, JPG, up to 10MB each</p>
               </div>
-              <div id="rxUploadPreviewState" class="d-none">
-                <img id="rxUploadPreviewImage" src="" alt="Prescription preview" style="max-width:100%; max-height:180px; border-radius:8px;">
-                <p class="mb-0 mt-2" id="rxUploadPreviewFilename" style="font-size:0.85rem; color:var(--amson-dark);"></p>
-                <p class="text-muted mb-0" style="font-size:0.75rem;">Click to change</p>
-              </div>
-              <input type="file" id="prescriptionPhotoInput" accept="image/png,image/jpeg" class="d-none">
+              <input type="file" id="prescriptionPhotoInput" accept="image/png,image/jpeg" multiple class="d-none">
             </div>
             <p class="text-danger d-none mb-0 mt-2" id="rxUploadErrorText" style="font-size:0.82rem;"></p>
           </div>
@@ -190,7 +189,7 @@
             <span id="paymentCreditText">-₱0</span>
           </div>
           <div class="summary-total-row">
-            <span>Pay via QR Ph</span>
+            <span id="paymentTotalLabel">Pay via QR Ph</span>
             <strong id="paymentTotalText" class="product-price mb-0">₱0</strong>
           </div>
           <div class="summary-note" id="deliveryFeeNoteSummary">
@@ -204,7 +203,7 @@
           <div class="alert alert-danger auth-alert d-none mb-3" id="submitOrderErrorAlert" role="alert" style="white-space:pre-line;"></div>
           <button type="button" class="btn btn-amson w-100 py-2" id="submitOrderBtn">Submit Order</button>
 
-          <p class="text-muted text-center mt-3 mb-0" style="font-size:0.82rem;">
+          <p class="text-muted text-center mt-3 mb-0" style="font-size:0.82rem;" id="submitTermsNote">
             By submitting your order, you agree to our <a href="../legal.html#terms" class="link-red" target="_blank" rel="noopener">Terms and Conditions</a>. Your payment will be verified by our staff before processing.
           </p>
         </div>
@@ -213,8 +212,8 @@
 
     <div id="orderConfirmation" class="cart-card text-center d-none">
       <div class="icon-circle" style="background-color: rgba(26,156,75,0.12); color:#1a9c4b;"><i class="bi bi-check-circle-fill"></i></div>
-      <h2 class="mb-2">Thank You for Your Order!</h2>
-      <p class="text-muted mb-1">We've received your order and proof of payment. Our team will verify it and contact you shortly to confirm delivery.</p>
+      <h2 class="mb-2" id="confirmedTitle">Thank You for Your Order!</h2>
+      <p class="text-muted mb-1" id="confirmedMessage">We've received your order and proof of payment. Our team will verify it and contact you shortly to confirm delivery.</p>
       <p class="fw-bold mb-4" id="confirmedOrderNumber"></p>
       <div class="d-flex gap-2 justify-content-center flex-wrap">
         <a href="index.html" class="btn btn-outline-dark-amson">Back to Home</a>

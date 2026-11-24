@@ -38,7 +38,7 @@ let currentOrder = null;
 function renderTimeline(order) {
   const steps = orderStatusSteps(order);
   const labels = orderStepLabels(order);
-  const currentIdx = orderStatusIndex(order.status, steps);
+  const currentIdx = orderStatusIndex(orderProgressStatus(order), steps);
   const timelineEl = document.getElementById("orderTimeline");
 
   timelineEl.innerHTML = steps.map((step, idx) => {
@@ -275,13 +275,15 @@ function renderOrder(order) {
   document.getElementById("detailCustomerName").textContent = `${order.contact.firstName} ${order.contact.lastName}`;
 
   const prescriptionSection = document.getElementById("detailPrescriptionSection");
-  if (order.prescriptionPhotoUrl) {
-    document.getElementById("detailPrescriptionLink").href = order.prescriptionPhotoUrl;
-    document.getElementById("detailPrescriptionImage").src = order.prescriptionPhotoUrl;
-    prescriptionSection.classList.remove("d-none");
-  } else {
-    prescriptionSection.classList.add("d-none");
-  }
+  const rxPhotos = orderRxPhotos(order);
+  document.getElementById("detailPrescriptionPhotos").innerHTML = rxPhotos
+    .map(
+      (url, i) => `<a class="rx-photo-thumb" href="${escapeHtml(safeUrl(url))}" target="_blank" rel="noopener"><img src="${escapeHtml(url)}" alt="Prescription photo ${i + 1}"></a>`
+    )
+    .join("");
+  prescriptionSection.classList.toggle("d-none", rxPhotos.length === 0);
+
+  if (typeof renderRxStep === "function") renderRxStep(order);
 
   document.getElementById("detailItemsList").innerHTML = orderItemRowsHtml(order.items);
 
@@ -315,6 +317,7 @@ function listenToOrder(docRef) {
       }
       if (!doc.exists) return;
       if (issueProofInput.files && issueProofInput.files[0]) return;
+      if (typeof rxStepBusy === "function" && rxStepBusy()) return;
       currentOrder = doc.data({ serverTimestamps: "estimate" });
       renderOrder(currentOrder);
     },

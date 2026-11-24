@@ -92,11 +92,119 @@ function formatDeliverySchedule(schedule) {
 
 const DISPATCH_AUTO_DELIVER_MS = 3 * 24 * 60 * 60 * 1000;
 
+// ---- prescription first, then payment ----
+// rxReview.state: pending (staff checking), needs_customer (some items rejected), approved (customer can pay)
+const MAX_RX_PHOTOS = 5;
+
+const RX_PICKUP_STATUS_STEPS = ["placed", "rx_approved", "payment_confirmed", "delivered", "received"];
+
+const RX_PICKUP_STATUS_STEP_LABELS = {
+  placed: "Prescription Submitted",
+  rx_approved: "Prescription Approved",
+  payment_confirmed: "Payment Confirmed",
+  delivered: "Ready for Pick-up",
+  received: "Picked Up",
+};
+
+// orders from before this change have one photo and paid at checkout
+function isRxFirstOrder(order) {
+  return !!(order && order.requiresPrescription && order.rxReview);
+}
+
+function orderRxPhotos(order) {
+  if (!order) return [];
+  if (Array.isArray(order.prescriptionPhotoUrls) && order.prescriptionPhotoUrls.length) return order.prescriptionPhotoUrls;
+  return order.prescriptionPhotoUrl ? [order.prescriptionPhotoUrl] : [];
+}
+
+// approved prescription, customer hasnt paid yet
+function rxAwaitingPayment(order) {
+  return isRxFirstOrder(order) && order.status === "placed" && order.rxReview.state === "approved" && !order.paymentSubmittedAt;
+}
+
+
+// picker for several prescription photos, shows thumbnails with a remove button
+function setUpRxPhotoPicker({ grid, dropzone, input, errorText, prompt = null, max = MAX_RX_PHOTOS, onChange = null }) {
+  let files = [];
+  const render = () => {
+    grid.innerHTML = files
+      .map(
+        (f, i) => `
+        <div class="rx-photo-thumb">
+          <img src="${f.previewUrl}" alt="Prescription photo ${i + 1}">
+          <button type="button" class="rx-photo-remove" data-index="${i}" aria-label="Remove photo ${i + 1}"><i class="bi bi-x"></i></button>
+        </div>`
+      )
+      .join("");
+    grid.querySelectorAll(".rx-photo-remove").forEach((btn) =>
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        files.splice(Number(btn.dataset.index), 1);
+        render();
+      })
+    );
+    dropzone.classList.toggle("d-none", files.length >= max);
+    if (prompt) prompt.textContent = files.length ? "Click to add another prescription photo" : "Click to add a prescription photo";
+    if (onChange) onChange(files.length);
+  };
+  dropzone.addEventListener("click", () => input.click());
+  input.addEventListener("change", () => {
+    errorText.classList.add("d-none");
+    const picked = Array.from(input.files || []);
+    input.value = "";
+    const tooBig = picked.filter((f) => f.size > 10 * 1024 * 1024);
+    const ok = picked.filter((f) => f.size <= 10 * 1024 * 1024 && /^image\/(png|jpeg)$/.test(f.type));
+    const room = max - files.length;
+    ok.slice(0, room).forEach((file) => files.push({ file, previewUrl: URL.createObjectURL(file) }));
+    const problems = [];
+    if (tooBig.length) problems.push("Some photos are over 10MB and were skipped.");
+    if (ok.length > room) problems.push(`You can add up to ${max} photos.`);
+    if (picked.length - tooBig.length > ok.length) problems.push("Only PNG or JPG photos can be added.");
+    if (problems.length) {
+      errorText.textContent = problems.join(" ");
+      errorText.classList.remove("d-none");
+    }
+    render();
+  });
+  render();
+  return {
+    files: () => files.map((f) => f.file),
+    clear: () => {
+      files = [];
+      render();
+    },
+  };
+}
+
+async function uploadRxPhotos(files) {
+  const urls = [];
+  for (const file of files) urls.push(await uploadToCloudinary(file, { kind: "document" }));
+  return urls;
+}
+
+function rxItemDecision(order, itemId) {
+  const d = order && order.rxReview && order.rxReview.items ? order.rxReview.items[itemId] : null;
+  return d ? d.decision : null;
+}
+
+// rx items that staff rejected and are still on the order
+function rxRejectedItems(order) {
+  return (order.items || []).filter((item) => rxItemDecision(order, item.id) === "rejected");
+}
+
+// where the order is on the timeline, approved prescriptions sit between placed and paid
+function orderProgressStatus(order) {
+  if (isRxFirstOrder(order) && order.status === "placed" && order.rxReview.state === "approved") return "rx_approved";
+  return order.status;
+}
+
 function orderStatusSteps(order) {
+  if (isRxFirstOrder(order)) return RX_PICKUP_STATUS_STEPS;
   return order.requiresPrescription ? PICKUP_ORDER_STATUS_STEPS : ORDER_STATUS_STEPS;
 }
 
 function orderStepLabels(order) {
+  if (isRxFirstOrder(order)) return RX_PICKUP_STATUS_STEP_LABELS;
   return order.requiresPrescription ? PICKUP_ORDER_STATUS_STEP_LABELS : ORDER_STATUS_STEP_LABELS;
 }
 
@@ -113,6 +221,13 @@ function orderBadgeLabel(order) {
     if (order.paymentIssue.resolvedByCustomerAt) return "Resubmitted - Under Review";
     return CUSTOMER_HOLD_BADGE_LABELS[order.paymentIssue.type] || "On Hold";
   }
+  if (isRxFirstOrder(order) && order.status === "placed") {
+    if (order.paymentSubmittedAt) return "Payment Pending Verification";
+    if (order.rxReview.state === "approved") return "Prescription Approved - Pay Now";
+    if (order.rxReview.state === "needs_customer") return "Prescription Needs Your Action";
+    return order.rxReview.resubmittedAt ? "Prescription Resubmitted - Under Review" : "Pending Prescription Verification";
+  }
+  if (order.status === "closed_unresolved" && order.cancelledByCustomer) return "Cancelled";
   const labels = order.requiresPrescription ? PICKUP_ORDER_STATUS_BADGE_LABELS : ORDER_STATUS_BADGE_LABELS;
   return labels[order.status] || order.status;
 }
@@ -277,13 +392,13 @@ function formatOrderDateTime(timestamp) {
 }
 
 // uses as much store credit as the total allows, never cash back
-async function createOrderWithCreditRedemption(orderData, { expectFullCredit = false } = {}) {
+async function createOrderWithCreditRedemption(orderData, { expectFullCredit = false, applyCredit = true } = {}) {
   const orderRef = db.collection("orders").doc();
   const userRef = orderData.customerId ? db.collection("users").doc(orderData.customerId) : null;
 
   const { appliedCredit, finalTotal } = await db.runTransaction(async (transaction) => {
     let balance = 0;
-    if (userRef) {
+    if (userRef && applyCredit) {
       const userDoc = await transaction.get(userRef);
       balance = userDoc.exists ? userDoc.data().creditBalance || 0 : 0;
     }
@@ -308,6 +423,44 @@ async function createOrderWithCreditRedemption(orderData, { expectFullCredit = f
   });
 
   return { orderId: orderRef.id, appliedCredit, finalTotal };
+}
+
+// pays an approved prescription order, store credit comes off here, not at checkout
+async function payApprovedRxOrder(orderId, { proofOfPaymentUrl = null, paymentReferenceNumber = null, expectFullCredit = false } = {}) {
+  const orderRef = db.collection("orders").doc(orderId);
+  return db.runTransaction(async (transaction) => {
+    const orderDoc = await transaction.get(orderRef);
+    const order = orderDoc.exists ? orderDoc.data() : null;
+    if (!order || !rxAwaitingPayment(order)) {
+      throw new Error("This order can't be paid right now. Refresh the page to see its current status.");
+    }
+    const userRef = db.collection("users").doc(order.customerId);
+    const userDoc = await transaction.get(userRef);
+    const balance = userDoc.exists ? userDoc.data().creditBalance || 0 : 0;
+    const subtotal = order.total || 0;
+    const appliedCredit = roundPeso(Math.max(0, Math.min(balance, subtotal)));
+    const finalTotal = roundPeso(subtotal - appliedCredit);
+    if (expectFullCredit && finalTotal > 0) {
+      throw new Error("Your store credit balance changed, so it no longer covers this order. Please reload the page to pay the rest.");
+    }
+    if (finalTotal > 0 && !proofOfPaymentUrl) throw new Error("Please upload a screenshot of your payment.");
+    transaction.update(orderRef, {
+      subtotal,
+      total: finalTotal,
+      creditApplied: appliedCredit,
+      proofOfPaymentUrl: finalTotal > 0 ? proofOfPaymentUrl : null,
+      paymentReferenceNumber: finalTotal > 0 ? paymentReferenceNumber : null,
+      paymentSubmittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    if (appliedCredit > 0) {
+      // rules check the credit belongs to this order
+      transaction.update(userRef, {
+        creditBalance: firebase.firestore.FieldValue.increment(-appliedCredit),
+        lastCreditOrderId: orderId,
+      });
+    }
+    return { appliedCredit, finalTotal };
+  });
 }
 
 async function generateOrderNumber() {

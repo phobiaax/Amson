@@ -28,12 +28,9 @@ const fullyCoveredNotice = document.getElementById("fullyCoveredNotice");
 
 const prescriptionUploadBox = document.getElementById("prescriptionUploadBox");
 const rxUploadDropzone = document.getElementById("rxUploadDropzone");
-const rxUploadEmptyState = document.getElementById("rxUploadEmptyState");
-const rxUploadPreviewState = document.getElementById("rxUploadPreviewState");
-const rxUploadPreviewImage = document.getElementById("rxUploadPreviewImage");
-const rxUploadPreviewFilename = document.getElementById("rxUploadPreviewFilename");
 const rxUploadErrorText = document.getElementById("rxUploadErrorText");
 const prescriptionPhotoInput = document.getElementById("prescriptionPhotoInput");
+let rxPhotoPicker = null;
 
 const pendingOrderRaw = sessionStorage.getItem("amsonPendingOrder");
 const pendingOrder = pendingOrderRaw ? JSON.parse(pendingOrderRaw) : null;
@@ -45,6 +42,12 @@ let fullyCoveredByCredit = false;
 
 function renderCreditPreview() {
   if (cartSubtotal === null) return;
+  // prescription orders pay after approval, credit is used then
+  if (requiresPrescription) {
+    paymentTotalText.textContent = formatPeso(cartSubtotal);
+    fullyCoveredByCredit = false;
+    return;
+  }
   const applied = Math.max(0, Math.min(customerCreditBalance, cartSubtotal));
   const finalTotal = cartSubtotal - applied;
 
@@ -107,6 +110,22 @@ function showOrderSummary() {
   prescriptionUploadBox.classList.toggle("d-none", !requiresPrescription);
   deliveryFeeNoteSummary.classList.toggle("d-none", requiresPrescription);
   pickupNoteSummary.classList.toggle("d-none", !requiresPrescription);
+  if (requiresPrescription) {
+    // prescription first, payment after approval
+    qrBox.classList.add("d-none");
+    fullyCoveredNotice.classList.add("d-none");
+    paymentSubtotalRow.classList.add("d-none");
+    paymentCreditRow.classList.add("d-none");
+    document.getElementById("paymentTotalLabel").textContent = "Total (pay after approval)";
+    submitOrderBtn.textContent = "Submit Prescription";
+    document.getElementById("submitTermsNote").innerHTML =
+      'By submitting, you agree to our <a href="../legal.html#terms" class="link-red" target="_blank" rel="noopener">Terms and Conditions</a>. Nothing is charged now. We\'ll notify you once our pharmacist has checked your prescription, then you can pay.';
+    document.getElementById("rxItemsNeeded").innerHTML = pendingOrder.cart
+      .map((item) => getProductById(item.id))
+      .filter((product) => product && product.rxRequired)
+      .map((product) => `<li>${escapeHtml(product.name)}</li>`)
+      .join("");
+  }
 
   paymentItemsSummary.innerHTML = checkoutSummaryItemsHtml(pendingOrder.cart);
 
@@ -140,14 +159,12 @@ function setUpUploads() {
     previewImage: uploadPreviewImage,
     previewFilename: uploadPreviewFilename,
   });
-  setUpFilePicker({
+  rxPhotoPicker = setUpRxPhotoPicker({
+    grid: document.getElementById("rxPhotoGrid"),
     dropzone: rxUploadDropzone,
     input: prescriptionPhotoInput,
     errorText: rxUploadErrorText,
-    emptyState: rxUploadEmptyState,
-    previewState: rxUploadPreviewState,
-    previewImage: rxUploadPreviewImage,
-    previewFilename: rxUploadPreviewFilename,
+    prompt: document.getElementById("rxUploadPrompt"),
   });
 }
 
@@ -180,10 +197,10 @@ function setUpFilePicker({ dropzone, input, errorText, emptyState, previewState,
 
 // ---- submit: check form, recheck stock and prices, place order ----
 async function submitOrder() {
-  const file = proofOfPaymentInput.files[0];
-  const prescriptionFile = prescriptionPhotoInput.files[0];
-  const referenceNumber = referenceNumberInput.value.trim();
-  if (!checkPaymentForm(file, prescriptionFile, referenceNumber)) return;
+  const file = requiresPrescription ? null : proofOfPaymentInput.files[0];
+  const prescriptionFiles = rxPhotoPicker ? rxPhotoPicker.files() : [];
+  const referenceNumber = requiresPrescription ? "" : referenceNumberInput.value.trim();
+  if (!checkPaymentForm(file, prescriptionFiles, referenceNumber)) return;
 
   uploadErrorText.classList.add("d-none");
   rxUploadErrorText.classList.add("d-none");
@@ -191,10 +208,10 @@ async function submitOrder() {
   submitOrderErrorAlert.classList.add("d-none");
   submitOrderBtn.disabled = true;
   submitOrderBtn.textContent = "Checking stock...";
-  if (!(await stockAndPricesStillOk(prescriptionFile))) return;
+  if (!(await stockAndPricesStillOk(prescriptionFiles))) return;
 
   submitOrderBtn.textContent = "Submitting...";
-  await placeOrder(file, prescriptionFile, referenceNumber);
+  await placeOrder(file, prescriptionFiles, referenceNumber);
 }
 
 // shows a problem right above the submit button and gives the button back
@@ -202,22 +219,26 @@ function showSubmitProblem(message) {
   showFormAlert(submitOrderErrorAlert, message);
   submitOrderErrorAlert.scrollIntoView({ block: "center", behavior: "smooth" });
   submitOrderBtn.disabled = false;
-  submitOrderBtn.textContent = "Submit Order";
+  submitOrderBtn.textContent = requiresPrescription ? "Submit Prescription" : "Submit Order";
 }
 
 // ---- anything missing? ----
 // true when the form is complete
-function checkPaymentForm(file, prescriptionFile, referenceNumber) {
+function checkPaymentForm(file, prescriptionFiles, referenceNumber) {
   const problems = [];
-  if (requiresPrescription && !prescriptionFile) {
+  if (requiresPrescription && !prescriptionFiles.length) {
     problems.push("Upload a clear photo of your prescription.");
     showFormAlert(rxUploadErrorText, "Please upload a photo of your prescription.");
   }
-  if (!fullyCoveredByCredit && !file) {
+  if (requiresPrescription) {
+    // payment comes after approval
+  } else if (!fullyCoveredByCredit && !file) {
     problems.push("Upload a screenshot of your payment.");
     showFormAlert(uploadErrorText, "Please upload a screenshot of your QR Ph payment.");
   }
-  if (!fullyCoveredByCredit && !referenceNumber) {
+  if (requiresPrescription) {
+    // no reference number yet
+  } else if (!fullyCoveredByCredit && !referenceNumber) {
     problems.push("Enter the reference number from your proof of payment.");
     showFormAlert(referenceNumberErrorText, "Please enter the reference number from your proof of payment.");
   } else if (!fullyCoveredByCredit && !isValidReferenceNumber(referenceNumber)) {
@@ -232,7 +253,7 @@ function checkPaymentForm(file, prescriptionFile, referenceNumber) {
 }
 
 // ---- last stock and price check ----
-async function stockAndPricesStillOk(prescriptionFile) {
+async function stockAndPricesStillOk(prescriptionFiles) {
   // no connection: say so instead of calling the items unavailable
   const connectionProblem = () => {
     showSubmitProblem("We couldn't reach the store to check stock. Check your internet connection, then tap Submit Order again.");
@@ -272,12 +293,17 @@ async function stockAndPricesStillOk(prescriptionFile) {
   }
 
   // prescription orders are always pickup
-  requiresPrescription = pendingOrder.cart.some((item) => getProductById(item.id).rxRequired);
-  if (requiresPrescription && !prescriptionFile) {
+  const nowNeedsPrescription = pendingOrder.cart.some((item) => getProductById(item.id).rxRequired);
+  if (nowNeedsPrescription !== requiresPrescription) {
+    // an item became prescription-only (or stopped being one) while the page was open
+    showSubmitProblem("Some items in your cart changed whether they need a prescription. Please go back to checkout and try again.");
+    return false;
+  }
+  if (requiresPrescription && !prescriptionFiles.length) {
     prescriptionUploadBox.classList.remove("d-none");
     rxUploadErrorText.textContent = "This order has a prescription item. Please upload a photo of your prescription.";
     rxUploadErrorText.classList.remove("d-none");
-    submitOrderBtn.textContent = "Submit Order";
+    submitOrderBtn.textContent = "Submit Prescription";
     updateSubmitButtonState();
     return false;
   }
@@ -285,11 +311,11 @@ async function stockAndPricesStillOk(prescriptionFile) {
 }
 
 // ---- place the order ----
-async function placeOrder(file, prescriptionFile, referenceNumber) {
+async function placeOrder(file, prescriptionFiles, referenceNumber) {
   try {
     const user = auth.currentUser;
-    const proofOfPaymentUrl = file ? await uploadToCloudinary(file) : null;
-    const prescriptionPhotoUrl = prescriptionFile ? await uploadToCloudinary(prescriptionFile, { kind: "document" }) : null;
+    const proofOfPaymentUrl = !requiresPrescription && file ? await uploadToCloudinary(file) : null;
+    const prescriptionPhotoUrls = requiresPrescription ? await uploadRxPhotos(prescriptionFiles) : [];
     const orderNumber = await generateOrderNumber();
 
     const items = pendingOrder.cart.map((item) => {
@@ -303,7 +329,7 @@ async function placeOrder(file, prescriptionFile, referenceNumber) {
       };
     });
 
-    await createOrderWithCreditRedemption({
+    const orderData = {
       orderNumber,
       customerId: user ? user.uid : null,
       contact: pendingOrder.contact,
@@ -314,7 +340,6 @@ async function placeOrder(file, prescriptionFile, referenceNumber) {
       proofOfPaymentUrl,
       paymentReferenceNumber: referenceNumber || null,
       requiresPrescription,
-      prescriptionPhotoUrl,
       status: "placed",
       statusTimestamps: {
         placed: firebase.firestore.FieldValue.serverTimestamp(),
@@ -324,15 +349,22 @@ async function placeOrder(file, prescriptionFile, referenceNumber) {
         received: null,
       },
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    }, { expectFullCredit: fullyCoveredByCredit });
+    };
+    if (requiresPrescription) {
+      // pharmacist checks the prescription first, payment comes after approval
+      orderData.prescriptionPhotoUrls = prescriptionPhotoUrls;
+      orderData.rxReview = { state: "pending", items: {} };
+    }
+
+    await createOrderWithCreditRedemption(orderData, { expectFullCredit: fullyCoveredByCredit, applyCredit: !requiresPrescription });
 
     // order received notification
     if (user) {
       notifyCustomer(
         user.uid,
-        `Order ${orderNumber} placed`,
+        requiresPrescription ? `Prescription submitted for order ${orderNumber}` : `Order ${orderNumber} placed`,
         requiresPrescription
-          ? "We received your prescription pre-order. Our pharmacist will check your prescription and payment, and we'll tell you when it's ready for pick-up."
+          ? "We received your prescription. Our pharmacist will check it, and we'll tell you when you can pay. Nothing has been charged yet."
           : "We received your order and payment proof. We'll let you know once our staff verify your payment.",
         "orders.html",
         "info",
@@ -345,6 +377,11 @@ async function placeOrder(file, prescriptionFile, referenceNumber) {
     clearCatalogCache(); // stock just went down
     sessionStorage.removeItem("amsonCheckoutSelectedIds");
     document.getElementById("confirmedOrderNumber").textContent = `Order Number: ${orderNumber}`;
+    if (requiresPrescription) {
+      document.getElementById("confirmedTitle").textContent = "Prescription Submitted";
+      document.getElementById("confirmedMessage").textContent =
+        "Our pharmacist will check your prescription. We'll notify you by email once it's approved, then you can pay for your order in My Orders. Nothing has been charged yet.";
+    }
     if (user) {
       document.getElementById("viewOrdersLink").classList.remove("d-none");
     }
@@ -354,6 +391,6 @@ async function placeOrder(file, prescriptionFile, referenceNumber) {
     showFormAlert(submitOrderErrorAlert, error.message || "Something went wrong submitting your order. Please try again.");
     submitOrderErrorAlert.scrollIntoView({ block: "center", behavior: "smooth" });
     submitOrderBtn.disabled = false;
-    submitOrderBtn.textContent = "Submit Order";
+    submitOrderBtn.textContent = requiresPrescription ? "Submit Prescription" : "Submit Order";
   }
 }

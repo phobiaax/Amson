@@ -154,11 +154,9 @@
                     </div>
 
                     <div id="reviewPrescriptionSection" class="d-none mt-3">
-                      <p class="detail-label mb-1"><i class="bi bi-file-medical me-1"></i>Prescription Photo</p>
-                      <a id="reviewPrescriptionLink" href="#" target="_blank" rel="noopener" class="d-block">
-                        <img id="reviewPrescriptionImage" src="" alt="Prescription" style="width:100%; max-height:220px; object-fit:contain; display:block; border-radius:8px; border:1px solid var(--amson-border); background-color:#f2f2f4;">
-                      </a>
-                      <p class="text-muted mb-0 mt-1" style="font-size:0.78rem;">Click to view full size</p>
+                      <p class="detail-label mb-1"><i class="bi bi-file-medical me-1"></i>Prescription Photos</p>
+                      <div class="rx-photo-grid" id="reviewPrescriptionPhotos"></div>
+                      <p class="text-muted mb-0 mt-1" style="font-size:0.78rem;">Click a photo to view it full size</p>
                     </div>
                   </div>
                 </div>
@@ -167,7 +165,16 @@
                 <div id="reviewReusedRefWarning" class="alert alert-warning auth-alert d-none mt-3" role="alert"></div>
                 <div id="reviewAlert" class="alert alert-danger auth-alert d-none mt-3" role="alert"></div>
 
-                <div class="d-flex gap-2 flex-wrap mt-3">
+                <div class="d-none mt-3" id="reviewRxDecisionPanel">
+                  <p class="detail-label mb-1">Decision per prescription item</p>
+                  <p class="text-muted mb-2" style="font-size:0.8rem;">Approve each item the prescription covers. Rejected items go back to the customer, who can upload a new prescription or remove them. No payment has been made yet.</p>
+                  <div id="reviewRxItemDecisions"></div>
+                  <button type="button" class="btn btn-approve-payment w-100 mt-2" id="saveRxReviewBtn">
+                    <i class="bi bi-check2-square me-1"></i>Save Prescription Review
+                  </button>
+                </div>
+
+                <div class="d-flex gap-2 flex-wrap mt-3" id="reviewPaymentActions">
                   <select class="form-select" id="paymentIssueSelect" style="max-width:240px;">
                     <option value="">Payment Issue</option>
                     <option value="invalid_payment">Invalid payment</option>

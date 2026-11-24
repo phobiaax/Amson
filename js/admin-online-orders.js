@@ -432,7 +432,8 @@ function orderMatchesSearch(order, term) {
 function verificationQueue() {
   // includes resubmitted orders
   let queue = allOrders.filter(
-    (order) => order.status === "placed" && (!order.paymentIssue || order.paymentIssue.resolvedByCustomerAt)
+    (order) =>
+      order.status === "placed" && (!order.paymentIssue || order.paymentIssue.resolvedByCustomerAt) && !orderWaitingOnCustomer(order)
   );
 
   if (verificationTypeFilter === "rx") queue = queue.filter((order) => order.requiresPrescription);
@@ -469,8 +470,9 @@ function renderVerificationQueue() {
               <p class="text-muted mb-0" style="font-size:0.85rem;">${escapeHtml(customerName(order))}</p>
               <p class="text-muted mb-0" style="font-size:0.78rem;"><i class="bi bi-clock me-1"></i>${formatOrderDateTime(order.createdAt)}</p>
               ${order.requiresPrescription ? '<span class="badge rounded-pill text-bg-info mt-1 me-1">RX - Pick-up</span>' : ""}
+              ${isRxFirstOrder(order) ? (order.paymentSubmittedAt ? '<span class="badge rounded-pill text-bg-light border mt-1 me-1">Payment check</span>' : `<span class="badge rounded-pill text-bg-light border mt-1 me-1">Prescription check${order.rxReview.resubmittedAt ? " (resubmitted)" : ""}</span>`) : ""}
               ${order.paymentIssue && order.paymentIssue.resolvedByCustomerAt ? '<span class="badge rounded-pill text-bg-warning mt-1">Customer Resubmitted</span>' : ""}
-              ${!order.proofOfPaymentUrl ? '<p class="text-muted mb-0" style="font-size:0.75rem;">No payment made</p>' : ""}
+              ${!order.proofOfPaymentUrl && !(isRxFirstOrder(order) && !order.paymentSubmittedAt) ? '<p class="text-muted mb-0" style="font-size:0.75rem;">No payment made</p>' : ""}
             </div>
             <span class="fw-bold">${formatPeso(order.total)}</span>
           </button>
@@ -635,22 +637,174 @@ function renderReviewPanel(order) {
   }
 
   const isRx = !!order.requiresPrescription;
-  document.getElementById("reviewPanelHeading").textContent = isRx ? "Prescription & Payment Review" : "Proof of Payment Review";
-  document.getElementById("reviewRxChecklist").classList.toggle("d-none", !isRx);
-  rejectPrescriptionBtn.classList.toggle("d-none", !isRx);
-  approvePaymentBtn.innerHTML = isRx
-    ? '<i class="bi bi-check-circle me-1"></i>Approve Prescription & Payment'
-    : '<i class="bi bi-check-circle me-1"></i>Approve Payment';
+  // new prescription orders: prescription check first, payment check after the customer pays
+  const rxFirst = isRxFirstOrder(order);
+  const rxCheck = rxFirst && !order.paymentSubmittedAt;
+  document.getElementById("reviewPanelHeading").textContent = rxCheck
+    ? "Prescription Review"
+    : rxFirst
+    ? "Payment Review (prescription already approved)"
+    : isRx
+    ? "Prescription & Payment Review"
+    : "Proof of Payment Review";
+  document.getElementById("reviewRxChecklist").classList.toggle("d-none", !isRx || (rxFirst && !rxCheck));
+  rejectPrescriptionBtn.classList.toggle("d-none", !isRx || rxFirst);
+  approvePaymentBtn.innerHTML =
+    isRx && !rxFirst ? '<i class="bi bi-check-circle me-1"></i>Approve Prescription & Payment' : '<i class="bi bi-check-circle me-1"></i>Approve Payment';
+  document.getElementById("reviewPaymentActions").classList.toggle("d-none", rxCheck);
+  document.getElementById("reviewRxDecisionPanel").classList.toggle("d-none", !rxCheck);
+  if (rxCheck) {
+    // nothing paid yet, so no proof to look at
+    document.getElementById("reviewNoProofNotice").classList.add("d-none");
+    document.getElementById("reviewProofSection").classList.add("d-none");
+    document.getElementById("reviewReusedRefWarning").classList.add("d-none");
+    renderRxItemDecisions(order);
+  }
 
   const prescriptionSection = document.getElementById("reviewPrescriptionSection");
-  if (order.prescriptionPhotoUrl) {
-    document.getElementById("reviewPrescriptionLink").href = safeUrl(order.prescriptionPhotoUrl);
-    document.getElementById("reviewPrescriptionImage").src = order.prescriptionPhotoUrl;
-    prescriptionSection.classList.remove("d-none");
-  } else {
-    prescriptionSection.classList.add("d-none");
-  }
+  const photos = orderRxPhotos(order);
+  document.getElementById("reviewPrescriptionPhotos").innerHTML = photos
+    .map(
+      (url, i) => `<a class="rx-photo-thumb" href="${escapeHtml(safeUrl(url))}" target="_blank" rel="noopener" title="Photo ${i + 1}"><img src="${escapeHtml(url)}" alt="Prescription photo ${i + 1}"></a>`
+    )
+    .join("");
+  prescriptionSection.classList.toggle("d-none", photos.length === 0);
 }
+
+// ---------- prescription check, one decision per rx item ----------
+function rxItemsToReview(order) {
+  return (order.items || []).filter((item) => {
+    const product = getProductById(item.id);
+    return (product && product.rxRequired) || rxItemDecision(order, item.id);
+  });
+}
+
+function renderRxItemDecisions(order) {
+  const reasonOptions = Object.entries(PRESCRIPTION_REJECTION_LABELS)
+    .map(([value, label]) => `<option value="${value}">${label}</option>`)
+    .join("");
+  document.getElementById("reviewRxItemDecisions").innerHTML = rxItemsToReview(order)
+    .map((item, i) => {
+      const prev = order.rxReview.items ? order.rxReview.items[item.id] : null;
+      const prevNote = prev && prev.decision === "rejected" ? `<p class="text-muted mb-1" style="font-size:0.78rem;">Rejected before: ${escapeHtml(prev.reasonLabel || "")}${prev.note ? ` - ${escapeHtml(prev.note)}` : ""}</p>` : "";
+      return `
+        <div class="rx-item-review" data-item-id="${escapeHtml(item.id)}">
+          <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+            <span style="font-size:0.9rem;"><b>${escapeHtml(item.name || "")}</b> <span class="text-muted">x${item.qty || 0}</span></span>
+            <select class="form-select form-select-sm rx-decision-select" style="max-width:150px;" aria-label="Decision for ${escapeHtml(item.name || "item")}">
+              <option value="">Decide...</option>
+              <option value="approved" ${prev && prev.decision === "approved" ? "selected" : ""}>Approve</option>
+              <option value="rejected">Reject</option>
+            </select>
+          </div>
+          ${prevNote}
+          <div class="rx-reject-fields d-none mt-2">
+            <select class="form-select form-select-sm mb-2 rx-reason-select" id="rxReason${i}">${reasonOptions}</select>
+            <textarea class="form-control form-control-sm rx-note-input" rows="2" placeholder="Message to the customer">${escapeHtml(PRESCRIPTION_REJECTION_REASONS.unclear_photo)}</textarea>
+          </div>
+        </div>`;
+    })
+    .join("");
+  document.querySelectorAll("#reviewRxItemDecisions .rx-item-review").forEach((row) => {
+    const decision = row.querySelector(".rx-decision-select");
+    const fields = row.querySelector(".rx-reject-fields");
+    const reason = row.querySelector(".rx-reason-select");
+    const note = row.querySelector(".rx-note-input");
+    decision.addEventListener("change", () => fields.classList.toggle("d-none", decision.value !== "rejected"));
+    reason.addEventListener("change", () => {
+      note.value = PRESCRIPTION_REJECTION_REASONS[reason.value] || "";
+    });
+  });
+}
+
+const saveRxReviewBtn = document.getElementById("saveRxReviewBtn");
+saveRxReviewBtn.addEventListener("click", async () => {
+  const order = allOrders.find((o) => o.id === selectedVerificationId);
+  if (!order || !isRxFirstOrder(order)) return;
+  reviewAlert.classList.add("d-none");
+
+  const decisions = {};
+  const problems = [];
+  document.querySelectorAll("#reviewRxItemDecisions .rx-item-review").forEach((row) => {
+    const item = (order.items || []).find((i) => i.id === row.dataset.itemId);
+    const decision = row.querySelector(".rx-decision-select").value;
+    if (!decision) {
+      problems.push(`Choose Approve or Reject for ${item ? item.name : "every item"}.`);
+      return;
+    }
+    if (decision === "approved") {
+      decisions[row.dataset.itemId] = { decision };
+      return;
+    }
+    const reason = row.querySelector(".rx-reason-select").value;
+    const note = row.querySelector(".rx-note-input").value.trim();
+    if (!note) problems.push(`Add a message to the customer explaining why ${item ? item.name : "the item"} was rejected.`);
+    decisions[row.dataset.itemId] = { decision, reason, reasonLabel: PRESCRIPTION_REJECTION_LABELS[reason], note };
+  });
+  if (problems.length) {
+    showFormAlert(reviewAlert, problems.join("\n"));
+    return;
+  }
+
+  const rejected = Object.entries(decisions).filter(([, d]) => d.decision === "rejected");
+  const allApproved = rejected.length === 0;
+  saveRxReviewBtn.disabled = true;
+  try {
+    const orderRef = db.collection("orders").doc(order.id);
+    await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(orderRef);
+      const data = fresh.exists ? fresh.data() : null;
+      if (!data || data.status !== "placed" || !data.rxReview || data.rxReview.state !== "pending") {
+        throw new Error("This order was already reviewed by someone else. Refresh the page to see its current status.");
+      }
+      const update = {
+        "rxReview.state": allApproved ? "approved" : "needs_customer",
+        "rxReview.items": decisions,
+        "rxReview.reviewedAt": firebase.firestore.FieldValue.serverTimestamp(),
+        "rxReview.reviewedBy": currentStaffName,
+        verification: verificationStamp(allApproved ? "prescription_approved" : "prescription_items_rejected"),
+      };
+      if (allApproved) update["statusTimestamps.rx_approved"] = firebase.firestore.FieldValue.serverTimestamp();
+      tx.update(orderRef, update);
+    });
+
+    const itemName = (id) => ((order.items || []).find((i) => i.id === id) || {}).name || id;
+    if (allApproved) {
+      notifyCustomer(
+        order.customerId,
+        `Prescription approved for order ${order.orderNumber}`,
+        `Your prescription was approved. Please pay ${formatPeso(order.total)} in My Orders so we can prepare your order for pick-up.`,
+        `order-details.html?id=${order.id}`,
+        "success"
+      );
+      logAuditEvent({ action: "Prescription Approved", details: `Order ${order.orderNumber} - all prescription items approved, waiting for payment`, actor: currentStaffName });
+    } else {
+      const lines = rejected.map(([id, d]) => `${itemName(id)} (${d.reasonLabel}: ${d.note})`).join("; ");
+      notifyCustomer(
+        order.customerId,
+        `Prescription not accepted for some items in order ${order.orderNumber}`,
+        `Not approved: ${lines}. Nothing has been charged. Upload a new prescription for these items, or remove them and pay for the rest.`,
+        `order-details.html?id=${order.id}`,
+        "danger"
+      );
+      logAuditEvent({ action: "Prescription Rejected", details: `Order ${order.orderNumber} - not approved: ${lines}`, actor: currentStaffName });
+    }
+
+    selectedVerificationId = null;
+    renderVerificationQueue();
+    renderOrdersTable();
+    await showAppAlert(
+      allApproved
+        ? "Prescription approved. The customer was notified to pay. The order comes back to this queue once they submit payment."
+        : "Saved. The customer was notified about the rejected items. The order comes back to this queue when they resubmit or pay.",
+      { title: "Prescription review saved" }
+    );
+  } catch (error) {
+    showFormAlert(reviewAlert, error.message || "Something went wrong saving the review. Please try again.");
+  } finally {
+    saveRxReviewBtn.disabled = false;
+  }
+});
 
 // deducts stock (fefo), assigns si no. and records batches
 async function confirmOrderSale(order, buildUpdate, alsoWrite = null) {
@@ -743,6 +897,17 @@ approvePaymentBtn.addEventListener("click", async () => {
   reviewAlert.classList.add("d-none");
 
   try {
+    // a rejected prescription item cant be sold
+    if (isRxFirstOrder(order)) {
+      const notApproved = rxItemsToReview(order).filter((item) => rxItemDecision(order, item.id) !== "approved");
+      if (notApproved.length) {
+        await showAppAlert(
+          `These prescription items were not approved and are still on the order:\n\n${notApproved.map((i) => `- ${i.name}`).join("\n")}\n\nThe payment can't be approved. Place it on hold or contact the customer.`,
+          { title: "Prescription not approved" }
+        );
+        return;
+      }
+    }
     if (!(await confirmPriceProblems(order))) return;
     // out of stock warns first
     const stockCheck = await warnIfOrderCantBeFulfilled(order);
@@ -1397,7 +1562,15 @@ function renderOrderRow(order) {
     (nextStep !== "received" || order.requiresPrescription);
 
   const badgeClass = STATUS_BADGE_CLASSES[order.status] || "text-bg-light border";
-  const badge = `<span class="badge rounded-pill ${badgeClass}">${order.status === "closed_unresolved" ? "Closed (Unresolved)" : labels[order.status]}</span>`;
+  const badgeText =
+    order.status === "closed_unresolved"
+      ? order.cancelledByCustomer
+        ? "Cancelled by Customer"
+        : "Closed (Unresolved)"
+      : isRxFirstOrder(order) && order.status === "placed"
+      ? orderBadgeLabel(order).replace(" - Pay Now", " - Awaiting Payment").replace("Needs Your Action", "Sent Back to Customer")
+      : labels[order.status];
+  const badge = `<span class="badge rounded-pill ${badgeClass}">${badgeText}</span>`;
 
   let actionHtml = "";
   let subtextHtml = "";
@@ -1488,7 +1661,7 @@ function openOrderDetails(order) {
       ${row("Delivery schedule", order.requiresPrescription ? "" : escapeHtml(formatDeliverySchedule(order.deliverySchedule)))}
       ${row("Delivery notes", ship && ship.deliveryNotes ? escapeHtml(ship.deliveryNotes) : "")}
       ${row("Reference No.", escapeHtml(order.paymentReferenceNumber || "-"))}
-      ${row("Files", [link(order.proofOfPaymentUrl, "Proof of payment"), link(order.prescriptionPhotoUrl, "Prescription")].filter(Boolean).join(" · "))}
+      ${row("Files", [link(order.proofOfPaymentUrl, "Proof of payment"), ...orderRxPhotos(order).map((url, i, all) => link(url, all.length > 1 ? `Prescription ${i + 1}` : "Prescription"))].filter(Boolean).join(" · "))}
       ${row("Tracking", link(order.trackingLink, "Lalamove tracking link"))}
       ${row("Lalamove fee", order.lalamoveFee != null ? formatPeso(order.lalamoveFee) : "")}
     </div>

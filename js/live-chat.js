@@ -431,6 +431,12 @@ function chatOrderNextStep(order, view) {
   }
   switch (view.status) {
     case "placed":
+      if (order.rxReview && !order.paymentSubmittedAt) {
+        if (order.rxReview.state === "approved") return "Your prescription was approved. Open the order to pay, then we'll prepare it for pick-up.";
+        if (order.rxReview.state === "needs_customer") return "Some items weren't approved. Open the order to upload a new prescription or remove those items. Nothing has been charged.";
+        return "Our pharmacist is checking your prescription. You'll pay after it's approved; nothing has been charged yet.";
+      }
+      if (order.rxReview) return "Staff are verifying your payment. We'll notify you when it's ready for pick-up.";
       return order.requiresPrescription
         ? "Our pharmacist is checking your prescription and staff are verifying your payment. We'll notify you once it's confirmed."
         : "Staff are verifying your payment. We'll notify you once it's confirmed.";

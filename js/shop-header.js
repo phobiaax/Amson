@@ -168,6 +168,26 @@ function buildCustomerNotifications(notifDocs, orderDocs, readMap) {
         severity: "info",
         icon: "bi-truck",
       };
+    } else if (order.status === "placed" && order.requiresPrescription && order.rxReview && !order.paymentSubmittedAt && order.rxReview.state === "approved") {
+      entry = {
+        priority: 1,
+        link: `order-details.html?id=${doc.id}`,
+        title: `Prescription approved for order ${order.orderNumber}`,
+        detail: "Please pay for your order so we can prepare it for pick-up.",
+        key: `rx_approved:${doc.id}`,
+        severity: "warning",
+        icon: "bi-credit-card",
+      };
+    } else if (order.status === "placed" && order.requiresPrescription && order.rxReview && !order.paymentSubmittedAt && order.rxReview.state === "needs_customer") {
+      entry = {
+        priority: 1,
+        link: `order-details.html?id=${doc.id}`,
+        title: `Prescription needs your action for order ${order.orderNumber}`,
+        detail: "Some items weren't approved. Upload a new prescription or remove them.",
+        key: `rx_needs_customer:${doc.id}`,
+        severity: "danger",
+        icon: "bi-file-medical",
+      };
     } else if (order.status === "delivered" && order.requiresPrescription) {
       entry = {
         priority: 1,
@@ -191,7 +211,9 @@ function buildCustomerNotifications(notifDocs, orderDocs, readMap) {
     }
     if (entry) {
       entry.persisted = false;
-      entry.signature = order.status;
+      // a second prescription review shows up as new
+      const reviewedAt = order.rxReview && order.rxReview.reviewedAt && order.rxReview.reviewedAt.toMillis ? order.rxReview.reviewedAt.toMillis() : 0;
+      entry.signature = reviewedAt ? `${order.status}:${reviewedAt}` : order.status;
       entry.isRead = readMap[entry.key] === entry.signature;
       notifications.push(entry);
     }
