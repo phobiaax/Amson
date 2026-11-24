@@ -329,10 +329,11 @@ async function computeInventoryAlertCounts(batchesOverride = null) {
   let nearExpiry = 0;
   let expired = 0;
   batches.forEach((b) => {
-    if (b.quantity === 0) return; // empty lots dont count for expiry
     const status = getExpiryStatus(b);
+    // bad order lots are at 0 but still on the shelf until disposed
+    if (status === "expired" && (b.quantity > 0 || (b.status === "bad_order" && !b.disposedAt))) expired += 1;
+    if (b.quantity === 0) return; // empty lots dont count for near expiry
     if (status === "near_expiry") nearExpiry += 1;
-    if (status === "expired") expired += 1;
   });
 
   const activeProducts = CATALOG_PRODUCTS.filter((p) => p.status === "active");
