@@ -136,56 +136,33 @@ If your test plan lists Rx cases (ORD or RX IDs), add one row each:
 
 ---
 
-## B. Diagram changes
+## B. Diagram changes (smallest edits)
 
-### Fig 2.10 Activity Diagram, Registered Customer Purchasing (p.79). Redraw the RX branch.
+### Fig 2.10 Registered Customer Purchasing: 3 edits
+1. **Move** the "Is item/s RX?" diamond to just **after "Display Checkout Page"**.
+   - **No** → the existing address path, unchanged.
+2. **Yes** → rename "Submit as pick-up pre-order" to **"Upload Prescription and Submit Pre-order"** → new System box **"Record Order as Pending Prescription Verification"** → into the existing "Send Order Submission Notification".
+3. "Upload Proof of Payment" now goes **straight to "Submit Order"**.
 
-Lanes: **Customer | System | Staff**. Everything up to "Is item RX?" stays the same. The RX branch becomes:
+Payment for Rx orders is shown in Fig 2.11.
 
-1. System: designate as **pick-up only** (no delivery).
-2. Customer: **upload prescription photo(s)** (1–5).
-3. Customer: **Submit prescription** (no payment).
-4. System: status **Pending Prescription Verification**; notify staff.
-5. Staff: **review prescription per item**.
-6. Decision **All Rx items approved?**
-   - **Yes** → System: notify customer "Prescription approved, pay now" → step 8.
-   - **No** → System: notify customer with the reason → Customer decision **Upload new / Remove items / Cancel**:
-     - Upload new → back to step 4.
-     - Remove items → System: recompute total → step 8.
-     - Cancel → System: status **Cancelled** → end (no charge).
-7. (merge)
-8. Customer: **pay via QR Ph, upload screenshot and reference no.** (store credit applied automatically).
-9. System: status **Payment Pending Verification** → continues in Fig 2.11.
+### Fig 2.11 Admin Payment Verification: 1 new branch at the top + 1 move
+1. After "Display Payment Verification Queue", add an Admin diamond **"Prescription pre-order not yet paid?"**
+   - **No** → the existing "Validate Uploaded Payment Screenshot", unchanged.
+   - **Yes** → Admin **"Review Prescription per Item"** → diamond **"All items approved?"**
+     - **Yes** → Customer **"Pay and Upload Payment Screenshot"** → arrow to "Validate Uploaded Payment Screenshot".
+     - **No** → Customer **"Upload New Prescription"** → arrow back to "Review Prescription per Item".
+2. **Move** the "Is order a prescription pre-order?" diamond to just **after "Generate Receipt"**:
+   - **Yes** → Mark Order as Ready for Pick-up.
+   - **No** → Copy delivery details and book courier → Provide tracking link → Mark Order as Dispatched.
 
-This also fixes the panel note on this figure (prescription upload missing, and Rx check drawn after payment).
+Removing rejected items and cancelling are left out of the drawing; the description text covers them.
 
-### Fig 2.11 Activity Diagram, Admin Payment Verification (p.81). Add a prescription branch at the start.
+### Fig 2.4 Use Case, Customer: 1 new oval
+- Add **"Pay for Approved Pre-Order"**, linked to Registered User.
 
-1. Admin: open verification queue → select order.
-2. Decision **Prescription check or payment check?**
-   - **Prescription check** (Rx, not yet paid): view prescription photos → **approve/reject each Rx item** (reason required for reject) → System: notify customer → **end** (the order leaves the queue until the customer acts).
-   - **Payment check**: continue with the existing flow (valid? → FEFO deduction → SI no. → notify; hold types; overpayment, and so on).
-3. In the payment path, add a guard before approving: **"Rejected Rx item still on order?" → Yes: cannot approve.**
-4. For Rx orders after payment approval: **Ready for Pick-up** (no courier). The existing drawing already needs this fix.
-
-### Fig 2.4 Use Case, Customer Ordering (p.70)
-
-Add these use cases to **Registered Customer**:
-- **Upload Prescription** (`<<include>>` from Submit Prescription Pre-Order)
-- **Pay for Approved Pre-Order**
-- **Resubmit Prescription** (`<<extend>>` from Pay… / View Order)
-- **Remove Rejected Items** (`<<extend>>`)
-- **Cancel Unpaid Pre-Order** (`<<extend>>`)
-
-### Fig 2.6 Use Case, Order Processing (p.73)
-
-Add **Verify Prescription (per item)** linked to **Technical Staff** and **Branch Manager**, separate from **Verify Payment**.
-
-### Fig 2.2 Overall Use Case (p.67)
-
-Optional: if it has a single "Prescription pre-order" bubble, leave it. If it shows "Submit Pre-order with Payment", rename it to **"Submit Prescription Pre-order"**.
-
----
+### Fig 2.6 Use Case, Order Processing: no change
+- It already has "Verify Prescription" and "Verify Proof of Payment" as separate use cases.
 
 ## C. Defense answers
 
