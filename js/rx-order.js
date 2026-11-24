@@ -63,8 +63,12 @@ function rxItemResultsHtml(order) {
     .join("");
 }
 
+// last thing the customer did, stays shown after the live refresh
+let rxLastMessage = "";
+
 function renderRxStep(order) {
-  rxStepSuccess.classList.add("d-none");
+  rxStepSuccess.textContent = rxLastMessage;
+  rxStepSuccess.classList.toggle("d-none", !rxLastMessage);
   const active = isRxFirstOrder(order) && order.status === "placed" && !order.paymentSubmittedAt;
   rxStepSection.classList.toggle("d-none", !active);
   if (!active) return;
@@ -124,12 +128,8 @@ async function loadRxCreditBalance(order) {
 async function reloadOrderAfterRxStep(message) {
   const doc = await currentOrderRef.get();
   currentOrder = doc.data();
+  rxLastMessage = message || "";
   renderOrder(currentOrder);
-  if (message) {
-    rxStepSuccess.textContent = message;
-    rxStepSuccess.classList.remove("d-none");
-    rxStepSection.classList.remove("d-none");
-  }
 }
 
 // ---- option 1: new prescription photos ----
@@ -145,6 +145,7 @@ rxResubmitBtn.addEventListener("click", async () => {
     showFormAlert(rxFixError, `An order can have up to ${MAX_RX_PHOTOS_PER_ORDER} prescription photos. Remove some of the new ones.`);
     return;
   }
+  rxLastMessage = "";
   rxResubmitBtn.disabled = true;
   rxResubmitBtn.textContent = "Uploading...";
   try {
@@ -176,12 +177,14 @@ rxRemoveRejectedBtn.addEventListener("click", async () => {
     { title: "Remove rejected items", confirmLabel: "Remove and continue" }
   );
   if (!ok) return;
+  rxLastMessage = "";
   rxRemoveRejectedBtn.disabled = true;
   try {
     await currentOrderRef.update({
       items: remaining,
       total: newTotal,
       "rxReview.state": "approved",
+      "statusTimestamps.rx_approved": firebase.firestore.FieldValue.serverTimestamp(),
       "rxReview.itemsRemovedAt": firebase.firestore.FieldValue.serverTimestamp(),
       "rxReview.removedItems": rejected.map((i) => ({ id: i.id, name: i.name, qty: i.qty })),
     });
@@ -225,6 +228,7 @@ rxPaySubmitBtn.addEventListener("click", async () => {
     showFormAlert(rxPayError, `Please complete the following:\n- ${problems.join("\n- ")}`);
     return;
   }
+  rxLastMessage = "";
   rxPayError.classList.add("d-none");
   rxPaySubmitBtn.disabled = true;
   rxPaySubmitBtn.textContent = "Submitting...";
@@ -257,6 +261,7 @@ rxCancelOrderBtn.addEventListener("click", async () => {
     cancelLabel: "Keep order",
   });
   if (!ok) return;
+  rxLastMessage = "";
   rxCancelOrderBtn.disabled = true;
   try {
     await currentOrderRef.update({

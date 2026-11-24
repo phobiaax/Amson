@@ -165,6 +165,9 @@ function setUpUploads() {
     input: prescriptionPhotoInput,
     errorText: rxUploadErrorText,
     prompt: document.getElementById("rxUploadPrompt"),
+    onChange: (count) => {
+      if (count > 0) submitOrderErrorAlert.classList.add("d-none");
+    },
   });
 }
 

@@ -172,7 +172,8 @@ service cloud.firestore {
         ||
         // drop the rejected items and go on to payment
         (before.rxReview.state == "needs_customer" && after.rxReview.state == "approved" &&
-         changed.hasOnly(["items", "total", "rxReview"]) &&
+         changed.hasOnly(["items", "total", "rxReview", "statusTimestamps"]) &&
+         after.statusTimestamps.diff(before.statusTimestamps).affectedKeys().hasOnly(["rx_approved"]) &&
          after.rxReview.diff(before.rxReview).affectedKeys().hasOnly(["state", "itemsRemovedAt", "removedItems"]) &&
          after.items.size() > 0 && after.items.size() < before.items.size() &&
          after.total >= 0 && after.total <= before.total)

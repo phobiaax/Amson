@@ -648,6 +648,9 @@ function renderReviewPanel(order) {
     ? "Prescription & Payment Review"
     : "Proof of Payment Review";
   document.getElementById("reviewRxChecklist").classList.toggle("d-none", !isRx || (rxFirst && !rxCheck));
+  document.getElementById("reviewRxChecklistText").textContent = rxCheck
+    ? "Check that each prescription is clear, current, signed by a licensed doctor, and covers the item before approving it. Approving tells the customer to pay; stock is deducted only when you approve the payment."
+    : "Check that the prescription is clear, current, signed by a licensed doctor, and matches the items ordered before approving. Approving reserves the stock and tells the customer the order is ready for pick-up.";
   rejectPrescriptionBtn.classList.toggle("d-none", !isRx || rxFirst);
   approvePaymentBtn.innerHTML =
     isRx && !rxFirst ? '<i class="bi bi-check-circle me-1"></i>Approve Prescription & Payment' : '<i class="bi bi-check-circle me-1"></i>Approve Payment';
