@@ -78,13 +78,14 @@ Chart 3.9 shows that the customer survey has an excellent level of internal cons
 
 Check: the same CSV gives the paper's existing averages exactly (FS 4.64, PE 4.60, U 4.66, R 4.82, S 4.62, OS 4.75), so the item grouping matches the paper.
 
-### ☐ R5. Validation letters + proof of IT experts (20 min once signed)
+### ☐ R5. Validation letters + proof of IT experts (20 min)
 
-**Where:** a new appendix at the end: **Validation Letters of IT Experts**.
-- Per expert: the **signed validation letter** + **proof** (certificate of employment or company ID; cover ID numbers and addresses).
-- **Only if the letters say the experts checked the questionnaire**, add this sentence at the end of the Research Instrument paragraph (R1):
+**Where:** a new appendix at the end: **Validation Letters and Credentials of IT Experts**.
+- Group per expert (small heading, e.g. "IT Expert 1: Software Engineer"): the validation letter, then their CV or company ID.
+- Before scanning, cover ID numbers, home address, phone number and birthdate.
+- Add this sentence at the end of the Sampling Technique paragraph (R1):
 ```
-The questionnaires were reviewed and validated by IT professionals (Appendix [letter]).
+Their validation letters and proof of their IT experience are shown in Appendix [letter].
 ```
 
 ### ☐ R6. New Rx flow: paper text + diagrams (about 2 hours, mostly redrawing)
