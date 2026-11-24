@@ -84,10 +84,10 @@ Intention to Use	9, 10, 11
 
 ## ☐ 3. Collect and compute
 
-1. ☐ Print the TAM forms (1 per role), have the 3 staff answer and sign, and **write down the date**.
+1. ☑ TAM forms answered by the 3 staff. **Write the survey date in the paper.** Results: `study/TAM-RESULTS.md`.
 2. ☐ Get the second IT expert's answers.
-3. ☐ For each new item: the frequency (count of 5s, 4s, 3s, 2s, 1s), the percentage, and the weighted mean.
-4. ☐ For each characteristic or construct: the weighted mean (the average of its item means), the interpretation, and the rank.
+3. ☐ IT experts: for each item, the frequency (count of 5s, 4s, 3s, 2s, 1s), the percentage, and the weighted mean. (☑ done for TAM)
+4. ☐ IT experts: for each characteristic, the weighted mean, the interpretation, and the rank. (☑ done for TAM)
 
 Shortcut: send photos of the filled forms (or type the answers) and I'll fill every `[ ]` in this file.
 
@@ -115,7 +115,7 @@ Under each chart, list its questions (as the staff sections do), then this parag
 This section shows that the IT professionals rated the [characteristic] of the system with a weighted mean of [x.xx] ([Excellent/Good]). [Highest item] received the highest rating of [x.xx], while [lowest item] received the lowest rating of [x.xx]. The result indicates that the system [meets / highly meets] the [characteristic] requirements of the ISO/IEC 25010 standard.
 ```
 
-### 4b. Staff User Acceptance (TAM, 3 respondents): create **3 charts**
+### 4b. Staff User Acceptance (TAM, 3 respondents): create **3 charts**. **Data, tables and paragraphs ready in `study/TAM-RESULTS.md`**
 
 | Chart | Content |
 | --- | --- |
@@ -186,7 +186,7 @@ Overall Results	[ ]	[ ]	–
 This table summarizes the evaluation results across the respondent groups, showing that the [group] achieved the highest weighted mean of [x.xx] ([interpretation], Rank 1), followed by [group] ([x.xx], Rank 2), [group] ([x.xx], Rank 3), [group] ([x.xx], Rank 4), and [group] ([x.xx], Rank 5), resulting in an overall weighted mean of [x.xx] ([interpretation]) that indicates high software quality across user roles and technical evaluators.
 ```
 
-### Chart 6.4. Technology Acceptance Model Results
+### Chart 6.4. Technology Acceptance Model Results: **filled in, see `study/TAM-RESULTS.md`**
 
 ```
 Criteria	Weighted Mean	Interpretation	Rank
@@ -254,7 +254,7 @@ Chart 6.4	Table (Technology Acceptance Model Results)	[ ]
 ## Order
 
 1. ☐ Steps 1–2 now (no data needed)
-2. ☐ Step 3: collect TAM (now) and the second IT expert (when available)
+2. ☐ Step 3: TAM ☑ done; second IT expert pending
 3. ☐ Step 4: charts
 4. ☐ Step 5: Summary of Findings tables
 5. ☐ Step 6: Conclusion, Abstract, averages
